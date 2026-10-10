@@ -9,7 +9,8 @@
   "notes": [
     "Remove EyePlus embedded login modal/iframe and CAPTCHA attempt from RUDI.",
     "CloudCam Смотреть in Прихожая directly opens the official EyePlus site in a new external browser context, preserving RUDI.",
-    "Keep CloudCam Rustam-only and avoid credentials, local RTSP URLs and extra backend requests."
+    "Keep CloudCam Rustam-only and avoid credentials, local RTSP URLs and extra backend requests.",
+    "Regression checks passed; production deployment requires user approval."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
