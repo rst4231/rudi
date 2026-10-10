@@ -24,7 +24,6 @@ function makeMarkup(){
  p.push('<div class="rudi-center__wrap"><div class="rudi-center__content">');
  p.push('<div class="rudi-center__hero"><small>✦ ЛИЧНЫЙ ОБЗОР</small><div class="rudi-center__hero-identity"><div class="rudi-center__hero-avatar" aria-hidden="true"><span id="pcHeroInitial">Р</span><img id="pcHeroImage" alt="" hidden></div><div class="rudi-center__hero-name"><h1 id="pcPerson">Мой день</h1><p id="pcHeroMeta">Возраст — · Вес — · Рост —</p></div></div></div>');
  p.push('<div class="rudi-center__card rudi-center__report"><div class="rudi-center__head"><h2>✦ AI-сводка дня</h2><span class="rudi-center__meta" id="pcReportDate">По расписанию</span></div><p id="pcReport">Данных пока нет</p><div class="rudi-center__summary-grid" id="pcSummaryGrid" hidden><div><small>ГЛАВНОЕ ИЗМЕНЕНИЕ</small><p id="pcMainChange">—</p></div><div><small>НАБЛЮДЕНИЕ</small><p id="pcMainObservation">—</p></div><div><small>СЛЕДУЮЩЕЕ ДЕЙСТВИЕ</small><p id="pcMainAction">—</p></div><div><small>ПРОГНОЗ</small><p id="pcForecast">—</p></div></div><button id="pcReportMore" class="rudi-center__report-more" data-open="report" type="button" hidden>Подробный анализ →</button><div class="rudi-center__status" id="pcStatus"></div></div>');
- p.push('<div class="rudi-center__section-label">ЭМОЦИОНАЛЬНАЯ ДИНАМИКА</div><div class="rudi-center__card rudi-center__stress-card"><div class="rudi-center__head"><div><h2>Негативные эмоции</h2><small id="pcEmotionCaption" class="rudi-center__meta">По дневнику настроения</small></div><div class="rudi-center__stress-control"><strong id="pcEmotionValue">—</strong></div></div><small class="rudi-center__meta">Доля негативных отметок — косвенный признак напряжения, а не медицинское измерение стресса.</small></div>');
  p.push('<div class="rudi-center__tile-grid"><button class="rudi-center__tile" data-open="symptoms"><span class="rudi-center__tile-icon">♡</span><strong>Здоровье</strong><small id="pcSymptomsCount">Дневник здоровья</small></button><button class="rudi-center__tile" data-open="weight"><span class="rudi-center__tile-icon">↟</span><strong>Моё тело</strong><small id="pcWeight">Вес и рост</small></button></div>');
  p.push('<div class="rudi-center__card"><div class="rudi-center__head"><h2>Динамика негативных эмоций</h2><button class="rudi-center__link" data-open="history" type="button">История →</button></div><svg class="rudi-center__chart" id="pcGraph" viewBox="0 0 350 115" role="img" aria-label="График доли негативных эмоций"></svg><small class="rudi-center__meta" id="pcHistoryCaption">История по дням, неделям и месяцам</small></div>');
  p.push('<div id="pcDianaCycleSlot" class="rudi-center__cycle-slot" hidden></div>');
@@ -188,9 +187,6 @@ function draw(){
  if(!data)return;
  showText('pcPerson',who||'Мой день');
  const emotions=data.emotions;
- const today=(emotions?.daily||[]).find(x=>x.date===dayKey())||null;
- showText('pcEmotionValue',today?.negativePercent==null?'—':today.negativePercent+'%');
- showText('pcEmotionCaption',today?'Сегодня: '+today.negative+' из '+today.total+' негативных отметок':'Сегодня настроение ещё не отмечено');
  syncHero();
  mountDianaCycle();
  const activeSymptoms=(data.symptoms||[]).filter(x=>x.state!=='resolved');

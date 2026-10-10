@@ -1,19 +1,15 @@
 {
-  "current": "v4.158",
+  "current": "v4.159",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-10",
-  "basedOnProduction": "v4.157",
+  "basedOnProduction": "v4.158",
   "notes": [
-    "iPhone stable full-screen health and body forms with safe viewport and keyboard handling.",
-    "Compact AI center with avatar, age, height and weight; only stress 1–10 manually entered.",
-    "Live mood source and scheduled biorhythm, private Diana cycle and menstrual pattern analysis.",
-    "Eyesight, chronic conditions, weight and symptom trends backed by Cloudflare D1.",
-    "AI coach: confirmed change, observation, next action and conditional forecast; stored 07:00/21:00 Moscow summaries.",
-    "Manual swipe-to-refresh with conditional data reads, no AI generated on app open; private daily 2026-10-10 backfill.",
-    "One red full-center erase button, no duplicate finance/calendar/supplement links or extra Vercel cron/function."
+    "Remove the emotional dynamics summary card and its heading from the AI center without leftover spacing.",
+    "Keep the mood history graph and derived emotion data for existing AI report calculations.",
+    "No change to Diana cycle, health, body measurements or report generation."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

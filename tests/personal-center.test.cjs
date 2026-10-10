@@ -104,9 +104,10 @@ test('AI center never calls LLM on open or pull refresh; source data is not reen
  assert.match(app,/Отпустите для обновления/);
  assert.match(app,/knownVersion/);
  assert.doesNotMatch(app,/openai\\.com|groq\\.com/);
- assert.match(app,/Негативные эмоции/);
+ assert.doesNotMatch(app,/ЭМОЦИОНАЛЬНАЯ ДИНАМИКА|pcEmotionValue|pcEmotionCaption/);
  assert.doesNotMatch(app,/pcCheckinForm|name="stress"/);
- assert.match(app,/pcEmotionValue/);
+ assert.match(app,/Динамика негативных эмоций/);
+ assert.match(app,/pcGraph/);
  assert.doesNotMatch(app,/name="mood"|name="energy"/);
  assert.match(app,/data-open="weight"/);
  assert.match(app,/pcDianaCycleSlot/);
@@ -137,4 +138,16 @@ test('AI emotional tension uses mood journal and does not use a manual stress sc
  assert.equal(report.wellbeing.recentNegativePercent,0);
  assert.equal(report.wellbeing.latest.negativePercent,0);
  assert.ok(!('latestStress' in report.wellbeing));
+});
+
+test('AI center hides the entire emotion summary card but keeps derived mood history',()=>{
+ const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ const css=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
+ assert.doesNotMatch(app,/ЭМОЦИОНАЛЬНАЯ ДИНАМИКА|pcEmotionValue|pcEmotionCaption|rudi-center__stress-card/);
+ assert.doesNotMatch(css,/rudi-center__stress-card|rudi-center__stress-control/);
+ assert.match(app,/data-open="symptoms"/);
+ assert.match(app,/data-open="weight"/);
+ assert.match(app,/Динамика негативных эмоций/);
+ assert.match(app,/pcDianaCycleSlot/);
+ assert.match(app,/const emotions=data.emotions/);
 });

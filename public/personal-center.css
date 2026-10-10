@@ -82,13 +82,6 @@ body.rudi-center-open{overflow:hidden!important}
 .rudi-center__report{padding-bottom:18px}
 .rudi-center__report-more{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;background:transparent;border:0;border-top:1px solid var(--pc-border);margin-top:15px;padding:13px 0 0;color:var(--pc-accent);font-weight:750;font-size:13px;text-align:left}
 .rudi-center__report-more[hidden]{display:none}
-.rudi-center__stress-card{padding:14px 17px}
-.rudi-center__stress-card .rudi-center__head{margin-bottom:0}
-.rudi-center__stress-card .rudi-center__head h2{font-size:16px}
-.rudi-center__stress-control{display:flex;align-items:center;gap:7px}
-.rudi-center__stress-control strong{font-size:21px;color:var(--pc-text);font-weight:800}
-.rudi-center__stress-control .rudi-center__link{font-size:13px}
-.rudi-center__stress-card form{margin-top:14px;border-top:1px solid var(--pc-border);padding-top:12px}
 .rudi-center__tile-grid{margin-bottom:14px}
 .rudi-center__tile{min-height:95px}
 .rudi-center__body-section{border-top:1px solid var(--pc-border);padding-top:12px}
