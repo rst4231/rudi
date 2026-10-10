@@ -10,9 +10,10 @@ test('v4.26 keeps removed messenger assets out of build precache',()=>{
 });
 
 
-test('v4.26 service worker install tolerates an individual precache fetch failure',()=>{
+test('service worker requires critical assets and tolerates an optional precache fetch failure',()=>{
   const sw=read('public/sw.js');
-  assert.match(sw,/Promise\.allSettled\(PRECACHE\.map\(url=>cache\.add\(url\)\)\)/);
+  assert.match(sw,/Promise\.all\(critical\.map\(url=>cache\.add\(url\)\)\)/);
+  assert.match(sw,/Promise\.allSettled\(PRECACHE\.filter\(url=>!critical\.includes\(url\)\)\.map\(url=>cache\.add\(url\)\)\)/);
   assert.doesNotMatch(sw,/cache\.addAll\(PRECACHE\)/);
 });
 

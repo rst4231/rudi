@@ -5945,6 +5945,20 @@
         });
       }
 
+      let pendingFinanceShortcut='';
+      function setupFinanceShortcuts(){
+        document.querySelectorAll('[data-finance-shortcut]').forEach(button=>{
+          if(button.dataset.financeShortcutBound==='1')return;
+          button.dataset.financeShortcutBound='1';
+          button.addEventListener('click',event=>{
+            event.preventDefault();event.stopPropagation();
+            pendingFinanceShortcut=button.dataset.financeShortcut==='transport'?'transport':'';
+            setFinanceTab('personal');
+            navigateToAppTab('finances',{scroll:true});
+            try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+          });
+        });
+      }
       function runTabSideEffects(tab,{item=''}={}){
         if(tab==='home'){
           loadSmartSaves({silent:true}).catch(()=>{});
@@ -5984,7 +5998,17 @@
         if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
         if(tab==='settings') refreshSettingsPageUi();
         if(tab==='finances'){
-          loadFinances({silent:true}).catch(()=>{});
+          const financeShortcut=pendingFinanceShortcut;
+          pendingFinanceShortcut='';
+          const financeDataPromise=loadFinances({silent:true});
+          if(financeShortcut==='transport'){
+            financeDataPromise.then(data=>{
+              if(!data||currentAppTab!=='finances')return;
+              const categories=[...(financeState.categories||[]),...(financeState.archivedCategories||[])];
+              const transport=categories.find(row=>String(row.name||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е')==='транспорт');
+              if(transport)openFinanceCategoryHistory(transport.id);
+            }).catch(()=>{});
+          }else financeDataPromise.catch(()=>{});
           applyMarketTickerVisibility();
           loadMarketTicker({silent:true}).catch(()=>{});
           scoreRequest('state').then(data=>renderScoreStickers(data.score)).catch(()=>{});
@@ -6259,6 +6283,7 @@
 
         setupRudiTemporalControls();
         setupFinancePage();
+        setupFinanceShortcuts();
 
         const initial=routeFromLocation();
         const initialTab=requestedInitialTab();
@@ -9445,6 +9470,24 @@
             const moodBadge=avatar.querySelector('.avatar-mood-badge');
             avatar.parentNode.insertBefore(avatarWrap,avatar);
             avatarWrap.append(avatar);
+            if(actor!==currentActor){
+              // The avatar opens this partner's existing stars page; their mood badge
+              // remains a separate control alongside the name.
+              avatar.setAttribute('role','button');
+              avatar.setAttribute('tabindex','0');
+              avatar.setAttribute('aria-label','Открыть страницу звёзд: '+actor);
+              avatar.title='Звёзды '+actor;
+              const openPartnerStars=event=>{
+                event.preventDefault();
+                event.stopPropagation();
+                openScoreModal(actor);
+                try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+              };
+              avatar.addEventListener('click',openPartnerStars);
+              avatar.addEventListener('keydown',event=>{
+                if(event.key==='Enter'||event.key===' '){openPartnerStars(event)}
+              });
+            }
             if(moodBadge){
               moodBadge.classList.remove('score-avatar-mood-badge','profile-card-mood-badge','avatar-mood-sticker');
               const nameRow=identity.querySelector('.profile-name-row');

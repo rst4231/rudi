@@ -1684,3 +1684,12 @@ body[data-app-tab="schedule"] .work-page #workCalendarCard .calendar-navigation 
     font-size:clamp(28px,8.2vw,40px)!important
   }
 }
+
+/* RUDI v4.146: compact finance shortcut beside the scope selector. */
+.work-page #workCalendarCard .calendar-header-actions>button#calendarFinanceShortcut{
+  flex:0 0 34px!important;min-width:34px!important;max-width:34px!important;width:34px!important;
+  padding:0!important;border-radius:12px!important;
+}
+.work-page #workCalendarCard .calendar-header-actions>button#calendarFinanceShortcut>svg{
+  width:19px!important;height:19px!important;
+}
