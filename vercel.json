@@ -29,6 +29,12 @@
     },
     "api/cinema-premieres-cron.js": {
       "maxDuration": 300
+    },
+    "api/personal-center-cron.js": {
+      "maxDuration": 300
+    },
+    "api/personal-center.js": {
+      "supportsCancellation": true
     }
   },
   "headers": [
@@ -146,6 +152,24 @@
     },
     {
       "source": "/pwa-extras.css",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/personal-center.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/personal-center.css",
       "headers": [
         {
           "key": "Cache-Control",
@@ -300,6 +324,10 @@
     {
       "path": "/api/feed-notify-cron",
       "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/personal-center-cron",
+      "schedule": "0 4,18 * * *"
     }
   ],
   "env": {

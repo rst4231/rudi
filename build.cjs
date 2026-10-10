@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { PNG } = require('pngjs');
 
-const WEB_ASSETS = ['app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js'];
+const WEB_ASSETS = ['personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -124,6 +124,8 @@ function syncWebVersion(env = process.env) {
     const pattern = new RegExp('/assets/' + stem + '\\.[a-f0-9]{12}\\' + ext, 'g');
     html = html.replace(pattern, '/' + name + '?v=' + assetVersion);
   }
+  html = html.replace(/\/personal-center\.css\?v=[^"]+/g, '/personal-center.css?v=' + assetVersion);
+  html = html.replace(/\/personal-center\.js\?v=[^"]+/g, '/personal-center.js?v=' + assetVersion);
   html = html.replace(/\/app\.css\?v=[^"]+/g, '/app.css?v=' + assetVersion);
   html = html.replace(/\/finance-decisions\.css\?v=[^"'\s]+/g, '/finance-decisions.css?v=' + assetVersion);
   html = html.replace(/\/finance-decisions-core\.js\?v=[^"'\s]+/g, '/finance-decisions-core.js?v=' + assetVersion);

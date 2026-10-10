@@ -1,17 +1,16 @@
 {
-  "current": "v4.156",
+  "current": "v4.157",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-10",
-  "basedOnProduction": "v4.155",
+  "basedOnProduction": "v4.156",
   "notes": [
-    "Both Rustam and Diana on iPhone: mandatory Face ID with verified PIN fallback.",
-    "Per-account PWA unlock durations: immediately, 10 min, 1 hour (default), 5 hours.",
-    "Timed unlock persists through PWA relaunch; immediate always requires recheck on relaunch and return from background.",
-    "Changing the selected interval survives restart and immediate invalidates the previous long session.",
-    "Hide redundant PWA installation row in already installed PWA; no deployment before approval."
+    "Personal AI Center: light and dark themes, subtle motion and own-avatar navigation.",
+    "07:00/21:00 Moscow scheduled AI summaries, persisted in D1; no external notifications.",
+    "Green unread halo, daily mood-energy-stress scores, symptoms and weight tracking, deletion controls.",
+    "Reuse finance, supplements, habits, calendar and TickTick as sources, avoiding extra entry forms."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

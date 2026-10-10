@@ -55,16 +55,16 @@ function normalizeCourse(v){
   return{startDate:cleanDate(s.startDate),durationDays:Math.max(0,Math.min(3650,Math.round(Number(s.durationDays)||0)))};
 }
 function normalizeIntakes(v){
-  return(Array.isArray(v)?v:[]).map(row=>({date:cleanDate(row?.date),at:isoOrEmpty(row?.at)})).filter(row=>row.date&&row.at).slice(-500);
+  return(Array.isArray(v)?v:[]).map(row=>({date:cleanDate(row?.date),at:isoOrEmpty(row?.at)})).filter(row=>row.date&&row.at).slice(-36500);
 }
 function normalizeSkips(v){
-  return(Array.isArray(v)?v:[]).map(row=>({date:cleanDate(row?.date),at:isoOrEmpty(row?.at)})).filter(row=>row.date&&row.at).slice(-500);
+  return(Array.isArray(v)?v:[]).map(row=>({date:cleanDate(row?.date),at:isoOrEmpty(row?.at)})).filter(row=>row.date&&row.at).slice(-36500);
 }
 function normalizeNotes(v){
-  return(Array.isArray(v)?v:[]).map(row=>({id:cleanText(row?.id,96)||('note-'+crypto.randomUUID()),date:cleanDate(row?.date),at:isoOrEmpty(row?.at),text:cleanText(row?.text,500)})).filter(row=>row.date&&row.at&&row.text).slice(-120);
+  return(Array.isArray(v)?v:[]).map(row=>({id:cleanText(row?.id,96)||('note-'+crypto.randomUUID()),date:cleanDate(row?.date),at:isoOrEmpty(row?.at),text:cleanText(row?.text,500)})).filter(row=>row.date&&row.at&&row.text).slice(-36500);
 }
 function normalizeStatusHistory(v){
-  return(Array.isArray(v)?v:[]).map(row=>({status:cleanStatus(row?.status),at:isoOrEmpty(row?.at)})).filter(row=>row.at).slice(-80);
+  return(Array.isArray(v)?v:[]).map(row=>({status:cleanStatus(row?.status),at:isoOrEmpty(row?.at)})).filter(row=>row.at).slice(-36500);
 }
 function normalizeItem(input){
   if(!input||typeof input!=='object')return null;
