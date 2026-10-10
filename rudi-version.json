@@ -7,10 +7,11 @@
   "createdAt": "2026-10-10",
   "basedOnProduction": "v4.154",
   "notes": [
-    "Remove EyePlus embedded login modal/iframe and CAPTCHA attempt from RUDI.",
-    "CloudCam Смотреть in Прихожая directly opens the official EyePlus site in a new external browser context, preserving RUDI.",
-    "Keep CloudCam Rustam-only and avoid credentials, local RTSP URLs and extra backend requests.",
-    "Regression checks passed; production deployment requires user approval."
+    "CloudCam in the hallway now opens official EyePlus directly in a separate browser tab; remove embedded EyePlus login and CAPTCHA.",
+    "Rustam on iPhone: require RUDI Face ID enrolment if not configured; use verified Face ID or a backend-verified RUDI PIN fallback to unlock for 10 minutes.",
+    "Lock Rustam's iPhone interface again after 10 minutes, including after app resume; Diana and non-iPhone clients are unchanged.",
+    "Smart Home: show a red collapsed card badge with the count of devices whose battery is below 10%, and a soft red glow around those device rows.",
+    "Regression checks: 19 targeted cases passed; production deployment requires separate approval."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
