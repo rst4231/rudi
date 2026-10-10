@@ -35,7 +35,7 @@ function harness(){
     setTimeout(()=>{if(!upgraded){upgraded=true;request.onupgradeneeded?.()}request.onsuccess?.()},0);
     return request;
   }};
-  const window={dispatchEvent(){},crypto:{randomUUID:()=>String(Math.random())}};
+  const window={document:{body:{dataset:{offlineMode:''}}},dispatchEvent(){},crypto:{randomUUID:()=>String(Math.random())}};
   const fetch=async(url,options)=>{
     calls.push({url,body:JSON.parse(options.body)});
     if(fail)throw TypeError('Lost response');
@@ -47,7 +47,7 @@ function harness(){
   vm.runInNewContext(code,{window,indexedDB,navigator,fetch,CustomEvent,Math,JSON,Date,Promise,Error,String,Number,Array});
   return {
     api:window.rudiCalendarOffline,calls,records,
-    setOnline:value=>{online=value},setFail:value=>{fail=value}
+    setOnline:value=>{online=value},setFail:value=>{fail=value},setOfflineHint:value=>{window.document.body.dataset.offlineMode=value?'1':''}
   };
 }
 
@@ -68,6 +68,12 @@ test('calendar works offline, isolates accounts, preserves unsent actions, and r
   assert.equal(await o.cached('Диана','shared','2026-10'),null);
   assert.equal(h.calls.length,0,'nothing was sent without network');
   h.setOnline(true);
+  h.setOfflineHint(true);
+  assert.equal(o.isOffline(),true,'iPhone may report online despite a failed connection');
+  const paused=await o.flush('Рустам',()=>({initData:'secret'}));
+  assert.equal(paused.sent,0);
+  assert.equal(h.calls.length,0,'do not transmit queued writes while browser has offline hint');
+  h.setOfflineHint(false);
   let result=await o.flush('Рустам',()=>({initData:'secret',backupToken:'secret'}));
   assert.equal(result.sent,2);
   assert.equal(result.pending,0);
@@ -98,4 +104,51 @@ test('offline shell is versioned and pre-caches critical calendar assets before 
   assert.match(app,/await queueCalendarWhenOffline\('create',\{value\}\)/);
   assert.match(app,/offlineStore\.capture\(currentActor,offlineScope,month,result\)/);
   assert.match(app,/offlineStore\.materialize\(currentActor,month,result\)/);
+});
+
+test('calendar detects unreachable network before mutations even if navigator says online',async()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const from=app.indexOf('let calendarReachabilityAt=0');
+  const to=app.indexOf('async function requestTickTickTaskCompletion(taskId)',from);
+  assert.ok(from>0&&to>from,'need isolated reachability and queue helper');
+  const source=app.slice(from,to);
+  const instantiate=(online,offlineHint,fetch)=>{
+    const document={body:{dataset:{offlineMode:offlineHint?'1':''}}};
+    const queued=[];
+    const window={rudiCalendarOffline:{
+      isOffline:()=>document.body.dataset.offlineMode==='1',
+      enqueue:async(who,kind,details)=>{queued.push({who,kind,details});return {ok:true,queued:true}}
+    }};
+    const navigator={onLine:online};
+    const tools=Function('window','navigator','document','fetch','currentActor',
+      'setTimeout','clearTimeout','AbortController',
+      source+';return {queueCalendarWhenOffline,calendarNetworkUnavailable};'
+    )(window,navigator,document,fetch,'Рустам',setTimeout,clearTimeout,AbortController);
+    return {...tools,queued,document};
+  };
+  const hidden=instantiate(true,true,async()=>{throw Error('should not request')});
+  assert.equal((await hidden.queueCalendarWhenOffline('create',{value:{title:'Тест'}})).queued,true);
+  assert.equal(hidden.queued.length,1);
+  const disconnected=instantiate(true,false,async()=>{throw new TypeError('Failed to fetch')});
+  assert.equal((await disconnected.queueCalendarWhenOffline('complete',{taskId:'one'})).queued,true);
+  assert.equal(disconnected.queued.length,1);
+  assert.equal(disconnected.document.body.dataset.offlineMode,'1');
+  const connected=instantiate(true,false,async()=>({ok:true}));
+  assert.equal(await connected.queueCalendarWhenOffline('create',{value:{title:'Live'}}),null);
+  assert.equal(connected.queued.length,0);
+});
+
+test('cached calendar renders immediately and offline path never waits for TickTick',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const start=app.indexOf('async function loadWorkCalendar(');
+  const end=app.indexOf('function setSharedCalendarRangeActive(',start);
+  const fn=app.slice(start,end);
+  assert.match(fn,/offlineStore\.cached\(currentActor,calendarScope,calendarActiveMonth\(\)\)/);
+  assert.match(fn,/renderWorkCalendar\(offlineSnapshot,\{force:true\}\)/);
+  assert.ok(fn.indexOf('renderWorkCalendar(offlineSnapshot,{force:true})')<
+    fn.indexOf("promise=fetchCombinedCalendar('month')"),'disk cache should render before fetch');
+  assert.match(fn,/if\(offlineStore\?\.isOffline\?\.\(\)\)\{/);
+  assert.match(fn,/if\(offlineSnapshot\)return offlineSnapshot;/);
+  assert.match(fn,/Офлайн · нет сохранённых данных/);
+  assert.match(app,/hasRecentOfflineIdentity\?1800:5000/);
 });

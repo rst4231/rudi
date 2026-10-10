@@ -11570,12 +11570,22 @@
         try{
           const localBackupToken=readLocalStateBackupToken();
           if(localBackupToken) currentStateBackupToken=localBackupToken;
+          let hasRecentOfflineIdentity=false;
+          try{
+            const saved=JSON.parse(localStorage.getItem('rudi-offline-access-v1')||'null');
+            hasRecentOfflineIdentity=['Рустам','Диана'].includes(String(saved?.actor||'')) &&
+              Date.now()-Number(saved?.verifiedAt||0)>=0 &&
+              Date.now()-Number(saved?.verifiedAt||0)<30*DAY;
+          }catch(_){}
+          if(hasRecentOfflineIdentity&&(navigator.onLine===false||document.body.dataset.offlineMode==='1')){
+            throw new TypeError('offline-network');
+          }
           const response=await fetchWithTimeout('/api/partner-message?rudiAction=app-auth',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({initData:telegramInitData()}),
             cache:'no-store'
-          },5000);
+          },hasRecentOfflineIdentity?1800:5000);
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||!payload.ok) throw new Error(payload.error||'access');
           currentActor=String(payload.actor||'');
@@ -12772,8 +12782,32 @@
         },10000);
       }
 
+      let calendarReachabilityAt=0,calendarReachabilityOk=true;
+      async function calendarNetworkUnavailable(forceProbe=false){
+        if(navigator.onLine===false)return true;
+        if(!forceProbe&&(window.rudiCalendarOffline?.isOffline?.()||
+          document.body.dataset.offlineMode==='1'))return true;
+        if(!forceProbe&&calendarReachabilityAt&&Date.now()-calendarReachabilityAt<4000)return !calendarReachabilityOk;
+        const controller=new AbortController();
+        const timer=setTimeout(()=>controller.abort(),1600);
+        try{
+          const response=await fetch('/version.json?calendarProbe='+Date.now(),{
+            method:'GET',cache:'no-store',signal:controller.signal
+          });
+          calendarReachabilityOk=response.ok;
+          if(calendarReachabilityOk&&document.body.dataset.offlineMode==='1'){
+            document.body.dataset.offlineMode='';
+          }
+        }catch(_){
+          calendarReachabilityOk=false;
+          document.body.dataset.offlineMode='1';
+        }finally{
+          clearTimeout(timer);calendarReachabilityAt=Date.now();
+        }
+        return !calendarReachabilityOk;
+      }
       async function queueCalendarWhenOffline(kind,details){
-        if(navigator.onLine!==false)return null;
+        if(!await calendarNetworkUnavailable())return null;
         if(!window.rudiCalendarOffline)throw new Error('calendar-offline-unavailable');
         return window.rudiCalendarOffline.enqueue(currentActor,kind,details);
       }
@@ -12789,11 +12823,12 @@
         });
       }
 
-      function requestPersonalTickTickTaskCompletion(task){
+      async function requestPersonalTickTickTaskCompletion(task){
         const taskId=String(task?.id||'').trim();
         const projectId=String(task?.projectId||'').trim();
         if(!taskId||!projectId||currentActor!=='Рустам')throw new Error('ticktick-personal-task-invalid');
-        if(navigator.onLine===false)return queueCalendarWhenOffline('personal-complete',{taskId,projectId,task});
+        const queued=await queueCalendarWhenOffline('personal-complete',{taskId,projectId,task});
+        if(queued)return queued;
         return managedJsonRequest('ticktick-personal-complete:'+taskId,
           '/api/partner-message?ticktickAction=personal-task-complete',{
             body:{initData:telegramInitData(),taskId,projectId},
@@ -12899,14 +12934,31 @@
       }
 
       async function flushCalendarOffline(){
-        if(!currentActor||navigator.onLine===false||!window.rudiCalendarOffline)return;
+        if(!currentActor||!window.rudiCalendarOffline||
+          window.rudiCalendarOffline.isOffline?.())return;
         try{
           await window.rudiCalendarOffline.flush(currentActor,()=>({
             initData:telegramInitData(),backupToken:currentStateBackupToken
           }));
         }catch(error){console.warn('RUDI_CALENDAR_OFFLINE_FLUSH_WARN',String(error?.message||error))}
       }
-      window.addEventListener('online',()=>setTimeout(flushCalendarOffline,400));
+      const reconnectCalendar=()=>{
+        if(navigator.onLine===false)return;
+        calendarReachabilityAt=0;
+        calendarNetworkUnavailable(true).then(offline=>{
+          if(offline)return;
+          flushCalendarOffline();
+          if(currentAppTab==='schedule')loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true}).catch(()=>{});
+        }).catch(()=>{});
+      };
+      window.addEventListener('online',reconnectCalendar);
+      window.addEventListener('pageshow',()=>{
+        if(document.body.dataset.offlineMode==='1')reconnectCalendar();
+      });
+      document.addEventListener('visibilitychange',()=>{
+        if(document.visibilityState==='visible'&&document.body.dataset.offlineMode==='1')reconnectCalendar();
+      });
+      window.addEventListener('rudi-online-request-success',()=>setTimeout(flushCalendarOffline,350));
       window.addEventListener('pageshow',()=>{if(navigator.onLine!==false)flushCalendarOffline()});
       document.addEventListener('visibilitychange',()=>{
         if(document.visibilityState==='visible'&&navigator.onLine!==false)flushCalendarOffline();
@@ -12916,6 +12968,10 @@
       });
       async function refreshAfterTickTickTaskChange({preserveExpanded=false}={}){
         invalidateTickTickTaskViews();
+        if(window.rudiCalendarOffline?.isOffline?.()){
+          await loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true}).catch(()=>{});
+          return;
+        }
         await Promise.allSettled([
           loadTickTickNext({preserveExpanded,force:true}),
           loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true}),
@@ -14141,22 +14197,24 @@
         if(minutes<18*60)return 'day';
         return 'evening';
       }
-      function requestPersonalTickTickTaskMove(task,date,time){
+      async function requestPersonalTickTickTaskMove(task,date,time){
         const taskId=String(task?.id||'').trim();
         const projectId=String(task?.projectId||'').trim();
         if(!taskId||!projectId||currentActor!=='Рустам')throw new Error('ticktick-personal-task-invalid');
-        if(navigator.onLine===false)return queueCalendarWhenOffline('personal-move',{taskId,projectId,date,time,task});
+        const queued=await queueCalendarWhenOffline('personal-move',{taskId,projectId,date,time,task});
+        if(queued)return queued;
         return managedJsonRequest('ticktick-personal-move:'+taskId,
           '/api/partner-message?ticktickAction=personal-task-move',{
             body:{initData:telegramInitData(),taskId,projectId,date,time},
             ttlMs:0,timeoutMs:12000
           });
       }
-      function requestCalendarTickTickTaskMove(task,date,time){
+      async function requestCalendarTickTickTaskMove(task,date,time){
         if(task?.personal===true)return requestPersonalTickTickTaskMove(task,date,time);
         const taskId=String(task?.id||'').trim();
         if(!taskId)throw new Error('ticktick-shared-task-invalid');
-        if(navigator.onLine===false)return queueCalendarWhenOffline('move',{taskId,date,time,task});
+        const queued=await queueCalendarWhenOffline('move',{taskId,date,time,task});
+        if(queued)return queued;
         return managedJsonRequest('ticktick-shared-move:'+taskId,
           '/api/partner-message?ticktickAction=task-move',{
             body:{initData:telegramInitData(),taskId,date,time},
@@ -14842,9 +14900,11 @@
         const requested='month',month=monthOverride||calendarActiveMonth();
         const offlineStore=window.rudiCalendarOffline;
         const offlineScope=calendarScope;
-        if(navigator.onLine===false&&offlineStore){
+        if(offlineStore?.isOffline?.()){
           const local=await offlineStore.cached(currentActor,offlineScope,month).catch(()=>null);
           if(local)return offlineStore.materialize(currentActor,month,local);
+          return {configured:true,view:requested,days:[],ticktickDays:[],holidayDays:[],
+            offlineMissing:true,offlineStale:true,stale:true};
         }
         const sourceKey=calendarCacheKey(month);
         if(!includeNeighbors&&typeof calendarCacheFresh==='function'&&calendarCacheFresh(sourceKey))return calendarViewCache[sourceKey];
@@ -14883,10 +14943,10 @@
           financeObligations:obligationResult.status==='fulfilled'&&obligationResult.value?.actor===currentActor&&Array.isArray(obligationResult.value?.obligations)?obligationResult.value.obligations:[]
         };
         if(offlineStore){
-          if(tickUnavailable){
+          if(tickUnavailable||offlineStore.isOffline?.()){
             const local=await offlineStore.cached(currentActor,offlineScope,month).catch(()=>null);
             if(local)return offlineStore.materialize(currentActor,month,local);
-            result.offlineStale=navigator.onLine===false;
+            result.offlineStale=offlineStore.isOffline?.()===true;
           }else{
             await offlineStore.capture(currentActor,offlineScope,month,result).catch(error=>{
               console.warn('RUDI_CALENDAR_OFFLINE_SAVE_WARN',String(error?.message||error));
@@ -14907,6 +14967,7 @@
             for(const row of others){
               if(row.status!=='fulfilled')continue;
               const other=row.value;
+              if(!other?.days)continue;
               result.days.push(...other.days);
               result.ticktickDays.push(...other.ticktickDays);
               result.holidayDays.push(...other.holidayDays);
@@ -14937,8 +14998,31 @@
           invalidateManagedRequests('ticktick-calendar:'+calendarActiveMonth()+':'+sourceScope);
           calendarViewLoadedAt.delete(key);
         }
-        if(cached)renderWorkCalendar(cached);
-        if(!silent){status.hidden=false;status.textContent=cached?'Обновляю':'Загружаю'}
+        let offlineSnapshot=null;
+        const offlineStore=window.rudiCalendarOffline;
+        if(offlineStore){
+          const disk=await offlineStore.cached(currentActor,calendarScope,calendarActiveMonth()).catch(()=>null);
+          if(disk){
+            offlineSnapshot=await offlineStore.materialize(currentActor,calendarActiveMonth(),disk).catch(()=>null);
+            if(offlineSnapshot&&epoch===calendarLoadEpoch&&key===calendarCacheKey()){
+              renderWorkCalendar(offlineSnapshot,{force:true});
+            }
+          }
+        }
+        if(offlineStore?.isOffline?.()){
+          if(offlineSnapshot)return offlineSnapshot;
+          if(cached){
+            renderWorkCalendar(cached,{force:true});
+            status.hidden=false;status.textContent='Офлайн · данные на устройстве';
+            return cached;
+          }
+          status.hidden=false;status.textContent='Офлайн · нет сохранённых данных';
+          document.getElementById('workCalendarDays').innerHTML=
+            '<div class="wishlist-empty">Чтобы видеть этот месяц без интернета, открой его один раз онлайн.</div>';
+          return null;
+        }
+        if(cached&&!offlineSnapshot)renderWorkCalendar(cached);
+        if(!silent&&!offlineSnapshot){status.hidden=false;status.textContent=cached?'Обновляю':'Загружаю'}
         try{
           const first=calendarDateCursor||todayState().key;
           const weekStart=calendarDateShift(first,-((dateFromKey(first).getUTCDay()+6)%7));
