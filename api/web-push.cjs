@@ -205,7 +205,7 @@ function normalizePushNotification(value) {
   return {
     id: String(value.id).slice(0, 96),
     kind: String(value.kind || 'show') === 'dismiss' ? 'dismiss' : 'show',
-    title: String(value.title || 'RUDI').slice(0, 120),
+    title: String(value.title || 'РуДи').slice(0, 120),
     body: String(value.body || '').slice(0, 500),
     tag: String(value.tag || 'rudi').slice(0, 80),
     url: String(value.url || '/').slice(0, 500),
@@ -233,7 +233,7 @@ async function queuePushNotification(actor, payload, options = {}) {
   const row = normalizePushNotification({
     id: payload?.id || crypto.randomUUID(),
     kind: payload?.kind || 'show',
-    title: payload?.title || 'RUDI',
+    title: payload?.title || 'РуДи',
     body: payload?.body || '',
     tag: payload?.tag || 'rudi',
     url: payload?.url || '/',

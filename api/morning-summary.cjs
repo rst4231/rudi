@@ -847,7 +847,7 @@ async function sendDailyMorningSummaries(options = {}) {
           ...options,
           fetchImpl: options.telegramFetchImpl || options.fetchImpl || globalThis.fetch,
           tab: 'home',
-          buttonText: 'Открыть RUDI',
+          buttonText: 'Открыть РуДи',
         });
       } catch (error) {
         if (Number(error?.status || 0) !== 400) throw error;

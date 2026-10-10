@@ -284,7 +284,7 @@
     if(snapshot&&!force&&Date.now()-loadedAt<30000)return;
     working=true;
     try{snapshot=await request('list');loadedAt=Date.now();render()}
-    catch(_){const host=id('rudiAlertList');if(host)host.textContent='Не удалось загрузить финансовые данные. Открой RUDI в Telegram или попробуй позже.'}
+    catch(_){const host=id('rudiAlertList');if(host)host.textContent='Не удалось загрузить финансовые данные. Открой РуДи в Telegram или попробуй позже.'}
     finally{working=false}
   }
   const init=()=>{

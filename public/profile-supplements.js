@@ -440,7 +440,7 @@ function renderHabits(){
 function prefs(){return readPrefs()}
 function ageText(age){const n=Math.max(0,Math.round(Number(age)||0));const mod100=n%100,mod10=n%10;const word=mod100>=11&&mod100<=14?'лет':mod10===1?'год':mod10>=2&&mod10<=4?'года':'лет';return n+' '+word}
 function emojiForSupplement(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/креатин/.test(value))return'🏋️';if(/теанин|l[-\s]?theanine/.test(value))return'🍵';if(/витамин\s*d|d3|к2|k2/.test(value))return'☀️';if(/магни/.test(value))return'⚡';if(/омега|рыб/.test(value))return'🐟';if(/желез/.test(value))return'🩸';if(/цинк/.test(value))return'🛡️';if(/мелатонин/.test(value))return'🌙';if(/коллаген/.test(value))return'🦴';if(/протеин|белок/.test(value))return'🥛';if(/витамин\s*c|аскорб/.test(value))return'🍊';return'💊'}
-function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в RUDI'}
+function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в РуДи'}
 function activeSupplementItems(){return items.filter(item=>String(item?.status||'active')==='active')}
 function todaySupplementProgress(){const today=habitDateKey(new Date()),active=activeSupplementItems();const taken=active.filter(item=>supplementIntakesOn(item,today)>0).length;return{taken,total:active.length}}
 function todaySupplementCount(){return todaySupplementProgress().taken}
@@ -669,7 +669,7 @@ function build(){
   const content=document.createElement('div');content.className='personal-profile-content';
   summary=document.createElement('article');summary.className='personal-summary-card';
   const summaryName=document.createElement('div');summaryName.id='personalProfileName';summaryName.className='personal-summary-name';
-  summaryMeta=document.createElement('div');summaryMeta.className='personal-summary-text';summaryMeta.textContent='Твоя личная страница в RUDI';
+  summaryMeta=document.createElement('div');summaryMeta.className='personal-summary-text';summaryMeta.textContent='Твоя личная страница в РуДи';
   recommendationWrap=document.createElement('div');recommendationWrap.className='personal-daily-recommendation';
   const recommendationLabel=document.createElement('div');recommendationLabel.className='personal-daily-recommendation-label';recommendationLabel.textContent='Рекомендация дня';
   recommendationNode=document.createElement('div');recommendationNode.className='personal-daily-recommendation-text';recommendationNode.textContent='Загружаю…';

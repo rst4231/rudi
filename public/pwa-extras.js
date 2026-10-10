@@ -569,7 +569,7 @@
       if(sessionStorage.getItem('rudi:sw-updated')==='1'){
         sessionStorage.removeItem('rudi:sw-updated');
         sessionStorage.removeItem('rudi:sw-refresh-pending');
-        setTimeout(()=>showMiniToast('RUDI обновлён'),250);
+        setTimeout(()=>showMiniToast('РуДи обновлён'),250);
       }
     }catch(_){}
 
@@ -622,7 +622,7 @@
       banner.className='rudi-offline-banner';
       banner.setAttribute('role','status');
       banner.setAttribute('aria-live','polite');
-      banner.textContent='Нет сети · RUDI работает из сохранённых данных';
+      banner.textContent='Нет сети · РуДи работает из сохранённых данных';
       banner.hidden=true;
       document.body.appendChild(banner);
     }
@@ -632,7 +632,7 @@
       document.body.classList.toggle('rudi-offline',offline);
       if(!offline){
         document.body.dataset.offlineMode='0';
-        banner.textContent='Нет сети · RUDI работает из сохранённых данных';
+        banner.textContent='Нет сети · РуДи работает из сохранённых данных';
       }
     };
     let recoverySuccesses=0;
@@ -668,7 +668,7 @@
       clearTimeout(recoveryTimer);
       recoverySuccesses=0;
       banner.hidden=true;
-      banner.textContent='Нет сети · RUDI работает из сохранённых данных';
+      banner.textContent='Нет сети · РуДи работает из сохранённых данных';
       document.body.classList.remove('rudi-offline');
       document.body.dataset.offlineMode='0';
     });
@@ -737,12 +737,12 @@
     overlay.hidden=true;
     overlay.innerHTML=
       '<button class="rudi-overlay-backdrop" type="button" aria-label="Закрыть поиск"></button>'+
-      '<section class="rudi-search-dialog" role="dialog" aria-modal="true" aria-label="Поиск по RUDI">'+
+      '<section class="rudi-search-dialog" role="dialog" aria-modal="true" aria-label="Поиск по РуДи">'+
         '<div class="rudi-search-head">'+
-          '<div class="rudi-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="rudiSearchInput" type="search" autocomplete="off" placeholder="Поиск по RUDI…" aria-label="Поиск по RUDI"></div>'+
+          '<div class="rudi-search-field"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input id="rudiSearchInput" type="search" autocomplete="off" placeholder="Поиск по РуДи…" aria-label="Поиск по РуДи"></div>'+
           '<button id="rudiSearchClose" class="rudi-search-close" type="button" aria-label="Закрыть">×</button>'+
         '</div>'+
-        '<div id="rudiSearchHint" class="rudi-search-hint">Поиск по всей базе RUDI</div>'+
+        '<div id="rudiSearchHint" class="rudi-search-hint">Поиск по всей базе РуДи</div>'+
         '<div id="rudiSearchResults" class="rudi-search-results"></div>'+
       '</section>';
     document.body.appendChild(overlay);
@@ -799,7 +799,7 @@
         const button=document.createElement('button');
         button.type='button';
         button.className='rudi-search-result';
-        button.innerHTML='<span class="rudi-search-kind">'+esc(entry.kind||'RUDI')+'</span><strong>'+esc(entry.title||entry.kind||'Результат')+'</strong>'+(entry.text&&entry.text!==entry.title?'<small>'+esc(String(entry.text).slice(0,170))+'</small>':'');
+        button.innerHTML='<span class="rudi-search-kind">'+esc(entry.kind||'РуДи')+'</span><strong>'+esc(entry.title||entry.kind||'Результат')+'</strong>'+(entry.text&&entry.text!==entry.title?'<small>'+esc(String(entry.text).slice(0,170))+'</small>':'');
         button.addEventListener('click',()=>{
           const node=entry.node;
           close();
@@ -855,7 +855,7 @@
       }finally{
         if(sequence===searchSequence&&hint){
           hint.hidden=true;
-          hint.textContent='Поиск по всей базе RUDI';
+          hint.textContent='Поиск по всей базе РуДи';
         }
       }
     }
@@ -874,7 +874,7 @@
         empty?.remove();
         if(hint){
           hint.hidden=false;
-          hint.textContent='Поиск по всей базе RUDI';
+          hint.textContent='Поиск по всей базе РуДи';
         }
         return;
       }
@@ -973,7 +973,7 @@
     group.id='rudiHealthSettings';
     group.className='settings-group rudi-health-settings';
     group.innerHTML=
-      '<div class="settings-group-title">Работа RUDI</div>'+
+      '<div class="settings-group-title">Работа РуДи</div>'+
       '<div class="home-settings-row rudi-health-head">'+
         '<div class="home-settings-copy"><strong>Всё ли работает</strong><small id="rudiHealthUpdated">Проверка запускается вручную</small></div>'+
         '<span id="rudiHealthSummary" class="rudi-health-summary">Ещё не проверялось</span>'+
@@ -1016,7 +1016,7 @@
     button.id='rudiSearchButton';
     button.className='rudi-search-button';
     button.type='button';
-    button.setAttribute('aria-label','Поиск по RUDI');
+    button.setAttribute('aria-label','Поиск по РуДи');
     button.title='Поиск';
     button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg>';
     const settings=byId('homeSettings');

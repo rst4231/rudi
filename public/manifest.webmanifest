@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "RUDI",
-  "short_name": "RUDI",
+  "name": "РуДи",
+  "short_name": "РуДи",
   "description": "Личное приложение Рустама и Дианы: дела, календарь, кухня, фото, вишлист и домашние функции.",
   "lang": "ru",
   "dir": "ltr",
@@ -51,7 +51,7 @@
     {
       "name": "Календарь",
       "short_name": "Календарь",
-      "description": "Открыть календарь RUDI",
+      "description": "Открыть календарь РуДи",
       "url": "/?tab=schedule",
       "icons": [
         {
@@ -94,14 +94,14 @@
       "sizes": "750x1334",
       "type": "image/svg+xml",
       "form_factor": "narrow",
-      "label": "Главная RUDI"
+      "label": "Главная РуДи"
     },
     {
       "src": "/pwa-screenshot-wide.svg",
       "sizes": "1280x720",
       "type": "image/svg+xml",
       "form_factor": "wide",
-      "label": "RUDI на большом экране"
+      "label": "РуДи на большом экране"
     }
   ]
 }
