@@ -29,12 +29,6 @@
     },
     "api/cinema-premieres-cron.js": {
       "maxDuration": 300
-    },
-    "api/personal-center-cron.js": {
-      "maxDuration": 300
-    },
-    "api/personal-center.js": {
-      "supportsCancellation": true
     }
   },
   "headers": [
@@ -179,6 +173,14 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/personal-center",
+      "destination": "/api/index?route=personal-center"
+    },
+    {
+      "source": "/api/personal-center-cron",
+      "destination": "/api/index?route=personal-center-cron"
+    },
     {
       "source": "/api/calendar-day-summary",
       "destination": "/api/index?route=calendar-day-summary"

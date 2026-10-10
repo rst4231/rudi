@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const store=require('../api/personal-center-store.cjs');
-const cron=require('../api/personal-center-cron.js');
+const cron=require('../api/personal-center-cron-handler.cjs');
 const map=new Map();
 function client(){return {
  getRecord:async(ns,k)=>map.has(ns+':'+k)?{value:map.get(ns+':'+k)}:null,
