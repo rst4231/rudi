@@ -423,7 +423,7 @@
   }
 
   async function requestPwaUpdate(){
-    if(!('serviceWorker' in navigator)) return false;
+    if(!('serviceWorker' in navigator)||window.rudiCalendarOffline?.isSyncing?.()) return false;
     try{
       const registration=await navigator.serviceWorker.getRegistration('/');
       if(!registration) return false;
@@ -454,6 +454,7 @@
     const safeToRefresh=()=>{
       const active=document.activeElement;
       return document.visibilityState==='visible'
+        &&!window.rudiCalendarOffline?.isSyncing?.()
         &&!document.body.classList.contains('keyboard-editing')
         &&!document.body.classList.contains('finance-coin-modal-open')
         &&!document.querySelector('[aria-busy="true"]')
@@ -492,6 +493,7 @@
       setTimeout(()=>check(true),1200);
       window.setInterval(()=>check(),10*60*1000);
     },{once:true});
+    window.addEventListener('rudi-calendar-flush-idle',()=>setTimeout(refreshWhenSafe,0));
     window.addEventListener('focusout',()=>setTimeout(refreshWhenSafe,200));
     window.addEventListener('focus',()=>check());
     window.addEventListener('pageshow',()=>check());
@@ -511,7 +513,8 @@
     const editingNow=()=>{
       const active=document.activeElement;
       return Boolean(
-        document.body.classList.contains('keyboard-editing')
+        window.rudiCalendarOffline?.isSyncing?.()
+        || document.body.classList.contains('keyboard-editing')
         || active?.matches?.('input,textarea,select,[contenteditable="true"]')
       );
     };

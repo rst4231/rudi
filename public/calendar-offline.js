@@ -187,11 +187,15 @@
       const state = await summary(who);
       if (sent) root.dispatchEvent(new CustomEvent('rudi-calendar-synced', { detail: { sent, ...state } }));
       return { sent, ...state };
-    } finally { syncing = false; }
+    } finally {
+      syncing = false;
+      root.dispatchEvent(new CustomEvent('rudi-calendar-flush-idle'));
+    }
   }
   root.rudiCalendarOffline = {
     init, cached, capture, materialize, enqueue, flush, summary,
     hasPendingSync: () => pending > 0,
+    isSyncing: () => syncing,
     status: () => ({ pending, needsReview })
   };
 })(window);
