@@ -370,8 +370,12 @@
     card.innerHTML='<div class="smart-home-device-row">'
       +'<div class="smart-home-device-visual" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><circle cx="12" cy="12.5" r="3.2"/><path d="M7 3h10"/></svg></div>'
       +'<div class="smart-home-device-card-copy"><div class="smart-home-device-title-row"><strong>CloudCam</strong></div><span class="smart-home-device-meta">EyePlus · удалённый просмотр</span></div>'
-      +'<div class="smart-home-device-actions"><button type="button" class="smart-home-camera-open">Смотреть</button></div></div>';
-    card.querySelector('.smart-home-camera-open').addEventListener('click',openCloudCamViewer);
+      +'<div class="smart-home-device-actions"><a class="smart-home-camera-open" aria-label="Смотреть CloudCam в Safari">Смотреть</a></div></div>';
+    const link=card.querySelector('.smart-home-camera-open');
+    link.href=CLOUDCAM_URL;
+    link.target='_blank';
+    link.rel='noopener noreferrer';
+    link.referrerPolicy='no-referrer';
     return card;
   }
 
@@ -417,79 +421,6 @@
   }
 
   const CLOUDCAM_URL='https://eyeplus.closeli.com/login';
-
-  function openCloudCamViewer(){
-    // EyePlus authorizes in its own origin; never proxy credentials or camera RTSP.
-    if(!document.body.classList.contains('auth-ok')||String(state.data?.actor||'')!=='Рустам')return;
-    if(document.querySelector('.smart-home-camera-overlay'))return;
-
-    const previousFocus=document.activeElement;
-    const previousOverflow=document.body.style.overflow;
-    const overlay=document.createElement('div');
-    overlay.className='smart-home-camera-overlay';
-    overlay.innerHTML='<div class="smart-home-camera-dialog" role="dialog" aria-modal="true" aria-labelledby="cloudCamDialogTitle">'
-      +'<div class="smart-home-camera-header"><div><strong id="cloudCamDialogTitle">CloudCam</strong><span>YCC365Plus · просмотр через интернет</span></div>'
-      +'<button type="button" class="smart-home-camera-close" aria-label="Закрыть камеру">×</button></div>'
-      +'<div class="smart-home-camera-frame" aria-label="Плеер камеры"><span>Войти в EyePlus проще через Safari. Встроенный вход может не принимать капчу из-за ограничений сторонних сайтов.</span></div>'
-      +'<div class="smart-home-camera-zoom" hidden><button type="button" class="smart-home-camera-fit">Увеличить</button><span>Масштаб веб-страницы</span></div>'
-      +'<div class="smart-home-camera-actions"><a class="smart-home-camera-external" href="https://eyeplus.closeli.com/login" target="_blank" rel="noopener noreferrer">Открыть EyePlus в Safari ↗</a>'
-      +'<button type="button" class="smart-home-camera-embed">Попробовать внутри RUDI</button></div>'
-      +'<p class="smart-home-camera-hint">EyePlus может не пропускать капчу внутри iframe. Это ограничение сайта камеры, не RUDI. После проверки окно можно закрыть крестиком.</p>'
-      +'</div>';
-
-    const host=overlay.querySelector('.smart-home-camera-frame');
-    const fitButton=overlay.querySelector('.smart-home-camera-fit');
-    let iframe=null;
-    let fitMode=true;
-    const adjustFrame=()=>{
-      if(!iframe||!iframe.isConnected)return;
-      const hostWidth=Math.max(1,host.clientWidth);
-      const hostHeight=Math.max(1,host.clientHeight);
-      const referenceWidth=980;
-      const scale=fitMode?Math.min(1,hostWidth/referenceWidth):1;
-      iframe.style.width=fitMode?referenceWidth+'px':'100%';
-      iframe.style.height=fitMode?Math.ceil(hostHeight/scale)+'px':'100%';
-      iframe.style.transform=fitMode?'scale('+scale+')':'none';
-      iframe.style.transformOrigin='top left';
-      fitButton.textContent=fitMode?'Увеличить':'Уместить целиком';
-    };
-    const close=()=>{
-      overlay.querySelector('iframe')?.remove();
-      iframe=null;
-      window.removeEventListener('resize',adjustFrame);
-      document.removeEventListener('keydown',onKeyDown);
-      overlay.remove();
-      document.body.style.overflow=previousOverflow;
-      if(previousFocus?.isConnected)previousFocus.focus?.();
-    };
-    const onKeyDown=event=>{if(event.key==='Escape')close();};
-    overlay.addEventListener('click',event=>{if(event.target===overlay)close();});
-    overlay.querySelector('.smart-home-camera-close').addEventListener('click',close);
-    fitButton.addEventListener('click',()=>{
-      fitMode=!fitMode;
-      adjustFrame();
-    });
-    overlay.querySelector('.smart-home-camera-embed').addEventListener('click',event=>{
-      if(iframe)return;
-      const frame=document.createElement('iframe');
-      frame.title='EyePlus CloudCam';
-      frame.src=CLOUDCAM_URL;
-      frame.referrerPolicy='no-referrer';
-      frame.allow='autoplay; fullscreen; picture-in-picture';
-      frame.setAttribute('allowfullscreen','');
-      host.replaceChildren(frame);
-      iframe=frame;
-      overlay.querySelector('.smart-home-camera-zoom').hidden=false;
-      event.currentTarget.disabled=true;
-      event.currentTarget.textContent='EyePlus открыт внутри RUDI';
-      adjustFrame();
-    });
-    window.addEventListener('resize',adjustFrame);
-    document.addEventListener('keydown',onKeyDown);
-    document.body.style.overflow='hidden';
-    document.body.appendChild(overlay);
-    overlay.querySelector('.smart-home-camera-close').focus();
-  }
 
   // Calendar-based seasons approximate the Russian indoor comfort standards.
   function indoorClimateSeason(at=new Date()){
