@@ -11184,7 +11184,9 @@
           });
           if(!passkeySupported()){
             faceButton.textContent='Face ID недоступен в этом браузере';faceButton.disabled=true;
-            status.textContent='Для подключения Face ID открой Руди в Safari на iPhone.';
+            backupButton.hidden=true;
+            pinForm.hidden=false;
+            status.textContent='Face ID недоступен в этом браузере. Войди по резервному PIN Руди; для подключения Face ID открой Руди в Safari на iPhone.';
           }else prepare();
         });
       }
@@ -11192,15 +11194,9 @@
         if(!isRustamIphone()||iphoneFaceIdDeadline())return true;
         while(!iphoneFaceIdDeadline()){
           if(!passkeySupported()){
-            setAuthGate('Требуется Face ID','Face ID недоступен в этом браузере. Открой Руди через Safari на iPhone.');
-            await new Promise(resolve=>{
-              const retry=document.createElement('button');
-              retry.type='button';retry.className='rudi-auth-submit';
-              retry.textContent='Проверить снова';
-              const form=document.createElement('div');form.className='rudi-auth-form';
-              retry.addEventListener('click',resolve);form.appendChild(retry);
-              document.querySelector('.app-gate-card')?.appendChild(form);
-            });
+            // No WebAuthn on this iPhone browser: require a verified Rustam PIN
+            // instead of trapping the owner on an impossible Face ID setup.
+            await showIphoneFaceIdUnlock();
             continue;
           }
           let configured;
