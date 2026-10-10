@@ -11616,6 +11616,8 @@
           }
         }
         if(!currentActor) return false;
+        window.rudiCalendarOffline?.init(currentActor)
+          .then(()=>flushCalendarOffline()).catch(error=>console.warn('RUDI_CALENDAR_OFFLINE_INIT_WARN',String(error?.message||error)));
         if(appPushSupported()&&Notification.permission==='granted'){
           setTimeout(()=>{
             ensureRudiPushSubscription({prompt:false})
@@ -12770,9 +12772,16 @@
         },10000);
       }
 
+      async function queueCalendarWhenOffline(kind,details){
+        if(navigator.onLine!==false)return null;
+        if(!window.rudiCalendarOffline)throw new Error('calendar-offline-unavailable');
+        return window.rudiCalendarOffline.enqueue(currentActor,kind,details);
+      }
       async function requestTickTickTaskCompletion(taskId){
         const id=String(taskId||'').trim();
         if(!id) throw new Error('ticktick-task-complete-invalid');
+        const queued=await queueCalendarWhenOffline('complete',{taskId:id});
+        if(queued)return queued;
         return managedJsonRequest('ticktick-task-complete:'+id,'/api/ticktick/task-complete',{
           body:{initData:tg?.initData||'',backupToken:currentStateBackupToken,taskId:id},
           ttlMs:0,
@@ -12784,6 +12793,7 @@
         const taskId=String(task?.id||'').trim();
         const projectId=String(task?.projectId||'').trim();
         if(!taskId||!projectId||currentActor!=='Рустам')throw new Error('ticktick-personal-task-invalid');
+        if(navigator.onLine===false)return queueCalendarWhenOffline('personal-complete',{taskId,projectId,task});
         return managedJsonRequest('ticktick-personal-complete:'+taskId,
           '/api/partner-message?ticktickAction=personal-task-complete',{
             body:{initData:telegramInitData(),taskId,projectId},
@@ -12792,6 +12802,8 @@
       }
 
       async function requestTickTickTaskCreate(value){
+        const queued=await queueCalendarWhenOffline('create',{value});
+        if(queued)return queued;
         return managedJsonRequest('ticktick-task-create','/api/ticktick/task-create',{
           body:{
             initData:telegramInitData(),
@@ -12809,9 +12821,11 @@
         });
       }
 
-      async function requestTickTickTaskUpdate(taskId,value){
+      async function requestTickTickTaskUpdate(taskId,value,taskSnapshot=null){
         const id=String(taskId||'').trim();
         if(!id)throw new Error('ticktick-task-update-invalid');
+        const queued=await queueCalendarWhenOffline('update',{taskId:id,value,task:taskSnapshot});
+        if(queued)return queued;
         return managedJsonRequest('ticktick-task-update:'+id,'/api/ticktick/task-update',{
           body:{initData:telegramInitData(),backupToken:currentStateBackupToken,taskId:id,
             title:String(value?.title||'').trim(),date:String(value?.date||'').trim(),
@@ -12825,6 +12839,8 @@
       async function requestTickTickTaskDelete(taskId){
         const id=String(taskId||'').trim();
         if(!id) throw new Error('ticktick-task-delete-invalid');
+        const queued=await queueCalendarWhenOffline('delete',{taskId:id});
+        if(queued)return queued;
         return managedJsonRequest('ticktick-task-delete:'+id,'/api/ticktick/task-delete',{
           body:{initData:telegramInitData(),backupToken:currentStateBackupToken,taskId:id},
           ttlMs:0,
@@ -12882,6 +12898,22 @@
         currentWorkCalendarRenderSignature='';
       }
 
+      async function flushCalendarOffline(){
+        if(!currentActor||navigator.onLine===false||!window.rudiCalendarOffline)return;
+        try{
+          await window.rudiCalendarOffline.flush(currentActor,()=>({
+            initData:telegramInitData(),backupToken:currentStateBackupToken
+          }));
+        }catch(error){console.warn('RUDI_CALENDAR_OFFLINE_FLUSH_WARN',String(error?.message||error))}
+      }
+      window.addEventListener('online',()=>setTimeout(flushCalendarOffline,400));
+      window.addEventListener('pageshow',()=>{if(navigator.onLine!==false)flushCalendarOffline()});
+      document.addEventListener('visibilitychange',()=>{
+        if(document.visibilityState==='visible'&&navigator.onLine!==false)flushCalendarOffline();
+      });
+      window.addEventListener('rudi-calendar-synced',()=>{
+        refreshAfterTickTickTaskChange({preserveExpanded:false}).catch(()=>{});
+      });
       async function refreshAfterTickTickTaskChange({preserveExpanded=false}={}){
         invalidateTickTickTaskViews();
         await Promise.allSettled([
@@ -13260,7 +13292,7 @@
               description:String(descriptionInput?.value||'').trim(),repeat:String(repeatInput?.value||'none'),repeatCount,
               preserveRepeat:Boolean(editingTask&&String(repeatInput?.value||'none')===String(editingTask.repeat||'none')
                 &&(!repeating||repeatCount===Math.max(1,Math.min(365,Math.round(Number(editingTask.repeatCount)||1)))))};
-            const payload=editedId?await requestTickTickTaskUpdate(editedId,data):await requestTickTickTaskCreate(data);
+            const payload=editedId?await requestTickTickTaskUpdate(editedId,data,editingTask):await requestTickTickTaskCreate(data);
             if(!payload?.ok) throw new Error(payload?.error||(editedId?'ticktick-task-update':'ticktick-task-create'));
             close();
             await refreshAfterTickTickTaskChange({preserveExpanded:false});
@@ -14113,6 +14145,7 @@
         const taskId=String(task?.id||'').trim();
         const projectId=String(task?.projectId||'').trim();
         if(!taskId||!projectId||currentActor!=='Рустам')throw new Error('ticktick-personal-task-invalid');
+        if(navigator.onLine===false)return queueCalendarWhenOffline('personal-move',{taskId,projectId,date,time,task});
         return managedJsonRequest('ticktick-personal-move:'+taskId,
           '/api/partner-message?ticktickAction=personal-task-move',{
             body:{initData:telegramInitData(),taskId,projectId,date,time},
@@ -14123,6 +14156,7 @@
         if(task?.personal===true)return requestPersonalTickTickTaskMove(task,date,time);
         const taskId=String(task?.id||'').trim();
         if(!taskId)throw new Error('ticktick-shared-task-invalid');
+        if(navigator.onLine===false)return queueCalendarWhenOffline('move',{taskId,date,time,task});
         return managedJsonRequest('ticktick-shared-move:'+taskId,
           '/api/partner-message?ticktickAction=task-move',{
             body:{initData:telegramInitData(),taskId,date,time},
@@ -14409,7 +14443,9 @@
         const signature=workCalendarRenderSignature(payload);
         if(!force&&signature===currentWorkCalendarRenderSignature){
           const currentStatus=document.getElementById('workCalendarStatus');
-          if(payload?.ticktickUnavailable){currentStatus.hidden=false;currentStatus.textContent='TickTick временно недоступен'}
+          if(payload?.offlinePending){currentStatus.hidden=false;currentStatus.textContent=payload.offlineNeedsReview?'Нужна проверка синхронизации · '+payload.offlinePending:'Ожидают синхронизации: '+payload.offlinePending}
+          else if(payload?.offlineStale){currentStatus.hidden=false;currentStatus.textContent='Офлайн · данные на устройстве'}
+          else if(payload?.ticktickUnavailable){currentStatus.hidden=false;currentStatus.textContent='TickTick временно недоступен'}
           else if(payload?.stale){currentStatus.hidden=false;currentStatus.textContent='Кэш'}
           else{currentStatus.hidden=true;currentStatus.textContent=''}
           return false;
@@ -14463,7 +14499,13 @@
           label.textContent=firstText+' — '+lastText;
         }
         setWorkCalendarRangeActive(calendarDisplayMode);
-        if(payload.ticktickUnavailable){
+        if(payload.offlinePending){
+          status.hidden=false;
+          status.textContent=payload.offlineNeedsReview?'Нужна проверка синхронизации · '+payload.offlinePending:'Ожидают синхронизации: '+payload.offlinePending;
+        }else if(payload.offlineStale){
+          status.hidden=false;
+          status.textContent='Офлайн · данные на устройстве';
+        }else if(payload.ticktickUnavailable){
           status.hidden=false;
           status.textContent='TickTick временно недоступен';
         }else if(payload.stale){
@@ -14798,6 +14840,12 @@
 
       async function fetchCombinedCalendar(view,monthOverride='',includeNeighbors=true){
         const requested='month',month=monthOverride||calendarActiveMonth();
+        const offlineStore=window.rudiCalendarOffline;
+        const offlineScope=calendarScope;
+        if(navigator.onLine===false&&offlineStore){
+          const local=await offlineStore.cached(currentActor,offlineScope,month).catch(()=>null);
+          if(local)return offlineStore.materialize(currentActor,month,local);
+        }
         const sourceKey=calendarCacheKey(month);
         if(!includeNeighbors&&typeof calendarCacheFresh==='function'&&calendarCacheFresh(sourceKey))return calendarViewCache[sourceKey];
         const scope=calendarScope==='shared'?'shared':currentActor==='Диана'?'diana':'rustam';
@@ -14834,6 +14882,17 @@
           obligationActor:obligationResult.status==='fulfilled'?String(obligationResult.value?.actor||''):'',
           financeObligations:obligationResult.status==='fulfilled'&&obligationResult.value?.actor===currentActor&&Array.isArray(obligationResult.value?.obligations)?obligationResult.value.obligations:[]
         };
+        if(offlineStore){
+          if(tickUnavailable){
+            const local=await offlineStore.cached(currentActor,offlineScope,month).catch(()=>null);
+            if(local)return offlineStore.materialize(currentActor,month,local);
+            result.offlineStale=navigator.onLine===false;
+          }else{
+            await offlineStore.capture(currentActor,offlineScope,month,result).catch(error=>{
+              console.warn('RUDI_CALENDAR_OFFLINE_SAVE_WARN',String(error?.message||error));
+            });
+          }
+        }
         if(!includeNeighbors){
           calendarViewCache[sourceKey]=result;
           calendarViewLoadedAt.set(sourceKey,Date.now());
@@ -14855,7 +14914,7 @@
             result.days.sort((a,b)=>a.date.localeCompare(b.date));
           }
         }
-        return result;
+        return offlineStore?offlineStore.materialize(currentActor,month,result):result;
       }
       async function prefetchCalendarView(view){
         const key=calendarCacheKey();
