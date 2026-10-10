@@ -658,3 +658,12 @@ html[data-theme="dark"] .smart-home-scenario{
 }
 .smart-home-battery-badge[hidden],
 .smart-home-tile:not(.is-collapsed) .smart-home-battery-badge{display:none!important}
+
+/* Battery below 10%: red border and glow on affected smart-home devices. */
+.smart-home-device-card.is-battery-low,
+.smart-home-device-card.is-battery-low.is-vacuum.is-expanded{
+  border-color:rgba(239,68,76,.76);
+  background:linear-gradient(135deg,rgba(239,68,76,.08),color-mix(in srgb,var(--surface-strong) 95%,#fff) 63%);
+  box-shadow:0 0 0 1px rgba(239,68,76,.27),0 0 18px rgba(239,68,76,.27),
+    0 8px 20px rgba(239,68,76,.13),inset 0 1px 0 rgba(255,255,255,.16);
+}
