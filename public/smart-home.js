@@ -65,6 +65,32 @@
     return (Array.isArray(data?.devices)?data.devices:[]).filter(device=>!isHiddenForActor(device,data));
   }
 
+  function lowBatteryDevices(data){
+    return visibleDevices(data).filter(device=>{
+      const raw=property(device,'battery_level');
+      if(raw===null||raw===undefined||raw==='')return false;
+      const value=Number(raw);
+      return Number.isFinite(value)&&value>=0&&value<10;
+    });
+  }
+  function syncSmartHomeBatteryBadge(data){
+    const title=document.getElementById('smartHomeTitle');
+    if(!title)return;
+    let badge=document.getElementById('smartHomeBatteryBadge');
+    if(!badge){
+      badge=document.createElement('span');
+      badge.id='smartHomeBatteryBadge';
+      badge.className='smart-home-battery-badge';
+      badge.hidden=true;
+      title.appendChild(badge);
+    }
+    const low=lowBatteryDevices(data);
+    badge.textContent=low.length?String(Math.min(low.length,99)):'';
+    badge.hidden=low.length===0;
+    badge.setAttribute('aria-label',low.length===1?'У одного устройства заряд ниже 10%':'У '+low.length+' устройств заряд ниже 10%');
+    badge.title=low.length?low.map(device=>String(device.name||'Устройство')).join(', '):'';
+  }
+
   function setUpdated(){
     const node=document.getElementById('smartHomeUpdated');
     if(node){const count=visibleDevices(state.data).length,mod10=count%10,mod100=count%100,word=mod10===1&&mod100!==11?'устройство':mod10>=2&&mod10<=4&&(mod100<12||mod100>14)?'устройства':'устройств';node.textContent=count+' '+word+' · Обновлено только что';}
@@ -383,6 +409,7 @@
     const root=document.getElementById('smartHomeRooms');
     if(!root)return;
     root.replaceChildren();
+    syncSmartHomeBatteryBadge(data);
     const groups=roomGroups(data);
     const isHallway=room=>String(room||'').trim().toLocaleLowerCase('ru-RU')==='прихожая';
     // CloudCam is independent of Yandex. Keep it in Hallway, immediately
