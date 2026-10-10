@@ -246,7 +246,7 @@
       else parts.push(power.state.value?'Включено':'Выключено');
     }
 
-    if(Number.isFinite(Number(battery))) parts.push('Батарея '+Math.round(Number(battery))+'%');
+    if(battery!==null&&battery!==undefined&&battery!==''&&Number.isFinite(Number(battery))&&Number(battery)>=0&&Number(battery)<=100) parts.push('Батарея '+Math.round(Number(battery))+'%');
     return parts;
   }
 
