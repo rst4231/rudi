@@ -1,15 +1,15 @@
 {
-  "current": "v4.153",
+  "current": "v4.154",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
-  "deploymentRequestedAt": "2026-10-10T15:50:33.567Z",
+  "deploymentRequestedAt": null,
   "createdAt": "2026-10-10",
-  "basedOnProduction": "v4.152",
+  "basedOnProduction": "v4.153",
   "notes": [
-    "Add Rustam-only CloudCam camera entry to Smart Home even when Yandex has no camera device.",
-    "Offer an opt-in EyePlus iframe experiment and a reliable external Safari link, without storing passwords or exposing camera RTSP ports.",
-    "Keep existing smart-home controls, cache and production unchanged until explicit deploy approval."
+    "Move Rustam-only CloudCam into Прихожая directly above the existing Камера row; remove the standalone Камеры group.",
+    "Expand EyePlus viewer to the entire viewport, add zoom-to-fit and enlarge controls for the third-party desktop page.",
+    "Clarify that iframe CAPTCHA may fail due to EyePlus third-party restrictions, with primary Safari fallback; no credentials or RTSP access exposed."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
