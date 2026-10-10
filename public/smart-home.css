@@ -646,3 +646,15 @@ html[data-theme="dark"] .smart-home-scenario{
   .smart-home-cloudcam-card .smart-home-device-row{gap:6px}
   .smart-home-camera-open{min-height:34px;padding:0 9px;font-size:10px}
 }
+
+/* Collapsed smart home: match the red car notification badge for batteries <10%. */
+.smart-home-title-wrap h2{display:inline-flex;align-items:center;gap:7px;max-width:100%}
+.smart-home-battery-badge{
+  min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  border:2px solid #181b22;border-radius:999px;
+  background:#ff3b30;color:#fff;font-size:10px;line-height:1;font-weight:850;
+  letter-spacing:-.02em;box-shadow:0 2px 7px rgba(255,59,48,.32);
+}
+.smart-home-battery-badge[hidden],
+.smart-home-tile:not(.is-collapsed) .smart-home-battery-badge{display:none!important}
