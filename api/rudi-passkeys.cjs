@@ -6,8 +6,11 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const PASSKEY_TTL_SECONDS = 10 * 365 * 24 * 60 * 60;
 const CHALLENGE_TTL_SECONDS = 10 * 60;
 const MAX_PASSKEYS_PER_ACTOR = 5;
-const TRUSTED_PROXY_ORIGINS = new Set([
-  'https://rudi-proxy.onrender.com',
+// Exact public proxy origins: passkeys must be bound to the hostname
+// visible in Safari/PWA, never to the hidden Vercel upstream hostname.
+const TRUSTED_PROXY_ORIGINS = new Map([
+  ['render', 'https://rudi-proxy.onrender.com'],
+  ['deno', 'https://rudi-proxy.rst4231.deno.net'],
 ]);
 
 let webauthnPromise = null;
@@ -29,7 +32,7 @@ function resolveCache(options = {}) {
 function requestOrigin(req) {
   const proxyName = String(req?.headers?.['x-rudi-proxy'] || '').trim().toLowerCase();
   const proxyOrigin = String(req?.headers?.['x-rudi-public-origin'] || '').trim().replace(/\/+$/, '');
-  if (proxyName === 'render' && TRUSTED_PROXY_ORIGINS.has(proxyOrigin)) {
+  if (TRUSTED_PROXY_ORIGINS.get(proxyName) === proxyOrigin) {
     const url = new URL(proxyOrigin);
     return {
       rpID: url.hostname,
@@ -43,6 +46,7 @@ function requestOrigin(req) {
   const browserOrigin = String(req?.headers?.origin || '').trim().replace(/\/+$/, '');
   const productionOrigins = new Set([
     'https://spb-daily-guide-bot.vercel.app',
+    'https://rudi-proxy.rst4231.deno.net',
     'https://rudi-appteamstore.vercel.app',
     'https://rudi-git-main-appteamstore.vercel.app',
   ]);

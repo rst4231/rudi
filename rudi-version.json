@@ -1,16 +1,15 @@
 {
-  "current": "v4.151",
+  "current": "v4.152",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-10",
-  "basedOnProduction": "v4.150",
+  "basedOnProduction": "v4.151",
   "notes": [
-    "Repair Safari/PWA Face ID origin resolution so WebAuthn RP ID matches the canonical production hostname rather than a Vercel forwarded/deployment host.",
-    "Keep the native iOS click gesture and confirm saved credential status; report sanitized client-side Face ID error metadata without secrets.",
-    "Redesign last five sign-in history entries in the Telegram device sessions style: device icon, browser, authentication method, city/country, IP and Moscow date/time.",
-    "Include browser/PWA metadata with new sign-in records while preserving actor separation and older history."
+    "Support Face ID passkey registration and login through https://rudi-proxy.rst4231.deno.net while binding WebAuthn RP ID and origin to the public Deno hostname.",
+    "Keep existing Render and Vercel Face ID origins; reject arbitrary proxy origins.",
+    "Add regression tests for origin spoofing, Deno registration, and backwards compatibility."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
