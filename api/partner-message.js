@@ -288,6 +288,10 @@ async function hydrateActorAuth(actor, backupToken, options = {}) {
   if (durable?.pinRecord) {
     await restorePinRecord(actor, durable.pinRecord, storeOptions).catch(() => null);
   }
+  // Clear stale passkeys that may have been restored from older state snapshots.
+  if (durable?.passkeysRevokedAt) {
+    await writePasskeys(actor, [], storeOptions);
+  }
   if (durable?.passkeys?.length) {
     await restorePasskeys(actor, durable.passkeys, storeOptions).catch(() => null);
   }

@@ -3654,7 +3654,7 @@
         const empty=document.getElementById('financeCategoryHistoryEmpty');
         if(name)name.textContent=category.name||'Категория';
         if(icon)icon.textContent=category.icon||'💳';
-        if(totalLabel)totalLabel.textContent=searching?'Найдено расходов':financeCategoryHistoryRange?'За выбранные даты':'За '+financeMonthGenitive(month);
+        if(totalLabel)totalLabel.textContent=searching?'Найдено расходов':financeCategoryHistoryRange?'За выбранные даты':'За '+financeMonthShortName(month);
 
         let rows=(financeState.personalExpenses||[])
           .filter(row=>row.categoryId===category.id&&!row.manualAdjustment);
@@ -8007,7 +8007,7 @@
 
       let settingsFaceIdStatusSequence=0,settingsFaceIdPrepared=null,settingsFaceIdPreparedAt=0;
       function updateSettingsPlatform149(){
-        const browser=!isStandalonePwa();
+        const browser=!isStandalonePwa()&&!telegramInitData();
         for(const id of ['settingsTextSizeRow','settingsPwaRow']){
           const row=document.getElementById(id);if(row)row.hidden=browser;
         }
