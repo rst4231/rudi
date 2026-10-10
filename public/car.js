@@ -61,14 +61,24 @@
     const transportIds=new Set(categories.filter(row=>normalizeFinanceText(row?.name)==='транспорт').map(row=>String(row.id||'')));
     const allowed=new Map(CAR_EXPENSE_LABELS.map(label=>[normalizeFinanceText(label),label])),groups=new Map();
     for(const row of Array.isArray(finance?.personalExpenses)?finance.personalExpenses:[]){
-      if(!transportIds.has(String(row?.categoryId||'')))continue;const label=allowed.get(normalizeFinanceText(row?.label));if(!label)continue;
-      const month=/^\d{4}-\d{2}$/.test(String(row?.month||''))?String(row.month):String(row?.occurredAt||'').slice(0,7);if(!/^\d{4}-\d{2}$/.test(month))continue;
+      if(!transportIds.has(String(row?.categoryId||'')))continue;
+      const label=allowed.get(normalizeFinanceText(row?.label));if(!label)continue;
+      const month=/^\d{4}-\d{2}$/.test(String(row?.month||''))?String(row.month):String(row?.occurredAt||'').slice(0,7);
+      if(!/^\d{4}-\d{2}$/.test(month))continue;
       const amount=Number(row?.rubAmount??row?.amount??0);if(!Number.isFinite(amount)||amount<=0)continue;
-      if(!groups.has(month))groups.set(month,{month,total:0,labels:new Map()});const g=groups.get(month);g.total+=amount;
-      const item=g.labels.get(label)||{label,total:0,count:0};item.total+=amount;item.count+=1;g.labels.set(label,item);
+      if(!groups.has(month))groups.set(month,{month,total:0,operations:[]});
+      const group=groups.get(month);group.total+=amount;
+      group.operations.push({label,amount,occurredAt:String(row?.occurredAt||row?.createdAt||'')});
     }
-    const rank=new Map(CAR_EXPENSE_LABELS.map((label,index)=>[label,index]));
-    return [...groups.values()].sort((a,b)=>b.month.localeCompare(a.month)).map(g=>({month:g.month,total:Math.round(g.total*100)/100,labels:[...g.labels.values()].sort((a,b)=>(rank.get(a.label)??99)-(rank.get(b.label)??99)).map(row=>({...row,total:Math.round(row.total*100)/100}))}));
+    return [...groups.values()].sort((a,b)=>b.month.localeCompare(a.month)).map(group=>({
+      ...group,total:Math.round(group.total*100)/100,
+      operations:group.operations.sort((a,b)=>(Date.parse(b.occurredAt)||0)-(Date.parse(a.occurredAt)||0))
+    }));
+  }
+  function carExpenseDateTime(value){
+    const date=new Date(value);
+    if(Number.isNaN(date.getTime()))return 'Дата не указана';
+    return new Intl.DateTimeFormat('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Europe/Moscow'}).format(date).replace(',', ' ·');
   }
   function renderCarExpenses(){
     const list=document.getElementById('carExpensesList'),status=document.getElementById('carExpensesStatus'),meta=document.getElementById('carExpensesMeta');if(!list)return;list.replaceChildren();
@@ -79,7 +89,12 @@
       const section=document.createElement('section');section.className='car-expense-month';const head=document.createElement('div');head.className='car-expense-month-head';
       const title=document.createElement('strong');title.textContent=carExpenseMonthLabel(group.month);const total=document.createElement('b');total.textContent=carExpenseMoney(group.total);head.append(title,total);
       const rows=document.createElement('div');rows.className='car-expense-labels';
-      for(const entry of group.labels){const row=document.createElement('div');row.className='car-expense-label-row';const copy=document.createElement('div'),name=document.createElement('strong'),count=document.createElement('small'),amount=document.createElement('b');name.textContent=entry.label;count.textContent=entry.count+' '+(entry.count===1?'операция':entry.count<5?'операции':'операций');amount.textContent=carExpenseMoney(entry.total);copy.append(name,count);row.append(copy,amount);rows.append(row)}
+      for(const entry of group.operations){
+        const row=document.createElement('div');row.className='car-expense-label-row';
+        const copy=document.createElement('div'),name=document.createElement('strong'),when=document.createElement('small'),amount=document.createElement('b');
+        name.textContent=entry.label;when.textContent=carExpenseDateTime(entry.occurredAt);
+        amount.textContent=carExpenseMoney(entry.amount);copy.append(name,when);row.append(copy,amount);rows.append(row);
+      }
       section.append(head,rows);list.append(section);
     }
   }
@@ -858,7 +873,10 @@
     tasks?.querySelector('.car-section-head')?.remove();
 
     const expensesCard=cards.find(card=>card.dataset.carCard==='expenses');
-    const expensesMeta=expenses?.querySelector('#carExpensesMeta');if(expensesMeta&&expensesCard) expensesCard.querySelector('.car-smart-card-actions')?.prepend(expensesMeta);expenses?.querySelector('.car-section-head')?.remove();
+    const expensesMeta=expenses?.querySelector('#carExpensesMeta');if(expensesMeta&&expensesCard) expensesCard.querySelector('.car-smart-card-actions')?.prepend(expensesMeta);
+    const expensesFinanceShortcut=expenses?.querySelector('#carTransportFinanceShortcut');
+    if(expensesFinanceShortcut&&expensesCard)expensesCard.querySelector('.car-smart-card-actions')?.append(expensesFinanceShortcut);
+    expenses?.querySelector('.car-section-head')?.remove();
 
     const documentsCard=cards.find(card=>card.dataset.carCard==='documents');
     const documentsMeta=documents?.querySelector('#carDocumentsMeta');

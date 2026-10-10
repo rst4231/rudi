@@ -86,7 +86,7 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
   assert.match(rustam, /Машина/);
   assert.match(rustam,/Диана сегодня<\/b>\n💼 Работает: 09:00–21:00\n🌸 Цикл: <b>Чувствительная<\/b> · лютеиновая фаза\n🤍 Совет:/);
   assert.equal((rustam.match(/<b>Диана сегодня<\/b>/g)||[]).length,1);
-  assert.match(rustam, /Шины: Можно на летних/);
+  assert.doesNotMatch(rustam, /Шины: Можно на летних/);
   assert.match(rustam, /Мойка: сегодня/);
   assert.match(rustam, /Рекомендации:/);
   assert.match(rustam, /ТО через/);
@@ -236,7 +236,7 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.doesNotMatch(rustam.text,/2 Stand Up/);
   assert.doesNotMatch(rustam.text,/Дома: 22\.8°C · влажность 54%/);
   assert.doesNotMatch(rustam.text,/На улице: 11°C · пасмурно/);
-  assert.match(rustam.text,/Шины: Лучше на зимних/);
+  assert.doesNotMatch(rustam.text,/Шины: Лучше на зимних/);
   assert.match(rustam.text,/Мойка: сегодня/);
   assert.match(rustam.text,/Рекомендации:/);
   assert.match(rustam.text,/ТО через/);

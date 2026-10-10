@@ -549,8 +549,6 @@ function shortCarRecommendations(data = {}) {
 function rustamCarBlock(data = {}) {
   const weather = data.environment?.weather || null;
   const lines = [];
-  const tyre = shortTyreAdvice(weather);
-  if (tyre) lines.push('Шины: ' + tyre);
   lines.push('Мойка: ' + washDayLabel(weather));
   const recommendations = shortCarRecommendations(data);
   lines.push('Рекомендации: ' + (recommendations.length ? recommendations.join('; ') : 'срочных действий нет'));

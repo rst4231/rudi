@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.145">
+  <meta name="rudi-version" content="v4.147">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-rudi-v460.png?v=4.60">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-rudi-v460.png?v=4.60">
-  <link rel="manifest" href="/manifest.webmanifest?v=4.119">
+  <link rel="manifest" href="/manifest.webmanifest?v=4.147">
   <script>
     (() => {
       const tg = window.Telegram?.WebApp;
@@ -27,19 +27,19 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.142">
-  <link rel="stylesheet" href="/product-extras.css?v=4.142">
+  <link rel="stylesheet" href="/app.css?v=4.147">
+  <link rel="stylesheet" href="/product-extras.css?v=4.147">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
-  <link rel="stylesheet" href="/pwa-extras.css?v=4.119">
-  <link rel="stylesheet" href="/calendar.css?v=4.139">
-  <link rel="stylesheet" href="/smart-home.css?v=4.119">
-  <link rel="stylesheet" href="/car.css?v=4.119">
-  <link rel="stylesheet" href="/profile-supplements.css?v=4.139">
-  <link rel="stylesheet" href="/supplement-advanced.css?v=4.119">
-  <link rel="stylesheet" href="/rudi-design-system.css?v=4.119">
+  <link rel="stylesheet" href="/pwa-extras.css?v=4.147">
+  <link rel="stylesheet" href="/calendar.css?v=4.147">
+  <link rel="stylesheet" href="/smart-home.css?v=4.147">
+  <link rel="stylesheet" href="/car.css?v=4.147">
+  <link rel="stylesheet" href="/profile-supplements.css?v=4.147">
+  <link rel="stylesheet" href="/supplement-advanced.css?v=4.147">
+  <link rel="stylesheet" href="/rudi-design-system.css?v=4.147">
   <link rel="stylesheet" href="/finance-cards.css?v=4.119">
   <link rel="stylesheet" href="/recommendations.css?v=4.119">
   <script>
@@ -69,11 +69,11 @@
       });
     })();
   </script>
-  <script defer src="/wallet-brand-icons.js?v=4.119"></script>
-  <script defer src="/calendar-offline.js?v=4.144"></script>
-  <script defer src="/app.js?v=4.142"></script>
-  <script defer src="/product-extras.js?v=4.142"></script>
-  <script defer src="/calendar-day-recap.js?v=4.139"></script>
+  <script defer src="/wallet-brand-icons.js?v=4.147"></script>
+  <script defer src="/calendar-offline.js?v=4.147"></script>
+  <script defer src="/app.js?v=4.147"></script>
+  <script defer src="/product-extras.js?v=4.147"></script>
+  <script defer src="/calendar-day-recap.js?v=4.147"></script>
   <script defer src="/recommendations.js?v=4.119"></script>
   <!-- Finance decision tools are optional: load only when opening Finances. -->
   <script>
@@ -92,12 +92,12 @@
         loading=(async()=>{
           if(!document.querySelector('[data-rudi-finance-decisions-css]')){
             const style=document.createElement('link');style.rel='stylesheet';
-            style.href='/finance-decisions.css?v=4.119';
+            style.href='/finance-decisions.css?v=4.147';
             style.dataset.rudiFinanceDecisionsCss='1';
             document.head.appendChild(style);
           }
-          await loadScript('/finance-decisions-core.js?v=4.119');
-          await loadScript('/finance-decisions-ui.js?v=4.119');
+          await loadScript('/finance-decisions-core.js?v=4.147');
+          await loadScript('/finance-decisions-ui.js?v=4.147');
         })().catch(error=>{loading=null;console.warn('RUDI_LAZY_FINANCE_WARN',String(error?.message||error))});
         return loading;
       };
@@ -116,14 +116,14 @@
     })();
   </script>
 
-  <script defer src="/pwa-extras.js?v=4.119"></script>
-  <script defer src="/weather.js?v=4.119"></script>
-  <script defer src="/smart-home.js?v=4.119"></script>
-  <script defer src="/car.js?v=4.119"></script>
-  <script defer src="/profile-supplements.js?v=4.139"></script>
-  <script defer src="/mood-history.js?v=4.119"></script>
-  <script defer src="/supplement-editor.js?v=4.119"></script>
-  <script defer src="/supplement-advanced.js?v=4.119"></script>
+  <script defer src="/pwa-extras.js?v=4.147"></script>
+  <script defer src="/weather.js?v=4.147"></script>
+  <script defer src="/smart-home.js?v=4.147"></script>
+  <script defer src="/car.js?v=4.147"></script>
+  <script defer src="/profile-supplements.js?v=4.147"></script>
+  <script defer src="/mood-history.js?v=4.147"></script>
+  <script defer src="/supplement-editor.js?v=4.147"></script>
+  <script defer src="/supplement-advanced.js?v=4.147"></script>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -1261,7 +1261,7 @@
           </div>
         </div>
         <div class="car-home-visual">
-          <img src="/changan-uni-v-header.webp?v=4.12" alt="" aria-hidden="true">
+          <img src="/changan-uni-v-header.webp?v=4.147" alt="" aria-hidden="true">
           <span id="carHomeTyreSticker" class="car-tyre-sticker" aria-label="Установленный комплект шин" hidden>Летние</span>
           <div class="car-home-wash">
             <span>Когда мыть</span>
@@ -1297,7 +1297,7 @@
           </div>
         </div>
         <div class="car-head-visual">
-          <img src="/changan-uni-v-header.webp?v=4.12" alt="" aria-hidden="true">
+          <img src="/changan-uni-v-header.webp?v=4.147" alt="" aria-hidden="true">
           <span id="carPageTyreSticker" class="car-tyre-sticker" aria-label="Установленный комплект шин" hidden>Летние</span>
           <div class="car-collapsed-wash">
             <span class="car-collapsed-wash-label">Когда мыть машину</span>
@@ -1374,7 +1374,7 @@
           <form id="carErrorForm" class="car-error-form" hidden>
             <div class="car-error-fields">
               <label class="car-error-field">
-                <span>Ошибка на приборке</span>
+                <span>Что починить</span>
                 <input id="carErrorTitle" maxlength="80" autocomplete="off" placeholder="Например Check Engine" required>
               </label>
               <label class="car-error-field">
@@ -1407,7 +1407,7 @@
         </section>
 
         <section class="car-expenses" aria-labelledby="carExpensesTitle">
-          <div class="car-section-head"><div class="car-section-title"><span class="car-section-icon is-expense" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7.5h14v10H5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 10.5h8M8 14h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7 4.5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><strong id="carExpensesTitle">Расходы</strong><button id="carTransportFinanceShortcut" class="car-transport-finance-shortcut" data-finance-shortcut="transport" type="button" aria-label="Открыть расходы в категории Транспорт" title="Категория Транспорт в финансах"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button></div><span id="carExpensesMeta" class="car-expenses-meta"></span></div>
+          <div class="car-section-head"><div class="car-section-title"><span class="car-section-icon is-expense" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M5 7.5h14v10H5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 10.5h8M8 14h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M7 4.5h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><strong id="carExpensesTitle">Расходы</strong><button id="carTransportFinanceShortcut" class="car-transport-finance-shortcut" data-finance-shortcut="transport" type="button" aria-label="Открыть расходы в категории Транспорт" title="Категория Транспорт в финансах"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="2.5"/><path d="M3 10h18"/><path d="M15 14h6v4h-6a2 2 0 0 1 0-4z"/><path d="M7 6V4.5A1.5 1.5 0 0 1 8.5 3H19"/></svg></button></div><span id="carExpensesMeta" class="car-expenses-meta"></span></div>
           <div id="carExpensesStatus" class="car-expenses-status">Загружаю расходы…</div><div id="carExpensesList" class="car-expenses-list"></div>
         </section>
 
@@ -1640,7 +1640,7 @@
         <div class="work-calendar-head">
           <div class="calendar-header-actions" role="group" aria-label="Переключатели календаря">
             <button id="calendarScopeSwitch" class="calendar-header-control calendar-scope-switch" type="button" data-calendar-scope="shared" aria-label="Переключить на совместный календарь" title="Совместный календарь">Совместный</button>
-            <button id="calendarFinanceShortcut" class="calendar-header-control calendar-finance-shortcut" data-finance-shortcut="overview" type="button" aria-label="Перейти в финансы" title="Открыть финансы"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button>
+            <button id="calendarFinanceShortcut" class="calendar-header-control calendar-finance-shortcut" data-finance-shortcut="overview" type="button" aria-label="Перейти в финансы" title="Открыть финансы"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="2.5"/><path d="M3 10h18"/><path d="M15 14h6v4h-6a2 2 0 0 1 0-4z"/><path d="M7 6V4.5A1.5 1.5 0 0 1 8.5 3H19"/></svg></button>
             <button id="calendarModeSwitch" class="calendar-header-control calendar-mode-switch" type="button" data-calendar-mode="week" aria-label="Показать неделю" title="Неделя"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3M3 13h18M3 17h18"/></svg></button>
             <button id="calendarSearchButton" class="calendar-header-control calendar-search-button" type="button" aria-label="Поиск по календарю" title="Найти дело" aria-expanded="false" aria-controls="calendarSearchPanel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m15.5 15.5 5 5"/></svg></button>
           <button id="calendarConnectionsGear" class="calendar-connections-gear calendar-header-control" type="button" aria-label="Подключения календаря" title="Подключения">
@@ -1861,7 +1861,7 @@
         <button type="button" data-kitchen-view="products" aria-pressed="true">Продукты</button>
         <button type="button" data-kitchen-view="recipes" aria-pressed="false">Рецепты</button>
         <button type="button" data-kitchen-view="saves" aria-pressed="false">Сохранённое</button>
-        <button id="kitchenFinanceShortcut" class="kitchen-finance-shortcut" data-finance-shortcut="overview" type="button" aria-label="Перейти в финансы" title="Открыть финансы"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M8 7h9v9"/></svg></button>
+        <button id="kitchenFinanceShortcut" class="kitchen-finance-shortcut" data-finance-shortcut="overview" type="button" aria-label="Перейти в финансы" title="Открыть финансы"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="2.5"/><path d="M3 10h18"/><path d="M15 14h6v4h-6a2 2 0 0 1 0-4z"/><path d="M7 6V4.5A1.5 1.5 0 0 1 8.5 3H19"/></svg></button>
       </div>
 
       <article id="productsListCard" class="panel products-card kitchen-block" data-kitchen-panel="products">

@@ -5977,6 +5977,10 @@
         }
         if(tab==='feed') loadFeed({silent:true});
         if(tab==='schedule'){
+          // Start every new visit on the current month, regardless of the previous view.
+          calendarDateCursor=todayState().key;
+          currentSelectedWorkDate=calendarDateCursor;
+          currentWorkCalendarRenderSignature='';
           const selectedScope=pendingCalendarScope==='shared'?'shared':'personal';
           pendingCalendarScope='';
           calendarSetScope(selectedScope,{reload:false});
