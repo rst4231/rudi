@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { PNG } = require('pngjs');
 
-const WEB_ASSETS = ['app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js'];
+const WEB_ASSETS = ['app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'iphone-faceid-guard.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -141,6 +141,7 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/finance-bank\.js\?v=[^"]+/g, '/finance-bank.js?v=' + assetVersion);
   html = html.replace(/\/pwa-extras\.js\?v=[^"]+/g, '/pwa-extras.js?v=' + assetVersion);
   html = html.replace(/\/smart-home\.js\?v=[^"]+/g, '/smart-home.js?v=' + assetVersion);
+  html = html.replace(/\/iphone-faceid-guard\.js\?v=[^"]+/g, '/iphone-faceid-guard.js?v=' + assetVersion);
   html = html.replace(/\/weather\.js\?v=[^"]+/g, '/weather.js?v=' + assetVersion);
   html = html.replace(/\/mood-history\.js\?v=[^"]+/g, '/mood-history.js?v=' + assetVersion);
   html = html.replace(/\/profile-supplements\.css\?v=[^"]+/g, '/profile-supplements.css?v=' + assetVersion);
