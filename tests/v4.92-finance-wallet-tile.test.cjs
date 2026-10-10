@@ -11,7 +11,7 @@ test('wallet creation is a category-style tile in wallet list; income remains to
   assert.doesNotMatch(top, /id="financeWalletCreateButton"/);
   assert.match(app,/add\.id='financeWalletCreateButton'/);
   assert.match(app,/add\.className='finance-coin-item finance-add-category-item finance-add-wallet-item'/);
-  assert.match(app,/add\.addEventListener\('click',\(\)=>\{setFinanceWalletEditMode\(false\);openFinanceWalletComposer\(''\)\}\)/);
+  assert.match(app,/add\.addEventListener\('click',\(\)=>\{setFinanceOrderEditMode\(false\);openFinanceWalletComposer\(''\)\}\)/);
   assert.match(app,/list\.append\(add\)/);
   assert.match(css,/\.finance-wallet-list \.finance-add-wallet-item/);
 });

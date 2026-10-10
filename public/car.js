@@ -875,7 +875,10 @@
     const expensesCard=cards.find(card=>card.dataset.carCard==='expenses');
     const expensesMeta=expenses?.querySelector('#carExpensesMeta');if(expensesMeta&&expensesCard) expensesCard.querySelector('.car-smart-card-actions')?.prepend(expensesMeta);
     const expensesFinanceShortcut=expenses?.querySelector('#carTransportFinanceShortcut');
-    if(expensesFinanceShortcut&&expensesCard)expensesCard.querySelector('.car-smart-card-actions')?.append(expensesFinanceShortcut);
+    if(expensesFinanceShortcut&&expensesCard){
+      const actions=expensesCard.querySelector('.car-smart-card-actions');
+      actions?.insertBefore(expensesFinanceShortcut,actions.querySelector('.car-card-collapse'));
+    }
     expenses?.querySelector('.car-section-head')?.remove();
 
     const documentsCard=cards.find(card=>card.dataset.carCard==='documents');

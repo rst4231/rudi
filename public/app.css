@@ -18073,3 +18073,25 @@ body[data-app-tab="products"] .kitchen-switcher>button#kitchenFinanceShortcut:fo
 /* RUDI v4.146: partner avatar opens their existing star/profile page. */
 .profile-person-card .partner-header-avatar[role="button"]{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .profile-person-card .partner-header-avatar[role="button"]:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+
+/* RUDI v4.148: manual wallet + category reorder toggle. */
+.finance-wallet-head-actions #financeOrderEditToggle{
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--soft);
+  color:var(--text);
+}
+.finance-wallet-head-actions #financeOrderEditToggle.is-active{
+  color:var(--accent);
+  border-color:var(--accent);
+  background:color-mix(in srgb,var(--accent) 10%,var(--soft));
+}
+@media(max-width:430px){
+  .finance-wallet-head-actions #financeOrderEditToggle{
+    grid-column:auto!important;
+    min-width:0!important;
+    min-height:36px!important;
+    padding:7px 8px!important;
+    font-size:10px!important;
+  }
+}

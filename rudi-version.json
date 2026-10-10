@@ -1,18 +1,22 @@
 {
-  "current": "v4.147",
+  "current": "v4.148",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-10",
-  "basedOnProduction": "v4.146",
+  "basedOnProduction": "v4.147",
   "notes": [
-    "Calendar always returns to current month from any navigation path.",
-    "Standard wallet icons for calendar, shopping products and car expense shortcut.",
-    "Car finance shortcut remains visible in the dynamically mounted expense card.",
-    "Car expense rows display each operation separately with Moscow-local date and time.",
-    "Car repair input uses Что починить label.",
-    "Morning Telegram car digest excludes tyre advice."
+    "Restore finance wallet shortcut icon sizing inside dynamically mounted car Expenses card.",
+    "Place finance shortcut ahead of expand/collapse arrow.",
+    "Wait for app transition before opening Transport category and select the latest expense month when current selection is empty.",
+    "Clear stale finance category overlay when navigating to other sections.",
+    "Remove hollow circle only from unpaid obligations in the Telegram morning digest; car condition indicator stays unchanged.",
+    "Address mood analyzer results to «вы» rather than referring to «пользователь».",
+    "Unified size for calendar finance, view, search and settings icons, leaving the Personal / Shared selector untouched.",
+    "Single Изменить / Готово button next to Доход controls sorting of wallets and expense categories.",
+    "Long press no longer enables reorder mode; existing drag order saves remain.",
+    "Reward shop uses Диана or Рустам based on the current viewer."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

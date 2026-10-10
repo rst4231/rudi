@@ -57,7 +57,7 @@ function morningObligationBlock(rows){
   const due=Array.isArray(rows)?rows:[];
   if(!due.length)return '';
   return '💳 <b>Обязательные платежи сегодня</b>\n'
-    + due.map(row=>'• '+(row.paid?'✅ ':'○ ')+String(row.title||'Платёж')+' · '+rub(row.amount)).join('\n');
+    + due.map(row=>'• '+(row.paid?'✅ ':'')+String(row.title||'Платёж')+' · '+rub(row.amount)).join('\n');
 }
 
 function eveningObligationPart(rows){

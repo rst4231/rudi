@@ -291,7 +291,7 @@ test('wallet reorder gesture uses pointer position instead of element hit-testin
   const app=fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
   assert.ok(app.includes('function financeWalletMoveByPointer'));
   assert.ok(app.includes('financeWalletMoveByPointer(list,item,event.clientX)'));
-  assert.ok(app.includes('beginReorder(held.pointerId'));
+  assert.ok(app.includes('beginReorder(event.pointerId,event.clientX,event.clientY)'));
   assert.ok(app.includes("financeRequest('reorder-wallets',{ids})"));
 });
 
@@ -357,7 +357,7 @@ test('expense composer shows dragged wallet source and category reorder is two-d
   assert.ok(app.includes("'Источник: '+String(wallet.name||'Кошелёк')"));
   assert.ok(app.includes('function financeCategoryMoveByPointer'));
   assert.ok(app.includes('financeCategoryMoveByPointer(list,item,moveEvent.clientX,moveEvent.clientY)'));
-  assert.ok(app.includes('startedByLongPress:fromLongPress'));
+  assert.ok(app.includes('if(!financeCategoryEditMode)return;'));
   assert.ok(css.includes('.finance-expense-source'));
 });
 

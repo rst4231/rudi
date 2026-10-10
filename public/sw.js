@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.147';
+const CACHE_NAME='rudi-shell-v4.148';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -10,30 +10,30 @@ const PRECACHE=[
   "/icon-192-rudi-v460.png",
   "/icon-512.svg",
   "/icon-maskable.svg",
-  "/app.css?v=4.147",
-  "/finance-bank.css?v=4.147",
-  "/rudi-design-system.css?v=4.147",
-  "/pwa-extras.css?v=4.147",
-  "/calendar.css?v=4.147",
-  "/calendar-offline.js?v=4.147",
-  "/smart-home.css?v=4.147",
-  "/car.css?v=4.147",
-  "/profile-supplements.css?v=4.147",
-  "/supplement-advanced.css?v=4.147",
-  "/app.js?v=4.147",
-  "/calendar-day-recap.js?v=4.147",
-  "/wallet-brand-icons.js?v=4.147",
-  "/finance-bank.js?v=4.147",
-  "/pwa-extras.js?v=4.147",
-  "/weather.js?v=4.147",
-  "/smart-home.js?v=4.147",
-  "/car.js?v=4.147",
-  "/profile-supplements.js?v=4.147",
-  "/mood-history.js?v=4.147",
-  "/supplement-editor.js?v=4.147",
-  "/supplement-advanced.js?v=4.147",
-  "/product-extras.css?v=4.147",
-  "/product-extras.js?v=4.147"
+  "/app.css?v=4.148",
+  "/finance-bank.css?v=4.148",
+  "/rudi-design-system.css?v=4.148",
+  "/pwa-extras.css?v=4.148",
+  "/calendar.css?v=4.148",
+  "/calendar-offline.js?v=4.148",
+  "/smart-home.css?v=4.148",
+  "/car.css?v=4.148",
+  "/profile-supplements.css?v=4.148",
+  "/supplement-advanced.css?v=4.148",
+  "/app.js?v=4.148",
+  "/calendar-day-recap.js?v=4.148",
+  "/wallet-brand-icons.js?v=4.148",
+  "/finance-bank.js?v=4.148",
+  "/pwa-extras.js?v=4.148",
+  "/weather.js?v=4.148",
+  "/smart-home.js?v=4.148",
+  "/car.js?v=4.148",
+  "/profile-supplements.js?v=4.148",
+  "/mood-history.js?v=4.148",
+  "/supplement-editor.js?v=4.148",
+  "/supplement-advanced.js?v=4.148",
+  "/product-extras.css?v=4.148",
+  "/product-extras.js?v=4.148"
 ];
 
 const SYNC_DB='rudi-background-sync-v1';

@@ -19,7 +19,7 @@ test('finance navigation buttons in calendar, products and car have a wallet ico
     assert.doesNotMatch(button[0],/M7 17 17 7/);
   }
   assert.match(car,/expensesFinanceShortcut=expenses\?\.querySelector\('#carTransportFinanceShortcut'\)/);
-  assert.match(car,/car-smart-card-actions'\)\?\.append\(expensesFinanceShortcut\)/);
+  assert.match(car,/actions\?\.insertBefore\(expensesFinanceShortcut,actions\.querySelector\('\.car-card-collapse'\)\)/);
 });
 test('car expenses display every transaction separately, with timestamp and its own amount',()=>{
   assert.match(car,/group\.operations\.push\(\{label,amount,occurredAt:/);
