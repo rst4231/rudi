@@ -31,3 +31,6 @@
 body.rudi-product-modal-open{overflow:hidden}
 @media(max-height:550px){.rudi-product-editor-overlay{align-items:flex-start}}
 @media(prefers-reduced-motion:reduce){.rudi-product-editor-overlay,.rudi-product-editor{animation:none}}
+
+/* Purchase confirmation is visible only to the authenticated Rustam account. */
+#productsBought:not([data-rudi-buyer-allowed="true"]),#productsBought[hidden]{display:none!important}

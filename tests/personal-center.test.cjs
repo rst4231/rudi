@@ -2,6 +2,10 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const store=require('../api/personal-center-store.cjs');
 const cron=require('../api/personal-center-cron-handler.cjs');
+const ai=require('../api/personal-center-ai.cjs');
+const emotions=require('../api/personal-center-emotions.cjs');
+const cycle=require('../api/cycle-store.cjs');
+const fs=require('node:fs'),path=require('node:path');
 const map=new Map();
 function client(){return {
  getRecord:async(ns,k)=>map.has(ns+':'+k)?{value:map.get(ns+':'+k)}:null,
@@ -12,10 +16,10 @@ function client(){return {
 };}
 test('independent user records and mandatory ratings',async()=>{
  map.clear();const c=client();const now=Date.parse('2026-10-10T04:00:00Z');
- await store.mutate('Рустам','checkin',{mood:8,energy:7,stress:3},{client:c,now});
- assert.equal((await store.read('Рустам',{client:c})).checkins['2026-10-10'].mood,8);
+ await store.mutate('Рустам','checkin',{stress:3},{client:c,now});
+ assert.equal((await store.read('Рустам',{client:c})).checkins['2026-10-10'].stress,3);
  assert.deepEqual((await store.read('Диана',{client:c})).checkins,{});
- await assert.rejects(()=>store.mutate('Диана','checkin',{mood:12,energy:1,stress:2},{client:c,now}),/invalid-rating/);
+ await assert.rejects(()=>store.mutate('Диана','checkin',{stress:12},{client:c,now}),/invalid-rating/);
 });
 test('once-per-slot reports and green halo state',async()=>{
  map.clear();const c=client(),now=Date.parse('2026-10-10T04:00:00Z');
@@ -46,4 +50,91 @@ test('scheduler does not regenerate existing reports',async()=>{
  assert.equal(first.ok,true);assert.equal(generated,2);
  const second=await cron.run({client:c,now,generate});
  assert.equal(second.ok,true);assert.equal(generated,2);
+});
+
+test('vision, chronic conditions and stress persist independently in D1',async()=>{
+ map.clear();const c=client();
+ await store.mutate('Рустам','profile',{height:181,vision:{left:'-1.5',right:'+0.75'},chronicConditions:'Астма\\nМигрень'},{client:c});
+ const r=await store.read('Рустам',{client:c}),d=await store.read('Диана',{client:c});
+ assert.equal(r.profile.vision.left,-1.5);
+ assert.equal(r.profile.vision.right,.75);
+ assert.equal(r.profile.chronicConditions.length,2);
+ assert.deepEqual(d.profile.chronicConditions,[]);
+ assert.equal(d.profile.vision.left,null);
+ await assert.rejects(()=>store.mutate('Рустам','profile',{height:181,vision:{left:'22',right:'0'}},{client:c}),/invalid-vision/);
+});
+test('weight change counts only when measurements and time range support it',()=>{
+ const profile={height:181,birthDate:'',vision:{left:-1.5,right:.75},chronicConditions:['Астма']};
+ const data={profile,checkins:{},symptoms:[],weights:[
+ {kg:100,at:'2026-09-20T00:00:00Z'}, {kg:99,at:'2026-09-30T00:00:00Z'}, {kg:97.8,at:'2026-10-10T00:00:00Z'}]};
+ const result=ai.summaries(data,'Рустам','2026-10-10','evening');
+ assert.equal(result.body.weightChange.significant,true);
+ assert.equal(result.body.weightChange.percent,-2.2);
+ assert.equal(result.body.chronicConditions[0],'Астма');
+ assert.equal(result.body.vision.left,-1.5);
+ assert.equal(result.health.symptomsTotal,0);
+ assert.equal(ai.summaries({...data,weights:data.weights.slice(1)},'Рустам','2026-10-10','evening').body.weightChange.significant,false);
+});
+test('cycle comparison is bounded to observed Diana data, not a diagnosis',()=>{
+ const state=cycle.normalizeCycleState({historyStarts:['2026-09-10','2026-10-10'],cycleLengthDays:30,periodLengthDays:5,ovulationDay:16});
+ const observation=ai.cycleDigest(state,'2026-10-10',[{date:'2026-10-10',mood:'joy'}],[]);
+ assert.equal(observation.historyCount,2);
+ assert.ok(observation.comparisons.length>=1);
+ assert.equal(observation.comparisons[0].eligibleForPattern,false);
+ assert.match(observation.note,/не доказывают/);
+});
+test('cycle history stays in D1 with no expiration and much larger lifetime horizon',()=>{
+ assert.equal(cycle.TTL_SECONDS,0);
+ assert.ok(cycle.MAX_HISTORY>=1000);
+});
+test('one time evening summary for 10 Oct and next morning summary are idempotent',async()=>{
+ map.clear();const c=client(),now=Date.parse('2026-10-11T04:00:00Z');
+ let n=0;const generate=async actor=>{n++;return {narrative:{overview:actor},model:'test'};};
+ const first=await cron.run({client:c,now,generate});
+ assert.equal(first.ok,true);
+ assert.equal(n,4);
+ assert.equal(first.results.filter(x=>x.status==='created').length,4);
+ await cron.run({client:c,now,generate});
+ assert.equal(n,4);
+});
+test('AI center never calls LLM on open or pull refresh; source data is not reentered',()=>{
+ const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ const css=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
+ assert.match(app,/installCenterPullRefresh/);
+ assert.match(app,/Отпустите для обновления/);
+ assert.match(app,/knownVersion/);
+ assert.doesNotMatch(app,/openai\\.com|groq\\.com/);
+ assert.match(app,/Негативные эмоции/);
+ assert.doesNotMatch(app,/pcCheckinForm|name="stress"/);
+ assert.match(app,/pcEmotionValue/);
+ assert.doesNotMatch(app,/name="mood"|name="energy"/);
+ assert.match(app,/data-open="weight"/);
+ assert.match(app,/pcDianaCycleSlot/);
+ assert.match(app,/name="eyeLeft"/);
+ assert.match(app,/name="chronicConditions"/);
+ assert.match(app,/pcSummaryGrid/);
+ assert.match(css,/pc-visual-height/);
+});
+
+test('emotion signal uses existing mood entries, not fabricated stress ratings',()=>{
+ const history=[
+   {date:'2026-10-09',mood:'joy',updatedAt:'2026-10-09T12:00:00Z',samples:[{mood:'joy'},{mood:'anger'},{mood:'sadness'}]},
+   {date:'2026-10-10',mood:'neutral',updatedAt:'2026-10-10T12:00:00Z',samples:[{mood:'neutral'},{mood:'love'}]},
+ ];
+ const signal=emotions.computeEmotionSignals(history);
+ assert.equal(signal.daysRecorded,2);
+ assert.equal(signal.daily[0].negativePercent,67);
+ assert.equal(signal.daily[1].negativePercent,0);
+ assert.equal(signal.recentNegativePercent,40);
+ assert.match(signal.note,/не медицинское измерение/);
+ const changed=emotions.computeEmotionSignals([{...history[0],updatedAt:'2026-10-09T18:00:00Z'},history[1]]);
+ assert.notEqual(signal.version,changed.version);
+});
+test('AI emotional tension uses mood journal and does not use a manual stress score',()=>{
+ const p={profile:{height:181,birthDate:'',vision:{left:null,right:null},chronicConditions:[]},checkins:{'2026-10-10':{stress:10}},symptoms:[],weights:[]};
+ const report=ai.summaries(p,'Рустам','2026-10-10','evening',[{date:'2026-10-10',mood:'joy',samples:[{mood:'joy'}]}]);
+ assert.equal(report.wellbeing.kind,'negative-emotion-share');
+ assert.equal(report.wellbeing.recentNegativePercent,0);
+ assert.equal(report.wellbeing.latest.negativePercent,0);
+ assert.ok(!('latestStress' in report.wellbeing));
 });

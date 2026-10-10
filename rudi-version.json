@@ -1,16 +1,19 @@
 {
-  "current": "v4.157",
+  "current": "v4.158",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-10",
-  "basedOnProduction": "v4.156",
+  "basedOnProduction": "v4.157",
   "notes": [
-    "Personal AI Center: light and dark themes, subtle motion and own-avatar navigation.",
-    "07:00/21:00 Moscow scheduled AI summaries, persisted in D1; no external notifications.",
-    "Green unread halo, daily mood-energy-stress scores, symptoms and weight tracking, deletion controls.",
-    "Reuse finance, supplements, habits, calendar and TickTick as sources, avoiding extra entry forms."
+    "iPhone stable full-screen health and body forms with safe viewport and keyboard handling.",
+    "Compact AI center with avatar, age, height and weight; only stress 1–10 manually entered.",
+    "Live mood source and scheduled biorhythm, private Diana cycle and menstrual pattern analysis.",
+    "Eyesight, chronic conditions, weight and symptom trends backed by Cloudflare D1.",
+    "AI coach: confirmed change, observation, next action and conditional forecast; stored 07:00/21:00 Moscow summaries.",
+    "Manual swipe-to-refresh with conditional data reads, no AI generated on app open; private daily 2026-10-10 backfill.",
+    "One red full-center erase button, no duplicate finance/calendar/supplement links or extra Vercel cron/function."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

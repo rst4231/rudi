@@ -4466,6 +4466,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'list').trim();
+      // Server-authenticated identity, not a claimed body name, controls purchase permission.
+      if ((operation === 'bought' || operation === 'buy-checked') && actor !== 'Рустам') {
+        return res.status(403).json({ ok: false, error: 'products-purchase-forbidden' });
+      }
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
       if (previousSnapshot?.products?.initialized) {
         const liveBefore=await readProductListRaw(options).catch(()=>({initialized:false,items:[]}));

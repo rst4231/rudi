@@ -254,7 +254,19 @@
     renderFrequent();
     renderDropdown();
   }
-  window.addEventListener('rudi-products-update',()=>{renderFrequent();renderDropdown();});
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});
-  else setup();
+  // Only Rustam sees purchase confirmation; server enforces access independently.
+  function updateBoughtVisibility(){
+    const button=$('productsBought');if(!button)return;
+    const allowed=button.textContent.trim()==='Купил';
+    button.dataset.rudiBuyerAllowed=allowed?'true':'false';
+    button.hidden=!allowed;
+  }
+  function watchBoughtVisibility(){
+    const button=$('productsBought');if(!button)return;
+    updateBoughtVisibility();
+    new MutationObserver(updateBoughtVisibility).observe(button,{childList:true,characterData:true,subtree:true});
+  }
+  window.addEventListener('rudi-products-update',()=>{updateBoughtVisibility();renderFrequent();renderDropdown();});
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setup();watchBoughtVisibility()},{once:true});
+  else {setup();watchBoughtVisibility();}
 })();

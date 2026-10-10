@@ -74,3 +74,20 @@ test('products autocomplete and versioned assets are wired without remote lookup
   assert.ok(!extras.includes('fetch('));
   assert.ok(!app.includes("На неделю для двоих: ~"));
 });
+
+test('only Rustam has Купил and Diana cannot bypass through API',()=>{
+ const source=fs.readFileSync(path.join(__dirname,'../api/partner-message.js'),'utf8');
+ const start=source.indexOf("if (action === 'products')");
+ const end=source.indexOf("if (action === 'fasting')",start);
+ assert.ok(start>=0&&end>start);
+ const route=source.slice(start,end);
+ assert.match(route,/authorizeRequest\(req, body\.initData, options\)/);
+ assert.match(route,/\(operation === 'bought' \|\| operation === 'buy-checked'\) && actor !== 'Рустам'/);
+ assert.match(route,/status\(403\)\.json\(\{ ok: false, error: 'products-purchase-forbidden' \}\)/);
+ assert.ok(route.indexOf('products-purchase-forbidden')<route.indexOf('markProductsBoughtByIds'));
+ const ui=fs.readFileSync(path.join(__dirname,'../public/product-extras.js'),'utf8');
+ const css=fs.readFileSync(path.join(__dirname,'../public/product-extras.css'),'utf8');
+ assert.match(ui,/button\.textContent\.trim\(\)==='Купил'/);
+ assert.match(ui,/button\.hidden=!allowed/);
+ assert.ok(css.includes('#productsBought:not([data-rudi-buyer-allowed="true"])'));
+});
