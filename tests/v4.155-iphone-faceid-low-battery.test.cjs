@@ -29,7 +29,7 @@ test('verified Rustam PIN works as fallback for Face ID failure and missing WebA
   assert.match(app,/if\(String\(response\.actor\|\|''\)!=='Рустам'\)throw new Error/);
   assert.match(app,/backupButton\.textContent='Face ID недоступен\? Войти по PIN'/);
   assert.match(app,/if\(!passkeySupported\(\)\)\{\s*\/\/ No WebAuthn on this iPhone browser:[\s\S]*?await showIphoneFaceIdUnlock\(\)/);
-  assert.match(app,/if\(!passkeySupported\(\)\)\{\s*faceButton\.textContent='Face ID недоступен в этом браузере';[\s\S]*?pinForm\.hidden=false/);
+  assert.match(app,/if\(!passkeySupported\(\)\)\{\s*faceButton\.textContent='Face ID недоступен в этом браузере';[\s\S]*?pinForm\.style\.display='grid'/);
 });
 
 test('expired unlock is rechecked on timer and when app comes to foreground',()=>{
