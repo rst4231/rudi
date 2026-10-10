@@ -152,3 +152,41 @@ test('cached calendar renders immediately and offline path never waits for TickT
   assert.match(fn,/Офлайн · нет сохранённых данных/);
   assert.match(app,/hasRecentOfflineIdentity\?1800:5000/);
 });
+
+test('reconnection refreshes the calendar without restarting iOS PWA',async()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const start=app.indexOf('let reconnectCalendarPromise=null');
+  const end=app.indexOf("window.addEventListener('online'",start);
+  assert.ok(start>=0&&end>start);
+  const reconnectSource=app.slice(start,end);
+  const make=offline=>{
+    const counts={probes:0,flushed:0,rendered:0,recovered:0};
+    const func=Function('navigator','currentActor','appAccessReady','calendarNetworkUnavailable',
+      'flushCalendarOffline','currentAppTab','loadWorkCalendar','currentWorkCalendarView',
+      'window','CustomEvent','console','Date','Promise',
+      'let calendarReachabilityAt=0;'+reconnectSource+';return reconnectCalendar;'
+    )({onLine:true},'Рустам',true,async force=>{assert.equal(force,true);counts.probes++;return offline},
+      async()=>{counts.flushed++;return {sent:0}},'schedule',
+      async(_view,opt)=>{assert.equal(opt.force,true);counts.rendered++},'month',
+      {dispatchEvent:()=>{counts.recovered++}},function(type){this.type=type},console,Date,Promise);
+    return {func,counts};
+  };
+  const active=make(false);
+  assert.equal(await active.func({force:true}),true);
+  assert.deepEqual(active.counts,{probes:1,flushed:1,rendered:1,recovered:1});
+  const failed=make(true);
+  assert.equal(await failed.func({force:true}),false);
+  assert.deepEqual(failed.counts,{probes:1,flushed:0,rendered:0,recovered:0});
+});
+
+test('offline calendar periodically rechecks network and refresh swipe attempts reconnect',()=>{
+  const app=fs.readFileSync('public/app.js','utf8');
+  const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
+  assert.match(app,/window\.addEventListener\('online',\(\)=>\{reconnectCalendar\(\{force:true\}\)\}\)/);
+  assert.match(app,/document\.visibilityState==='visible'&&window\.rudiCalendarOffline\?\.isOffline\?\.\(\)/);
+  assert.match(app,/await reconnectCalendar\(\{force:true\}\)/);
+  assert.match(app,/reconnectCalendar\(\);[\s\S]*?if\(offlineSnapshot\)return offlineSnapshot;/);
+  assert.match(app,/rudi-calendar-network-recovered/);
+  assert.match(pwa,/addEventListener\('rudi-calendar-network-recovered'/);
+  assert.match(pwa,/banner\.hidden=true;[\s\S]*?document\.body\.dataset\.offlineMode='0'/);
+});
