@@ -2182,6 +2182,7 @@
       if(attempts<50) setTimeout(wait,250);
     };
     wait();
+    window.addEventListener('rudi:auth-ready',wait);
   }
 
   window.RUDI_CAR={refresh:()=>loadCar()};
