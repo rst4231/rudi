@@ -11242,9 +11242,11 @@
           void requireIphoneFaceIdLock();
           return false;
         }
+        const wasAuthenticated=document.body.classList.contains('auth-ok');
         document.body.classList.remove('auth-pending','auth-denied','auth-login');
         document.body.classList.add('auth-ok');
         if(isRustamIphone())scheduleIphoneFaceIdExpiry();
+        if(!wasAuthenticated)try{window.dispatchEvent(new Event('rudi:auth-ready'))}catch(_){}
         return true;
       }
 
