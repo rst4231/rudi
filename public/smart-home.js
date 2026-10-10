@@ -253,6 +253,10 @@
   function deviceCard(device){
     const card=document.createElement('article');
     card.className='smart-home-device-card';
+    if(lowBatteryDevices({devices:[device]}).length){
+      card.classList.add('is-battery-low');
+      card.setAttribute('aria-label',(device.name||'Устройство')+': низкий заряд батареи');
+    }
 
     const speed=capability(device,'devices.capabilities.mode','work_speed');
     const modes=Array.isArray(speed?.parameters?.modes)?speed.parameters.modes:[];
