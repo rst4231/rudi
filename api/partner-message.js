@@ -518,8 +518,8 @@ async function sendDailyQuestionAnswerNotification(actor,options={}) {
   }
 }
 
-async function refreshBackupToken(previousSnapshot, options = {}) {
-  return createStateBackup({ ...options, previousSnapshot }).catch((error) => {
+async function refreshBackupToken(previousSnapshot, options = {}, snapshotPatch = null) {
+  return createStateBackup({ ...options, previousSnapshot, snapshotPatch }).catch((error) => {
     console.warn('RUDI_STATE_BACKUP_REFRESH_WARN', String(error?.message || error));
     return '';
   });
@@ -2301,7 +2301,10 @@ async function handleTickTick(req, res, action, options = {}) {
           scoreState=reversed?.state||scoreState;
         }
       }
-      const backupToken=personal?'':await refreshBackupToken(backupSnapshotFromToken(body.backupToken,options),options);
+      const backupToken=personal?'':await refreshBackupToken(
+        backupSnapshotFromToken(body.backupToken,options),options,
+        scoreState?{scoreState}:null
+      );
       return res.status(200).json({ok:true,reopened:true,taskId:snapshot.taskId,
         personal,alreadyOpen:Boolean(result?.alreadyOpen),
         ...(scoreState?{score:scoreView(scoreState,{now:options.now||Date.now()})}:{}),
@@ -2404,7 +2407,11 @@ async function handleTickTick(req, res, action, options = {}) {
         taskId,projectId:config.projectId,scoreActors,scoreDate,
         expiresAt:Date.now()+30000,
       },options):'';
-      const backupToken = await refreshBackupToken(previousSnapshot, options);
+      const journal=wasOpen?await readActivityJournal(options).catch(()=>null):null;
+      const backupPatch=scoreState&&(!wasOpen||journal)
+        ?{scoreState,...(journal?{activityJournal:journal}:{})}
+        :null;
+      const backupToken = await refreshBackupToken(previousSnapshot, options, backupPatch);
       return res.status(200).json({
         ok:true,connected:true,writable:true,taskId,completed:true,undoToken,
         title:String(task?.title||'').trim(),
@@ -3713,30 +3720,43 @@ async function handleRudiAction(req, res, action, options = {}) {
       const { actor } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'list').trim();
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
-      if (previousSnapshot?.reactions?.initialized) {
-        await restoreReactionState(previousSnapshot.reactions, options).catch(()=>null);
+      let reactionState=null;
+      if(previousSnapshot?.reactions?.initialized){
+        const live=await readReactionState(options);
+        const merged=mergeReactionStates(live,previousSnapshot.reactions);
+        reactionState=(!live.initialized||JSON.stringify(live.entries)!==JSON.stringify(merged.entries))
+          ?await restoreReactionState(previousSnapshot.reactions,{...options,reactionState:live})
+          :live;
       }
 
       if (operation === 'list') {
-        const reactions = await readReactions(body.targets, options);
+        const reactions = await readReactions(body.targets, reactionState?{...options,reactionState}:options);
         return res.status(200).json({ ok: true, actor, reactions });
       }
       if (operation === 'set') {
         const before = (await readReactions([body.target], options).catch(() => []))[0];
         const reaction = await setReaction(body.target, actor, body.liked, options);
-        if (body.liked === true && !before?.likedBy?.includes(actor) && reaction?.likedBy?.includes(actor)) {
-          await recordLikeActivity(body.target, actor, options);
-        }
-        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        const activityChanged=body.liked===true&&!before?.likedBy?.includes(actor)&&reaction?.likedBy?.includes(actor);
+        if(activityChanged) await recordLikeActivity(body.target, actor, options);
+        const latest=await readReactionState(options).catch(()=>null);
+        const journal=activityChanged?await readActivityJournal(options).catch(()=>null):null;
+        const patch=latest&&(!activityChanged||journal)?{
+          reactions:latest,...(journal?{activityJournal:journal}:{})
+        }:null;
+        const backupToken=await refreshBackupToken(previousSnapshot,options,patch);
         return res.status(200).json({ ok: true, actor, reaction, backupToken });
       }
       if (operation === 'toggle') {
         const before = (await readReactions([body.target], options).catch(() => []))[0];
         const reaction = await toggleReaction(body.target, actor, options);
-        if (!before?.likedBy?.includes(actor) && reaction?.likedBy?.includes(actor)) {
-          await recordLikeActivity(body.target, actor, options);
-        }
-        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        const activityChanged=!before?.likedBy?.includes(actor)&&reaction?.likedBy?.includes(actor);
+        if(activityChanged) await recordLikeActivity(body.target, actor, options);
+        const latest=await readReactionState(options).catch(()=>null);
+        const journal=activityChanged?await readActivityJournal(options).catch(()=>null):null;
+        const patch=latest&&(!activityChanged||journal)?{
+          reactions:latest,...(journal?{activityJournal:journal}:{})
+        }:null;
+        const backupToken=await refreshBackupToken(previousSnapshot,options,patch);
         return res.status(200).json({ ok: true, actor, reaction, backupToken });
       }
       return res.status(400).json({ ok: false, error: 'reaction-operation-invalid' });
@@ -4417,7 +4437,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         const values=Array.isArray(body.items)&&body.items.length?body.items:[body.text];
         // Updating the shopping list should not create noise in activity history.
         const state=await addProducts(values,actor,options);
-        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ok:true,actor,...state,backupToken});
       }
       if (operation === 'update') {
@@ -4425,45 +4445,45 @@ async function handleRudiAction(req, res, action, options = {}) {
           text: body.text, quantity: body.quantity, unit: body.unit,
           categoryOverride: body.categoryOverride, note: body.note,
         }, options);
-        const backupToken = await refreshBackupToken(previousSnapshot, options);
+        const backupToken = await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'remove') {
         const before = await readProductList(options);
         const removedItem = (before.items || []).find((item) => item.id === String(body.id || '')) || null;
         const state = await removeProduct(body.id, options);
-        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ ok: true, actor, ...state, removedItem, backupToken });
       }
       if (operation === 'restore') {
         const state = await restoreProducts(body.items || body.item, options);
-        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'toggle') {
         const state = Array.isArray(body.checkedIds)
           ? await setProductCheckedSelection(body.checkedIds, options)
           : await toggleProductChecked(body.id, options);
-        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'bought') {
         const state = await markProductBought(body.id, actor, options);
-        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'buy-checked') {
         const state = Array.isArray(body.checkedIds)
           ? await markProductsBoughtByIds(body.checkedIds, actor, options)
           : await markCheckedProductsBought(actor, options);
-        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
       }
       if (operation === 'clear') {
         const before = await readProductList(options);
         const removedItems = Array.isArray(before.items) ? before.items : [];
         const state = await clearProducts(options);
-        const backupToken=await refreshBackupToken(previousSnapshot,options);
+        const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ ok: true, actor, ...state, removedItems, backupToken });
       }
       return res.status(400).json({ ok: false, error: 'products-operation-invalid' });

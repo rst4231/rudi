@@ -31,6 +31,10 @@ const { readUiPreferences } = require('./ui-preferences-store.cjs');
 const BACKUP_VERSION = 2;
 const BACKUP_PREFIX = 'rudi-state-v2';
 const MAX_BACKUP_BYTES = 2 * 1024 * 1024;
+// Incremental refresh is allowed only from a recently verified full snapshot.
+// Full reads continue at least once a minute, limiting cross-device staleness.
+const INCREMENTAL_BACKUP_MAX_AGE_MS = 60 * 1000;
+const INCREMENTAL_BACKUP_FIELDS = new Set(['products','reactions','activityJournal','scoreState']);
 
 function encryptionKey(options = {}) {
   const token = options.botToken || resolveTelegramBotToken(options.env || process.env);
@@ -255,6 +259,7 @@ async function createStateSnapshot(options = {}) {
   return {
     version: BACKUP_VERSION,
     createdAt: new Date(options.now || Date.now()).toISOString(),
+    fullSnapshotAt: new Date(options.now || Date.now()).toISOString(),
     partnerMessage: newerTimestampState(partnerMessage, previous?.partnerMessage, 'updatedAt'),
     wishlist: newerVersionState(wishlist, previous?.wishlist),
     products: newerVersionState(products, previous?.products),
@@ -301,7 +306,35 @@ async function createStateSnapshot(options = {}) {
   };
 }
 
+function canIncrementalStateBackup(options = {}) {
+  const previous=options.previousSnapshot;
+  const patch=options.snapshotPatch;
+  const now=Number(options.now ?? Date.now());
+  const fullAt=Date.parse(String(previous?.fullSnapshotAt||''))||0;
+  if(!Number.isFinite(now)||!previous||Number(previous.version)!==BACKUP_VERSION
+    ||!fullAt||fullAt>now||now-fullAt>INCREMENTAL_BACKUP_MAX_AGE_MS
+    ||!patch||typeof patch!=='object'||Array.isArray(patch)) return false;
+  const fields=Object.keys(patch);
+  if(!fields.length||fields.some(key=>!INCREMENTAL_BACKUP_FIELDS.has(key))) return false;
+  return fields.every(key=>{
+    const next=patch[key],old=previous[key];
+    return Boolean(next&&typeof next==='object'&&!Array.isArray(next)&&next.initialized===true
+      &&Number.isFinite(Number(next.version||0))
+      &&Number(next.version||0)>=Number(old?.version||0));
+  });
+}
+
 async function createStateBackup(options = {}) {
+  if(canIncrementalStateBackup(options)){
+    const {previousSnapshot:previous,snapshotPatch:patch}=options;
+    const snapshot={
+      ...previous,
+      ...patch,
+      ...(patch.reactions?{reactions:mergeReactionStates(previous.reactions,patch.reactions)}:{}),
+      createdAt:new Date(options.now ?? Date.now()).toISOString(),
+    };
+    return sealSnapshot(snapshot,options);
+  }
   return sealSnapshot(await createStateSnapshot(options), options);
 }
 
@@ -605,6 +638,7 @@ module.exports = {
   openSnapshot,
   createStateSnapshot,
   createStateBackup,
+  canIncrementalStateBackup,
   restoreStateBackup,
   normalizeUiPreferenceEntry,
   normalizeUiPreferences,

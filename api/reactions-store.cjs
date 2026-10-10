@@ -131,7 +131,7 @@ async function legacyLikedBy(target,cache) {
 async function readReaction(targetInput, options = {}) {
   const target=normalizeTarget(targetInput);
   const cache=cacheOf(options);
-  const state=await readReactionState({ ...options, reactionsCache:cache });
+  const state=options.reactionState||await readReactionState({ ...options, reactionsCache:cache });
   const key=stateEntryKey(target);
   const entry=state.entries[key];
   if(entry) return { ...target, likedBy:entry.likedBy, count:entry.likedBy.length };
@@ -148,7 +148,10 @@ async function readReaction(targetInput, options = {}) {
 async function readReactions(targets, options = {}) {
   const list = Array.isArray(targets) ? targets : [];
   if (!list.length || list.length > MAX_BATCH) throw new Error('reaction-targets-invalid');
-  return Promise.all(list.map((target) => readReaction(target, options)));
+  const cache=cacheOf(options);
+  // One state lookup for the entire batch, rather than one /get per reaction.
+  const reactionState=options.reactionState||await readReactionState({ ...options, reactionsCache:cache });
+  return Promise.all(list.map(target=>readReaction(target,{ ...options, reactionsCache:cache, reactionState })));
 }
 
 async function setReaction(targetInput, actorInput, likedInput, options = {}) {
@@ -192,28 +195,15 @@ async function toggleReaction(targetInput, actorInput, options = {}) {
 
 async function restoreReactionState(snapshot, options = {}) {
   const incoming=normalizeReactionState(snapshot);
-  if(!incoming.initialized) return readReactionState(options);
+  if(!incoming.initialized) return options.reactionState||readReactionState(options);
   const cache=cacheOf(options);
-  const current=await readReactionState({ ...options, reactionsCache:cache });
+  const current=options.reactionState||await readReactionState({ ...options, reactionsCache:cache });
   const merged=mergeReactionStates(current,incoming);
+  // The state record is authoritative. Legacy per-actor records are only a
+  // read fallback for unmigrated entries; rewriting all of them is unnecessary.
+  if(current.initialized&&JSON.stringify(current.entries)===JSON.stringify(merged.entries)) return current;
   merged.version=Math.max(Number(current.version||0),Number(incoming.version||0),Date.now());
-  const stored=await writeReactionState(merged,{ ...options, reactionsCache:cache });
-  const writes=[];
-  for(const entry of Object.values(stored.entries)){
-    for(const actor of ACTORS){
-      writes.push(cache.set(cacheKey(entry,actor),{
-        actor,
-        liked:entry.likedBy.includes(actor),
-        reactedAt:entry.updatedAt,
-      },{
-        ttl:TTL_SECONDS,
-        tags:['rudi-reactions',`rudi-reaction-${entry.type}`],
-        name:cacheKey(entry,actor),
-      }).catch(()=>false));
-    }
-  }
-  await Promise.all(writes);
-  return stored;
+  return writeReactionState(merged,{ ...options, reactionsCache:cache });
 }
 
 module.exports = {

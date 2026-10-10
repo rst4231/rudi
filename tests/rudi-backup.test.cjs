@@ -122,7 +122,7 @@ test('client syncs home order and collapse state through shared server UI state 
 test('persistent mutations refresh the encrypted backup immediately',()=>{
   const api=fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
   for(const operation of ["add","remove","toggle","bought","buy-checked","clear"]){
-    assert.match(api,new RegExp("operation === '"+operation+"'[\\s\\S]*?refreshBackupToken\\(previousSnapshot,options\\)"));
+    assert.match(api,new RegExp("operation === '"+operation+"'[\\s\\S]*?refreshBackupToken\\(previousSnapshot,options(?:,\\{products:state\\})?\\)"));
   }
   assert.match(api,/action === 'mood'[\s\S]*?refreshBackupToken\(previousSnapshot,options\)/);
   assert.match(api,/action === 'reactions'[\s\S]*?refreshBackupToken\(previousSnapshot,options\)/);
