@@ -12,7 +12,8 @@
     "Other devices and Diana remain on their current authentication behavior; Face ID uses the existing WebAuthn backend.",
     "Collapsed Smart Home: red count badge for devices below 10% battery; individual low-battery device cards get red border and halo.",
     "Smart Home and Car reload after delayed Face ID registration; no continuous polling added.",
-    "14 focused regression checks passed; build/deployment and physical iPhone verification pending release approval."
+    "14 focused regression checks passed; build/deployment and physical iPhone verification pending release approval.",
+    "Prepared for one production build after explicit approval; Face ID, Safari camera and low-battery alerts verified in regression tests."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
