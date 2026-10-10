@@ -7,11 +7,11 @@
   "createdAt": "2026-10-10",
   "basedOnProduction": "v4.154",
   "notes": [
-    "CloudCam in the hallway now opens official EyePlus directly in a separate browser tab; remove embedded EyePlus login and CAPTCHA.",
-    "Rustam on iPhone: require RUDI Face ID enrolment if not configured; use verified Face ID or a backend-verified RUDI PIN fallback to unlock for 10 minutes.",
-    "Lock Rustam's iPhone interface again after 10 minutes, including after app resume; Diana and non-iPhone clients are unchanged.",
-    "Smart Home: show a red collapsed card badge with the count of devices whose battery is below 10%, and a soft red glow around those device rows.",
-    "Regression checks: 19 targeted cases passed; production deployment requires separate approval."
+    "Replace CloudCam embedded EyePlus iframe and captcha with direct Safari link, keeping camera visible only to Rustam in Hallway.",
+    "Require Face ID enrollment and ten-minute screen unlocking for Rustam on iPhone only; no skip during enrollment, server-verified backup RUDI PIN for unlock errors.",
+    "Add low-battery count badge to collapsed Smart Home, plus red halo for devices below 10 percent battery.",
+    "Resume Smart Home and Car loading when delayed Face ID onboarding completes, without extending polling or adding deployments.",
+    "Code changes prepared on feature branch. Production deployment requires an explicit separate approval."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
