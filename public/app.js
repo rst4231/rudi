@@ -11186,7 +11186,7 @@
           if(!passkeySupported()){
             faceButton.textContent='Face ID недоступен в этом браузере';faceButton.disabled=true;
             backupButton.hidden=true;
-            pinForm.hidden=false;
+            pinForm.style.display='grid';
             status.textContent='Face ID недоступен в этом браузере. Войди по резервному PIN Руди; для подключения Face ID открой Руди в Safari на iPhone.';
           }else prepare();
         });
