@@ -18145,3 +18145,10 @@ body[data-app-tab="products"] .kitchen-switcher>button#kitchenFinanceShortcut:fo
  #financeCategoryHistorySearchWrap:not([hidden]),
  #scoreModal .score-panel:not([hidden]),#scoreModal .score-active-rewards:not([hidden]){animation:none!important}
 }
+
+/* v4.149: settings visibility and iPhone Face ID. */
+.settings-page #settingsTextSizeRow[hidden],.settings-page #settingsPwaRow[hidden],.settings-page #settingsFaceIdRow[hidden]{display:none!important}
+.settings-page .settings-faceid-row{min-height:54px;gap:12px}
+.settings-page .settings-faceid-action{flex:0 0 auto;min-height:37px;border-radius:12px;padding:7px 11px;font-size:11px}
+.settings-page .settings-faceid-action.is-enabled{border-color:rgba(221,76,82,.35);background:rgba(221,76,82,.08);color:#c6414a}
+@media(max-width:390px){.settings-page .settings-faceid-action{max-width:52%;white-space:normal;text-align:center}}

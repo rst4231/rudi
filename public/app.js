@@ -7308,7 +7308,7 @@
           <section class="score-rules-sheet" role="dialog" aria-modal="true" aria-labelledby="scoreRulesTitle" aria-describedby="scoreRulesIntro">
             <header class="score-rules-head">
               <div class="score-rules-heading">
-                <span class="score-rules-kicker">⭐ Правила RUDI</span>
+                <span class="score-rules-kicker">⭐ Правила РуДи</span>
                 <h2 id="scoreRulesTitle">Как заработать звёзды?</h2>
                 <p id="scoreRulesIntro">Делаешь полезное дело — получаешь звёзды. Их можно копить, дарить или тратить на награды.</p>
               </div>
@@ -8004,89 +8004,76 @@
         openLuluWalkModal();
       }
 
-      let settingsFaceIdStatusSequence=0;
 
+      let settingsFaceIdStatusSequence=0,settingsFaceIdPrepared=null,settingsFaceIdPreparedAt=0;
+      function updateSettingsPlatform149(){
+        const browser=!isStandalonePwa();
+        for(const id of ['settingsTextSizeRow','settingsPwaRow']){
+          const row=document.getElementById(id);if(row)row.hidden=browser;
+        }
+      }
       async function updateSettingsFaceIdUi(){
         const row=document.getElementById('settingsFaceIdRow');
         const status=document.getElementById('settingsFaceIdStatus');
         const button=document.getElementById('settingsFaceIdConnect');
-        if(!status||!button) return;
-
-        const insideTelegram=Boolean(telegramInitData());
-        if(row) row.hidden=insideTelegram;
-        if(insideTelegram) return;
-
-        button.hidden=false;
-        button.disabled=true;
-        button.classList.remove('is-enabled');
-
-        if(!passkeySupported()){
-          status.textContent='Недоступен на этом устройстве';
-          button.hidden=true;
-          return;
-        }
-        if(!currentActor){
-          status.textContent='Недоступен';
-          button.hidden=true;
-          return;
-        }
-
+        if(!row||!status||!button)return;
+        const eligible=/iPhone/i.test(navigator.userAgent||'')&&!telegramInitData();
+        row.hidden=!eligible;if(!eligible)return;
         const sequence=++settingsFaceIdStatusSequence;
+        button.hidden=false;button.disabled=true;button.dataset.faceIdConfigured='0';
+        button.classList.remove('is-enabled');settingsFaceIdPrepared=null;
+        if(!passkeySupported()){status.textContent='Недоступен на этом iPhone';button.hidden=true;return}
+        if(!currentActor){status.textContent='Сначала войди в РуДи';button.hidden=true;return}
         status.textContent='Проверяю…';
         try{
-          const faceStatus=await passkeyRequest('status');
-          if(sequence!==settingsFaceIdStatusSequence) return;
-          const configured=Boolean(faceStatus.configured);
-          if(configured){
-            status.textContent='Включён';
-            button.textContent='Включён';
-            button.classList.add('is-enabled');
-            button.disabled=true;
-            return;
+          const result=await passkeyRequest('status');if(sequence!==settingsFaceIdStatusSequence)return;
+          if(result.configured){
+            status.textContent='Включён';button.textContent='Отключить Face ID';
+            button.dataset.faceIdConfigured='1';button.classList.add('is-enabled');button.disabled=false;return;
           }
-          status.textContent='Не подключён';
-          button.textContent='Подключить';
-          button.disabled=false;
-        }catch(_){
-          if(sequence!==settingsFaceIdStatusSequence) return;
-          status.textContent='Не удалось проверить';
-          button.textContent='Повторить';
-          button.disabled=false;
+          status.textContent='Подготавливаю Face ID…';
+          const prepared=await prepareFaceIdRegistration();if(sequence!==settingsFaceIdStatusSequence)return;
+          settingsFaceIdPrepared=prepared;settingsFaceIdPreparedAt=Date.now();
+          status.textContent='Не подключён';button.textContent='Подключить Face ID';button.disabled=false;
+        }catch(error){
+          if(sequence!==settingsFaceIdStatusSequence)return;
+          status.textContent='Не удалось проверить';button.textContent='Повторить';button.disabled=false;
         }
       }
-
       async function connectFaceIdFromSettings(){
-        const status=document.getElementById('settingsFaceIdStatus');
         const button=document.getElementById('settingsFaceIdConnect');
-        if(!status||!button||button.disabled) return;
-
-        const sequence=++settingsFaceIdStatusSequence;
-        button.disabled=true;
-        status.textContent='Подготавливаю…';
+        const status=document.getElementById('settingsFaceIdStatus');
+        if(!button||!status||button.disabled||!/iPhone/i.test(navigator.userAgent||'')||telegramInitData())return;
+        if(button.dataset.faceIdConfigured==='1'){
+          if(!window.confirm('Отключить Face ID в РуДи? Вход по PIN останется доступен.'))return;
+          const seq=++settingsFaceIdStatusSequence;button.disabled=true;status.textContent='Отключаю…';
+          try{
+            await passkeyRequest('disable');if(seq!==settingsFaceIdStatusSequence)return;
+            status.textContent='Отключён';button.dataset.faceIdConfigured='0';settingsFaceIdPrepared=null;
+            button.classList.remove('is-enabled');await updateSettingsFaceIdUi();
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(error){if(seq!==settingsFaceIdStatusSequence)return;status.textContent='Не удалось отключить';button.disabled=false}
+          return;
+        }
+        const prepared=settingsFaceIdPrepared;
+        if(!prepared||Date.now()-settingsFaceIdPreparedAt>5*60*1000){
+          status.textContent='Обновляю Face ID…';updateSettingsFaceIdUi();return;
+        }
+        let credentialPromise;
+        // WebAuthn must be invoked synchronously within the iPhone tap gesture.
+        try{credentialPromise=navigator.credentials.create({publicKey:prepared.publicKey})}
+        catch(error){status.textContent='Не удалось запустить Face ID';updateSettingsFaceIdUi();return}
+        const seq=++settingsFaceIdStatusSequence;
+        button.disabled=true;status.textContent='Подтвердите Face ID…';settingsFaceIdPrepared=null;
         try{
-          const prepared=await prepareFaceIdRegistration();
-          status.textContent='Подтвердите Face ID…';
-          const credentialPromise=navigator.credentials.create({publicKey:prepared.publicKey});
           await finishFaceIdRegistration(prepared,credentialPromise);
-          if(sequence!==settingsFaceIdStatusSequence) return;
-          status.textContent='Включён';
-          button.textContent='Включён';
-          button.classList.add('is-enabled');
-          button.disabled=true;
-          try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          if(seq!==settingsFaceIdStatusSequence)return;
+          status.textContent='Включён';button.textContent='Отключить Face ID';
+          button.dataset.faceIdConfigured='1';button.classList.add('is-enabled');button.disabled=false;
         }catch(error){
-          const name=String(error?.name||'');
-          status.textContent=name==='NotAllowedError'
-            ?'Подключение отменено'
-            :name==='SecurityError'
-              ?'Недоступен для этого адреса'
-              :name==='NotSupportedError'
-                ?'Не поддерживается'
-                :'Не удалось подключить';
-          button.textContent='Повторить';
-          button.classList.remove('is-enabled');
-          button.disabled=false;
-          try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+          if(seq!==settingsFaceIdStatusSequence)return;
+          status.textContent=String(error?.name||'')==='NotAllowedError'?'Подключение отменено':'Не удалось подключить';
+          button.textContent='Повторить';button.disabled=false;updateSettingsFaceIdUi();
         }
       }
 
@@ -8096,6 +8083,7 @@
       }
 
       function refreshSettingsPageUi(){
+        updateSettingsPlatform149();
         updateSettingsVersion();
         updatePwaInstallUi();
         updateSettingsFaceIdUi();
@@ -8320,8 +8308,10 @@
         button.setAttribute('aria-expanded',next?'true':'false');
         dashboard?.classList.toggle('activity-notifications-open',next);
         if(next){
+          markActivityItemsRead(activityNotificationItems(),{render:false});
           renderActivityJournalItems(homeDashboardState.activity);
           syncUiPreferencesFromServer({force:true}).then(()=>{
+            markActivityItemsRead(activityNotificationItems(),{render:false});
             renderActivityJournalItems(homeDashboardState.activity);
             updateActivityNotificationBadge();
           }).catch(()=>{});
@@ -8497,6 +8487,8 @@
         const list=document.getElementById('homeActivityList'),empty=document.getElementById('homeActivityEmpty');
         if(!list||!empty) return;
         const source=Array.isArray(items)?items:[];
+        const noticePanel=document.getElementById('homeActivityNotificationsPanel');
+        if(activityPanelMode==='notifications'&&noticePanel?.classList.contains('is-open')&&!noticePanel.hidden)markActivityItemsRead(activityNotificationItems(source),{render:false});
         // Product list edits are intentionally kept out of the shared activity feed.
         // This also hides legacy records without deleting other historical activity.
         const withoutProductAdds=source.filter(item=>String(item?.type||'')!=='products');
@@ -9258,7 +9250,7 @@
                   '<button class="settings-theme-option" type="button" data-theme-mode="dark" aria-pressed="false">Тёмная</button>'+
                 '</div>'+
               '</div>'+
-              '<div class="home-settings-row">'+
+              '<div id="settingsTextSizeRow" class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Размер текста</strong><small>Мелкий, обычный или крупный</small></div>'+
                 '<div class="settings-segmented settings-text-size">'+
                   '<button type="button" data-text-size="small" aria-pressed="false">A−</button>'+
@@ -9290,6 +9282,7 @@
               '<label class="settings-contact-field"><span>Новый PIN</span><div class="settings-contact-input"><input id="settingsNewPin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
               '<label class="settings-contact-field"><span>Повторите новый PIN</span><div class="settings-contact-input"><input id="settingsNewPinRepeat" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
               '<div class="settings-contact-footer"><small id="settingsPinStatus" aria-live="polite"></small><button id="settingsPinSave" class="settings-contact-save" type="button">Сменить PIN</button></div>'+
+              '<div id="settingsFaceIdRow" class="home-settings-row settings-faceid-row" hidden><div class="home-settings-copy"><strong>Face ID</strong><small id="settingsFaceIdStatus" aria-live="polite">Проверяю…</small></div><button id="settingsFaceIdConnect" class="settings-faceid-action" type="button">Подключить Face ID</button></div>'+
             '</section>'+
 
             '<section class="settings-group">'+
@@ -9327,7 +9320,7 @@
                 '<button id="settingsLuluWalkNotificationsToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления о прогулках с Лулу"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Push-уведомления</strong><small id="settingsAppBadgeStatus">Получать уведомления RUDI на этом устройстве</small></div>'+
+                '<div class="home-settings-copy"><strong>Push-уведомления</strong><small id="settingsAppBadgeStatus">Получать уведомления РуДи на этом устройстве</small></div>'+
                 '<button id="settingsAppBadgeEnable" class="settings-pwa-install" type="button">Разрешить</button>'+
               '</div>'+
             '</section>'+
@@ -9355,10 +9348,10 @@
             '<section class="settings-group">'+
               '<div class="settings-group-title">О приложении</div>'+
               '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Версия</strong><small>Текущая сборка RUDI</small></div>'+
+                '<div class="home-settings-copy"><strong>Версия</strong><small>Текущая сборка РуДи</small></div>'+
                 '<span id="settingsAppVersion" class="home-settings-version"></span>'+
               '</div>'+
-              '<div class="home-settings-row">'+
+              '<div id="settingsPwaRow" class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>PWA</strong><small id="settingsPwaStatus">Добавить на устройство</small></div>'+
                 '<button id="settingsPwaInstall" class="settings-pwa-install" type="button">Установить</button>'+
               '</div>'+
@@ -10658,7 +10651,7 @@
           button.disabled=true;
           button.textContent='Недоступно';
           status.textContent=/iphone|ipad|ipod/i.test(navigator.userAgent||'')&&!isStandalonePwa()
-            ?'Установи RUDI на экран Домой, чтобы получать push'
+            ?'Установи РуДи на экран Домой, чтобы получать push'
             :'Push не поддерживается этим режимом';
           return;
         }
@@ -10680,7 +10673,7 @@
         if(permission==='denied'){
           button.disabled=true;
           button.textContent='Запрещено';
-          status.textContent='Разреши уведомления для RUDI в настройках устройства';
+          status.textContent='Разреши уведомления для РуДи в настройках устройства';
           return;
         }
         button.disabled=false;
@@ -10748,7 +10741,7 @@
         const message=ios
           ?'В Safari нажмите «Поделиться» → «На экран Домой».'
           :(tg?.initData
-            ?'Открой RUDI в обычном браузере и выбери установку приложения.'
+            ?'Открой РуДи в обычном браузере и выбери установку приложения.'
             :'В меню браузера выбери «Установить приложение» или «Добавить на главный экран».');
         try{tg?.showAlert?.(message)}catch(_){}
         if(!tg?.showAlert) window.alert(message);
@@ -11156,7 +11149,7 @@
                 :name==='SecurityError'
                   ?'Face ID недоступен для этого адреса.'
                   :name==='NotSupportedError'
-                    ?'Этот браузер не поддерживает Face ID для RUDI.'
+                    ?'Этот браузер не поддерживает Face ID для РуДи.'
                     :'Не удалось включить Face ID.';
               button.disabled=false;
               skip.disabled=false;
@@ -11236,7 +11229,7 @@
 
       function showBrowserLogin(){
         return new Promise(resolve=>{
-          setAuthGate('Вход в RUDI','Выбери профиль и введи свой PIN.');
+          setAuthGate('Вход в РуДи','Выбери профиль и введи свой PIN.');
           const form=document.createElement('form');
           form.className='rudi-auth-form';
           const faceIdButton=document.createElement('button');
@@ -11348,7 +11341,7 @@
               status.textContent=code==='rudi-pin-rate-limited'
                 ?'Слишком много попыток. Попробуй позже.'
                 :code==='rudi-pin-not-configured'
-                  ?'PIN ещё не создан. Сначала открой RUDI через Telegram.'
+                  ?'PIN ещё не создан. Сначала открой РуДи через Telegram.'
                   :'Неверный PIN.';
               button.disabled=false;
               input.disabled=false;
@@ -11655,7 +11648,7 @@
             denyApp(
               code==='rudi-access-denied'?'Доступ закрыт':'Не удалось проверить доступ',
               code==='rudi-access-denied'
-                ?'RUDI работает только для Рустама и Дианы.'
+                ?'РуДи работает только для Рустама и Дианы.'
                 :'Обнови страницу и попробуй снова.'
             );
             return false;
@@ -18025,7 +18018,7 @@
         const updated=document.getElementById('feedUpdated');
         const status=document.getElementById('feedStatus');
         const updatedLabel=feedTimeLabel(payload?.updatedAt);
-        if(updated) updated.textContent=updatedLabel?'Обновлено '+updatedLabel:'Свежая подборка RUDI';
+        if(updated) updated.textContent=updatedLabel?'Обновлено '+updatedLabel:'Свежая подборка РуДи';
         if(status) status.textContent=Object.keys(sections).length?'':'Лента заполнится после ближайшего обновления.';
 
         const version=String(payload?.version||'');
@@ -20430,7 +20423,7 @@
         date.textContent=latest.title||('Обновление '+formatUpdateDate(latest.date));
         summary.textContent=latestItems.length
           ?latestItems.length+' '+(latestItems.length===1?'изменение':(latestItems.length>=2&&latestItems.length<=4?'изменения':'изменений'))
-          :'История обновлений RUDI';
+          :'История обновлений РуДи';
 
         list.replaceChildren();
         for(const update of updates){
@@ -20516,7 +20509,7 @@
       init().catch(error=>{
         console.error('RUDI_INIT_ERROR',error);
         if(!document.body.classList.contains('auth-ok')){
-          denyApp('Не удалось открыть RUDI','Обнови страницу и попробуй снова.');
+          denyApp('Не удалось открыть РуДи','Обнови страницу и попробуй снова.');
         }
       });
       const backgroundRefreshStartedAt=Date.now();
