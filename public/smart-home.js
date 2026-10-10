@@ -634,6 +634,7 @@
       if(attempts<50)setTimeout(waitForAuth,250);
     };
     waitForAuth();
+    window.addEventListener('rudi:auth-ready',()=>loadHome({silent:true}));
 
     let hiddenAt=0;
     document.addEventListener('visibilitychange',()=>{
