@@ -18152,3 +18152,17 @@ body[data-app-tab="products"] .kitchen-switcher>button#kitchenFinanceShortcut:fo
 .settings-page .settings-faceid-action{flex:0 0 auto;min-height:37px;border-radius:12px;padding:7px 11px;font-size:11px}
 .settings-page .settings-faceid-action.is-enabled{border-color:rgba(221,76,82,.35);background:rgba(221,76,82,.08);color:#c6414a}
 @media(max-width:390px){.settings-page .settings-faceid-action{max-width:52%;white-space:normal;text-align:center}}
+
+
+/* Security: last five authenticated sessions, safe on narrow iPhone screens. */
+.settings-auth-sessions{margin-top:18px;padding-top:18px;border-top:1px solid rgba(120,125,145,.18)}
+.settings-auth-sessions-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;margin-bottom:12px}
+.settings-auth-sessions-head strong{font-size:15px;font-weight:700;color:inherit}
+.settings-auth-sessions-head small{font-size:12px;opacity:.62}
+.settings-auth-sessions-list{font-size:13px;line-height:1.45;opacity:.9}
+.settings-auth-session-item{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:3px 12px;padding:12px 0;border-top:1px solid rgba(120,125,145,.12);min-width:0}
+.settings-auth-session-item:first-child{border-top:0;padding-top:2px}
+.settings-auth-session-country{font-size:14px;font-weight:600;min-width:0;overflow-wrap:anywhere}
+.settings-auth-session-date{font-size:12px;white-space:nowrap;opacity:.7;text-align:right;font-variant-numeric:tabular-nums}
+.settings-auth-session-detail{grid-column:1/-1;font-size:12px;opacity:.7;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+@media(max-width:410px){.settings-auth-session-item{grid-template-columns:minmax(0,1fr)}.settings-auth-session-date{text-align:left}}

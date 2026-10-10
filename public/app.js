@@ -8005,14 +8005,43 @@
       }
 
 
-      let settingsFaceIdStatusSequence=0,settingsFaceIdPrepared=null,settingsFaceIdPreparedAt=0;
+      let settingsFaceIdStatusSequence=0,settingsFaceIdPrepared=null,settingsFaceIdPreparedAt=0,settingsFaceIdConnecting=false;
+      function faceIdConnectionError(error){
+        const name=String(error?.name||'');
+        const code=String(error?.message||error||'');
+        if(name==='NotAllowedError')return 'Face ID отменён или доступ запрещён. Попробуй ещё раз.';
+        if(name==='InvalidStateError')return 'Ключ доступа уже есть на iPhone. Проверь сохранённые ключи и повтори.';
+        if(name==='SecurityError')return 'Face ID недоступен в этом браузере. Открой РуДи в Safari.';
+        if(name==='NotSupportedError')return 'Этот браузер не поддерживает Face ID для входа.';
+        if(name==='AbortError'||/timeout|abort/i.test(code))return 'Время подключения истекло. Проверь интернет и повтори.';
+        if(code==='rudi-passkey-challenge-invalid')return 'Подключение устарело. Нажми «Повторить».';
+        if(code==='rudi-passkey-confirmation-failed')return 'Ключ создан, но сервер ещё не подтвердил подключение. Повтори проверку.';
+        if(error?.status===401||error?.status===403)return 'Сессия входа истекла. Войди в РуДи ещё раз.';
+        if(error?.status>=500)return 'Сервер временно недоступен. Попробуй чуть позже.';
+        return 'Не удалось подключить Face ID. Нажми «Повторить».';
+      }
+      function renewFaceIdPreparation(sequence,button){
+        settingsFaceIdPrepared=null;
+        // Prepare outside the iOS tap so the next tap can start the native prompt immediately.
+        prepareFaceIdRegistration().then(prepared=>{
+          if(sequence!==settingsFaceIdStatusSequence||settingsFaceIdConnecting)return;
+          settingsFaceIdPrepared=prepared;
+          settingsFaceIdPreparedAt=Date.now();
+        }).catch(error=>{
+          if(sequence!==settingsFaceIdStatusSequence||settingsFaceIdConnecting)return;
+          console.warn('RUDI_PASSKEY_RETRY_PREPARE',String(error?.message||error));
+        }).finally(()=>{
+          if(sequence===settingsFaceIdStatusSequence&&!settingsFaceIdConnecting&&button)button.disabled=false;
+        });
+      }
       function updateSettingsPlatform149(){
         const browser=!isStandalonePwa()&&!telegramInitData();
         for(const id of ['settingsTextSizeRow','settingsPwaRow']){
           const row=document.getElementById(id);if(row)row.hidden=browser;
         }
       }
-      async function updateSettingsFaceIdUi(){
+      async function updateSettingsFaceIdUi(options={}){
+        if(settingsFaceIdConnecting)return;
         const row=document.getElementById('settingsFaceIdRow');
         const status=document.getElementById('settingsFaceIdStatus');
         const button=document.getElementById('settingsFaceIdConnect');
@@ -8034,16 +8063,16 @@
           status.textContent='Подготавливаю Face ID…';
           const prepared=await prepareFaceIdRegistration();if(sequence!==settingsFaceIdStatusSequence)return;
           settingsFaceIdPrepared=prepared;settingsFaceIdPreparedAt=Date.now();
-          status.textContent='Не подключён';button.textContent='Подключить Face ID';button.disabled=false;
+          status.textContent=options.retry?'Готово. Нажми «Подключить Face ID» ещё раз':'Не подключён';button.textContent='Подключить Face ID';button.disabled=false;
         }catch(error){
           if(sequence!==settingsFaceIdStatusSequence)return;
-          status.textContent='Не удалось проверить';button.textContent='Повторить';button.disabled=false;
+          status.textContent=faceIdConnectionError(error);button.textContent='Повторить';button.disabled=false;
         }
       }
       async function connectFaceIdFromSettings(){
         const button=document.getElementById('settingsFaceIdConnect');
         const status=document.getElementById('settingsFaceIdStatus');
-        if(!button||!status||button.disabled||!/iPhone/i.test(navigator.userAgent||'')||telegramInitData())return;
+        if(!button||!status||button.disabled||settingsFaceIdConnecting||!/iPhone/i.test(navigator.userAgent||'')||telegramInitData())return;
         if(button.dataset.faceIdConfigured==='1'){
           if(!window.confirm('Отключить Face ID в РуДи? Вход по PIN останется доступен.'))return;
           const seq=++settingsFaceIdStatusSequence;button.disabled=true;status.textContent='Отключаю…';
@@ -8057,23 +8086,37 @@
         }
         const prepared=settingsFaceIdPrepared;
         if(!prepared||Date.now()-settingsFaceIdPreparedAt>5*60*1000){
-          status.textContent='Обновляю Face ID…';updateSettingsFaceIdUi();return;
+          status.textContent='Обновляю Face ID…';updateSettingsFaceIdUi({retry:true});return;
         }
         let credentialPromise;
         // WebAuthn must be invoked synchronously within the iPhone tap gesture.
         try{credentialPromise=navigator.credentials.create({publicKey:prepared.publicKey})}
-        catch(error){status.textContent='Не удалось запустить Face ID';updateSettingsFaceIdUi();return}
+        catch(error){
+          status.textContent=faceIdConnectionError(error);
+          button.textContent='Повторить';button.disabled=true;
+          renewFaceIdPreparation(++settingsFaceIdStatusSequence,button);
+          return;
+        }
         const seq=++settingsFaceIdStatusSequence;
+        settingsFaceIdConnecting=true;
         button.disabled=true;status.textContent='Подтвердите Face ID…';settingsFaceIdPrepared=null;
         try{
           await finishFaceIdRegistration(prepared,credentialPromise);
+          const confirmation=await passkeyRequest('status');
+          if(!confirmation.configured)throw new Error('rudi-passkey-confirmation-failed');
           if(seq!==settingsFaceIdStatusSequence)return;
           status.textContent='Включён';button.textContent='Отключить Face ID';
           button.dataset.faceIdConfigured='1';button.classList.add('is-enabled');button.disabled=false;
         }catch(error){
           if(seq!==settingsFaceIdStatusSequence)return;
-          status.textContent=String(error?.name||'')==='NotAllowedError'?'Подключение отменено':'Не удалось подключить';
-          button.textContent='Повторить';button.disabled=false;updateSettingsFaceIdUi();
+          console.warn('RUDI_PASSKEY_SETUP_FAILED',String(error?.name||''),String(error?.message||error));
+          status.textContent=faceIdConnectionError(error);
+          button.textContent='Повторить';button.disabled=true;
+        }finally{
+          settingsFaceIdConnecting=false;
+          if(seq===settingsFaceIdStatusSequence&&button.dataset.faceIdConfigured!=='1'){
+            renewFaceIdPreparation(seq,button);
+          }
         }
       }
 
@@ -8082,11 +8125,62 @@
         if(version) version.textContent=appVersionLabel()||'—';
       }
 
+      let settingsSecuritySessionsLastLoad=0,settingsSecuritySessionsFlight=null;
+      async function refreshSecuritySessions(){
+        const container=document.getElementById('settingsAuthSessionsList');
+        if(!container||!currentActor||currentAppTab!=='settings')return;
+        if(settingsSecuritySessionsFlight)return settingsSecuritySessionsFlight;
+        if(Date.now()-settingsSecuritySessionsLastLoad<20000)return;
+        const actor=currentActor;
+        container.textContent='Загружаю…';
+        settingsSecuritySessionsFlight=(async()=>{
+          try{
+            const response=await fetchWithTimeout('/api/partner-message?rudiAction=auth-sessions',{
+              method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({initData:telegramInitData()}),cache:'no-store'
+            },12000);
+            const data=await response.json().catch(()=>({}));
+            if(!response.ok||!data.ok)throw new Error(data.error||'auth-sessions-unavailable');
+            if(actor!==currentActor)return;
+            container.replaceChildren();
+            const rows=Array.isArray(data.sessions)?data.sessions.slice(0,5):[];
+            if(!rows.length){
+              container.textContent='История появится после следующего входа в РуДи.';
+              settingsSecuritySessionsLastLoad=Date.now();return;
+            }
+            const format=new Intl.DateTimeFormat('ru-RU',{
+              timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'
+            });
+            for(const row of rows){
+              const entry=document.createElement('div');entry.className='settings-auth-session-item';
+              const title=document.createElement('strong');title.className='settings-auth-session-country';
+              title.textContent=String(row.country||'Не определена');
+              const date=document.createElement('small');date.className='settings-auth-session-date';
+              const parsed=new Date(row.createdAt);
+              date.textContent=Number.isFinite(parsed.getTime())?format.format(parsed)+' МСК':'Дата неизвестна';
+              const detail=document.createElement('span');detail.className='settings-auth-session-detail';
+              const method={'face-id':'Face ID',pin:'PIN',telegram:'Telegram'}[row.method]||'Вход';
+              detail.textContent='IP: '+String(row.ip||'не определён')+' · '+method;
+              entry.append(title,date,detail);
+              container.append(entry);
+            }
+            settingsSecuritySessionsLastLoad=Date.now();
+          }catch(error){
+            if(actor===currentActor)container.textContent='Не удалось загрузить историю входов.';
+            console.warn('RUDI_AUTH_SESSIONS_LOAD_WARN',String(error?.message||error));
+          }finally{
+            settingsSecuritySessionsFlight=null;
+          }
+        })();
+        return settingsSecuritySessionsFlight;
+      }
+
       function refreshSettingsPageUi(){
         updateSettingsPlatform149();
         updateSettingsVersion();
         updatePwaInstallUi();
         updateSettingsFaceIdUi();
+        refreshSecuritySessions();
         setupExtendedSettings();
         updateDataSettingsUi();
         updateAboutSettingsUi();
@@ -9283,6 +9377,7 @@
               '<label class="settings-contact-field"><span>Повторите новый PIN</span><div class="settings-contact-input"><input id="settingsNewPinRepeat" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
               '<div class="settings-contact-footer"><small id="settingsPinStatus" aria-live="polite"></small><button id="settingsPinSave" class="settings-contact-save" type="button">Сменить PIN</button></div>'+
               '<div id="settingsFaceIdRow" class="home-settings-row settings-faceid-row" hidden><div class="home-settings-copy"><strong>Face ID</strong><small id="settingsFaceIdStatus" aria-live="polite">Проверяю…</small></div><button id="settingsFaceIdConnect" class="settings-faceid-action" type="button">Подключить Face ID</button></div>'+
+              '<div class="settings-auth-sessions"><div class="settings-auth-sessions-head"><strong>Последние сессии</strong><small>5 последних входов</small></div><div id="settingsAuthSessionsList" class="settings-auth-sessions-list" aria-live="polite">Загружаю…</div></div>'+
             '</section>'+
 
             '<section class="settings-group">'+
@@ -10955,7 +11050,7 @@
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({operation,initData:telegramInitData(),backupToken:backupContext.token,...payload}),
           cache:'no-store'
-        },12000);
+        },(operation==='register-verify'||operation==='auth-verify')?25000:12000);
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok){
           const error=new Error(data.error||('passkey-'+response.status));

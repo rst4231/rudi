@@ -1,17 +1,15 @@
 {
-  "current": "v4.149",
+  "current": "v4.150",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-10",
-  "basedOnProduction": "v4.148",
+  "basedOnProduction": "v4.149",
   "notes": [
-    "Polish calendar month/week/day transitions, navigation, search and calendar connection sheets without changing Personal/Shared switch.",
-    "Smooth personal finances views, category and wallet lists, history pages and existing editor sheet motions.",
-    "Smooth reward shop tabs and update feedback without touching star balance or redemption logic.",
-    "Open today's daily question automatically if the current user has not answered; collapse when the answer is submitted, keeping manual reopening.",
-    "Show the selected month in category history total (e.g. За октября is NOT used: display За октябрь, genitive: За октябрь)."
+    "Fix iPhone Face ID registration UX: keep WebAuthn errors visible, prevent status-refresh races, and confirm server-side passkey registration.",
+    "Show the last five authenticated RUDI sessions per user in Settings → Security with Moscow date/time, IP, country and sign-in method.",
+    "Persist new session history in existing Cloudflare D1 app state and keep login working if audit recording temporarily fails."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
