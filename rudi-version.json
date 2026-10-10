@@ -3,7 +3,7 @@
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
-  "deploymentRequestedAt": null,
+  "deploymentRequestedAt": "2026-10-10T15:50:33.567Z",
   "createdAt": "2026-10-10",
   "basedOnProduction": "v4.152",
   "notes": [
