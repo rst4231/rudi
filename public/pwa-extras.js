@@ -661,6 +661,17 @@
         recoverySuccesses=0;
       },350);
     });
+    window.addEventListener('rudi-calendar-network-recovered',()=>{
+      // A successful uncached network probe is authoritative, even if Safari
+      // never emitted "online". Do not leave the stale offline banner visible.
+      if(navigator.onLine===false)return;
+      clearTimeout(recoveryTimer);
+      recoverySuccesses=0;
+      banner.hidden=true;
+      banner.textContent='Нет сети · RUDI работает из сохранённых данных';
+      document.body.classList.remove('rudi-offline');
+      document.body.dataset.offlineMode='0';
+    });
     window.addEventListener('online',sync);
     window.addEventListener('offline',sync);
     sync();

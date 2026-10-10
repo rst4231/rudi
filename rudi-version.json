@@ -1,17 +1,16 @@
 {
-  "current": "v4.144",
+  "current": "v4.145",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-10",
-  "basedOnProduction": "v4.143",
+  "basedOnProduction": "v4.144",
   "notes": [
-    "Исправлено создание и выполнение задач TickTick без интернета на iPhone, когда navigator.onLine ошибочно показывает онлайн.",
-    "Перед записью в TickTick используется короткая проверка доступности сервера; офлайн-операции сохраняются локально.",
-    "Календарь моментально показывает сохранённые месяцы из IndexedDB и не ждёт тайм-ауты TickTick в авиарежиме.",
-    "Проверка авторизации офлайн ускорена; после восстановления связи очередь возобновляется автоматически.",
-    "Финансы и существующие данные не изменяются; один пакет исправлений."
+    "iOS calendar reconnect: recheck server availability when online event is missed.",
+    "Swipe-to-refresh and visible offline calendar periodically probe connection, flush queued changes and refresh TickTick without app restart.",
+    "Clear offline status banner on a successful authoritative server probe.",
+    "No database wipe or financial logic modifications; one bundled deploy after user confirmation."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

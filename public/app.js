@@ -12935,34 +12935,70 @@
 
       async function flushCalendarOffline(){
         if(!currentActor||!window.rudiCalendarOffline||
-          window.rudiCalendarOffline.isOffline?.())return;
+          window.rudiCalendarOffline.isOffline?.()||
+          !window.rudiCalendarOffline.hasPendingSync?.())return;
         try{
-          await window.rudiCalendarOffline.flush(currentActor,()=>({
+          // An iOS "online" event does not prove the server is reachable.
+          // Probe before sending queued mutations so a transient outage
+          // does not turn them into ambiguous in-flight writes.
+          if(await calendarNetworkUnavailable())return;
+          return await window.rudiCalendarOffline.flush(currentActor,()=>({
             initData:telegramInitData(),backupToken:currentStateBackupToken
           }));
-        }catch(error){console.warn('RUDI_CALENDAR_OFFLINE_FLUSH_WARN',String(error?.message||error))}
+        }catch(error){console.warn('RUDI_CALENDAR_OFFLINE_FLUSH_WARN',String(error?.message||error));return null}
       }
-      const reconnectCalendar=()=>{
-        if(navigator.onLine===false)return;
-        calendarReachabilityAt=0;
-        calendarNetworkUnavailable(true).then(offline=>{
-          if(offline)return;
-          flushCalendarOffline();
-          if(currentAppTab==='schedule')loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true}).catch(()=>{});
-        }).catch(()=>{});
-      };
-      window.addEventListener('online',reconnectCalendar);
+      // iOS can restore connectivity without emitting the browser "online" event.
+      // Recheck the server from the calendar itself; never require an app restart.
+      let reconnectCalendarPromise=null,lastReconnectAttemptAt=0;
+      function reconnectCalendar({force=false}={}){
+        if(!currentActor||!appAccessReady||navigator.onLine===false)return Promise.resolve(false);
+        if(reconnectCalendarPromise)return reconnectCalendarPromise;
+        if(!force&&Date.now()-lastReconnectAttemptAt<5000)return Promise.resolve(false);
+        lastReconnectAttemptAt=Date.now();
+        reconnectCalendarPromise=(async()=>{
+          calendarReachabilityAt=0;
+          if(await calendarNetworkUnavailable(true))return false;
+          window.dispatchEvent(new CustomEvent('rudi-calendar-network-recovered'));
+          // Clearing the stale flag is not enough: flush the local queue
+          // and re-read TickTick, keeping all queued rows until acknowledged.
+          const synced=await flushCalendarOffline();
+          if(currentAppTab==='schedule'&&!synced?.sent){
+            await loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true});
+          }
+          return true;
+        })().catch(error=>{
+          console.warn('RUDI_CALENDAR_RECONNECT_WARN',String(error?.message||error));
+          return false;
+        }).finally(()=>{reconnectCalendarPromise=null});
+        return reconnectCalendarPromise;
+      }
+      window.addEventListener('online',()=>{reconnectCalendar({force:true})});
       window.addEventListener('pageshow',()=>{
-        if(document.body.dataset.offlineMode==='1')reconnectCalendar();
+        if(window.rudiCalendarOffline?.isOffline?.())reconnectCalendar({force:true});
       });
       document.addEventListener('visibilitychange',()=>{
-        if(document.visibilityState==='visible'&&document.body.dataset.offlineMode==='1')reconnectCalendar();
+        if(document.visibilityState==='visible'&&window.rudiCalendarOffline?.isOffline?.()){
+          reconnectCalendar({force:true});
+        }
       });
-      window.addEventListener('rudi-online-request-success',()=>setTimeout(flushCalendarOffline,350));
-      window.addEventListener('pageshow',()=>{if(navigator.onLine!==false)flushCalendarOffline()});
+      window.addEventListener('rudi-online-request-success',()=>{
+        if(window.rudiCalendarOffline?.isOffline?.())reconnectCalendar({force:true});
+        else if(window.rudiCalendarOffline?.hasPendingSync?.())setTimeout(flushCalendarOffline,350);
+      });
+      window.addEventListener('pageshow',()=>{
+        if(!window.rudiCalendarOffline?.isOffline?.()&&window.rudiCalendarOffline?.hasPendingSync?.())flushCalendarOffline();
+      });
       document.addEventListener('visibilitychange',()=>{
-        if(document.visibilityState==='visible'&&navigator.onLine!==false)flushCalendarOffline();
+        if(document.visibilityState==='visible'&&!window.rudiCalendarOffline?.isOffline?.()&&
+          window.rudiCalendarOffline?.hasPendingSync?.())flushCalendarOffline();
       });
+      // Only probe during a visible, offline calendar session (not in the background).
+      setInterval(()=>{
+        if(appAccessReady&&currentActor&&currentAppTab==='schedule'&&
+          document.visibilityState==='visible'&&window.rudiCalendarOffline?.isOffline?.()){
+          reconnectCalendar();
+        }
+      },15000);
       window.addEventListener('rudi-calendar-synced',()=>{
         refreshAfterTickTickTaskChange({preserveExpanded:false}).catch(()=>{});
       });
@@ -15010,6 +15046,9 @@
           }
         }
         if(offlineStore?.isOffline?.()){
+          // Render cached data immediately, then probe connectivity asynchronously.
+          // iOS sometimes fails to dispatch the "online" event after airplane mode.
+          reconnectCalendar();
           if(offlineSnapshot)return offlineSnapshot;
           if(cached){
             renderWorkCalendar(cached,{force:true});
@@ -20580,7 +20619,9 @@
               }
             }
           }else if(currentAppTab==='schedule'){
-            tabTasks.push(loadWorkCalendar(currentWorkCalendarView,{force}));
+            const wasOffline=window.rudiCalendarOffline?.isOffline?.()===true;
+            const restored=wasOffline?await reconnectCalendar({force:true}):false;
+            if(!restored)tabTasks.push(loadWorkCalendar(currentWorkCalendarView,{force}));
           }else if(currentAppTab==='photos'){
             tabTasks.push(loadSharedAlbum());
           }else if(currentAppTab==='feed'){
