@@ -324,10 +324,6 @@
     {
       "path": "/api/feed-notify-cron",
       "schedule": "0 3 * * *"
-    },
-    {
-      "path": "/api/personal-center-cron",
-      "schedule": "0 4,18 * * *"
     }
   ],
   "env": {

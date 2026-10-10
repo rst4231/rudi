@@ -1,9 +1,10 @@
 'use strict';
 const {isCronRequestAuthorized}=require('./cron-auth.cjs');
+const {isGitHubActionsRequestAuthorized}=require('./github-actions-oidc.cjs');
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const state=require('./personal-center-store.cjs');
 const {generate}=require('./personal-center-ai.cjs');
-function slotAt(now=Date.now()){const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hourCycle:'h23'}).format(new Date(now)));return hour===7?'morning':hour===21?'evening':'';}
+function slotAt(now=Date.now()){const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hourCycle:'h23'}).format(new Date(now)));return hour>=7&&hour<10?'morning':hour>=21&&hour<24?'evening':'';}
 async function run(options={}){
  const now=options.now||Date.now(),date=state.moscowDate(now),slot=slotAt(now);
  if(!slot)return {ok:true,skipped:'outside-schedule',date};
@@ -25,7 +26,8 @@ async function run(options={}){
  return {ok:results.every(x=>x.status!=='failed'),date,slot,results};
 }
 async function handler(req,res){
- if(!isCronRequestAuthorized(req))return res.status(401).json({ok:false,error:'unauthorized'});
+ const authorized=isCronRequestAuthorized(req)||await isGitHubActionsRequestAuthorized(req,{audience:'rudi-personal-ai-center',workflowRef:'rst4231/rudi/.github/workflows/personal-ai-center.yml@refs/heads/main'});
+ if(!authorized)return res.status(401).json({ok:false,error:'unauthorized'});
  if(req.method!=='GET'&&req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
  try{const result=await run();res.setHeader('Cache-Control','no-store');return res.status(result.ok?200:503).json(result);}
  catch(error){console.error('RUDI_PERSONAL_CRON_FAILURE',String(error?.message||error));return res.status(503).json({ok:false,error:'generation-failed'});}

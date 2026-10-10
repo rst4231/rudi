@@ -1,0 +1,34 @@
+name: RUDI Personal AI Center
+
+on:
+  schedule:
+    - cron: '0 4,18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: rudi-personal-ai-center
+  cancel-in-progress: false
+
+jobs:
+  summaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Build scheduled personal AI summaries
+        shell: bash
+        env:
+          OIDC_AUDIENCE: rudi-personal-ai-center
+          RUDI_ENDPOINT: https://spb-daily-guide-bot.vercel.app/api/personal-center-cron
+        run: |
+          set -euo pipefail
+          OIDC_RESPONSE="$(curl -fsSL \
+            -H "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${OIDC_AUDIENCE}")"
+          TOKEN="$(printf '%s' "${OIDC_RESPONSE}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])')"
+          curl -fsS --retry 2 --retry-all-errors --retry-delay 3 --max-time 260 \
+            -H "Authorization: Bearer ${TOKEN}" \
+            "${RUDI_ENDPOINT}"
