@@ -37,18 +37,30 @@ function requestOrigin(req) {
     };
   }
 
+  // WebAuthn's RP ID must match the domain displayed in Safari/PWA.
+  // Vercel's forwarded host can be a deployment alias rather than the
+  // canonical production hostname. Prefer a known browser Origin.
+  const browserOrigin = String(req?.headers?.origin || '').trim().replace(/\/+$/, '');
+  const productionOrigins = new Set([
+    'https://spb-daily-guide-bot.vercel.app',
+    'https://rudi-appteamstore.vercel.app',
+    'https://rudi-git-main-appteamstore.vercel.app',
+  ]);
+  if (productionOrigins.has(browserOrigin)) {
+    const url = new URL(browserOrigin);
+    return { rpID: url.hostname, origin: url.origin };
+  }
+
+  const directHost = String(req?.headers?.host || '').split(',')[0].trim();
   const forwardedHost = String(req?.headers?.['x-forwarded-host'] || '').split(',')[0].trim();
-  const host = forwardedHost || String(req?.headers?.host || '').trim();
+  const host = directHost || forwardedHost;
   if (!host) throw new Error('rudi-passkey-host-invalid');
   const hostname = host.replace(/:\d+$/, '');
   if (!hostname) throw new Error('rudi-passkey-host-invalid');
   const forwardedProto = String(req?.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
   const proto = forwardedProto || (hostname === 'localhost' || hostname === '127.0.0.1' ? 'http' : 'https');
   if (!['http','https'].includes(proto)) throw new Error('rudi-passkey-origin-invalid');
-  return {
-    rpID: hostname,
-    origin: proto + '://' + host,
-  };
+  return { rpID: hostname, origin: proto + '://' + host };
 }
 
 function passkeysKey(actor) {

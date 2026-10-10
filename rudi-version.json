@@ -1,15 +1,16 @@
 {
-  "current": "v4.150",
+  "current": "v4.151",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-10",
-  "basedOnProduction": "v4.149",
+  "basedOnProduction": "v4.150",
   "notes": [
-    "Fix iPhone Face ID registration UX: keep WebAuthn errors visible, prevent status-refresh races, and confirm server-side passkey registration.",
-    "Show the last five authenticated RUDI sessions per user in Settings → Security with Moscow date/time, IP, country and sign-in method.",
-    "Persist new session history in existing Cloudflare D1 app state and keep login working if audit recording temporarily fails."
+    "Repair Safari/PWA Face ID origin resolution so WebAuthn RP ID matches the canonical production hostname rather than a Vercel forwarded/deployment host.",
+    "Keep the native iOS click gesture and confirm saved credential status; report sanitized client-side Face ID error metadata without secrets.",
+    "Redesign last five sign-in history entries in the Telegram device sessions style: device icon, browser, authentication method, city/country, IP and Moscow date/time.",
+    "Include browser/PWA metadata with new sign-in records while preserving actor separation and older history."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

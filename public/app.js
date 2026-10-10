@@ -8006,15 +8006,35 @@
 
 
       let settingsFaceIdStatusSequence=0,settingsFaceIdPrepared=null,settingsFaceIdPreparedAt=0,settingsFaceIdConnecting=false;
+      const faceIdReportedErrors=new Set();
+      function reportFaceIdError(error,stage,prepared){
+        const name=String(error?.name||'Error');
+        if(name==='NotAllowedError')return;
+        const browserHost=String(window.location.hostname||'');
+        const requestedRp=String(prepared?.publicKey?.rp?.id||'');
+        const key=String(stage)+':'+name+':'+requestedRp;
+        if(faceIdReportedErrors.has(key))return;
+        faceIdReportedErrors.add(key);
+        fetch('/api/partner-message?rudiAction=passkey',{
+          method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
+          body:JSON.stringify({operation:'client-error',initData:telegramInitData(),
+            stage:String(stage),name,browserHost,requestedRp})
+        }).catch(()=>null);
+      }
       function faceIdConnectionError(error){
         const name=String(error?.name||'');
         const code=String(error?.message||error||'');
         if(name==='NotAllowedError')return 'Face ID отменён или доступ запрещён. Попробуй ещё раз.';
         if(name==='InvalidStateError')return 'Ключ доступа уже есть на iPhone. Проверь сохранённые ключи и повтори.';
-        if(name==='SecurityError')return 'Face ID недоступен в этом браузере. Открой РуДи в Safari.';
+        if(name==='SecurityError'){
+          const detail=String(error?.message||'');
+          if(/relying.party|domain|origin|rp.id/i.test(detail))return 'Face ID: адрес сайта не совпадает с адресом ключа. Обнови страницу и повтори.';
+          return 'Ошибка безопасности Face ID. Проверь настройки ключей доступа iPhone и повтори.';
+        }
         if(name==='NotSupportedError')return 'Этот браузер не поддерживает Face ID для входа.';
         if(name==='AbortError'||/timeout|abort/i.test(code))return 'Время подключения истекло. Проверь интернет и повтори.';
         if(code==='rudi-passkey-challenge-invalid')return 'Подключение устарело. Нажми «Повторить».';
+        if(code==='rudi-passkey-rp-mismatch')return 'Адрес приложения и Face ID не совпадают. Обнови страницу и повтори.';
         if(code==='rudi-passkey-confirmation-failed')return 'Ключ создан, но сервер ещё не подтвердил подключение. Повтори проверку.';
         if(error?.status===401||error?.status===403)return 'Сессия входа истекла. Войди в РуДи ещё раз.';
         if(error?.status>=500)return 'Сервер временно недоступен. Попробуй чуть позже.';
@@ -8029,6 +8049,7 @@
           settingsFaceIdPreparedAt=Date.now();
         }).catch(error=>{
           if(sequence!==settingsFaceIdStatusSequence||settingsFaceIdConnecting)return;
+          reportFaceIdError(error,'prepare-retry');
           console.warn('RUDI_PASSKEY_RETRY_PREPARE',String(error?.message||error));
         }).finally(()=>{
           if(sequence===settingsFaceIdStatusSequence&&!settingsFaceIdConnecting&&button)button.disabled=false;
@@ -8066,6 +8087,7 @@
           status.textContent=options.retry?'Готово. Нажми «Подключить Face ID» ещё раз':'Не подключён';button.textContent='Подключить Face ID';button.disabled=false;
         }catch(error){
           if(sequence!==settingsFaceIdStatusSequence)return;
+          reportFaceIdError(error,'prepare');
           status.textContent=faceIdConnectionError(error);button.textContent='Повторить';button.disabled=false;
         }
       }
@@ -8088,10 +8110,22 @@
         if(!prepared||Date.now()-settingsFaceIdPreparedAt>5*60*1000){
           status.textContent='Обновляю Face ID…';updateSettingsFaceIdUi({retry:true});return;
         }
+        const requestedRp=String(prepared?.publicKey?.rp?.id||'').toLowerCase();
+        if(requestedRp&&requestedRp!==window.location.hostname.toLowerCase()){
+          reportFaceIdError(new Error('rudi-passkey-rp-mismatch'),'rp-check',prepared);
+          status.textContent=faceIdConnectionError(new Error('rudi-passkey-rp-mismatch'));
+          button.textContent='Повторить';button.disabled=true;
+          renewFaceIdPreparation(++settingsFaceIdStatusSequence,button);
+          return;
+        }
         let credentialPromise;
         // WebAuthn must be invoked synchronously within the iPhone tap gesture.
-        try{credentialPromise=navigator.credentials.create({publicKey:prepared.publicKey})}
+        try{credentialPromise=navigator.credentials.create({publicKey:prepared.publicKey}).catch(error=>{
+          try{error.rudiFaceIdStage='create'}catch(_){}
+          throw error;
+        })}
         catch(error){
+          reportFaceIdError(error,'create-start',prepared);
           status.textContent=faceIdConnectionError(error);
           button.textContent='Повторить';button.disabled=true;
           renewFaceIdPreparation(++settingsFaceIdStatusSequence,button);
@@ -8109,6 +8143,7 @@
           button.dataset.faceIdConfigured='1';button.classList.add('is-enabled');button.disabled=false;
         }catch(error){
           if(seq!==settingsFaceIdStatusSequence)return;
+          reportFaceIdError(error,String(error?.rudiFaceIdStage||'verify'),prepared);
           console.warn('RUDI_PASSKEY_SETUP_FAILED',String(error?.name||''),String(error?.message||error));
           status.textContent=faceIdConnectionError(error);
           button.textContent='Повторить';button.disabled=true;
@@ -8145,24 +8180,40 @@
             container.replaceChildren();
             const rows=Array.isArray(data.sessions)?data.sessions.slice(0,5):[];
             if(!rows.length){
-              container.textContent='История появится после следующего входа в РуДи.';
+              container.textContent='Сеансы появятся здесь после нового входа в РуДи.';
               settingsSecuritySessionsLastLoad=Date.now();return;
             }
             const format=new Intl.DateTimeFormat('ru-RU',{
-              timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'
+              timeZone:'Europe/Moscow',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'
             });
+            const icons={
+              phone:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.5" width="10" height="19" rx="2.3"/><path d="M10 18.2h4"/></svg>',
+              tablet:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="2.5" width="16" height="19" rx="2.3"/><path d="M11 18.5h2"/></svg>',
+              desktop:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="13" rx="1.8"/><path d="M9 21h6M12 17.5V21"/></svg>',
+              unknown:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8"/></svg>'
+            };
             for(const row of rows){
               const entry=document.createElement('div');entry.className='settings-auth-session-item';
-              const title=document.createElement('strong');title.className='settings-auth-session-country';
-              title.textContent=String(row.country||'Не определена');
-              const date=document.createElement('small');date.className='settings-auth-session-date';
+              const badge=document.createElement('span');badge.className='settings-auth-session-badge';
+              badge.innerHTML=icons[row.platform]||icons.unknown;
+              const main=document.createElement('div');main.className='settings-auth-session-main';
+              const top=document.createElement('div');top.className='settings-auth-session-top';
+              const title=document.createElement('strong');title.className='settings-auth-session-title';
+              title.textContent=String(row.device||'Устройство');
+              const date=document.createElement('time');date.className='settings-auth-session-date';
               const parsed=new Date(row.createdAt);
               date.textContent=Number.isFinite(parsed.getTime())?format.format(parsed)+' МСК':'Дата неизвестна';
-              const detail=document.createElement('span');detail.className='settings-auth-session-detail';
+              if(Number.isFinite(parsed.getTime()))date.dateTime=parsed.toISOString();
+              top.append(title,date);
               const method={'face-id':'Face ID',pin:'PIN',telegram:'Telegram'}[row.method]||'Вход';
-              detail.textContent='IP: '+String(row.ip||'не определён')+' · '+method;
-              entry.append(title,date,detail);
-              container.append(entry);
+              const browser=document.createElement('div');browser.className='settings-auth-session-browser';
+              browser.textContent=String(row.browser||'Браузер')+' · '+method;
+              const location=document.createElement('div');location.className='settings-auth-session-location';
+              const city=String(row.city||'').trim();
+              const country=String(row.country||'Страна не определена');
+              location.textContent=(city?city+', ':'')+country+' · IP: '+String(row.ip||'не определён');
+              main.append(top,browser,location);
+              entry.append(badge,main);container.append(entry);
             }
             settingsSecuritySessionsLastLoad=Date.now();
           }catch(error){
@@ -11014,12 +11065,16 @@
         clearAuthGateForm();
       }
 
+      function authClientMode(){
+        if(telegramInitData())return 'telegram';
+        return isStandalonePwa()?'pwa':'browser';
+      }
       async function browserAuthRequest(operation,payload={}){
         const backupContext=backupRequestContext();
         const response=await fetchWithTimeout('/api/partner-message?rudiAction=browser-auth',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({operation,initData:telegramInitData(),backupToken:backupContext.token,...payload}),
+          body:JSON.stringify({operation,initData:telegramInitData(),backupToken:backupContext.token,clientMode:authClientMode(),...payload}),
           cache:'no-store'
         },8000);
         const data=await response.json().catch(()=>({}));
@@ -11048,7 +11103,7 @@
         const response=await fetchWithTimeout('/api/partner-message?rudiAction=passkey',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({operation,initData:telegramInitData(),backupToken:backupContext.token,...payload}),
+          body:JSON.stringify({operation,initData:telegramInitData(),backupToken:backupContext.token,clientMode:authClientMode(),...payload}),
           cache:'no-store'
         },(operation==='register-verify'||operation==='auth-verify')?25000:12000);
         const data=await response.json().catch(()=>({}));

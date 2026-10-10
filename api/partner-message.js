@@ -256,7 +256,7 @@ function durableAuthOptions(options = {}) {
 
 async function safelyRecordAuthSession(req, actor, method, options = {}) {
   try {
-    await recordAuthSession(req, actor, method, durableAuthOptions(options));
+    await recordAuthSession(req, actor, method, { ...durableAuthOptions(options), clientMode: options.clientMode });
   } catch (error) {
     // History is informational: a storage outage must never block a successful login.
     console.warn('RUDI_AUTH_SESSION_HISTORY_WARN', String(error?.message || error));
@@ -3267,13 +3267,22 @@ async function handleRudiAction(req, res, action, options = {}) {
         const rows = Array.isArray(verified.passkeys) ? verified.passkeys : await readPasskeys(verified.actor, storeOptions);
         await saveDurablePasskeys(verified.actor, rows, durableAuthOptions(options));
         setSessionCookie(res, verified.actor, botToken, { now: options.now || Date.now() });
-        await safelyRecordAuthSession(req, verified.actor, 'face-id', options);
+        await safelyRecordAuthSession(req, verified.actor, 'face-id', { ...options, clientMode: body.clientMode });
         const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
         const backupToken = await createStateBackup({ ...options, previousSnapshot });
         return res.status(200).json({ ok: true, actor: verified.actor, source: 'passkey', backupToken });
       }
 
       const session = authorizeRequest(req, body.initData, options);
+      if (operation === 'client-error') {
+        // Diagnostic metadata only, never accept or log credentials, challenges, or tokens.
+        const stage = String(body.stage || '').replace(/[^a-z-]/gi, '').slice(0, 30);
+        const name = String(body.name || '').replace(/[^a-z]/gi, '').slice(0, 40);
+        const browserHost = String(body.browserHost || '').replace(/[^a-z0-9.-]/gi, '').slice(0, 120);
+        const requestedRp = String(body.requestedRp || '').replace(/[^a-z0-9.-]/gi, '').slice(0, 120);
+        console.warn('RUDI_PASSKEY_CLIENT_ERROR', JSON.stringify({stage,name,browserHost,requestedRp,rpMismatch: Boolean(requestedRp && browserHost && requestedRp !== browserHost)}));
+        return res.status(200).json({ok:true});
+      }
       await hydrateActorAuth(session.actor, body.backupToken, options);
 
       if (operation === 'status') {
@@ -3327,7 +3336,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           pinRecord: hydrated.durable.pinRecord,
         });
         setSessionCookie(res, verified.actor, botToken, { now: options.now || Date.now() });
-        await safelyRecordAuthSession(req, verified.actor, 'pin', options);
+        await safelyRecordAuthSession(req, verified.actor, 'pin', { ...options, clientMode: body.clientMode });
         return res.status(200).json({ ok: true, actor: verified.actor, source: 'pin' });
       }
 
@@ -3342,7 +3351,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         const result = await savePin(telegram.actor, body.pin, browserAuthStoreOptions(options));
         await saveDurablePinRecord(telegram.actor, result.record, durableAuthOptions(options));
         setSessionCookie(res, telegram.actor, botToken, { now: options.now || Date.now() });
-        await safelyRecordAuthSession(req, telegram.actor, 'telegram', options);
+        await safelyRecordAuthSession(req, telegram.actor, 'telegram', { ...options, clientMode: body.clientMode });
         const backupToken = await createStateBackup({
           ...options,
           previousSnapshot: backupSnapshotWithPin(previousSnapshot, telegram.actor, result.record),
@@ -3390,7 +3399,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (session.source === 'telegram') {
         const botToken = options.botToken || resolveTelegramBotToken(options.env || process.env);
         setSessionCookie(res, session.actor, botToken, { now: options.now || Date.now() });
-        await safelyRecordAuthSession(req, session.actor, 'telegram', options);
+        await safelyRecordAuthSession(req, session.actor, 'telegram', { ...options, clientMode: body.clientMode });
       }
       return res.status(200).json({ ok: true, actor: session.actor, source: session.source });
     } catch (error) {
