@@ -3099,16 +3099,19 @@
           });
         }
       }
-      function financeTodayObligationCount(){
-        const now=financeMoscowParts();
+      function financeUnpaidTodayObligations(date=new Date()){
+        const now=financeMoscowParts(date);
         const month=now.year+'-'+now.month;
         const day=Number(now.day||0);
         const obligations=Array.isArray(financeState.plan?.obligations)?financeState.plan.obligations:[];
         return obligations.filter(row=>{
-          if(row?.active===false)return false;
-          if(Number(row?.day||0)!==day)return false;
-          return !(Array.isArray(row?.paidMonths)&&row.paidMonths.includes(month));
-        }).length;
+          if(!row||row.active===false)return false;
+          if(Number(row.day||0)!==day)return false;
+          return !(Array.isArray(row.paidMonths)&&row.paidMonths.includes(month));
+        });
+      }
+      function financeTodayObligationCount(){
+        return financeUnpaidTodayObligations().length;
       }
       function syncFinanceObligationAttention(){
         const count=financeTodayObligationCount();
@@ -3117,6 +3120,22 @@
           badge.textContent=count>99?'99+':String(count);
           badge.hidden=count<=0;
           badge.setAttribute('aria-label',count>0?('Обязательных расходов сегодня: '+count):'');
+        }
+        const dueBadge=document.getElementById('financeObligationsDueBadge');
+        if(dueBadge){
+          dueBadge.textContent=count>99?'99+':String(count);
+          dueBadge.hidden=count<=0;
+          dueBadge.setAttribute('aria-label',count>0?('Неоплаченных счетов сегодня: '+count):'');
+        }
+        const dueCard=document.getElementById('financeObligationsCard');
+        const dueDetails=document.getElementById('financeObligationsDetails');
+        dueCard?.classList.toggle('has-unpaid-today',count>0);
+        if(count>0&&dueDetails&&!dueDetails.open){
+          dueDetails.open=true;
+          dueCard?.classList.remove('is-collapsed');
+          const dueToggle=document.getElementById('financeObligationsToggle');
+          dueToggle?.setAttribute('aria-expanded','true');
+          dueToggle?.setAttribute('aria-label','Свернуть ежемесячные расходы');
         }
         document.documentElement.dataset.financeObligationCount=String(count);
         queueAppIconBadgeSync();
@@ -3181,12 +3200,20 @@
         const obligations=(Array.isArray(financeState.plan?.obligations)?financeState.plan.obligations:[])
           .slice()
           .sort((a,b)=>Number(a?.day||0)-Number(b?.day||0)||String(a?.title||'').localeCompare(String(b?.title||''),'ru'));
+        const dueTodayIds=new Set(
+          month===financeCurrentMonthKey()
+            ?financeUnpaidTodayObligations().map(row=>String(row.id||''))
+            :[]
+        );
         let pending=0;
         for(const row of obligations){
           if(row.active===false)continue;
           const paid=Array.isArray(row.paidMonths)&&row.paidMonths.includes(month);
           if(!paid)pending+=Number(row.amount||0);
-          const item=document.createElement('div');item.className='finance-obligation-row'+(paid?' is-paid':'');
+          const isDueToday=!paid&&dueTodayIds.has(String(row.id||''));
+          const item=document.createElement('div');
+          item.className='finance-obligation-row'+(paid?' is-paid':'')+(isDueToday?' is-due-today-unpaid':'');
+          if(isDueToday)item.setAttribute('aria-label','Неоплаченный счёт на сегодня: '+String(row.title||''));
           const toggle=document.createElement('button');toggle.type='button';toggle.className='finance-obligation-toggle';toggle.textContent=paid?'✓':'○';toggle.title=paid?'Отметить как неоплаченный':'Отметить оплаченным';
           const copy=document.createElement('button');copy.type='button';copy.className='finance-obligation-copy';copy.innerHTML='<strong></strong><small></small>';copy.querySelector('strong').textContent=row.title;copy.querySelector('small').textContent=financeOverviewMoney(row.amount)+' · '+row.day+' числа';
           const del=document.createElement('button');del.type='button';del.className='finance-obligation-delete';del.textContent='×';

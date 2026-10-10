@@ -114,6 +114,10 @@ function syncWebVersion(env = process.env) {
   const assetVersion = label.replace(/^v/i, '');
 
   let html = fs.readFileSync(webIndexPath, 'utf8');
+  for(const name of ['product-extras.css','product-extras.js']){
+    const escaped=name.replace(/\./g,'\\.');
+    html=html.replace(new RegExp('/'+escaped+'\\?v=[^"\\s]+','g'),'/'+name+'?v='+assetVersion);
+  }
   for (const name of WEB_ASSETS) {
     const ext = path.extname(name);
     const stem = path.basename(name, ext);

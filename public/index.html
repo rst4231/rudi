@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.141">
+  <meta name="rudi-version" content="v4.142">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -27,8 +27,8 @@
       document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.139">
-  <link rel="stylesheet" href="/product-extras.css?v=4.141">
+  <link rel="stylesheet" href="/app.css?v=4.142">
+  <link rel="stylesheet" href="/product-extras.css?v=4.142">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
@@ -70,8 +70,8 @@
     })();
   </script>
   <script defer src="/wallet-brand-icons.js?v=4.119"></script>
-  <script defer src="/app.js?v=4.141"></script>
-  <script defer src="/product-extras.js?v=4.141"></script>
+  <script defer src="/app.js?v=4.142"></script>
+  <script defer src="/product-extras.js?v=4.142"></script>
   <script defer src="/calendar-day-recap.js?v=4.139"></script>
   <script defer src="/recommendations.js?v=4.119"></script>
   <!-- Finance decision tools are optional: load only when opening Finances. -->
@@ -789,7 +789,7 @@
         <section id="financeObligationsCard" class="finance-obligations-card finance-collapsible is-collapsed" aria-labelledby="financeObligationsTitle">
           <details id="financeObligationsDetails" class="finance-obligations-details">
             <summary class="finance-history-head finance-obligations-card-head">
-              <div class="finance-obligations-heading"><h2 id="financeObligationsTitle">Ежемесячные расходы</h2></div>
+              <div class="finance-obligations-heading"><h2 id="financeObligationsTitle">Ежемесячные расходы</h2><span id="financeObligationsDueBadge" class="finance-obligations-due-badge" aria-live="polite" hidden></span></div>
               <button id="financeObligationsToggle" class="finance-collapse-toggle" type="button" aria-expanded="false" aria-controls="financeObligationsDetails" aria-label="Развернуть ежемесячные расходы">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
               </button>

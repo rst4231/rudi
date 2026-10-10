@@ -62,8 +62,8 @@ test('products autocomplete and versioned assets are wired without remote lookup
   const index=fs.readFileSync(path.join(__dirname,'../public/index.html'),'utf8');
   const app=fs.readFileSync(path.join(__dirname,'../public/app.js'),'utf8');
   const extras=fs.readFileSync(path.join(__dirname,'../public/product-extras.js'),'utf8');
-  assert.ok(index.includes('/product-extras.js?v=4.141'));
-  assert.ok(index.includes('/product-extras.css?v=4.141'));
+  assert.ok(index.includes('/product-extras.js?v=4.142'));
+  assert.ok(index.includes('/product-extras.css?v=4.142'));
   assert.ok(app.includes('window.RUDI_PRODUCTS_CURRENT='));
   assert.ok(app.includes('window.RUDI_PRODUCTS_API='));
   assert.ok(extras.includes("window.RUDI_PRODUCTS_API"));
