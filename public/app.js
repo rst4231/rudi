@@ -8100,8 +8100,10 @@
           const seq=++settingsFaceIdStatusSequence;button.disabled=true;status.textContent='Отключаю…';
           try{
             await passkeyRequest('disable');if(seq!==settingsFaceIdStatusSequence)return;
+            if(isRustamIphone())clearIphoneFaceIdWindow();
             status.textContent='Отключён';button.dataset.faceIdConfigured='0';settingsFaceIdPrepared=null;
             button.classList.remove('is-enabled');await updateSettingsFaceIdUi();
+            if(isRustamIphone()&&appAccessReady)void requireIphoneFaceIdLock();
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){if(seq!==settingsFaceIdStatusSequence)return;status.textContent='Не удалось отключить';button.disabled=false}
           return;
@@ -11045,10 +11047,208 @@
         setAuthGate(title,text,'auth-denied');
       }
 
+      // RUDI iPhone Rustam only: short-lived local Face ID / verified PIN screen lock.
+      const IPHONE_FACEID_WINDOW_MS=10*60*1000;
+      const IPHONE_FACEID_SESSION_KEY='rudi:iphone-rustam:faceid-until:v1';
+      let iphoneFaceIdUntil=0,iphoneFaceIdTimer=null,iphoneFaceIdGuardPromise=null;
+      function isRustamIphone(){
+        return currentActor==='Рустам'&&/iPhone/i.test(String(navigator?.userAgent||''));
+      }
+      function iphoneFaceIdDeadline(){
+        if(!isRustamIphone())return 0;
+        let stored=0;
+        try{stored=Number(sessionStorage.getItem(IPHONE_FACEID_SESSION_KEY)||0)}catch(_){}
+        const until=Math.max(Number(iphoneFaceIdUntil)||0,Number.isFinite(stored)?stored:0);
+        const now=Date.now();
+        return until>now&&until<=now+IPHONE_FACEID_WINDOW_MS?until:0;
+      }
+      function clearIphoneFaceIdWindow(){
+        iphoneFaceIdUntil=0;
+        if(iphoneFaceIdTimer!==null){clearTimeout(iphoneFaceIdTimer);iphoneFaceIdTimer=null;}
+        try{sessionStorage.removeItem(IPHONE_FACEID_SESSION_KEY)}catch(_){}
+      }
+      function grantIphoneFaceIdWindow(actor){
+        if(actor!=='Рустам'||!/iPhone/i.test(String(navigator?.userAgent||'')))return;
+        iphoneFaceIdUntil=Date.now()+IPHONE_FACEID_WINDOW_MS;
+        try{sessionStorage.setItem(IPHONE_FACEID_SESSION_KEY,String(iphoneFaceIdUntil))}catch(_){}
+        scheduleIphoneFaceIdExpiry();
+      }
+      function scheduleIphoneFaceIdExpiry(){
+        if(iphoneFaceIdTimer!==null){clearTimeout(iphoneFaceIdTimer);iphoneFaceIdTimer=null;}
+        if(!isRustamIphone()||!appAccessReady)return;
+        const until=iphoneFaceIdDeadline();
+        if(!until){void requireIphoneFaceIdLock();return;}
+        iphoneFaceIdTimer=setTimeout(()=>{
+          iphoneFaceIdTimer=null;
+          if(!iphoneFaceIdDeadline())void requireIphoneFaceIdLock();
+          else scheduleIphoneFaceIdExpiry();
+        },Math.max(1,until-Date.now()+20));
+      }
+      function showIphoneFaceIdErrorRetry(error){
+        return new Promise(resolve=>{
+          setAuthGate('Проверка Face ID','Не удалось проверить настройку Face ID. Проверь подключение к интернету и повтори.');
+          const form=document.createElement('div');
+          form.className='rudi-auth-form';
+          const retry=document.createElement('button');
+          retry.type='button';retry.className='rudi-auth-submit';
+          retry.textContent='Повторить';
+          const details=document.createElement('div');
+          details.className='rudi-auth-status';
+          details.textContent=faceIdConnectionError(error);
+          retry.addEventListener('click',()=>resolve());
+          form.append(retry,details);
+          document.querySelector('.app-gate-card')?.appendChild(form);
+        });
+      }
+      function showIphoneFaceIdUnlock(){
+        return new Promise(resolve=>{
+          setAuthGate('Подтверди вход','Face ID защищает Руди на этом iPhone. Доступ действует 10 минут.');
+          const form=document.createElement('div');form.className='rudi-auth-form';
+          const faceButton=document.createElement('button');
+          faceButton.type='button';faceButton.className='rudi-auth-submit rudi-auth-faceid';
+          faceButton.textContent='Подготавливаю Face ID…';faceButton.disabled=true;
+          const backupButton=document.createElement('button');
+          backupButton.type='button';backupButton.className='rudi-auth-secondary';
+          backupButton.textContent='Face ID недоступен? Войти по PIN';
+          const pinForm=document.createElement('form');
+          pinForm.className='rudi-iphone-pin-fallback';pinForm.hidden=true;
+          const pin=pinInputNode();
+          const pinSubmit=document.createElement('button');
+          pinSubmit.type='submit';pinSubmit.className='rudi-auth-submit';
+          pinSubmit.textContent='Подтвердить PIN';
+          pinForm.append(pin,pinSubmit);
+          const status=document.createElement('div');status.className='rudi-auth-status';
+          form.append(faceButton,backupButton,pinForm,status);
+          document.querySelector('.app-gate-card')?.appendChild(form);
+          let prepared=null,working=false,finished=false;
+          const done=()=>{
+            if(finished)return;
+            finished=true;grantIphoneFaceIdWindow('Рустам');
+            clearAuthGateForm();
+            document.body.classList.remove('auth-login');
+            document.body.classList.add('auth-pending');
+            resolve(true);
+          };
+          const prepare=()=>{
+            prepared=null;faceButton.disabled=true;faceButton.textContent='Подготавливаю Face ID…';
+            prepareFaceIdAuthentication().then(value=>{
+              if(finished||!form.isConnected)return;
+              prepared=value;faceButton.textContent='Войти с Face ID';faceButton.disabled=false;status.textContent='';
+            }).catch(error=>{
+              if(finished||!form.isConnected)return;
+              faceButton.textContent='Повторить Face ID';faceButton.disabled=false;
+              status.textContent=faceIdConnectionError(error);
+            });
+          };
+          faceButton.addEventListener('click',()=>{
+            if(working||finished)return;
+            if(!prepared){prepare();return;}
+            let credentialPromise;
+            try{credentialPromise=navigator.credentials.get({publicKey:prepared.publicKey})}
+            catch(error){status.textContent=faceIdConnectionError(error);prepare();return;}
+            working=true;faceButton.disabled=true;status.textContent='Подтверди Face ID на iPhone…';
+            finishFaceIdAuthentication(prepared,credentialPromise).then(actor=>{
+              if(actor!=='Рустам')throw new Error('rudi-actor-mismatch');
+              done();
+            }).catch(error=>{
+              status.textContent=faceIdConnectionError(error);
+              prepare();
+            }).finally(()=>{working=false;});
+          });
+          backupButton.addEventListener('click',()=>{
+            if(finished)return;
+            pinForm.hidden=!pinForm.hidden;
+            if(!pinForm.hidden)pin.focus();
+          });
+          pinForm.addEventListener('submit',async event=>{
+            event.preventDefault();
+            if(working||finished)return;
+            const value=String(pin.value||'');
+            if(!/^\d{6}$/.test(value)){status.textContent='Введи PIN из 6 цифр.';return;}
+            working=true;pinSubmit.disabled=true;status.textContent='Проверяю PIN…';
+            try{
+              const response=await browserAuthRequest('login',{actor:'Рустам',pin:value});
+              if(String(response.actor||'')!=='Рустам')throw new Error('rudi-actor-mismatch');
+              done();
+            }catch(error){
+              const message=String(error?.message||'');
+              status.textContent=message==='rudi-pin-rate-limited'
+                ?'Слишком много попыток. Попробуй позже.'
+                :message==='rudi-pin-not-configured'
+                  ?'PIN ещё не создан. Открой Руди через Telegram и создай PIN.'
+                  :'Не удалось подтвердить PIN. Проверь код и интернет.';
+              pin.value='';
+            }finally{
+              working=false;pinSubmit.disabled=false;
+            }
+          });
+          if(!passkeySupported()){
+            faceButton.textContent='Face ID недоступен в этом браузере';faceButton.disabled=true;
+            status.textContent='Для подключения Face ID открой Руди в Safari на iPhone.';
+          }else prepare();
+        });
+      }
+      async function ensureIphoneFaceIdAccess(){
+        if(!isRustamIphone()||iphoneFaceIdDeadline())return true;
+        while(!iphoneFaceIdDeadline()){
+          if(!passkeySupported()){
+            setAuthGate('Требуется Face ID','Face ID недоступен в этом браузере. Открой Руди через Safari на iPhone.');
+            await new Promise(resolve=>{
+              const retry=document.createElement('button');
+              retry.type='button';retry.className='rudi-auth-submit';
+              retry.textContent='Проверить снова';
+              const form=document.createElement('div');form.className='rudi-auth-form';
+              retry.addEventListener('click',resolve);form.appendChild(retry);
+              document.querySelector('.app-gate-card')?.appendChild(form);
+            });
+            continue;
+          }
+          let configured;
+          try{configured=Boolean((await passkeyRequest('status')).configured)}
+          catch(error){await showIphoneFaceIdErrorRetry(error);continue;}
+          if(!configured){
+            await showFaceIdSetup({mandatory:true});
+            continue;
+          }
+          await showIphoneFaceIdUnlock();
+        }
+        return true;
+      }
+      function requireIphoneFaceIdLock(){
+        if(!isRustamIphone()||!appAccessReady||iphoneFaceIdDeadline())return Promise.resolve(true);
+        if(iphoneFaceIdGuardPromise)return iphoneFaceIdGuardPromise;
+        clearIphoneFaceIdWindow();
+        document.body.classList.remove('auth-ok');
+        document.body.classList.add('auth-login');
+        iphoneFaceIdGuardPromise=ensureIphoneFaceIdAccess()
+          .then(()=>{
+            if(appAccessReady)showAuthenticatedApp();
+            return true;
+          }).catch(error=>{
+            console.warn('RUDI_IPHONE_FACEID_GUARD',String(error?.name||''),String(error?.message||''));
+            setAuthGate('Вход заблокирован','Не удалось проверить доступ. Перезапусти Руди.');
+            return false;
+          }).finally(()=>{iphoneFaceIdGuardPromise=null;});
+        return iphoneFaceIdGuardPromise;
+      }
+      const refreshIphoneLock=()=>{
+        if(!isRustamIphone()||!appAccessReady)return;
+        if(!iphoneFaceIdDeadline())void requireIphoneFaceIdLock();
+        else scheduleIphoneFaceIdExpiry();
+      };
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshIphoneLock()});
+      window.addEventListener('pageshow',refreshIphoneLock);
+      window.addEventListener('focus',refreshIphoneLock);
+
       function showAuthenticatedApp(){
         if(!currentActor||!appAccessReady) return false;
+        if(isRustamIphone()&&!iphoneFaceIdDeadline()){
+          void requireIphoneFaceIdLock();
+          return false;
+        }
         document.body.classList.remove('auth-pending','auth-denied','auth-login');
         document.body.classList.add('auth-ok');
+        if(isRustamIphone())scheduleIphoneFaceIdExpiry();
         return true;
       }
 
@@ -11232,10 +11432,12 @@
         }
       }
 
-      function showFaceIdSetup(){
+      function showFaceIdSetup({mandatory=false}={}){
         return new Promise(resolve=>{
-          if(!passkeySupported()) return resolve(false);
-          setAuthGate('Включить Face ID?','После этого в Safari можно будет входить без PIN.');
+          if(!passkeySupported()&&!mandatory) return resolve(false);
+          setAuthGate(mandatory?'Подключи Face ID':'Включить Face ID?',mandatory
+            ?'Для входа в Руди на этом iPhone необходимо подключить Face ID. Пропустить этот шаг нельзя.'
+            :'После этого в Safari можно будет входить без PIN.');
           const form=document.createElement('div');
           form.className='rudi-auth-form';
           const button=document.createElement('button');
@@ -11249,7 +11451,8 @@
           skip.textContent='Не сейчас';
           const status=document.createElement('div');
           status.className='rudi-auth-status';
-          form.append(button,skip,status);
+          if(mandatory)form.append(button,status);
+          else form.append(button,skip,status);
           document.querySelector('.app-gate-card')?.appendChild(form);
 
           let prepared=null;
@@ -11264,7 +11467,7 @@
             button.disabled=true;
           });
 
-          skip.addEventListener('click',()=>{
+          if(!mandatory)skip.addEventListener('click',()=>{
             setLoadingGate();
             resolve(false);
           });
@@ -11309,6 +11512,7 @@
       }
 
       async function maybeOfferFaceIdSetup(){
+        if(isRustamIphone())return false; // Mandatory setup occurs before unlocking the app.
         if(telegramInitData()||!passkeySupported()||lastBrowserAuthMethod!=='pin') return false;
         const configured=await faceIdConfigured();
         if(configured) return false;
@@ -11447,6 +11651,7 @@
 
             finishFaceIdAuthentication(preparedFaceIdLogin,credentialPromise).then(actor=>{
               lastBrowserAuthMethod='passkey';
+              grantIphoneFaceIdWindow(actor);
               clearAuthGateForm();
               document.body.classList.remove('auth-login');
               document.body.classList.add('auth-pending');
@@ -11815,6 +12020,7 @@
           },0);
         }
         if(telegramInitData()) await ensureTelegramPin();
+        if(isRustamIphone())await ensureIphoneFaceIdAccess();
         appAccessReady=true;
         showAuthenticatedApp();
         appBootstrapPromise=loadAppBootstrap().catch(error=>{
