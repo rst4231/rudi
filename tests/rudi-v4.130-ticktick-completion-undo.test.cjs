@@ -256,6 +256,8 @@ test('calendar composition renders on success and safely preserves data when Tic
   const code=app.slice(start,end);
   const make=(scope,fail=false,previous=null)=>{
     const env={
+      // The real calendar runs in a browser; provide the offline-store global.
+      window:{rudiCalendarOffline:null},
       calendarActiveMonth:()=> '2026-10',
       calendarScope:scope,currentActor:'Рустам',
       telegramInitData:()=>'',currentStateBackupToken:'',
