@@ -634,76 +634,15 @@ html[data-theme="dark"] .smart-home-scenario{
 }
 /* end RUDI v1.9.0 smart-home collapsed climate */
 
-/* CloudCam EyePlus: screen-filling private viewer; no narrow desktop iframe. */
+/* CloudCam: native external EyePlus link, no embedded browser/captcha. */
 .smart-home-cloudcam-card .smart-home-device-visual svg{width:28px;height:28px}
 .smart-home-camera-open{
+  display:inline-flex;align-items:center;justify-content:center;
   min-height:38px;padding:0 12px;border:0;border-radius:11px;
   color:#fff;background:#665cf2;font:inherit;font-size:11px;font-weight:750;
-}
-.smart-home-camera-overlay{
-  position:fixed;inset:0;z-index:2147483000;display:flex;
-  align-items:stretch;justify-content:stretch;padding:0;
-  background:var(--surface);
-}
-.smart-home-camera-dialog{
-  width:100%;max-width:none;height:100dvh;max-height:100dvh;
-  min-height:0;box-sizing:border-box;overflow:hidden;
-  display:flex;flex-direction:column;gap:9px;
-  padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));
-  border-radius:0;color:var(--text);background:var(--surface);
-}
-.smart-home-camera-header{
-  flex:0 0 auto;display:flex;justify-content:space-between;
-  gap:12px;align-items:center;
-}
-.smart-home-camera-header>div{display:grid;gap:3px;min-width:0}
-.smart-home-camera-header strong{font-size:19px;line-height:1.2}
-.smart-home-camera-header span{color:var(--muted);font-size:11px}
-.smart-home-camera-close{
-  width:38px;height:38px;flex:0 0 auto;border:0;border-radius:50%;
-  color:var(--text);background:var(--soft);font-size:25px;line-height:1;
-}
-.smart-home-camera-frame{
-  position:relative;min-width:0;min-height:0;flex:1 1 auto;
-  display:flex;align-items:center;justify-content:center;
-  border-radius:15px;background:#171b25;overflow:hidden;color:#ced5e0;
-  text-align:center;
-}
-.smart-home-camera-frame>span{padding:24px;font-size:13px;line-height:1.6}
-.smart-home-camera-frame iframe{
-  position:absolute;top:0;left:0;width:100%;height:100%;
-  border:0;background:#fff;max-width:none;max-height:none;
-}
-.smart-home-camera-zoom{
-  flex:0 0 auto;display:flex;align-items:center;gap:10px;
-  justify-content:space-between;min-height:32px;
-}
-.smart-home-camera-zoom[hidden]{display:none!important}
-.smart-home-camera-fit{
-  border:1px solid var(--line);border-radius:10px;min-height:32px;
-  padding:0 12px;background:var(--soft);color:var(--text);
-  font:inherit;font-size:12px;font-weight:720;
-}
-.smart-home-camera-zoom span{font-size:11px;color:var(--muted)}
-.smart-home-camera-actions{
-  flex:0 0 auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
-}
-.smart-home-camera-actions>*{
-  min-width:0;min-height:45px;padding:8px;display:flex;align-items:center;justify-content:center;
-  border-radius:13px;border:0;text-align:center;text-decoration:none;
-  font:inherit;font-size:12px;font-weight:750;box-sizing:border-box;
-}
-.smart-home-camera-embed{color:var(--text);background:var(--soft)}
-.smart-home-camera-embed:disabled{opacity:.6}
-.smart-home-camera-external{color:#fff;background:#665cf2}
-.smart-home-camera-hint{
-  flex:0 0 auto;margin:0;color:var(--muted);
-  font-size:10px;line-height:1.35;
+  text-decoration:none;white-space:nowrap;
 }
 @media(max-width:430px){
   .smart-home-cloudcam-card .smart-home-device-row{gap:6px}
   .smart-home-camera-open{min-height:34px;padding:0 9px;font-size:10px}
-  .smart-home-camera-dialog{padding-left:9px;padding-right:9px}
-  .smart-home-camera-actions{grid-template-columns:1fr}
-  .smart-home-camera-actions>*{min-height:40px}
 }
