@@ -7,13 +7,12 @@
   "createdAt": "2026-10-10",
   "basedOnProduction": "v4.154",
   "notes": [
-    "CloudCam only for Rustam: Смотреть opens EyePlus directly outside RUDI in Safari, without the blocked iframe login.",
-    "Rustam iPhone only: mandatory Face ID setup if disabled, ten-minute screen unlock, and verified RUDI PIN fallback when biometric login is unavailable.",
-    "Other devices and Diana remain on their current authentication behavior; Face ID uses the existing WebAuthn backend.",
-    "Collapsed Smart Home: red count badge for devices below 10% battery; individual low-battery device cards get red border and halo.",
-    "Smart Home and Car reload after delayed Face ID registration; no continuous polling added.",
-    "14 focused regression checks passed; build/deployment and physical iPhone verification pending release approval.",
-    "Prepared for one production build after explicit approval; Face ID, Safari camera and low-battery alerts verified in regression tests."
+    "Rustam-only CloudCam shortcut in Hallway opens EyePlus externally instead of broken embedded CAPTCHA.",
+    "Rustam-only iPhone access gate: mandatory Face ID setup when available, ten-minute biometric/passkey unlock and server-verified RUDI PIN fallback when Face ID or WebAuthn is unavailable.",
+    "Other users and other platforms retain their current login behavior.",
+    "Smart Home reports known battery levels below 10 percent with a red collapsed badge and a red halo around each low-battery device.",
+    "Smart Home and Car sections reload after delayed successful Face ID authentication without additional polling.",
+    "20 focused regression tests passed; syntax checks passed. Actual iPhone verification and Vercel build pending release approval."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
