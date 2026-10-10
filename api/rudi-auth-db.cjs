@@ -56,6 +56,7 @@ function normalizeRow(value) {
     actor,
     pinRecord: normalizePinRecord(value?.pin_record),
     passkeys: normalizePasskeys(value?.passkeys),
+    passkeysRevokedAt: String(value?.passkeys_revoked_at || ''),
     updatedAt: String(value?.updated_at || ''),
   };
 }
@@ -122,12 +123,15 @@ async function writeAuthRecord(actor, value = {}, options = {}) {
   const passkeys = Object.prototype.hasOwnProperty.call(value, 'passkeys')
     ? normalizePasskeys(value.passkeys)
     : normalizePasskeys(currentRaw?.passkeys);
+  const passkeysRevokedAt = Object.prototype.hasOwnProperty.call(value,'passkeysRevokedAt')
+    ? String(value.passkeysRevokedAt||'') : String(currentRaw?.passkeys_revoked_at||'');
   const updatedAt = String(value.updatedAt || new Date(options.now || Date.now()).toISOString());
 
   const raw = await writeRawRecord(safeActor, {
     actor: safeActor,
     pin_record: pinRecord,
     passkeys,
+    passkeys_revoked_at: passkeysRevokedAt,
     updated_at: updatedAt,
   }, options);
 
@@ -185,7 +189,11 @@ async function savePinRecord(actor, pinRecord, options = {}) {
 }
 
 async function savePasskeys(actor, passkeys, options = {}) {
-  return writeAuthRecord(actor, { passkeys: normalizePasskeys(passkeys) }, options);
+  return writeAuthRecord(actor, { passkeys: normalizePasskeys(passkeys), ...(passkeys?.length ? {passkeysRevokedAt:''} : {}) }, options);
+}
+
+async function revokePasskeys(actor, options = {}) {
+  return writeAuthRecord(actor, {passkeys:[],passkeysRevokedAt:new Date(options.now||Date.now()).toISOString()}, options);
 }
 
 module.exports = {
@@ -205,4 +213,5 @@ module.exports = {
   writeAppState,
   appStateRecordKey,
   savePasskeys,
+  revokePasskeys,
 };

@@ -5,8 +5,8 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readPartnerMessage, writePartnerMessage, togglePartnerMessageLike } = require('./partner-message-store.cjs');
 const { assertAllowedTelegramUser } = require('./rudi-access.cjs');
 const { authorizeWithSession, setSessionCookie, clearSessionCookie, savePin, verifyPin, restorePinRecord, readPinRecord } = require('./rudi-session.cjs');
-const { passkeyStatus, registrationOptions, verifyRegistration, authenticationOptions, verifyAuthentication, restorePasskeys, readPasskeys } = require('./rudi-passkeys.cjs');
-const { readAuthRecord, savePinRecord: saveDurablePinRecord, savePasskeys: saveDurablePasskeys } = require('./rudi-auth-db.cjs');
+const { passkeyStatus, registrationOptions, verifyRegistration, authenticationOptions, verifyAuthentication, restorePasskeys, readPasskeys, writePasskeys } = require('./rudi-passkeys.cjs');
+const { readAuthRecord, savePinRecord: saveDurablePinRecord, savePasskeys: saveDurablePasskeys, revokePasskeys: revokeDurablePasskeys } = require('./rudi-auth-db.cjs');
 const { readHolidayHighlights } = require('./holiday-highlights-store.cjs');
 const { getHolidayCalendar } = require('./holiday-calendar.cjs');
 const { saveOAuthState, consumeOAuthState, saveToken, readToken, clearToken, savePersonalToken, readPersonalToken, clearPersonalToken } = require('./ticktick-store.cjs');
@@ -271,7 +271,7 @@ async function hydrateActorAuth(actor, backupToken, options = {}) {
     durable = await saveDurablePinRecord(actor, backupPin, dbOptions);
   }
 
-  if (!(durable?.passkeys?.length)) {
+  if (!(durable?.passkeys?.length) && !durable?.passkeysRevokedAt) {
     const cachedPasskeys = await readPasskeys(actor, storeOptions).catch(() => []);
     if (cachedPasskeys.length) {
       durable = await saveDurablePasskeys(actor, cachedPasskeys, dbOptions);
@@ -281,7 +281,7 @@ async function hydrateActorAuth(actor, backupToken, options = {}) {
   const backupPasskeys = Array.isArray(snapshot?.browserAuth?.passkeys?.[actor])
     ? snapshot.browserAuth.passkeys[actor]
     : [];
-  if (!(durable?.passkeys?.length) && backupPasskeys.length) {
+  if (!(durable?.passkeys?.length) && !durable?.passkeysRevokedAt && backupPasskeys.length) {
     durable = await saveDurablePasskeys(actor, backupPasskeys, dbOptions);
   }
 
@@ -491,7 +491,7 @@ async function sendWishlistNotificationToPartner(owner, text, options = {}) {
 
 function dailyQuestionAnswerNotificationText(actor) {
   const action=actor==='Диана'?'Диана ответила':'Рустам ответил';
-  return '💬 <b>'+action+' на вопрос дня</b>\n\n<i>Сам ответ скрыт. Он откроется в RUDI, когда ответите вы оба.</i>';
+  return '💬 <b>'+action+' на вопрос дня</b>\n\n<i>Сам ответ скрыт. Он откроется в РуДи, когда ответите вы оба.</i>';
 }
 
 async function sendDailyQuestionAnswerNotification(actor,options={}) {
@@ -507,7 +507,7 @@ async function sendDailyQuestionAnswerNotification(actor,options={}) {
     const sendPush=options.sendPushNotificationImpl||sendPushNotification;
     const result=await sendPush(recipient,{
       title:'💬 Ответ на вопрос дня',
-      body:actor+' '+action+'. Сам ответ откроется в RUDI, когда ответите вы оба.',
+      body:actor+' '+action+'. Сам ответ откроется в РуДи, когда ответите вы оба.',
       tag:'daily-question',
       url:'/?tab=home&item=daily-question',
     },options);
@@ -3252,6 +3252,13 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'status') {
         const status = await passkeyStatus(req, session.actor, storeOptions);
         return res.status(200).json({ ok: true, actor: session.actor, ...status });
+      }
+
+      if (operation === 'disable') {
+        // Revoke durably first: old backup tokens must not re-add these keys.
+        await revokeDurablePasskeys(session.actor, durableAuthOptions(options));
+        await writePasskeys(session.actor, [], storeOptions);
+        return res.status(200).json({ok:true,actor:session.actor,configured:false});
       }
 
       if (operation === 'register-options') {

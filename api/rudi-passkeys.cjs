@@ -226,7 +226,7 @@ async function registrationOptions(req, actor, options = {}) {
   const existing = (await readPasskeys(safeActor, options)).filter(row => row.rpID === rp.rpID);
   const webauthn = await resolveWebAuthn(options);
   const result = await webauthn.generateRegistrationOptions({
-    rpName: 'RUDI',
+    rpName: 'РуДи',
     rpID: rp.rpID,
     userID: actorUserId(safeActor),
     userName: safeActor,
@@ -353,6 +353,7 @@ module.exports = {
   encodeBytes,
   decodeBytes,
   readPasskeys,
+  writePasskeys,
   restorePasskeys,
   passkeyStatus,
   registrationOptions,
