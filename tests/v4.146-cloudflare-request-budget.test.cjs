@@ -2,6 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
+const backup=require('../api/rudi-backup.cjs');
 
 test('reading a batch of reactions reads the shared state only once', async()=>{
   const mod=require('../api/reactions-store.cjs');

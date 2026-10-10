@@ -1,16 +1,16 @@
 {
-  "current": "v4.145",
+  "current": "v4.146",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-10",
-  "basedOnProduction": "v4.144",
+  "basedOnProduction": "v4.145",
   "notes": [
-    "iOS calendar reconnect: recheck server availability when online event is missed.",
-    "Swipe-to-refresh and visible offline calendar periodically probe connection, flush queued changes and refresh TickTick without app restart.",
-    "Clear offline status banner on a successful authoritative server probe.",
-    "No database wipe or financial logic modifications; one bundled deploy after user confirmation."
+    "Reduce Cloudflare D1 writes: reading reaction lists no longer restores and rewrites per-actor reaction keys.",
+    "Batch reaction reads share one state lookup and preserve both users' likes.",
+    "Incremental encrypted backups update only changed products, reactions, journal and task scores when a recent full snapshot is available.",
+    "Periodic full backup refresh remains enabled after 60 seconds; no data migration or reset."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
