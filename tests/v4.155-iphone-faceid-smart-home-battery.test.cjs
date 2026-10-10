@@ -75,3 +75,11 @@ test('low battery cards glow red and normal cards do not',()=>{
   assert.match(smartCss,/0 0 18px rgba\(239,68,76,\.27\)/);
   assert.equal(lowBatteryDevices({devices:[dev('OK',10)]}).length,0);
 });
+
+test('delayed iPhone Face ID enrollment wakes Smart Home and Car without polling',()=>{
+  const car=fs.readFileSync('public/car.js','utf8');
+  assert.match(app,/if\(!wasAuthenticated\)try\{window\.dispatchEvent\(new Event\('rudi:auth-ready'\)\)/);
+  assert.match(smart,/window\.addEventListener\('rudi:auth-ready',\(\)=>loadHome\(\{silent:true\}\)\)/);
+  assert.match(car,/window\.addEventListener\('rudi:auth-ready',wait\)/);
+  assert.doesNotMatch(smart,/setInterval\(/);
+});
