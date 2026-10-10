@@ -1,19 +1,17 @@
 {
-  "current": "v4.155",
+  "current": "v4.156",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-10",
-  "basedOnProduction": "v4.154",
+  "basedOnProduction": "v4.155",
   "notes": [
-    "CloudCam only for Rustam: Смотреть opens EyePlus directly outside RUDI in Safari, without the blocked iframe login.",
-    "Rustam iPhone only: mandatory Face ID setup if disabled, ten-minute screen unlock, and verified RUDI PIN fallback when biometric login is unavailable.",
-    "Other devices and Diana remain on their current authentication behavior; Face ID uses the existing WebAuthn backend.",
-    "Collapsed Smart Home: red count badge for devices below 10% battery; individual low-battery device cards get red border and halo.",
-    "Smart Home and Car reload after delayed Face ID registration; no continuous polling added.",
-    "14 focused regression checks passed; build/deployment and physical iPhone verification pending release approval.",
-    "Prepared for one production build after explicit approval; Face ID, Safari camera and low-battery alerts verified in regression tests."
+    "Both Rustam and Diana on iPhone: mandatory Face ID with verified PIN fallback.",
+    "Per-account PWA unlock durations: immediately, 10 min, 1 hour (default), 5 hours.",
+    "Timed unlock persists through PWA relaunch; immediate always requires recheck on relaunch and return from background.",
+    "Changing the selected interval survives restart and immediate invalidates the previous long session.",
+    "Hide redundant PWA installation row in already installed PWA; no deployment before approval."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

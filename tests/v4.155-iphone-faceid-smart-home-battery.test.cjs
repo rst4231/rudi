@@ -7,15 +7,15 @@ const smart=fs.readFileSync('public/smart-home.js','utf8');
 const smartCss=fs.readFileSync('public/smart-home.css','utf8');
 
 test('Face ID lock only applies to Rustam on iPhone',()=>{
-  assert.match(app,/function isRustamIphone\(\)\{[\s\S]*?currentActor==='Рустам'&&\/iPhone\/i\.test/);
-  assert.match(app,/if\(isRustamIphone\(\)\&\&!iphoneFaceIdDeadline\(\)\)\{[\s\S]*?requireIphoneFaceIdLock\(\)/);
-  assert.match(app,/if\(isRustamIphone\(\)\)await ensureIphoneFaceIdAccess\(\)/);
-  assert.match(app,/if\(actor!=='Рустам'\|\|!\/iPhone\/i\.test/);
+  assert.match(app,/function iphoneFaceIdActor\(\)\{[\s\S]*?\['Рустам','Диана'\]\.includes\(actor\)/);
+  assert.match(app,/if\(isProtectedIphoneAccount\(\)\&\&!iphoneFaceIdDeadline\(\)\)\{[\s\S]*?requireIphoneFaceIdLock\(\)/);
+  assert.match(app,/if\(isProtectedIphoneAccount\(\)\)await ensureIphoneFaceIdAccess\(\)/);
+  assert.match(app,/if\(!\['Рустам','Диана'\]\.includes\(actor\)\|\|!\/iPhone\/i\.test/);
 });
 
 test('iPhone biometric verification expires in ten minutes and locks on foreground',()=>{
-  assert.match(app,/const IPHONE_FACEID_WINDOW_MS=10\*60\*1000/);
-  assert.match(app,/sessionStorage\.setItem\(IPHONE_FACEID_SESSION_KEY,String\(iphoneFaceIdUntil\)\)/);
+  assert.match(app,/const IPHONE_FACEID_DEFAULT_INTERVAL='1h'/);
+  assert.match(app,/localStorage\.setItem\(IPHONE_FACEID_GRANT_KEY_PREFIX\+actor,JSON\.stringify\(iphoneFaceIdGrant\)\)/);
   assert.match(app,/function scheduleIphoneFaceIdExpiry\(\)/);
   assert.match(app,/if\(!iphoneFaceIdDeadline\(\)\)void requireIphoneFaceIdLock\(\)/);
   assert.match(app,/document\.addEventListener\('visibilitychange'/);
@@ -30,14 +30,14 @@ test('Face ID onboarding cannot be skipped for Rustam iPhone and allows retry on
   assert.match(app,/if\(!mandatory\)skip\.addEventListener\('click'/);
   assert.match(app,/const prepare=\(\)=>\{[\s\S]*?button\.textContent='Повторить'/);
   assert.match(app,/if\(!prepared\)\{prepare\(\);return;\}/);
-  assert.match(app,/if\(isRustamIphone\(\)\)clearIphoneFaceIdWindow\(\)/);
+  assert.match(app,/if\(isProtectedIphoneAccount\(\)\)clearIphoneFaceIdWindow\(\)/);
 });
 
 test('backup PIN is verified on RUDI backend before unlocking',()=>{
   assert.match(app,/Face ID недоступен\? Войти по PIN/);
-  assert.match(app,/browserAuthRequest\('login',\{actor:'Рустам',pin:value\}\)/);
-  assert.match(app,/if\(String\(response\.actor\|\|''\)!=='Рустам'\)throw/);
-  assert.match(app,/if\(actor!=='Рустам'\)throw new Error\('rudi-actor-mismatch'\)/);
+  assert.match(app,/browserAuthRequest\('login',\{actor:lockedActor,pin:value\}\)/);
+  assert.match(app,/if\(String\(response\.actor\|\|''\)!==lockedActor\)throw/);
+  assert.match(app,/if\(actor!==lockedActor\)throw new Error\('rudi-actor-mismatch'\)/);
   assert.match(app,/function grantIphoneFaceIdWindow\(actor\)/);
 });
 

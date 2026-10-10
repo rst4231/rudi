@@ -8057,9 +8057,10 @@
       }
       function updateSettingsPlatform149(){
         const browser=!isStandalonePwa()&&!telegramInitData();
-        for(const id of ['settingsTextSizeRow','settingsPwaRow']){
-          const row=document.getElementById(id);if(row)row.hidden=browser;
-        }
+        const textRow=document.getElementById('settingsTextSizeRow');
+        if(textRow)textRow.hidden=browser;
+        const pwaRow=document.getElementById('settingsPwaRow');
+        if(pwaRow){pwaRow.hidden=browser||isStandalonePwa();pwaRow.style.display=pwaRow.hidden?'none':'';}
       }
       async function updateSettingsFaceIdUi(options={}){
         if(settingsFaceIdConnecting)return;
@@ -8100,10 +8101,10 @@
           const seq=++settingsFaceIdStatusSequence;button.disabled=true;status.textContent='Отключаю…';
           try{
             await passkeyRequest('disable');if(seq!==settingsFaceIdStatusSequence)return;
-            if(isRustamIphone())clearIphoneFaceIdWindow();
+            if(isProtectedIphoneAccount())clearIphoneFaceIdWindow();
             status.textContent='Отключён';button.dataset.faceIdConfigured='0';settingsFaceIdPrepared=null;
             button.classList.remove('is-enabled');await updateSettingsFaceIdUi();
-            if(isRustamIphone()&&appAccessReady)void requireIphoneFaceIdLock();
+            if(isProtectedIphoneAccount()&&appAccessReady)void requireIphoneFaceIdLock();
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){if(seq!==settingsFaceIdStatusSequence)return;status.textContent='Не удалось отключить';button.disabled=false}
           return;
@@ -8233,6 +8234,7 @@
         updateSettingsVersion();
         updatePwaInstallUi();
         updateSettingsFaceIdUi();
+        updateSettingsFaceIdIntervalUi();
         refreshSecuritySessions();
         setupExtendedSettings();
         updateDataSettingsUi();
@@ -8287,6 +8289,11 @@
         if(face&&face.dataset.bound!=='1'){
           face.dataset.bound='1';
           face.addEventListener('click',connectFaceIdFromSettings);
+        }
+        const intervalSelect=document.getElementById('settingsFaceIdInterval');
+        if(intervalSelect&&intervalSelect.dataset.bound!=='1'){
+          intervalSelect.dataset.bound='1';
+          intervalSelect.addEventListener('change',()=>saveIphoneFaceIdInterval(intervalSelect.value));
         }
         if(document.documentElement.dataset.settingsEscapeBound!=='1'){
           document.documentElement.dataset.settingsEscapeBound='1';
@@ -9430,6 +9437,15 @@
               '<label class="settings-contact-field"><span>Повторите новый PIN</span><div class="settings-contact-input"><input id="settingsNewPinRepeat" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
               '<div class="settings-contact-footer"><small id="settingsPinStatus" aria-live="polite"></small><button id="settingsPinSave" class="settings-contact-save" type="button">Сменить PIN</button></div>'+
               '<div id="settingsFaceIdRow" class="home-settings-row settings-faceid-row" hidden><div class="home-settings-copy"><strong>Face ID</strong><small id="settingsFaceIdStatus" aria-live="polite">Проверяю…</small></div><button id="settingsFaceIdConnect" class="settings-faceid-action" type="button">Подключить Face ID</button></div>'+
+              '<label id="settingsFaceIdIntervalRow" class="home-settings-row settings-startup-row" for="settingsFaceIdInterval" hidden>'+
+                '<span class="home-settings-copy"><strong>Запрашивать Face ID</strong><small>Интервал на этом iPhone</small></span>'+
+                '<select id="settingsFaceIdInterval" class="settings-startup-select" aria-label="Как часто запрашивать Face ID">'+
+                  '<option value="immediate">Сразу</option>'+
+                  '<option value="10m">Через 10 минут</option>'+
+                  '<option value="1h" selected>Через 1 час</option>'+
+                  '<option value="5h">Через 5 часов</option>'+
+                '</select>'+
+              '</label>'+
               '<div class="settings-auth-sessions"><div class="settings-auth-sessions-head"><strong>Последние сессии</strong><small>5 последних входов</small></div><div id="settingsAuthSessionsList" class="settings-auth-sessions-list" aria-live="polite">Загружаю…</div></div>'+
             '</section>'+
 
@@ -10856,6 +10872,8 @@
       }
 
       function updatePwaInstallUi(){
+        const row=document.getElementById('settingsPwaRow');
+        if(row&&isStandalonePwa()){row.hidden=true;row.style.display='none';}
         const button=document.getElementById('settingsPwaInstall');
         const status=document.getElementById('settingsPwaStatus');
         if(!button||!status) return;
@@ -11047,37 +11065,83 @@
         setAuthGate(title,text,'auth-denied');
       }
 
-      // RUDI iPhone Rustam only: short-lived local Face ID / verified PIN screen lock.
-      const IPHONE_FACEID_WINDOW_MS=10*60*1000;
-      const IPHONE_FACEID_SESSION_KEY='rudi:iphone-rustam:faceid-until:v1';
-      let iphoneFaceIdUntil=0,iphoneFaceIdTimer=null,iphoneFaceIdGuardPromise=null;
-      function isRustamIphone(){
-        return currentActor==='Рустам'&&/iPhone/i.test(String(navigator?.userAgent||''));
+      // Per-account iPhone Face ID unlock: persisted deadlines, memory-only immediate mode.
+      const IPHONE_FACEID_DEFAULT_INTERVAL='1h';
+      const IPHONE_FACEID_INTERVALS=Object.freeze({immediate:0,'10m':600000,'1h':3600000,'5h':18000000});
+      const IPHONE_FACEID_INTERVAL_KEY_PREFIX='rudi:iphone:faceid-interval:v2:';
+      const IPHONE_FACEID_GRANT_KEY_PREFIX='rudi:iphone:faceid-grant:v2:';
+      let iphoneFaceIdGrant=null,iphoneFaceIdImmediateActor='',iphoneFaceIdTimer=null,iphoneFaceIdGuardPromise=null;
+      function iphoneFaceIdActor(){
+        const actor=String(currentActor||'');
+        return /iPhone/i.test(String(navigator?.userAgent||''))&&['Рустам','Диана'].includes(actor)?actor:'';
+      }
+      function isProtectedIphoneAccount(){return Boolean(iphoneFaceIdActor());}
+      function iphoneFaceIdInterval(actor=iphoneFaceIdActor()){
+        if(!['Рустам','Диана'].includes(actor))return IPHONE_FACEID_DEFAULT_INTERVAL;
+        let value='';
+        try{value=String(localStorage.getItem(IPHONE_FACEID_INTERVAL_KEY_PREFIX+actor)||'')}catch(_){}
+        return Object.prototype.hasOwnProperty.call(IPHONE_FACEID_INTERVALS,value)?value:IPHONE_FACEID_DEFAULT_INTERVAL;
       }
       function iphoneFaceIdDeadline(){
-        if(!isRustamIphone())return 0;
-        let stored=0;
-        try{stored=Number(sessionStorage.getItem(IPHONE_FACEID_SESSION_KEY)||0)}catch(_){}
-        const until=Math.max(Number(iphoneFaceIdUntil)||0,Number.isFinite(stored)?stored:0);
-        const now=Date.now();
-        return until>now&&until<=now+IPHONE_FACEID_WINDOW_MS?until:0;
+        const actor=iphoneFaceIdActor();
+        if(!actor)return 0;
+        const interval=iphoneFaceIdInterval(actor);
+        if(interval==='immediate')return iphoneFaceIdImmediateActor===actor?Number.MAX_SAFE_INTEGER:0;
+        let persisted=null;
+        try{persisted=JSON.parse(localStorage.getItem(IPHONE_FACEID_GRANT_KEY_PREFIX+actor)||'null')}catch(_){}
+        const grant=iphoneFaceIdGrant?.actor===actor?iphoneFaceIdGrant:persisted;
+        if(!grant||grant.actor!==actor)return 0;
+        const confirmedAt=Number(grant.confirmedAt),expiresAt=Number(grant.expiresAt),now=Date.now();
+        const until=Math.min(confirmedAt+IPHONE_FACEID_INTERVALS[interval],expiresAt);
+        if(!Number.isFinite(confirmedAt)||!Number.isFinite(expiresAt)||!Number.isFinite(until))return 0;
+        if(confirmedAt>now||confirmedAt<=0||expiresAt>confirmedAt+IPHONE_FACEID_INTERVALS['5h'])return 0;
+        return until>now?until:0;
       }
       function clearIphoneFaceIdWindow(){
-        iphoneFaceIdUntil=0;
+        const actor=iphoneFaceIdActor();
+        iphoneFaceIdGrant=null;iphoneFaceIdImmediateActor='';
         if(iphoneFaceIdTimer!==null){clearTimeout(iphoneFaceIdTimer);iphoneFaceIdTimer=null;}
-        try{sessionStorage.removeItem(IPHONE_FACEID_SESSION_KEY)}catch(_){}
+        if(actor)try{localStorage.removeItem(IPHONE_FACEID_GRANT_KEY_PREFIX+actor)}catch(_){}
       }
       function grantIphoneFaceIdWindow(actor){
-        if(actor!=='Рустам'||!/iPhone/i.test(String(navigator?.userAgent||'')))return;
-        iphoneFaceIdUntil=Date.now()+IPHONE_FACEID_WINDOW_MS;
-        try{sessionStorage.setItem(IPHONE_FACEID_SESSION_KEY,String(iphoneFaceIdUntil))}catch(_){}
+        // Initial WebAuthn login can finish before currentActor is assigned.
+        if(!['Рустам','Диана'].includes(actor)||!/iPhone/i.test(String(navigator?.userAgent||'')))return;
+        const interval=iphoneFaceIdInterval(actor),now=Date.now();
+        if(interval==='immediate'){
+          iphoneFaceIdImmediateActor=actor;iphoneFaceIdGrant=null;
+          try{localStorage.removeItem(IPHONE_FACEID_GRANT_KEY_PREFIX+actor)}catch(_){}
+        }else{
+          iphoneFaceIdImmediateActor='';
+          iphoneFaceIdGrant={actor,confirmedAt:now,expiresAt:now+IPHONE_FACEID_INTERVALS[interval]};
+          try{localStorage.setItem(IPHONE_FACEID_GRANT_KEY_PREFIX+actor,JSON.stringify(iphoneFaceIdGrant))}catch(_){}
+        }
         scheduleIphoneFaceIdExpiry();
+      }
+      function saveIphoneFaceIdInterval(value){
+        const actor=iphoneFaceIdActor();
+        if(!actor||!Object.prototype.hasOwnProperty.call(IPHONE_FACEID_INTERVALS,value))return;
+        try{localStorage.setItem(IPHONE_FACEID_INTERVAL_KEY_PREFIX+actor,value)}catch(_){}
+        iphoneFaceIdImmediateActor='';
+        // Switching to "immediate" cannot reuse the previous hourly grant.
+        if(appAccessReady){
+          if(!iphoneFaceIdDeadline())void requireIphoneFaceIdLock();
+          else scheduleIphoneFaceIdExpiry();
+        }
+      }
+      function updateSettingsFaceIdIntervalUi(){
+        const row=document.getElementById('settingsFaceIdIntervalRow');
+        const select=document.getElementById('settingsFaceIdInterval');
+        if(!row||!select)return;
+        const eligible=Boolean(iphoneFaceIdActor())&&!telegramInitData();
+        row.hidden=!eligible;row.style.display=eligible?'':'none';
+        if(eligible)select.value=iphoneFaceIdInterval();
       }
       function scheduleIphoneFaceIdExpiry(){
         if(iphoneFaceIdTimer!==null){clearTimeout(iphoneFaceIdTimer);iphoneFaceIdTimer=null;}
-        if(!isRustamIphone()||!appAccessReady)return;
+        if(!isProtectedIphoneAccount()||!appAccessReady)return;
         const until=iphoneFaceIdDeadline();
         if(!until){void requireIphoneFaceIdLock();return;}
+        if(iphoneFaceIdInterval()==='immediate')return;
         iphoneFaceIdTimer=setTimeout(()=>{
           iphoneFaceIdTimer=null;
           if(!iphoneFaceIdDeadline())void requireIphoneFaceIdLock();
@@ -11102,7 +11166,8 @@
       }
       function showIphoneFaceIdUnlock(){
         return new Promise(resolve=>{
-          setAuthGate('Подтверди вход','Face ID защищает Руди на этом iPhone. Доступ действует 10 минут.');
+          const lockedActor=iphoneFaceIdActor();
+          setAuthGate('Подтверди вход','Face ID защищает '+lockedActor+' на этом iPhone. Период проверки можно выбрать в настройках.');
           const form=document.createElement('div');form.className='rudi-auth-form';
           const faceButton=document.createElement('button');
           faceButton.type='button';faceButton.className='rudi-auth-submit rudi-auth-faceid';
@@ -11123,7 +11188,7 @@
           let prepared=null,working=false,finished=false;
           const done=()=>{
             if(finished)return;
-            finished=true;grantIphoneFaceIdWindow('Рустам');
+            finished=true;grantIphoneFaceIdWindow(lockedActor);
             clearAuthGateForm();
             document.body.classList.remove('auth-login');
             document.body.classList.add('auth-pending');
@@ -11148,7 +11213,7 @@
             catch(error){status.textContent=faceIdConnectionError(error);prepare();return;}
             working=true;faceButton.disabled=true;status.textContent='Подтверди Face ID на iPhone…';
             finishFaceIdAuthentication(prepared,credentialPromise).then(actor=>{
-              if(actor!=='Рустам')throw new Error('rudi-actor-mismatch');
+              if(actor!==lockedActor)throw new Error('rudi-actor-mismatch');
               done();
             }).catch(error=>{
               status.textContent=faceIdConnectionError(error);
@@ -11168,8 +11233,8 @@
             if(!/^\d{6}$/.test(value)){status.textContent='Введи PIN из 6 цифр.';return;}
             working=true;pinSubmit.disabled=true;status.textContent='Проверяю PIN…';
             try{
-              const response=await browserAuthRequest('login',{actor:'Рустам',pin:value});
-              if(String(response.actor||'')!=='Рустам')throw new Error('rudi-actor-mismatch');
+              const response=await browserAuthRequest('login',{actor:lockedActor,pin:value});
+              if(String(response.actor||'')!==lockedActor)throw new Error('rudi-actor-mismatch');
               done();
             }catch(error){
               const message=String(error?.message||'');
@@ -11192,7 +11257,7 @@
         });
       }
       async function ensureIphoneFaceIdAccess(){
-        if(!isRustamIphone()||iphoneFaceIdDeadline())return true;
+        if(!isProtectedIphoneAccount()||iphoneFaceIdDeadline())return true;
         while(!iphoneFaceIdDeadline()){
           if(!passkeySupported()){
             // No WebAuthn on this iPhone browser: require a verified Rustam PIN
@@ -11212,7 +11277,7 @@
         return true;
       }
       function requireIphoneFaceIdLock(){
-        if(!isRustamIphone()||!appAccessReady||iphoneFaceIdDeadline())return Promise.resolve(true);
+        if(!isProtectedIphoneAccount()||!appAccessReady||iphoneFaceIdDeadline())return Promise.resolve(true);
         if(iphoneFaceIdGuardPromise)return iphoneFaceIdGuardPromise;
         clearIphoneFaceIdWindow();
         document.body.classList.remove('auth-ok');
@@ -11229,24 +11294,28 @@
         return iphoneFaceIdGuardPromise;
       }
       const refreshIphoneLock=()=>{
-        if(!isRustamIphone()||!appAccessReady)return;
+        if(!isProtectedIphoneAccount()||!appAccessReady)return;
         if(!iphoneFaceIdDeadline())void requireIphoneFaceIdLock();
         else scheduleIphoneFaceIdExpiry();
       };
-      document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshIphoneLock()});
+      document.addEventListener('visibilitychange',()=>{
+        if(document.hidden){
+          if(isProtectedIphoneAccount()&&iphoneFaceIdInterval()==='immediate'&&appAccessReady&&!iphoneFaceIdGuardPromise)iphoneFaceIdImmediateActor='';
+        }else refreshIphoneLock();
+      });
       window.addEventListener('pageshow',refreshIphoneLock);
       window.addEventListener('focus',refreshIphoneLock);
 
       function showAuthenticatedApp(){
         if(!currentActor||!appAccessReady) return false;
-        if(isRustamIphone()&&!iphoneFaceIdDeadline()){
+        if(isProtectedIphoneAccount()&&!iphoneFaceIdDeadline()){
           void requireIphoneFaceIdLock();
           return false;
         }
         const wasAuthenticated=document.body.classList.contains('auth-ok');
         document.body.classList.remove('auth-pending','auth-denied','auth-login');
         document.body.classList.add('auth-ok');
-        if(isRustamIphone())scheduleIphoneFaceIdExpiry();
+        if(isProtectedIphoneAccount())scheduleIphoneFaceIdExpiry();
         if(!wasAuthenticated)try{window.dispatchEvent(new Event('rudi:auth-ready'))}catch(_){}
         return true;
       }
@@ -11517,7 +11586,7 @@
       }
 
       async function maybeOfferFaceIdSetup(){
-        if(isRustamIphone())return false; // Mandatory setup occurs before unlocking the app.
+        if(/iPhone/i.test(String(navigator?.userAgent||'')))return false; // Mandatory setup follows authenticated identity on iPhone.
         if(telegramInitData()||!passkeySupported()||lastBrowserAuthMethod!=='pin') return false;
         const configured=await faceIdConfigured();
         if(configured) return false;
@@ -12025,7 +12094,7 @@
           },0);
         }
         if(telegramInitData()) await ensureTelegramPin();
-        if(isRustamIphone())await ensureIphoneFaceIdAccess();
+        if(isProtectedIphoneAccount())await ensureIphoneFaceIdAccess();
         appAccessReady=true;
         showAuthenticatedApp();
         appBootstrapPromise=loadAppBootstrap().catch(error=>{
