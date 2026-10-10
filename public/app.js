@@ -11455,17 +11455,26 @@
           else form.append(button,skip,status);
           document.querySelector('.app-gate-card')?.appendChild(form);
 
-          let prepared=null;
-          prepareFaceIdRegistration().then(value=>{
-            prepared=value;
-            button.textContent='Включить Face ID';
-            button.disabled=false;
-          }).catch(error=>{
-            console.warn('RUDI_PASSKEY_PREPARE_REGISTRATION',String(error?.name||''),String(error?.message||error));
-            status.textContent='Не удалось подготовить Face ID. Попробуй ещё раз.';
-            button.textContent='Включить Face ID';
+          let prepared=null,registering=false;
+          const prepare=()=>{
+            prepared=null;
             button.disabled=true;
-          });
+            button.textContent='Подготавливаю Face ID…';
+            prepareFaceIdRegistration().then(value=>{
+              if(!form.isConnected)return;
+              prepared=value;
+              status.textContent='';
+              button.textContent='Включить Face ID';
+              button.disabled=false;
+            }).catch(error=>{
+              if(!form.isConnected)return;
+              console.warn('RUDI_PASSKEY_PREPARE_REGISTRATION',String(error?.name||''),String(error?.message||error));
+              status.textContent=faceIdConnectionError(error);
+              button.textContent='Повторить';
+              button.disabled=false;
+            });
+          };
+          prepare();
 
           if(!mandatory)skip.addEventListener('click',()=>{
             setLoadingGate();
@@ -11473,7 +11482,9 @@
           });
 
           button.addEventListener('click',()=>{
-            if(!prepared) return;
+            if(registering)return;
+            if(!prepared){prepare();return;}
+            registering=true;
             button.disabled=true;
             skip.disabled=true;
             status.textContent='Подтвердите Face ID на iPhone…';
@@ -11483,7 +11494,8 @@
               credentialPromise=navigator.credentials.create({publicKey:prepared.publicKey});
             }catch(error){
               status.textContent='Не удалось запустить Face ID.';
-              button.disabled=false;
+              registering=false;
+              prepare();
               skip.disabled=false;
               return;
             }
@@ -11496,16 +11508,10 @@
               resolve(true);
             }).catch(error=>{
               console.warn('RUDI_PASSKEY_REGISTER',String(error?.name||''),String(error?.message||error));
-              const name=String(error?.name||'');
-              status.textContent=name==='NotAllowedError'
-                ?'Face ID не был подтверждён.'
-                :name==='SecurityError'
-                  ?'Face ID недоступен для этого адреса.'
-                  :name==='NotSupportedError'
-                    ?'Этот браузер не поддерживает Face ID для РуДи.'
-                    :'Не удалось включить Face ID.';
-              button.disabled=false;
+              status.textContent=faceIdConnectionError(error);
+              registering=false;
               skip.disabled=false;
+              prepare();
             });
           });
         });
