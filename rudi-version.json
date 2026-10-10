@@ -1,18 +1,16 @@
 {
-  "current": "v4.142",
+  "current": "v4.143",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-10-09",
-  "basedOnProduction": "v4.140",
+  "createdAt": "2026-10-10",
+  "basedOnProduction": "v4.142",
   "notes": [
-    "Кухня: редактирование продукта по нажатию (название, количество, единица, категория, заметка) без потери ID и истории.",
-    "Частые покупки и локальное автодополнение: подсказки из истории и словаря без сетевых запросов при вводе.",
-    "Исправлена классификация приправ, рукколы, тортильи, шпината, питьевой воды, авокадо, шампиньонов.",
-    "Недостоверная норма покупки на неделю больше не выводится; отмечаются недавно купленные позиции. Остатки вводить не требуется.",
-    "Сегодняшние неоплаченные счета автоматически раскрывают блок ежемесячных расходов, красный бейдж показывает их количество.",
-    "Красный ореол подсвечивает неоплаченные сегодня счета; оплата снимает подсветку."
+    "Календарь: IndexedDB snapshots and offline queue for personal/shared tasks.",
+    "Offline calendar opening with pre-cached app shell, guarded Service Worker activation.",
+    "Network replay queue and recovery from cached calendar when TickTick unavailable.",
+    "Only calendar changed, no financial data logic altered."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

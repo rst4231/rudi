@@ -110,10 +110,14 @@ async function flushOutbox(){
 }
 
 self.addEventListener('install',event=>{
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache=>Promise.allSettled(PRECACHE.map(url=>cache.add(url))))
-  );
+  // Never activate an incomplete calendar shell; keep the previous working worker.
+  event.waitUntil((async()=>{
+    const cache=await caches.open(CACHE_NAME);
+    const critical=PRECACHE.filter(url=>url==='/'||
+      /^\/(?:app\.js|app\.css|calendar-offline\.js|calendar\.css|pwa-extras\.js)\?/.test(url));
+    await Promise.all(critical.map(url=>cache.add(url)));
+    await Promise.allSettled(PRECACHE.filter(url=>!critical.includes(url)).map(url=>cache.add(url)));
+  })());
 });
 
 self.addEventListener('activate',event=>{
