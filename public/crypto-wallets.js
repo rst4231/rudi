@@ -140,7 +140,14 @@
       if(link.lastError&&!link.incomplete){const err=document.createElement('p');err.className='finance-crypto-error';err.textContent=errorLabel({message:link.lastError});card.append(err);}
       if(link.provider==='bybit'&&Array.isArray(link.sections)){
         const groups=document.createElement('div');groups.className='finance-crypto-sections';
+        const hideEmptyBybitSections=new Set([
+          'earn-advanced-smart','earn-advanced-discount','earn-advanced-double',
+          'earn-liquidity','earn-rwa','earn-token','subaccounts'
+        ]);
         for(const section of link.sections){
+          if(hideEmptyBybitSections.has(section.id)&&
+            !(Number.isFinite(section.usd)&&section.usd>0.005)&&
+            !(section.assets||[]).some(asset=>Number(asset.usd)>0.005||Number(asset.amount)>0))continue;
           const entry=document.createElement('details');entry.className='finance-crypto-section';
           const label=document.createElement('summary');label.textContent=section.name+(typeof section.usd==='number'?' · '+cash(section.usd):' · недоступно');entry.append(label);
           for(const asset of section.assets||[]){
