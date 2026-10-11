@@ -109,7 +109,7 @@ test('protects a Uniswap LP wallet from being overwritten by its spot balance', 
   const original = wallets[1].balance;
   const result = await cryptoWallets.refresh('Рустам', { client, fetchImpl: dataFetch, force: true });
   assert.equal(wallets[1].balance, original);
-  assert.equal(result.find(row => row.walletId === 'uniswap-wallet').lastError, 'crypto-uniswap-lp-not-covered');
+  assert.equal(result.find(row => row.walletId === 'uniswap-wallet').lastError, 'crypto-lp-ownership-changed');
 });
 
 test('Ethereum uses existing price feed and switches RPC when primary returns HTTP 429', async () => {
