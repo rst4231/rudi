@@ -230,6 +230,9 @@ function safeConnection(walletId, conn) {
     chain: conn.provider==='uniswap'?(conn.chain||'ethereum'):'',
     connectedAt: conn.connectedAt || '', lastSyncAt: conn.lastSyncAt || '',
     balanceUsd: Number.isFinite(conn.balanceUsd) ? conn.balanceUsd : null,
+    incomplete: conn.incomplete === true,
+    partialUsd: Number.isFinite(conn.partialUsd) ? conn.partialUsd : null,
+    partialSyncAt: conn.partialSyncAt || '',
     assets: Array.isArray(conn.assets) ? conn.assets : [],
     positions: Array.isArray(conn.positions) ? conn.positions : [],
     walletUsd: Number.isFinite(conn.walletUsd) ? conn.walletUsd : null,
@@ -346,9 +349,23 @@ async function refresh(actor, options = {}) {
         const snapshot = connection.provider === 'bybit'
           ? await bybitSnapshot(decryptSecret(connection.secret), options)
           : await uniswapSnapshot(connection.address, { ...options, chain:connection.chain||'ethereum' });
-        const balanceNative = await usdToWalletCurrency(snapshot.balanceUsd, wallet.currency, options);
-        await syncLinkedWalletBalance('Рустам', id, balanceNative, options);
-        Object.assign(connection, snapshot, { lastSyncAt: new Date().toISOString(), lastError: '' });
+        if (snapshot.incomplete) {
+          // Persist verified v3 positions for display without writing an incomplete
+          // total into the user's finance ledger. Keep lastSyncAt empty so the
+          // cached value cannot be misinterpreted as a complete valuation.
+          Object.assign(connection, snapshot, {
+            balanceUsd: null,
+            lastSyncAt: '',
+            partialSyncAt: new Date().toISOString(),
+            lastError: 'crypto-lp-discovery-unavailable',
+          });
+        } else {
+          const balanceNative = await usdToWalletCurrency(snapshot.balanceUsd, wallet.currency, options);
+          await syncLinkedWalletBalance('Рустам', id, balanceNative, options);
+          Object.assign(connection, snapshot, {
+            lastSyncAt: new Date().toISOString(), partialSyncAt: '', lastError: '',
+          });
+        }
         changed = true;
       } catch (error) {
         const code = String(error?.message || '');
