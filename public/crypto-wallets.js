@@ -66,7 +66,7 @@
       const wallet=wallets.find(w=>w.id===link.walletId);
       if(!wallet){complete=false;continue;}
       if(link.lastError)complete=false;
-      const card=document.createElement('article');card.className='finance-crypto-source-card';
+      const card=document.createElement('article');card.className='finance-crypto-source-card';card.dataset.walletId=link.walletId;
       const head=document.createElement('div');head.className='finance-crypto-source-head';
       const title=document.createElement('strong');title.textContent=providerName(link.provider);
       const note=document.createElement('span');note.textContent=wallet.name+(link.provider==='bybit'?'':' · '+(link.chain||'ethereum'));
