@@ -41,7 +41,7 @@
   <link rel="stylesheet" href="/supplement-advanced.css?v=4.149">
   <link rel="stylesheet" href="/rudi-design-system.css?v=4.149">
   <link rel="stylesheet" href="/finance-cards.css?v=4.119">
-  <link rel="stylesheet" href="/crypto-signals.css?v=4.175">
+  <link rel="stylesheet" href="/crypto-signals.css?v=4.176">
   <link rel="stylesheet" href="/recommendations.css?v=4.119">
   <script>
     (() => {
@@ -128,8 +128,8 @@
   <link rel="stylesheet" href="/personal-center.css?v=4.157">
   <script defer src="/personal-center.js?v=4.157"></script>
   <link rel="stylesheet" href="/crypto-wallets.css?v=4.165">
-  <script defer src="/crypto-wallets.js?v=4.175"></script>
-  <script defer src="/crypto-signals.js?v=4.175"></script>
+  <script defer src="/crypto-wallets.js?v=4.176"></script>
+  <script defer src="/crypto-signals.js?v=4.176"></script>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -1116,6 +1116,12 @@
             <article><small>Свободные средства</small><strong id="cryptoVirtualCash">—</strong><small id="cryptoVirtualInvested">В сделках —</small></article>
             <article><small>Закрытые сделки</small><strong id="cryptoVirtualClosed">—</strong><small id="cryptoVirtualWinrate">Winrate —</small></article>
           </div>
+          <div class="crypto-signals-riskgrid" aria-label="Показатели риска виртуального портфеля">
+            <article><small>Просадка</small><strong id="cryptoRiskDrawdown">—</strong></article>
+            <article><small>Profit Factor</small><strong id="cryptoRiskFactor">—</strong></article>
+            <article><small>Средняя прибыль / убыток</small><strong id="cryptoRiskAverages">—</strong></article>
+            <article><small>Макс. позиций одновременно</small><strong id="cryptoRiskConcurrent">—</strong></article>
+          </div>
           <div class="crypto-signals-section">
             <div class="crypto-signals-row"><h4>Результаты сделок</h4><small id="cryptoSignalsUpdated">Ожидаем данные</small></div>
             <div class="crypto-signals-ratio">
@@ -1131,7 +1137,15 @@
               <label>Плечо <select id="cryptoSignalsLeverage"><option value="2">2×</option><option value="3">3×</option></select></label>
               <button type="button" id="cryptoSignalsSettingsSave" class="crypto-signals-inline">Сохранить</button>
             </div>
-            <p class="crypto-signals-help">Только виртуальные сделки после запуска отслеживания, без реальных ордеров. Входы без подтверждённой цены не исполняются. Итог не включает комиссии, funding и проскальзывание.</p>
+            <p class="crypto-signals-help">Только виртуальные сделки после запуска отслеживания. Расчёт — по Bybit Spot или USDT Perpetual. Оценочные комиссии и проскальзывание учитываются; funding — только при доступной истории биржи. Неуказанные объёмы и неоднозначные события не превращаются в прибыль.</p>
+          </div>
+          <div class="crypto-signals-section">
+            <div class="crypto-signals-row"><h4>Сообщения автора и виртуальный результат RUDI</h4></div>
+            <div id="cryptoAuthorComparison" class="crypto-signals-compare">Данные ещё не проверены</div>
+          </div>
+          <div class="crypto-signals-section">
+            <div class="crypto-signals-row"><h4>Календарь результатов</h4></div>
+            <div id="cryptoSignalsCalendar" class="crypto-signals-calendar">Ожидаем закрытые сделки</div>
           </div>
           <div class="crypto-signals-section">
             <div class="crypto-signals-row"><h4>Виртуальные позиции</h4><small id="cryptoVirtualPositionsCount">0 сделок</small></div>
