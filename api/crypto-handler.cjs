@@ -36,7 +36,7 @@ function safePortfolio(value) {
     bybit:x.bybit&&typeof x.bybit==='object'?x.bybit:null,
     ethUsd:Number(x.ethUsd)||null,
     ethChange24h:Number.isFinite(Number(x.ethChange24h))?Number(x.ethChange24h):null,
-    totalUsd:Number.isFinite(Number(x.totalUsd))?Number(x.totalUsd):null,
+    totalUsd:x.totalUsd!==null&&x.totalUsd!==undefined&&Number.isFinite(Number(x.totalUsd))?Number(x.totalUsd):null,
     warnings:Array.isArray(x.warnings)?x.warnings:[],
     history:Array.isArray(x.history)?x.history:[],
   };
@@ -205,13 +205,15 @@ async function handleCrypto(req,res) {
       state.config.addresses=[...new Set([...state.config.addresses.filter(a=>a.toLowerCase()!==address.toLowerCase()),address])];
       state.config.updatedAt=new Date().toISOString();
       await writeAppState(OWNER,CONFIG_KEY,state.config);
+      state.portfolio.lastSyncAt='';await writeAppState(OWNER,DATA_KEY,state.portfolio);
     }else if(op==='remove-wallet'){
       const address=String(body.address||'').trim().toLowerCase();
       state.config.addresses=state.config.addresses.filter(a=>a.toLowerCase()!==address);
       state.config.updatedAt=new Date().toISOString();
       await writeAppState(OWNER,CONFIG_KEY,state.config);
       state.portfolio.uniswap=state.portfolio.uniswap.filter(w=>w.address.toLowerCase()!==address);
-      await writeAppState(OWNER,DATA_KEY,{...state.portfolio,totalUsd:null});
+      state.portfolio.totalUsd=null;state.portfolio.lastSyncAt='';
+      await writeAppState(OWNER,DATA_KEY,state.portfolio);
     }else if(op==='connect-bybit'){
       const apiKey=String(body.apiKey||'').trim(),apiSecret=String(body.apiSecret||'').trim();
       if(apiKey.length<8||apiKey.length>150||apiSecret.length<8||apiSecret.length>200)throw new Error('crypto-bybit-key-invalid');
@@ -219,12 +221,14 @@ async function handleCrypto(req,res) {
       state.config.bybit={encrypted:encryptCredentials({apiKey,apiSecret}),masked:'••••'+apiKey.slice(-4)};
       state.config.updatedAt=new Date().toISOString();
       await writeAppState(OWNER,CONFIG_KEY,state.config);
+      state.portfolio.lastSyncAt='';await writeAppState(OWNER,DATA_KEY,state.portfolio);
     }else if(op==='disconnect-bybit'){
       state.config.bybit=null;
       state.config.updatedAt=new Date().toISOString();
       await writeAppState(OWNER,CONFIG_KEY,state.config);
       state.portfolio.bybit=null;
-      await writeAppState(OWNER,DATA_KEY,{...state.portfolio,totalUsd:null});
+      state.portfolio.totalUsd=null;state.portfolio.lastSyncAt='';
+      await writeAppState(OWNER,DATA_KEY,state.portfolio);
     }else if(op!=='read'&&op!=='sync')throw new Error('crypto-operation-invalid');
     if(op==='sync'||op==='read'){
       const last=Date.parse(state.portfolio.lastSyncAt||'');
