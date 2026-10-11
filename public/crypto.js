@@ -107,7 +107,8 @@
         wallet.positions.forEach(position=>{
           const row=node('div','crypto-lp-row');
           row.append(node('b','',position.pair),node('span',position.inRange?'В диапазоне':'Вне диапазона'));
-          row.append(node('small','','Полученные комиссии: '+position.collected0+' / '+position.collected1));
+          row.append(node('small','','В позиции: '+usd(position.valueUsd)+' · '+amount(position.amount0)+' '+position.token0+' / '+amount(position.amount1)+' '+position.token1));
+          if(position.owed0!==null&&position.owed1!==null){row.append(node('small','','Учтённые контрактом комиссии: '+amount(position.owed0)+' '+position.token0+' / '+amount(position.owed1)+' '+position.token1));}
           lp.append(row);
         });card.append(lp);
       }else if(wallet&&!data.uniswapV3Enabled){
@@ -118,7 +119,7 @@
     graph(data.portfolio?.history||[]);
     const warnings=(data.portfolio?.warnings||[]).filter(Boolean);
     metric('cryptoWarning',warnings.join(' · '));
-    $('cryptoConnectHint').textContent='Данные Ethereum Mainnet. Оценка ориентировочная. Сейчас учтены Ethereum Mainnet и Bybit Unified. Не входят стоимость LP-позиций, Funding-кошелёк Bybit, другие сети и неподдерживаемые токены.';
+    $('cryptoConnectHint').textContent='Данные Ethereum Mainnet. Оценка ориентировочная. Учитываются Ethereum Mainnet, доступные Uniswap V3 LP-позиции и Bybit Unified. Не входят Funding-кошелёк Bybit, другие сети и неподдерживаемые токены. Комиссии V3 могут быть неполными до обновления позиции.';
   }
   async function refresh(force=false){
     if(working||!active)return;
