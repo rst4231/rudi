@@ -38,8 +38,8 @@ async function updateSettings(changes,options={}){
 function simulateVirtual(signals,config,now=Date.now()){
   const start=Date.parse(config.startedAt),rows=(Array.isArray(signals)?signals:[])
     .filter(s=>Date.parse(s.at)>=start&&Date.parse(s.at)<=now)
-    .filter(s=>s.qualified&&s.entry&&s.entryAt&&Number.isFinite(Date.parse(s.entryAt)))
-    .filter(s=>['won','lost','open'].includes(s.status))
+    .filter(s=>(s.qualified||s.paperEligible)&&s.entry&&s.entryAt&&Number.isFinite(Date.parse(s.entryAt)))
+    .filter(s=>['won','lost','breakeven','open'].includes(s.status))
     .map(s=>({...s,openedMs:Date.parse(s.entryAt),
       closedMs:s.exitAt&&Number.isFinite(Date.parse(s.exitAt))?Date.parse(s.exitAt):null}))
     .sort((a,b)=>a.openedMs-b.openedMs||a.id-b.id);
@@ -48,7 +48,7 @@ function simulateVirtual(signals,config,now=Date.now()){
   const events=[];
   for(const row of rows){
     events.push({time:row.openedMs,kind:'entry',row});
-    if(['won','lost'].includes(row.status)&&row.closedMs!==null&&row.closedMs>=row.openedMs)
+    if(['won','lost','breakeven'].includes(row.status)&&row.closedMs!==null&&row.closedMs>=row.openedMs)
       events.push({time:row.closedMs,kind:'exit',row});
   }
   events.sort((a,b)=>a.time-b.time||(a.kind==='exit'?-1:1));
@@ -60,7 +60,7 @@ function simulateVirtual(signals,config,now=Date.now()){
       cash=money(cash-amount);
       const position={id:row.id,symbol:row.symbol,direction:row.direction,url:row.url,
         entry:row.entry,entryAt:row.entryAt,
-        investedUsd:amount,leverage:config.leverage,
+        investedUsd:amount,leverage:config.leverage,execution:row.execution||'explicit-level',
         status:'open',pnlUsd:0};
       active.set(row.id,position);all.push(position);
     }else{
@@ -68,7 +68,7 @@ function simulateVirtual(signals,config,now=Date.now()){
       if(!position)continue;
       const rate=Number(row.priceChangePct);
       if(!Number.isFinite(rate))continue;
-      const pnl=money(position.investedUsd*config.leverage*rate/100);
+      const pnl=Math.max(-position.investedUsd,money(position.investedUsd*config.leverage*rate/100));
       position.pnlUsd=pnl;
       position.returnPct=money(rate*config.leverage);
       position.status=row.status;
@@ -85,7 +85,7 @@ function simulateVirtual(signals,config,now=Date.now()){
       p.status='unpriced';p.pnlUsd=null;continue;
     }
     const factor=p.direction==='short'?-1:1;
-    p.pnlUsd=money(p.investedUsd*config.leverage*factor*(current-p.entry)/p.entry);
+    p.pnlUsd=Math.max(-p.investedUsd,money(p.investedUsd*config.leverage*factor*(current-p.entry)/p.entry));
     p.returnPct=money(p.pnlUsd/p.investedUsd*100);
     p.marketPrice=current;floating+=p.pnlUsd;marked++;
   }
@@ -106,7 +106,7 @@ function simulateVirtual(signals,config,now=Date.now()){
       winratePct:decided?money(wins/decided*100):null,
       lossratePct:decided?money(losses/decided*100):null},
     positions:all.slice().sort((a,b)=>Date.parse(b.entryAt)-Date.parse(a.entryAt)).slice(0,150),
-    note:'Виртуальный расчёт без реального исполнения; комиссии, funding и проскальзывание не учтены. Исторические сигналы до запуска симуляции исключены.',
+    note:'Виртуальные входы по следующему часовому бару после явного сообщения не отражают фактическую цену сделки автора. Комиссии, funding и проскальзывание не учтены. Исторические сигналы до запуска симуляции исключены.',
     dataComplete:completeMarks};
 }
 module.exports={NS,normalizeConfig,settings,updateSettings,simulateVirtual};
