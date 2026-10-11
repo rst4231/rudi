@@ -51,3 +51,25 @@ test('security settings offer all four intervals and installed PWA hides reinsta
  assert.match(app,/settingsFaceIdIntervalRow/);
  assert.match(app,/pwaRow\.hidden=browser\|\|isStandalonePwa\(\)/);
 });
+
+test('raising Face ID interval from one to five hours ignores the obsolete one-hour expiry',()=>{
+ const s=setup(),auth=s.start('Рустам');auth.save('1h');auth.grant('Рустам');
+ s.advance(10*60000);auth.save('5h');
+ s.advance(51*60000);
+ assert.ok(s.start('Рустам').deadline()>0,'old one-hour limit must not lock the PWA');
+ s.advance(5*3600000-61*60000+1);
+ assert.equal(s.start('Рустам').deadline(),0,'five hours must expire from last verification');
+});
+test('shortening Face ID interval to one hour does not prolong the session',()=>{
+ const s=setup(),auth=s.start('Рустам');auth.save('5h');auth.grant('Рустам');
+ auth.save('1h');s.advance(3600001);
+ assert.equal(s.start('Рустам').deadline(),0);
+});
+test('a second PWA tab refreshes the verified window without the first tab locking early',()=>{
+ const s=setup(),first=s.start('Рустам');first.save('1h');first.grant('Рустам');
+ s.advance(30*60000);s.start('Рустам').grant('Рустам');
+ s.advance(31*60000);
+ assert.ok(first.deadline()>0,'persisted verification must beat the first tabs old grant');
+ s.advance(30*60000);
+ assert.equal(first.deadline(),0);
+});

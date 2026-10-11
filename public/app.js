@@ -11089,12 +11089,15 @@
         if(interval==='immediate')return iphoneFaceIdImmediateActor===actor?Number.MAX_SAFE_INTEGER:0;
         let persisted=null;
         try{persisted=JSON.parse(localStorage.getItem(IPHONE_FACEID_GRANT_KEY_PREFIX+actor)||'null')}catch(_){}
-        const grant=iphoneFaceIdGrant?.actor===actor?iphoneFaceIdGrant:persisted;
+        // Prefer the latest persisted grant over stale in-memory data from another tab.
+        const grant=persisted?.actor===actor?persisted:(iphoneFaceIdGrant?.actor===actor?iphoneFaceIdGrant:null);
         if(!grant||grant.actor!==actor)return 0;
         const confirmedAt=Number(grant.confirmedAt),expiresAt=Number(grant.expiresAt),now=Date.now();
-        const until=Math.min(confirmedAt+IPHONE_FACEID_INTERVALS[interval],expiresAt);
+        // Measure every interval from the last verified Face ID/PIN, not the old
+        // expiresAt saved when a shorter interval was previously selected.
+        const until=confirmedAt+IPHONE_FACEID_INTERVALS[interval];
         if(!Number.isFinite(confirmedAt)||!Number.isFinite(expiresAt)||!Number.isFinite(until))return 0;
-        if(confirmedAt>now||confirmedAt<=0||expiresAt>confirmedAt+IPHONE_FACEID_INTERVALS['5h'])return 0;
+        if(confirmedAt>now||confirmedAt<=0||expiresAt<confirmedAt||expiresAt>confirmedAt+IPHONE_FACEID_INTERVALS['5h'])return 0;
         return until>now?until:0;
       }
       function clearIphoneFaceIdWindow(){
