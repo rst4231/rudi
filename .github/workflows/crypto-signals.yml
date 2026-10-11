@@ -1,8 +1,7 @@
 name: RUDI Crypto Signal Monitor
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'
+  # Manual fallback only. The reliable Lulu schedule runs both scanners every 15m.
   workflow_dispatch:
 
 permissions:
