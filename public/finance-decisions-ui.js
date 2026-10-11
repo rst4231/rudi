@@ -58,6 +58,15 @@
       const host=document.createElement('div');
       host.id='rudiDecisionSuite';host.className='rudi-decision-suite';
       host.innerHTML=`
+        <section class="rudi-weekly-card" aria-labelledby="rudiWeeklyHeading">
+          <div class="rudi-weekly-head">
+            <h2 id="rudiWeeklyHeading">Расходы за неделю</h2>
+            <span id="rudiWeeklyRange"></span>
+          </div>
+          <div id="rudiWeeklyBars" class="rudi-weekly-chart" role="img" aria-label="Недельные расходы">
+            <span class="rudi-decision-muted">Загружаю данные…</span>
+          </div>
+        </section>
         <section class="rudi-decision-card" aria-labelledby="rudiAlertsHeading">
           <details id="rudiAlertsDetails" class="rudi-alert-details">
             <summary class="rudi-decision-head rudi-decision-summary">
@@ -258,8 +267,35 @@
     }
     host.replaceChildren(...facts.map(t=>{const p=document.createElement('p');p.textContent=t;return p}));
   }
+  function renderWeeklyExpenses(){
+    const host=id('rudiWeeklyBars'),range=id('rudiWeeklyRange');
+    if(!host||!snapshot)return;
+    const data=core.weeklyExpenses(snapshot,nowMoscow()),ctx=currencyContext();
+    const dateText=key=>new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'})
+      .format(new Date(key+'T12:00:00Z'));
+    if(range)range.textContent=dateText(data.from)+' – '+dateText(data.to);
+    const hidden=id('financeBalanceEyeButton')?.getAttribute('aria-pressed')==='true';
+    const max=Math.max(0,...data.days.map(day=>day.total));
+    const bars=data.days.map(day=>{
+      const visible=day.total>0;
+      const height=visible&&max?Math.max(4,Math.round(day.total/max*75)):0;
+      const formatted=visible?displayMoney(day.total,ctx):'0';
+      const amount=hidden?'••••':formatted;
+      return '<div class="rudi-weekly-day"><div class="rudi-weekly-day-plot">'+
+        (visible?'<div class="rudi-weekly-bar" style="--rudi-week-height:'+height+'%">'+
+          '<span class="rudi-weekly-amount">'+html(amount)+'</span></div>':
+          '<span class="rudi-weekly-zero" aria-hidden="true"></span>')+
+        '</div><span class="rudi-weekly-day-label">'+day.label+'</span></div>';
+    }).join('');
+    host.innerHTML=bars;
+    host.classList.toggle('is-private',hidden);
+    host.setAttribute('aria-label',hidden?'Суммы недельных расходов скрыты':
+      'Расходы за неделю, '+dateText(data.from)+' – '+dateText(data.to)+': '+
+      data.days.map(day=>day.label+' '+displayMoney(day.total,ctx)).join(', '));
+  }
   function render(){
     if(!snapshot||!mount())return;
+    renderWeeklyExpenses();
     id('rudiAlertList').innerHTML=list(core.detectIssues(snapshot,nowMoscow()),'Сигналов по текущей истории не найдено. Это не означает, что лишних трат нет.');
     const g=core.goal(snapshot,nowMoscow(),{rates:currencyContext().rates});
     if(document.activeElement!==id('rudiGoalDeadline'))id('rudiGoalDeadline').value=g.deadline||'';
@@ -294,6 +330,8 @@
       if(e.target.closest?.('#financeProfileButton,[data-app-tab="finances"],[data-finance-tab="personal"],#financeWalletSaveButton,#financeExpenseComposerSave,#financeIncomeSaveButton,#financeObligationSaveButton'))setTimeout(()=>refresh(true),900);
     },true);
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh(true)});
+    // The overview eye button changes privacy mode without re-fetching finance data.
+    id('financeBalanceEyeButton')?.addEventListener('click',()=>setTimeout(renderWeeklyExpenses,0));
     document.addEventListener('rudi-finances-updated',event=>{if(event.detail?.plan){snapshot=event.detail;loadedAt=Date.now();render()}});
     id('rudiAlertList')?.addEventListener('click',event=>{
       const button=event.target.closest?.('button[data-alert-category]');

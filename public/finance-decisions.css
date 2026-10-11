@@ -80,3 +80,54 @@
   width:32px;height:32px;flex-basis:32px
  }
 }
+
+/* RUDI v4.173 — seven-day spending chart above finance insights */
+.rudi-weekly-card{
+  min-width:0;padding:16px 15px 15px;border:1px solid var(--line);
+  border-radius:21px;background:var(--surface);
+  box-shadow:0 9px 25px rgba(0,0,0,.04);
+}
+.rudi-weekly-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:11px}
+.rudi-weekly-head h2{margin:0;font-size:17px;font-weight:780;letter-spacing:-.025em}
+.rudi-weekly-head span{font-size:10px;color:var(--muted);white-space:nowrap}
+.rudi-weekly-chart{
+  position:relative;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;
+  min-height:186px;min-width:0;isolation:isolate;
+}
+.rudi-weekly-chart::before{
+  content:"";position:absolute;z-index:-1;left:0;right:0;top:19px;bottom:28px;
+  background-image:repeating-linear-gradient(to right,color-mix(in srgb,var(--muted) 25%,transparent) 0 5px,transparent 5px 12px),
+    repeating-linear-gradient(to right,color-mix(in srgb,var(--muted) 25%,transparent) 0 5px,transparent 5px 12px);
+  background-size:100% 1px,100% 1px;
+  background-position:0 32%,0 69%;background-repeat:no-repeat;pointer-events:none;
+}
+.rudi-weekly-day{min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+.rudi-weekly-day-plot{
+  height:153px;width:100%;min-width:0;position:relative;display:flex;
+  justify-content:center;align-items:flex-end;border-bottom:1px solid var(--line);
+}
+.rudi-weekly-bar{
+  position:relative;flex:none;width:min(76%,35px);height:var(--rudi-week-height);
+  min-height:5px;border-radius:10px 10px 0 0;background:#2dcea2;
+}
+.rudi-weekly-amount{
+  position:absolute;bottom:calc(100% + 7px);left:50%;transform:translateX(-50%);
+  color:var(--text);font-size:clamp(9px,2.55vw,11px);font-weight:800;
+  letter-spacing:-.04em;white-space:nowrap;font-variant-numeric:tabular-nums;
+}
+.rudi-weekly-zero{
+  width:6px;height:6px;margin-bottom:5px;flex:none;border-radius:100%;
+  background:var(--muted);opacity:.58;
+}
+.rudi-weekly-day-label{
+  display:block;width:100%;margin-top:11px;text-align:center;
+  color:var(--muted);font-size:12px;font-weight:730;line-height:1.2;
+}
+.rudi-weekly-chart.is-private .rudi-weekly-bar{opacity:.4}
+.rudi-weekly-chart.is-private .rudi-weekly-amount{letter-spacing:0}
+@media(max-width:370px){
+  .rudi-weekly-card{padding:15px 10px}
+  .rudi-weekly-chart{gap:1px}
+  .rudi-weekly-head h2{font-size:16px}
+  .rudi-weekly-amount{font-size:9px}
+}

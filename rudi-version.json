@@ -1,18 +1,17 @@
 {
-  "current": "v4.172",
+  "current": "v4.173",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.171",
+  "basedOnProduction": "v4.172",
   "notes": [
-    "Detailed AI report uses a distinct deepAnalysis response rather than repeating the short daily overview.",
-    "Deep sections present evidence, interpretation, practical step, seven-day validation and factual limitations across available life domains.",
-    "Existing reports keep their original saved text; legacy detail views explain how new deep analysis becomes available.",
-    "Preserve previously authorized report generation and schedules for both actors.",
-    "Single deployment requires explicit approval.",
-    "Regression tests now cover the new deep report layout. Updated release notes for the v4.172 publication."
+    "Added Monday-through-Sunday expense bars above the existing 'Где уходят деньги' block.",
+    "Chart uses real personal expense records and Moscow dates, excludes manual balance adjustments, and respects RUB/USD display.",
+    "Removed redundant yesterday and today expense figures from the 'Расходы' heading.",
+    "Added weekly data/date/cross-month and chart placement regression tests.",
+    "Do not deploy without explicit user approval."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

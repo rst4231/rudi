@@ -129,6 +129,26 @@
     }
     return {from,to,sums};
   };
+  function weeklyExpenses(state={},now=new Date()){
+    // The host supplies the Moscow calendar date as a local noon value.
+    const current=dateKey(now),ymd=current.split('-').map(Number);
+    const currentUtc=Date.UTC(ymd[0],ymd[1]-1,ymd[2]);
+    const mondayUtc=currentUtc-((new Date(currentUtc).getUTCDay()+6)%7)*DAY;
+    const weekdays=['пн','вт','ср','чт','пт','сб','вс'];
+    const days=weekdays.map((label,index)=>({
+      label,date:new Date(mondayUtc+index*DAY).toISOString().slice(0,10),total:0
+    }));
+    const lookup=new Map(days.map(day=>[day.date,day]));
+    for(const row of rows(state.personalExpenses)){
+      if(row?.manualAdjustment)continue;
+      const day=lookup.get(moscowExpenseDate(row));
+      if(!day)continue;
+      const spent=Number(row?.rubAmount??row?.amount);
+      if(Number.isFinite(spent))day.total=money(day.total+spent);
+    }
+    days.forEach(day=>{day.total=Math.max(0,day.total)});
+    return {from:days[0].date,to:days[6].date,days,total:money(days.reduce((sum,day)=>sum+day.total,0))};
+  }
   function detectIssues(state,now){
     const current=monthKey(now),last=addMonths(current,-1);
     const history=monthHistory(state,now);
@@ -241,5 +261,5 @@
     }
     return {main:null,secondary:null,explanation:'Выбери сценарий.',warning:''};
   }
-  return {forecast,detectIssues,goal,recommendations,simulate,dateKey,monthKey,monthHistory};
+  return {forecast,detectIssues,weeklyExpenses,goal,recommendations,simulate,dateKey,monthKey,monthHistory};
 });
