@@ -8,6 +8,15 @@ const {
 const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport, moscowDateKey } = require('./finance-ai.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 const cryptoWallets = require('./crypto-wallets.cjs');
+const { createHash } = require('node:crypto');
+function cryptoAssignmentKey(walletId,row){
+  if(row?.paired&&row?.peerWalletId&&row?.peerOperationId){
+    const pair=[String(walletId)+':'+String(row.id),String(row.peerWalletId)+':'+String(row.peerOperationId)].sort();
+    const digest=createHash('sha256').update(JSON.stringify(pair)).digest('hex');
+    return cryptoOperationKey('paired',digest);
+  }
+  return cryptoOperationKey(walletId,row.id);
+}
 const { awardScore,readScoreState,reverseScoreByDedupeKey,scoreView,scoreDateKey,DAILY_EXPENSE_SCORE_UNITS } = require('./score-store.cjs');
 
 function financeDailyScoreKey(actor, dateKey = scoreDateKey()) {
@@ -166,7 +175,7 @@ async function handler(req, res) {
         const expenses=new Map(view.personalExpenses.filter(r=>String(r.importKey||'').startsWith('crypto:')).map(r=>[r.importKey,r]));
         const transfers=new Map(view.walletTransfers.filter(r=>String(r.importKey||'').startsWith('crypto:')).map(r=>[r.importKey,r]));
         const items=(result.items||[]).map(row=>{
-          const key=cryptoOperationKey(body.walletId,row.id);
+          const key=cryptoAssignmentKey(body.walletId,row);
           const expense=expenses.get(key),transfer=transfers.get(key);
           const assignment=expense?{mode:'expense',categoryId:expense.categoryId,rubAmount:expense.rubAmount,note:expense.note}
             :transfer?{mode:'transfer',targetWalletId:transfer.fromWalletId===body.walletId?transfer.toWalletId:transfer.fromWalletId,
@@ -187,7 +196,7 @@ async function handler(req, res) {
         const allConnections=await cryptoWallets.list(actor);
         const rates=await financeRubRates();
         const saved=await classifyCryptoOperation(actor,{
-          walletId,operationId,mode:body.mode,direction,
+          walletId,operationId,allocationKey:cryptoAssignmentKey(walletId,row),mode:body.mode,direction,
           categoryId:body.categoryId,targetWalletId:body.targetWalletId,
           rubAmount:body.rubAmount,note:body.note,occurredAt:row.timestamp,
           apiWalletIds:allConnections.map(c=>c.walletId),rates,
