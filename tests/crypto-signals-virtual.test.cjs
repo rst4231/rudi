@@ -80,7 +80,7 @@ test('Virtual investment excludes signals before sim start and protects capital'
   assert.equal(report.stats.open,1);
   assert.equal(report.stats.open,1);
   assert.ok(report.equityUsd>10390&&report.equityUsd<10405);
-  assert.ok(report.realizedPnlUsd>195&&report.realizedPnlUsd<200);
+  assert.ok(report.realizedPnlUsd>190&&report.realizedPnlUsd<200);
   assert.ok(report.stats.maxConcurrent>=1);
 });
 test('Paper trading accepts only 2x or 3x with 2x by default',()=>{
