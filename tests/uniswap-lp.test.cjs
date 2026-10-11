@@ -43,9 +43,9 @@ test('v3 NFT is discovered, liquidity and claimable amounts counted separately',
     if(sig===lp.selector('positions(uint256)'))return encode(0n,0n,BigInt(WETH),BigInt(USDC),3000n,-600n,600n,100000000n,0n,0n,0n,0n);
     if(sig===lp.selector('getPool(address,address,uint24)'))return BigInt(POOL);
     if(sig===lp.selector('slot0()'))return encode(Q96,0,0,0,0,0,0);
-    if(sig===lp.selector('collect((uint256,address,uint128,uint128))')){
-      assert.equal(tx.from,OWNER);return encode(1000000000000n,2000000n);
-    }
+    if(sig===lp.selector('feeGrowthGlobal0X128()'))return Q128*1000000000000n/100000000n;
+    if(sig===lp.selector('feeGrowthGlobal1X128()'))return Q128*2000000n/100000000n;
+    if(sig===lp.selector('ticks(int24)'))return encode(0,0,0,0,0,0,0,0);
     throw new Error('unexpected '+sig);
   };
   const result=await lp.readLpPositions(OWNER,prices,{rpc});
@@ -54,7 +54,8 @@ test('v3 NFT is discovered, liquidity and claimable amounts counted separately',
   assert.equal(p.inRange,true);assert.ok(p.liquidityUsd>0);
   assert.ok(Math.abs(p.feesUsd-2.003)<0.001);
   assert.equal(result.liquidityUsd,p.liquidityUsd);assert.equal(result.feesUsd,p.feesUsd);
-  assert.equal(visited.filter(x=>x.data.startsWith('0xfc6f7865')).length,1);
+  assert.equal(visited.filter(x=>x.data.startsWith('0xfc6f7865')).length,0);
+  assert.equal(visited.filter(x=>x.data.startsWith(lp.selector('ticks(int24)'))).length,2);
   assert.equal(visited.some(x=>x.to?.toLowerCase()===lp.V3&&x.data.startsWith('0x')),true);
 });
 
