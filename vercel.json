@@ -37,7 +37,10 @@
       "maxDuration": 60
     },
     "api/crypto-signals-cron.js": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "regions": [
+        "fra1"
+      ]
     }
   },
   "headers": [
