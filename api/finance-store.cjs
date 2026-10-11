@@ -1481,7 +1481,7 @@ async function syncLinkedWalletBalance(actor, walletId, usdValue, options = {}) 
     const rows = current.wallets[safeActor] || [];
     const wallet = rows.find(row => row.id === cleanId && !row.archived);
     if (!wallet) throw new Error('crypto-wallet-not-found');
-    if (wallet.type !== 'regular' || !['USD', 'USDT'].includes(wallet.currency)) throw new Error('crypto-wallet-usd-required');
+    if (wallet.type !== 'regular') throw new Error('crypto-wallet-credit-unsupported');
     if (Math.abs(Number(wallet.balance) - balance) < 1e-8) return current;
     const wallets = rows.map(row => row.id === cleanId ? { ...row, balance } : row);
     const next = normalizeState({ ...current, initialized: true, version: current.version + 1,
