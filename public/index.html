@@ -72,6 +72,7 @@
   <script defer src="/wallet-brand-icons.js?v=4.149"></script>
   <script defer src="/calendar-offline.js?v=4.149"></script>
   <script defer src="/app.js?v=4.149"></script>
+  <script defer src="/crypto.js?v=4.162"></script>
   <script defer src="/product-extras.js?v=4.149"></script>
   <script defer src="/calendar-day-recap.js?v=4.149"></script>
   <script defer src="/recommendations.js?v=4.119"></script>
@@ -124,6 +125,7 @@
   <script defer src="/mood-history.js?v=4.149"></script>
   <script defer src="/supplement-editor.js?v=4.149"></script>
   <script defer src="/supplement-advanced.js?v=4.149"></script>
+  <link rel="stylesheet" href="/crypto.css?v=4.162">
   <link rel="stylesheet" href="/personal-center.css?v=4.157">
   <script defer src="/personal-center.js?v=4.157"></script>
 </head>
@@ -338,6 +340,7 @@
         <button type="button" class="finance-tab" data-finance-tab="debts" role="tab" aria-selected="false">Долги</button>
         <button type="button" class="finance-tab" data-finance-tab="shared" role="tab" aria-selected="false">Совместные</button>
         <button type="button" class="finance-tab" data-finance-tab="literacy" role="tab" aria-selected="false">Грамотность</button>
+        <button id="financeCryptoTab" type="button" class="finance-tab" data-finance-tab="crypto" role="tab" aria-selected="false" hidden>Крипта</button>
       </nav>
 
       <div id="financeSharedPanel" class="finance-tab-panel" data-finance-panel="shared" hidden>
@@ -1023,6 +1026,53 @@
           <div id="financeLiteracyStatus" class="finance-status" role="status" aria-live="polite"></div>
         </article>
 
+      </div>
+
+      <div id="financeCryptoPanel" class="finance-tab-panel finance-crypto-panel" data-finance-panel="crypto" hidden>
+        <article class="crypto-hero" aria-labelledby="cryptoHeroTitle">
+          <header class="crypto-hero-heading">
+            <span id="cryptoHeroTitle" class="crypto-eyebrow">Криптопортфель</span>
+            <button id="cryptoRefreshButton" class="crypto-refresh" type="button">Обновить</button>
+          </header>
+          <strong id="cryptoTotal" class="crypto-big-number">—</strong>
+          <div class="crypto-hero-sub"><span>Общий учтённый баланс в USD</span><span id="cryptoUpdatedAt">Нет синхронизаций</span></div>
+        </article>
+        <div class="crypto-summary-grid">
+          <article class="crypto-mini-card"><span>Ethereum / Uniswap</span><b id="cryptoUniswapTotal">—</b></article>
+          <article class="crypto-mini-card"><span>Bybit</span><b id="cryptoBybitTotal">—</b></article>
+        </div>
+        <article class="crypto-chart-card" aria-label="История оценки портфеля">
+          <header><h3>Динамика капитала</h3><span id="cryptoEthPrice" class="crypto-muted"></span></header>
+          <svg id="cryptoHistoryGraph" class="crypto-chart" viewBox="0 0 320 116" role="img" aria-label="История баланса в долларах"></svg>
+          <div id="cryptoHistoryEmpty" class="crypto-muted">График появится после двух дней наблюдений.</div>
+          <div class="crypto-chart-foot"><span id="cryptoGraphStart"></span><span id="cryptoGraphEnd"></span></div>
+        </article>
+        <article class="crypto-provider-card">
+          <header><h3>Uniswap / Ethereum</h3><span class="crypto-muted">Без приватных ключей</span></header>
+          <p>Подключи публичный адрес Ethereum, чтобы видеть ETH, основные токены и доступные позиции Uniswap V3.</p>
+          <div class="crypto-field-row">
+            <input id="cryptoWalletInput" type="text" maxlength="42" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="0x… адрес кошелька" aria-label="Адрес Ethereum-кошелька">
+            <button id="cryptoWalletAdd" class="crypto-button" type="button">Добавить</button>
+          </div>
+          <div id="cryptoWalletList" aria-live="polite"></div>
+        </article>
+        <article class="crypto-provider-card">
+          <header><h3>Bybit</h3><span id="cryptoBybitKeyLabel" class="crypto-muted">Не подключено</span></header>
+          <p>Создай API-ключ с правами только на чтение. Никаких разрешений на торговлю или вывод средств.</p>
+          <div id="cryptoBybitConnectFields" class="crypto-field-stack">
+            <input id="cryptoBybitKey" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="API Key" aria-label="Bybit API Key">
+            <input id="cryptoBybitSecret" type="password" autocomplete="new-password" spellcheck="false" placeholder="API Secret" aria-label="Bybit API Secret">
+            <button id="cryptoBybitConnect" class="crypto-button" type="button">Подключить Bybit</button>
+          </div>
+          <div id="cryptoBybitAssetsBlock" hidden>
+            <div id="cryptoBybitAssets"></div>
+            <p id="cryptoBybitPnl"></p>
+          </div>
+          <button id="cryptoBybitDisconnect" class="crypto-link-danger" type="button" hidden>Отключить Bybit</button>
+        </article>
+        <div id="cryptoStatus" role="status" aria-live="polite"></div>
+        <p id="cryptoWarning" role="status" aria-live="polite"></p>
+        <p id="cryptoConnectHint"></p>
       </div>
     </section>
     <section class="panel partner-message" data-app-tab-section="home" data-home-tile="partner" aria-label="Послание">
