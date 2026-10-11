@@ -28,6 +28,8 @@ test('liquidity math handles below, inside and above the price range',()=>{
   assert.ok(inside[0]>0n);assert.ok(inside[1]>0n);
   assert.equal(above[0],0n);assert.ok(above[1]>0n);
   assert.equal(lp.sqrtTick(0),Q96);
+  assert.equal(lp.sqrtTick(-887272),4295128739n);
+  assert.equal(lp.sqrtTick(887272),1461446703485210103287273052203988822378723970342n);
 });
 
 test('v3 NFT is discovered, liquidity and claimable amounts counted separately',async()=>{
