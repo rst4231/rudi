@@ -124,6 +124,10 @@ function syncWebVersion(env = process.env) {
     const pattern = new RegExp('/assets/' + stem + '\\.[a-f0-9]{12}\\' + ext, 'g');
     html = html.replace(pattern, '/' + name + '?v=' + assetVersion);
   }
+  for(const name of ['crypto-signals.css','crypto-signals.js','crypto-algorithms.css','crypto-algorithms.js']){
+    const escaped=name.replace(/\./g,'\\.');
+    html=html.replace(new RegExp('/'+escaped+'\\?v=[^"\\s]+','g'),'/'+name+'?v='+assetVersion);
+  }
   html = html.replace(/\/personal-center\.css\?v=[^"]+/g, '/personal-center.css?v=' + assetVersion);
   html = html.replace(/\/personal-center\.js\?v=[^"]+/g, '/personal-center.js?v=' + assetVersion);
   html = html.replace(/\/app\.css\?v=[^"]+/g, '/app.css?v=' + assetVersion);
