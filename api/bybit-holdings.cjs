@@ -6,6 +6,7 @@ const SECTION_REQUESTS=[
   {id:'earn-onchain',name:'Earn · Ончейн',path:'/v5/earn/position',query:{category:'OnChain'},field:'list'},
   {id:'earn-advanced-smart',name:'Earn · Smart Leverage',path:'/v5/earn/advance/position',query:{category:'SmartLeverage',limit:20},field:'list',paginate:true},
   {id:'earn-advanced-discount',name:'Earn · Discount Buy',path:'/v5/earn/advance/position',query:{category:'DiscountBuy',limit:20},field:'list',paginate:true},
+  {id:'earn-advanced-double',name:'Earn · Double Win',path:'/v5/earn/advance/position',query:{category:'DoubleWin',limit:20},field:'list',paginate:true},
   {id:'earn-liquidity',name:'Earn · Ликвидность',path:'/v5/earn/liquidity-mining/position',query:{},field:'positions'},
   {id:'earn-rwa',name:'Earn · RWA',path:'/v5/earn/rwa/position',query:{},field:'list'},
   {id:'earn-token',name:'Earn · BYUSDT',path:'/v5/earn/token/position',query:{coin:'BYUSDT'},field:'token'},
@@ -104,7 +105,7 @@ async function snapshot(keys,{bybitGet,marketRates,options={}}){
         sectionAssets.push({symbol:asset.coin,amount:asset.amount,network:'Bybit',section:section.id,usd:Number(usd.toFixed(8))});
       }
       if(!Number.isFinite(total)||total>1e12)miss=true;
-      const mayDuplicate=section.id==='earn-token'&&assets.some(a=>a.symbol==='BYUSDT'||a.symbol==='USDT');
+      const mayDuplicate=section.id==='earn-token'&&assets.some(a=>a.symbol==='BYUSDT');
       if(mayDuplicate)miss=true;
       sections.push({id:section.id,name:section.name,usd:Math.round(total*1e8)/1e8,verified:!miss,
         includedInTotal:!mayDuplicate,assets:sectionAssets});
