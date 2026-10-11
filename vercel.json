@@ -29,6 +29,11 @@
     },
     "api/cinema-premieres-cron.js": {
       "maxDuration": 300
+    },
+    "api/finances.js": {
+      "regions": [
+        "fra1"
+      ]
     }
   },
   "headers": [
