@@ -36,7 +36,7 @@ const NETWORKS = {
 function networkOf(chain) {
   const name=String(chain||'ethereum').toLowerCase();
   if(!NETWORKS[name])throw new Error('crypto-network-unsupported');
-  return {name, ...NETWORKS[name]};
+  return {...NETWORKS[name],name,label:NETWORKS[name].name};
 }
 let mutationTail = Promise.resolve();
 
@@ -212,9 +212,9 @@ async function uniswapSnapshot(address, options = {}) {
     feesUsd:Math.round(lp.feesUsd*1e8)/1e8,
     positions:lp.positions.map(p=>({...p,chain:chain.name})),
     assets:assets.filter(x=>x.amount>0),
-    scope:chain.name+' · кошелёк, Uniswap v3/v4 LP и суммы к получению',
+    scope:chain.label+' · кошелёк, Uniswap v3/v4 LP и суммы к получению',
     warning:total===0
-      ?'На этом адресе в сети '+chain.name+' не найдены токены или LP-позиции. Убедись, что адрес совпадает с кошельком, открытым в Uniswap.'
+      ?'На этом адресе в сети '+chain.label+' не найдены токены или LP-позиции. Убедись, что адрес совпадает с кошельком, открытым в Uniswap.'
       :lp.positions.some(x=>x.claimableIncludesPrincipal)
         ?'v3: сумма к получению может включать ранее снятую ликвидность; это не обязательно только заработанные комиссии.'
         :'Комиссии в расчёте — начисленные, но ещё не полученные. Выведенные комиссии уже входят в баланс кошелька.',
