@@ -288,6 +288,25 @@ async function disconnect(actor, walletId, options = {}) {
     return true;
   });
 }
+// Change only the selected blockchain, keeping the wallet ID and public
+// address. Clear last sync data so values from a different chain cannot be
+// mistaken for current holdings.
+async function setChain(actor, walletId, chain, options={}) {
+  owner(actor);
+  const name=networkOf(chain).name;
+  const id=String(walletId||'').trim();
+  await assertWallet(id,options);
+  return lock(async()=>{
+    const links=await readState(options),conn=links[id];
+    if(!conn || conn.provider!=='uniswap')throw new Error('crypto-wallet-not-found');
+    if((conn.chain||'ethereum')===name)return safeConnection(id,conn);
+    Object.assign(conn,{chain:name,lastSyncAt:'',balanceUsd:null,walletUsd:null,
+      liquidityUsd:null,feesUsd:null,assets:[],positions:[],scope:'',warning:'',lastError:''});
+    await writeState(links,options);
+    return safeConnection(id,conn);
+  });
+}
+
 async function usdToWalletCurrency(balanceUsd, currency, options = {}) {
   const code = String(currency || '').toUpperCase();
   if (code === 'USD') return balanceUsd;
@@ -337,5 +356,5 @@ async function refresh(actor, options = {}) {
     return summary;
   });
 }
-module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, refresh,
+module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, setChain, refresh,
   encryptSecret, decryptSecret, bybitGet, bybitSnapshot, uniswapSnapshot, marketRates, usdToWalletCurrency };
