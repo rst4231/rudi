@@ -77,7 +77,7 @@ function render(data){
   const list=$('cryptoVirtualPositions');if(list){list.replaceChildren();
     for(const x of p.positions||[]){
       const title=x.symbol+' '+(x.direction==='short'?'SHORT':'LONG');
-      const info='Вход +x.entry+' · Позиция '+sum(x.investedUsd)+' · '+(statuses[x.status]||x.status)+
+      const info='Вход '+x.entry+' · Позиция '+sum(x.investedUsd)+' · '+(statuses[x.status]||x.status)+
         ' · '+marketName(x.market)+' · Маржа автора: '+marginName(x.authorMarginMode)+
         ' · Виртуально: '+(x.market==='spot'?'без плеча':'изолированная '+x.leverage+'×')+
         (x.adjustmentCount?' · Пополнений/доборов: '+x.adjustmentCount:'');
