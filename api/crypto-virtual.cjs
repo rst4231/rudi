@@ -45,13 +45,18 @@ function simulateVirtual(signals,config,now=Date.now()){
   const start=Date.parse(config.startedAt),round=money;
   const feeRates={spot:0.001,linear:0.00055};
   const slippageRate=0.0005; // Model assumption, NOT a Bybit execution receipt.
-  const rows=(Array.isArray(signals)?signals:[]).filter(s=>
+  const source=(Array.isArray(signals)?signals:[]);
+  const liquidationRisk=s=>s.market==='linear'&&s.entry>0&&s.markExtremes&&
+    (s.direction==='short'?s.markExtremes.high>=s.entry*(1+1/config.leverage):
+      s.markExtremes.low<=s.entry*(1-1/config.leverage));
+  const rows=source.filter(s=>
     Date.parse(s.at)>=start&&Date.parse(s.at)<=now&&Number.isFinite(Date.parse(s.entryAt))&&
     Date.parse(s.entryAt)>=start&&s.entry>0&&['linear','spot'].includes(s.market)&&
     (s.market!=='spot'||s.direction==='long')&&
-    (s.qualified||s.paperEligible)&&['open','won','lost','breakeven'].includes(s.status));
-  const excluded=(Array.isArray(signals)?signals:[]).filter(s=>['size-unknown','ambiguous',
-    'liquidation-risk-unverified'].includes(s.status));
+    (s.qualified||s.paperEligible)&&['open','won','lost','breakeven'].includes(s.status)&&
+    !liquidationRisk(s));
+  const excluded=source.filter(s=>['size-unknown','ambiguous',
+    'liquidation-risk-unverified'].includes(s.status)||liquidationRisk(s));
   const events=[];
   for(const s of rows){
     const openedMs=Date.parse(s.entryAt),rate=feeRates[s.market];
