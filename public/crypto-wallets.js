@@ -19,7 +19,16 @@
       'crypto-credentials-invalid':'Проверь формат API Key и API Secret.',
       'crypto-address-invalid':'Нужен публичный адрес Ethereum: 0x и 40 символов.',
       'crypto-uniswap-scope-confirm-required':'Подтверди, что в автоматическом балансе нужно учитывать только ETH, WETH, USDT и USDC сети Ethereum.',
-      'crypto-uniswap-lp-not-covered':'Найдена LP-позиция Uniswap. Её стоимость пока не рассчитывается, прежний баланс сохранён.',
+      'crypto-lp-discovery-unavailable':'Индексатор Uniswap v4 сейчас недоступен. Старый баланс сохранён: нельзя пропускать пулы.',
+      'crypto-lp-discovery-incomplete':'Не удалось найти все позиции Uniswap v4. Старый баланс сохранён.',
+      'crypto-lp-unsupported-token':'В одном из пулов есть неподдерживаемый токен. Общий баланс не обновлялся.',
+      'crypto-lp-too-many':'Слишком много LP-позиций для одного обновления. Баланс сохранён.',
+      'crypto-lp-fee-incomplete':'Не получилось прочитать всю сумму к получению из пула. Баланс сохранён.',
+      'crypto-lp-ownership-changed':'Владелец одной из позиций изменился. Баланс не обновлён.',
+      'crypto-lp-price-incomplete':'Недостаточно цен для оценки LP. Баланс сохранён.',
+      'crypto-lp-pool-invalid':'Не удалось проверить состояние пула. Баланс сохранён.',
+      'crypto-lp-position-inconsistent':'Данные пула изменились во время запроса. Повтори обновление.',
+      'crypto-uniswap-lp-not-covered':'LP-позиция не оценена. Старый баланс сохранён.',
       'crypto-price-incomplete':'Некоторые монеты нельзя надёжно оценить. Баланс не менялся.',
       'crypto-price-unavailable':'Сейчас недоступны котировки ETH. Баланс сохранён, попробуй обновить позже.',
       'crypto-rpc-unavailable':'Не удалось связаться с Ethereum. Оба RPC-сервера недоступны. Баланс сохранён.',
@@ -55,6 +64,33 @@
       else{amount.textContent='Баланс не получен';complete=false;}
       const detail=document.createElement('small');detail.textContent='Последняя синхронизация: '+dateLabel(link.lastSyncAt);
       card.append(head,amount,detail);
+      if(link.provider==='uniswap'&&typeof link.walletUsd==='number'){
+        const summary=document.createElement('div');summary.className='finance-crypto-breakdown';
+        for(const [label,value] of [['На адресе',link.walletUsd],['В пулах',link.liquidityUsd],['К получению',link.feesUsd]]){
+          const row=document.createElement('div');row.className='finance-crypto-breakdown-row';
+          const name=document.createElement('span');name.textContent=label;
+          const sum=document.createElement('strong');sum.textContent=typeof value==='number'?cash(value):'—';
+          row.append(name,sum);summary.append(row);
+        }
+        card.append(summary);
+        for(const pos of Array.isArray(link.positions)?link.positions:[]){
+          const box=document.createElement('div');box.className='finance-crypto-lp';
+          const title=document.createElement('div');title.className='finance-crypto-lp-head';
+          const name=document.createElement('strong');name.textContent='Uniswap '+pos.version+' · '+pos.pair+' · #'+pos.tokenId;
+          const state=document.createElement('small');state.textContent=pos.inRange?'В диапазоне':'Вне диапазона';
+          title.append(name,state);box.append(title);
+          for(const [label,value] of [['Ликвидность',pos.liquidityUsd],['К получению',pos.feesUsd]]){
+            const row=document.createElement('div');row.className='finance-crypto-lp-row';
+            const name=document.createElement('span');name.textContent=label;
+            const sum=document.createElement('b');sum.textContent=cash(value);
+            row.append(name,sum);box.append(row);
+          }
+          if(pos.claimableIncludesPrincipal){
+            const caveat=document.createElement('small');caveat.textContent='К получению может включать снятую ранее ликвидность — это не только комиссии.';box.append(caveat);
+          }
+          card.append(box);
+        }
+      }
       if(link.scope){const scope=document.createElement('small');scope.textContent=link.scope;card.append(scope);}
       if(link.lastError){const err=document.createElement('p');err.className='finance-crypto-error';err.textContent=errorLabel({message:link.lastError});card.append(err);}
       else if(link.warning){const warning=document.createElement('p');warning.className='finance-crypto-warning';warning.textContent=link.warning;card.append(warning);}
@@ -137,7 +173,7 @@
       try{
         const payload=provider==='bybit'
           ?{apiKey:$('financeCryptoApiKey')?.value,apiSecret:$('financeCryptoApiSecret')?.value}
-          :{address:$('financeCryptoAddress')?.value,scopeConfirm:$('financeCryptoSpotConsent')?.checked?'ethereum-mainnet-spot-only':''};
+          :{address:$('financeCryptoAddress')?.value,scopeConfirm:$('financeCryptoSpotConsent')?.checked?'ethereum-mainnet-including-lp':''};
         await request('crypto-connect',{walletId,provider,...payload});
         clearKeys();if($('financeCryptoConnectFields'))$('financeCryptoConnectFields').hidden=true;
         await load();
