@@ -1,16 +1,19 @@
 {
-  "current": "v4.160",
+  "current": "v4.161",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.159",
+  "basedOnProduction": "v4.160",
   "notes": [
-    "AI center: add manual “Получить AI-сводку” button, with loading/error states and ability to view an existing daily report.",
-    "Generate only when today's report is missing; reuse stored morning reports without a second AI request.",
-    "Manual and 07:00 Moscow automatic generation share one actor-scoped distributed lock in Cloudflare D1.",
-    "Keep per-user Telegram authentication; no client-selected actor or date; no new cron schedule or Vercel function."
+    "Daily AI summary: recover from provider invalid-json with strict Groq JSON-schema output and low-effort reasoning.",
+    "Manual button retries today's saved deterministic placeholder (up to 3 timed attempts) and upgrades only on successful full analysis, preserving the report identity and history.",
+    "Fact-first personal coach for work, finances, productivity, habits, lifestyle, plans and wellbeing; prohibits invented personal facts and medical claims.",
+    "New iPhone-friendly AI dashboard with prominent insight, concrete next action and a seven-day chart switching between confirmed habits, recorded expenses and daily mood observations.",
+    "Suppress empty four-card placeholders and routine technical status text; keep useful error and retry messages.",
+    "Fix two existing personal-center CI test regressions and keep morning-only 07:00 Moscow scheduling.",
+    "No new Vercel serverless function, no additional cron job and no automatic AI calls on opening the AI center."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

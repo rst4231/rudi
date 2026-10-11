@@ -56,7 +56,7 @@ test('scheduler does not regenerate existing reports',async()=>{
 
 test('vision, chronic conditions and stress persist independently in D1',async()=>{
  map.clear();const c=client();
- await store.mutate('Рустам','profile',{height:181,vision:{left:'-1.5',right:'+0.75'},chronicConditions:'Астма\\nМигрень'},{client:c});
+ await store.mutate('Рустам','profile',{height:181,vision:{left:'-1.5',right:'+0.75'},chronicConditions:'Астма\nМигрень'},{client:c});
  const r=await store.read('Рустам',{client:c}),d=await store.read('Диана',{client:c});
  assert.equal(r.profile.vision.left,-1.5);
  assert.equal(r.profile.vision.right,.75);
@@ -160,7 +160,7 @@ test('AI center hides the entire emotion summary card but keeps derived mood his
 test('scheduled AI report runs only at 07:00 Moscow, no evening or legacy replay',()=>{
  const yaml=fs.readFileSync(path.join(__dirname,'..','.github/workflows/personal-ai-center.yml'),'utf8');
  const handler=fs.readFileSync(path.join(__dirname,'..','api/personal-center-cron-handler.cjs'),'utf8');
- assert.match(yaml,/cron: '0 4 \\* \\* \\*'/);
+ assert.ok(yaml.includes("cron: '0 4 * * *'"));
  assert.doesNotMatch(yaml,/cron: '0 4,18/);
  assert.doesNotMatch(handler,/backfillOnly|releaseBackfill/);
  assert.equal(cron.slotAt(Date.parse('2026-10-10T04:00:00Z')),'morning');
@@ -266,7 +266,7 @@ test('manual report is user authenticated, fixed to Moscow today and never gener
  const ui=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
  assert.match(handler,/authorizeRequest\(req,body\.initData\)/);
  assert.match(handler,/operation==='generate-report'/);
- assert.match(handler,/generateForActor\(actor,state\.moscowDate\(now\),\{now\}\)/);
+ assert.match(handler,/generateForActor\(actor,state\.moscowDate\(now\),\{now,retryFallback:true\}\)/);
  assert.match(cronCode,/setIfAbsent\(state\.NS,lockKey/);
  assert.match(ui,/id="pcGenerateReport"/);
  assert.match(ui,/call\('generate-report'\)/);
@@ -274,4 +274,57 @@ test('manual report is user authenticated, fixed to Moscow today and never gener
  assert.match(ui,/button\.disabled=manualLoading/);
  const onOpen=ui.slice(ui.indexOf('async function show(){'),ui.indexOf('function hide(){'));
  assert.doesNotMatch(onOpen,/generate-report|requestDailyReport/);
+});
+
+test('existing fallback is upgraded in-place without an extra history row',async()=>{
+ map.clear();const c=client(),now=Date.parse('2026-10-11T05:00:00Z'),date='2026-10-11';
+ await store.saveReport('Рустам',date,'morning',{model:'deterministic',narrative:{overview:'Заглушка'}},{client:c,now});
+ const before=await store.latest('Рустам',{client:c});
+ const result=await cron.generateForActor('Рустам',date,{client:c,now:now+2000,retryFallback:true,
+  generate:async()=>({model:'openai/gpt-oss-20b',narrative:{overview:'Реальные выводы'}})});
+ assert.equal(result.status,'upgraded');
+ assert.equal(result.report.id,before.id);
+ assert.equal(result.report.createdAt,before.createdAt);
+ assert.equal((await store.latest('Рустам',{client:c})).narrative.overview,'Реальные выводы');
+ assert.equal((await store.history('Рустам',{client:c})).length,1);
+ assert.equal((await store.latest('Диана',{client:c})),null);
+ const again=await cron.generateForActor('Рустам',date,{client:c,now:now+6000,retryFallback:true,
+  generate:()=>{throw Error('must not generate a full report twice')}});
+ assert.equal(again.status,'exists');
+});
+test('fallback retried at most three times with cooldown and no change to saved report on failure',async()=>{
+ map.clear();const c=client(),date='2026-10-11',now=Date.parse('2026-10-11T05:00:00Z');
+ await store.saveReport('Диана',date,'morning',{model:'deterministic',narrative:{overview:'Сохранено'}},{client:c,now});
+ let generated=0;
+ const gen=async()=>{generated++;return {model:'deterministic',failureReason:'invalid-json',narrative:{overview:'Не заменять'}}};
+ for(let i=0;i<3;i++){
+  const later=now+1000+i*92000;
+  const r=await cron.generateForActor('Диана',date,{client:c,now:later,retryFallback:true,generate:gen});
+  assert.equal(r.status,'unavailable');assert.equal(generated,i+1);
+  assert.equal(r.report.narrative.overview,'Сохранено');
+  const tooSoon=await cron.generateForActor('Диана',date,{client:c,now:later+1000,retryFallback:true,generate:gen});
+  assert.equal(tooSoon.status,i===2?'retry-limit':'retry-cooldown');
+  assert.equal(generated,i+1);
+ }
+ const last=await cron.generateForActor('Диана',date,{client:c,now:now+400000,retryFallback:true,generate:gen});
+ assert.equal(last.status,'retry-limit');
+ assert.equal(generated,3);
+});
+test('strict JSON output, all-domain factual coach and compact 7-day dashboard are wired',()=>{
+ const aiCode=fs.readFileSync(path.join(__dirname,'..','api','personal-center-ai.cjs'),'utf8');
+ const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ const css=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
+ assert.match(aiCode,/response_format:\{type:'json_schema'/);
+ assert.match(aiCode,/strict:true/);
+ assert.match(aiCode,/Ты RUDI — личный тренер, коуч и аналитик/);
+ assert.match(aiCode,/Не объявляй запланированные задачи выполненными/);
+ assert.match(app,/id="pcRhythmGraph"/);
+ assert.match(app,/data-rhythm="habits"/);
+ assert.match(app,/data-rhythm="expenses"/);
+ assert.match(app,/data-rhythm="mood"/);
+ assert.match(app,/values\.map\(d=>series\.has\(d\)\?series\.get\(d\):null\)/);
+ assert.match(app,/report\.model!=='deterministic'/);
+ assert.match(app,/id="pcGenerateReport"/);
+ assert.match(css,/\.rudi-center__rhythm-tabs/);
+ assert.doesNotMatch(app,/Данные сохранены\. AI-анализ временно недоступен/);
 });

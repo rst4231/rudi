@@ -25,17 +25,18 @@ module.exports=async function handler(req,res){
     ]);
     const indicator={unread:Boolean(latest?.id&&latest.id!==seen?.value?.id)};
     const emotions=Array.isArray(mood)?computeEmotionSignals(mood):null;
-    const knownVersion=Number(body.knownVersion),knownReportId=String(body.knownReportId||''),knownEmotionVersion=String(body.knownEmotionVersion||'');
-    if(actor!=='Диана'&&knownVersion>=0&&knownVersion===data.version&&knownReportId===(latest?.id||'')&&knownEmotionVersion===(emotions?.version||'')){
+    const knownVersion=Number(body.knownVersion),knownReportId=String(body.knownReportId||''),knownReportUpdatedAt=String(body.knownReportUpdatedAt||''),knownEmotionVersion=String(body.knownEmotionVersion||'');
+    if(actor!=='Диана'&&knownVersion>=0&&knownVersion===data.version&&knownReportId===(latest?.id||'')&&knownReportUpdatedAt===(latest?.updatedAt||latest?.createdAt||'')&&knownEmotionVersion===(emotions?.version||'')){
       return res.status(200).json({ok:true,actor,unchanged:true});
     }
     return res.status(200).json({ok:true,actor,data:{...data,emotions},report:latest,indicator,cycle:actor==='Диана'&&cycle?{...cycleViewForDate(cycle,state.moscowDate()),cycleLengthDays:cycle.cycleLengthDays}:null,whoSource:WHO_SOURCE});
   }
   if(operation==='generate-report'){
     // Today's report only: no client-supplied actor, date or prompt; shared lock stops repeat AI calls.
-    const now=Date.now(),result=await generateForActor(actor,state.moscowDate(now),{now});
+    const now=Date.now(),result=await generateForActor(actor,state.moscowDate(now),{now,retryFallback:true});
     if(result.status==='failed')return res.status(503).json({ok:false,error:'report-generation-failed'});
-    return res.status(200).json({ok:true,actor,status:result.status,report:result.report||null});
+    return res.status(200).json({ok:true,actor,status:result.status,report:result.report||null,
+      retryAfterSeconds:result.retryAfterSeconds||0});
   }
   if(operation==='read-report'){await state.seen(actor);return res.status(200).json({ok:true});}
   if(operation==='history'){const history=await state.history(actor);return res.status(200).json({ok:true,actor,history});}

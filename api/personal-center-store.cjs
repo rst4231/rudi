@@ -44,6 +44,21 @@ async function latest(a,o={}){return (await client(o).getRecord(NS,latestKey(a))
 async function unread(a,o={}){const c=client(o),[r,seen]=await Promise.all([c.getRecord(NS,latestKey(a)),c.getRecord(NS,seenKey(a))]);const value=r?.value;return {unread:Boolean(value?.id&&seen?.value?.id!==value.id),id:value?.id||'',date:value?.date||'',slot:value?.slot||''};}
 async function seen(a,o={}){const c=client(o),r=await latest(a,o);if(!r?.id)return null;await c.set(NS,seenKey(a),{id:r.id,at:new Date().toISOString()},{tags:['personal-ai',a]});return r.id;}
 async function saveReport(a,date,slot,result,o={}){const c=client(o),id=reportKey(a,date,slot),r={...result,id,date,slot,createdAt:new Date(o.now||Date.now()).toISOString()};const inserted=await c.setIfAbsent(NS,id,r,{tags:['personal-ai',a]});if(!inserted)return {created:false,report:(await c.getRecord(NS,id))?.value||null};await c.set(NS,latestKey(a),r,{tags:['personal-ai',a]});return {created:true,report:r};}
+// Replaces ONLY today's deterministic placeholder, under the same distributed report lock.
+// Full AI reports remain immutable and are never silently regenerated.
+async function upgradeFallbackReport(a,date,slot,result,o={}){
+ const c=client(o),id=reportKey(a,date,slot);
+ const previous=(await c.getRecord(NS,id))?.value;
+ if(!previous||previous.model!=='deterministic'||result?.model==='deterministic')
+  return {upgraded:false,report:previous||null};
+ const now=new Date(o.now||Date.now()).toISOString();
+ const updated={...result,id,date,slot,createdAt:previous.createdAt||now,updatedAt:now,upgradedFromFallback:true};
+ await c.set(NS,id,updated,{tags:['personal-ai',a]});
+ // Do not change latest if the user has a more recent report.
+ const latestRow=(await c.getRecord(NS,latestKey(a)))?.value;
+ if(!latestRow||latestRow.id===id)await c.set(NS,latestKey(a),updated,{tags:['personal-ai',a]});
+ return {upgraded:true,report:updated};
+}
 async function history(a,o={}){const rows=await client(o).list(NS),prefix='report:'+actorOf(a)+':';return rows.filter(x=>String(x.key||'').startsWith(prefix)).map(x=>x.value).filter(Boolean).sort((a,b)=>String(b.date).localeCompare(String(a.date))||(b.slot==='evening'?1:-1));}
 async function erase(a,type,o={}){return serial(a,async()=>{if(type!=='reports'&&type!=='all')throw Error('invalid-delete');const c=client(o),prefix='report:'+actorOf(a)+':';for(const r of await c.list(NS))if(String(r.key||'').startsWith(prefix))await c.remove(NS,r.key);await Promise.all([c.remove(NS,latestKey(a)),c.remove(NS,seenKey(a))]);if(type==='all')await c.remove(NS,key(a));});}
-module.exports={NS,DEFAULTS,ACTORS,moscowDate,normalize,change,read,mutate,latest,unread,seen,saveReport,history,erase,reportKey};
+module.exports={NS,DEFAULTS,ACTORS,moscowDate,normalize,change,read,mutate,latest,unread,seen,saveReport,upgradeFallbackReport,history,erase,reportKey};

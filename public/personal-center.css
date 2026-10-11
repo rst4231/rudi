@@ -145,3 +145,45 @@ body.rudi-center-open{overflow:hidden!important}
 /* Explicit manual delivery; never generates a report during page rendering. */
 .rudi-center__generate-report{display:block;width:100%;margin-top:13px;min-height:45px;cursor:pointer}
 .rudi-center__generate-report:disabled{opacity:.64;cursor:progress}
+
+/* v4.161 — calm personal dashboard, no repeated empty-analysis tiles. */
+.rudi-center__report{border-radius:24px;padding:21px 19px 17px;background:var(--pc-panel);border:1px solid color-mix(in srgb,var(--pc-accent) 15%,var(--pc-border))}
+.rudi-center__report::before{left:19px;width:72px;height:4px}
+.rudi-center__eyebrow{display:block;color:var(--pc-accent);letter-spacing:.18em;font-size:9px;font-weight:850;margin-bottom:6px}
+.rudi-center__report .rudi-center__head{align-items:center;margin-bottom:17px}
+.rudi-center__report .rudi-center__head h2{font-size:20px;line-height:1.15;font-weight:840;letter-spacing:-.035em}
+.rudi-center__report .rudi-center__head .rudi-center__meta{white-space:nowrap;font-size:10px}
+.rudi-center__report .rudi-center__report-lead{font-size:clamp(15px,3.6vw,18px);line-height:1.55;font-weight:580;margin:0 0 11px;letter-spacing:-.015em;overflow-wrap:anywhere}
+.rudi-center__summary-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:16px}
+.rudi-center__summary-grid>div{padding:14px 15px;border-radius:16px;min-width:0;text-align:left}
+.rudi-center__summary-grid>div[hidden]{display:none!important}
+.rudi-center__summary-main{border:1px solid color-mix(in srgb,var(--pc-accent) 31%,var(--pc-border))!important;background:color-mix(in srgb,var(--pc-accent) 9%,var(--pc-panel))!important}
+.rudi-center__summary-action{border:1px solid color-mix(in srgb,var(--pc-blue) 22%,var(--pc-border))!important;background:color-mix(in srgb,var(--pc-blue) 8%,var(--pc-panel))!important}
+.rudi-center__summary-note{border:0!important;border-left:2px solid var(--pc-border)!important;border-radius:0!important;padding:5px 10px 5px 14px!important;background:transparent!important}
+.rudi-center__summary-grid small{font-size:9px;letter-spacing:.12em;color:var(--pc-muted);font-weight:800}
+.rudi-center__summary-main small{color:var(--pc-accent)}
+.rudi-center__summary-action small{color:var(--pc-blue)}
+.rudi-center__summary-grid p{font-size:13px;line-height:1.6;margin:6px 0 0!important;font-weight:540}
+.rudi-center__summary-main p{font-size:14px;font-weight:650}
+.rudi-center__report-more{font-size:12px;margin-top:14px}
+.rudi-center__generate-report{font-size:14px;font-weight:780;border-radius:15px;margin-top:12px;min-height:46px}
+.rudi-center__status:empty{min-height:0;margin:0}
+.rudi-center__status{line-height:1.45;font-size:11px}
+.rudi-center__rhythm{padding:20px 18px 14px;border-radius:24px}
+.rudi-center__rhythm .rudi-center__head{margin-bottom:14px;align-items:center}
+.rudi-center__rhythm h2{font-size:19px;letter-spacing:-.03em}
+.rudi-center__rhythm-period{font-size:10px;color:var(--pc-muted);white-space:nowrap}
+.rudi-center__rhythm-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;background:var(--pc-bg);border-radius:13px;border:1px solid var(--pc-border)}
+.rudi-center__rhythm-tabs button{background:transparent;border:0;border-radius:10px;min-width:0;min-height:38px;font-size:11px;font-weight:750;color:var(--pc-muted);padding:8px 3px}
+.rudi-center__rhythm-tabs button.active{background:var(--pc-panel);color:var(--pc-text);box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.rudi-center__rhythm-head{display:flex;align-items:baseline;gap:10px;margin:19px 0 6px}
+.rudi-center__rhythm-head strong{font-size:20px;letter-spacing:-.035em}
+.rudi-center__rhythm-head span{font-size:11px;color:var(--pc-muted);line-height:1.4}
+.rudi-center__rhythm-chart{display:block;width:100%;height:auto;max-height:180px;overflow:visible;--pc-rhythm-color:var(--pc-accent)}
+.rudi-center__rhythm-chart[hidden]{display:none!important}
+.rudi-center__rhythm-empty{padding:26px 8px;margin:0;text-align:center;font-size:12px;color:var(--pc-muted);border-radius:14px;background:var(--pc-bg)}
+.rudi-center__rhythm-foot{display:block;font-size:10px;color:var(--pc-muted);line-height:1.4;margin-top:2px}
+@media(max-width:380px){
+ .rudi-center__report,.rudi-center__rhythm{padding-left:15px;padding-right:15px}
+ .rudi-center__rhythm-tabs button{font-size:10px}
+}
