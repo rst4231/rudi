@@ -88,6 +88,17 @@ function attachTradeUpdates(signals,messages){
   return signals;
 }
 
+function marketFromText(text,direction){
+  const source=String(text||'');
+  const spot=/(?:^|[^\\p{L}])(?:спот(?:ов\\p{L}*)?|spot)(?=$|[^\\p{L}])/iu.test(source);
+  const derivative=/(?:^|[^\\p{L}])(?:фьючерс\\p{L}*|перпетуал\\p{L}*|perp(?:etual)?s?|futures?|usdt[- ]?m|isolated|cross|изолированн\\p{L}*|кросс\\p{L}*)(?=$|[^\\p{L}])/iu.test(source);
+  if(spot&&derivative)return {market:'unconfirmed',marketSource:'conflicting-markets'};
+  if(spot&&direction==='short')return {market:'unconfirmed',marketSource:'spot-short-unverified'};
+  if(spot)return {market:'spot',marketSource:'explicit'};
+  if(derivative)return {market:'linear',marketSource:'explicit'};
+  if(direction==='short')return {market:'linear',marketSource:'short-derivative'};
+  return {market:'unconfirmed',marketSource:'not-specified'};
+}
 function parseSignal(row){
   if(!row?.text)return null;
   const text=String(row.text),lower=text.toLowerCase();
@@ -108,8 +119,9 @@ function parseSignal(row){
   const stop=level(text,/(?:\bsl\b|стоп(?:[- ]?лосс)?\w*|stop\s*loss)\s*(?:по|на|=|:|в|\$|≈|~|\s)*([\d][\d\s.,]*)/i);
   const leverage=level(text,/(?:плечо|leverage)\s*(?:x|х|:|=|\s)*([\d]+(?:[.,]\d+)?)/i);
   const complete=Boolean(entry&&(take||stop));
-  return {id:row.id,at:row.at,url:row.url,symbol:ticker,market:'unconfirmed',
-    direction,entry,take,stop,leverage,marginModeReported:parseMarginMode(text),marginSource:parseMarginMode(text)?'signal':'unspecified',conditional,qualified:complete&&!conditional,paperEligible:!conditional,
+  const {market,marketSource}=marketFromText(text,direction);
+  return {id:row.id,at:row.at,url:row.url,symbol:ticker,exchange:'bybit',market,marketSource,
+    direction,entry,take,stop,leverage,marginModeReported:parseMarginMode(text),marginSource:parseMarginMode(text)?'signal':'unspecified',conditional,qualified:complete&&!conditional&&market!=='unconfirmed',paperEligible:!conditional&&market!=='unconfirmed',
     status:conditional?'conditional':complete?'awaiting-market':'insufficient-levels',
     excerpt:text.slice(0,400),authorClaim:null};
 }
@@ -147,11 +159,12 @@ function evaluateCandles(signal,candles,now=Date.now()){
 }
 async function candlesForSignal(signal,options={}){
   const fetcher=options.fetchImpl||fetch;
+  if(!['linear','spot'].includes(signal?.market))throw Error('bybit-market-unconfirmed');
   const symbol=signal.symbol+'USDT';
   const start=Math.floor((Date.parse(signal.at)+3600000)/3600000)*3600000;
   const end=Date.now();
   const url='https://api.bybit.com/v5/market/kline?'+new URLSearchParams({
-    category:'linear',symbol,interval:'60',start:String(start),end:String(end),limit:'1000'});
+    category:signal.market,symbol,interval:'60',start:String(start),end:String(end),limit:'1000'});
   const response=await fetcher(url,{signal:AbortSignal.timeout(9000),cache:'no-store'});
   if(!response.ok)throw Error('market-http-'+response.status);
   const payload=await response.json();
@@ -290,4 +303,4 @@ async function readSignals(options={}){
   return buildView(state,options.now??Date.now());
 }
 module.exports={NS,parsePreview,parseSignal,evaluateCandles,compareSignal:parseSignal,
-  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates};
+  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText};
