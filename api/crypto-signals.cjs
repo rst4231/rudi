@@ -286,9 +286,14 @@ async function refreshSignals(options={}){
               candlesForSignal(s,{...options,mark:true}),
               fundingForSignal(s,{...options,now})
             ]);
-            outcome=mark.status==='fulfilled'?
-              screenLiquidationRisk(outcome,s,mark.value,Number(options.virtualLeverage||2)):
-              {...outcome,liquidationScreen:'unavailable'};
+            if(mark.status==='fulfilled'){
+              const relevant=mark.value.filter(c=>c.at>Date.parse(outcome.entryAt)&&
+                (!outcome.exitAt||c.at<=Date.parse(outcome.exitAt)));
+              outcome={...outcome,markExtremes:relevant.length?{
+                high:Math.max(...relevant.map(c=>c.high)),
+                low:Math.min(...relevant.map(c=>c.low))}:null};
+              outcome=screenLiquidationRisk(outcome,s,mark.value,Number(options.virtualLeverage||2));
+            }else outcome={...outcome,liquidationScreen:'unavailable',markExtremes:null};
             if(funding.status==='fulfilled'){
               outcome.fundingRates=funding.value.rates;
               outcome.fundingComplete=funding.value.complete;
@@ -325,7 +330,11 @@ function buildView(state,now=Date.now()){
   const won=verified.filter(s=>s.status==='won');
   const knownChange=verified.filter(s=>Number.isFinite(s.priceChangePct));
   const avgChange=knownChange.length?Math.round(knownChange.reduce((s,r)=>s+r.priceChangePct,0)*100/knownChange.length)/100:null;
+  const ids=messages.map(m=>Number(m.id)).filter(Number.isFinite).sort((a,b)=>a-b);
+  const gapsEstimate=ids.reduce((n,id,i)=>i&&id>ids[i-1]+1?n+id-ids[i-1]-1:n,0);
   return {channel:'@ne_investor',days:30,updatedAt:state.updatedAt||null,
+    messagesCount:messages.length,oldestMessageAt:messages.length?messages[messages.length-1]?.at:null,
+    gapsEstimate,scanComplete:Boolean(state.backfillComplete),
     backfillComplete:Boolean(state.backfillComplete),sourceError:state.sourceError||null,
     priceError:state.priceError||null,
     stats:{total:signals.length,verified:verified.length,won:won.length,lost:verified.length-won.length,
