@@ -48,6 +48,7 @@ function statusFor(code, error) {
   if (code === 'finance-owner-only') return 403;
   if (code === 'crypto-owner-only') return 403;
   if (code === 'crypto-wallet-not-found') return 404;
+  if (code === 'crypto-bybit-readonly-required') return 400;
   if (code.startsWith('crypto-provider-') || code.startsWith('crypto-bybit-') || code.startsWith('crypto-rpc-') || code.startsWith('crypto-price-')) return 503;
   if (code.startsWith('crypto-')) return 400;
   if (code.startsWith('market-ticker-unavailable')) return 503;
@@ -224,6 +225,10 @@ async function handler(req, res) {
     }
     if (operation === 'delete-wallet') {
       const state = await deleteWallet(actor, body.id);
+      if (actor === 'Рустам') {
+        try { await cryptoWallets.disconnect(actor, body.id); }
+        catch (_) { console.warn('RUDI_CRYPTO_WALLET_UNLINK_FAILED'); }
+      }
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
     if (operation === 'reorder-wallets') {
