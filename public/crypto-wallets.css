@@ -89,3 +89,10 @@
 .finance-crypto-history-stats{margin:15px 2px;font-size:13px;line-height:1.7;font-variant-numeric:tabular-nums}
 .finance-crypto-history-points{max-height:265px;overflow:auto}
 @media(max-width:390px){.finance-crypto-history{padding-inline:10px}.finance-crypto-periods{gap:4px}.finance-crypto-periods button{padding:8px 5px;font-size:10px}}
+
+/* One-tap crypto sync from the personal finances balance card */
+#financeApiBalancesRefresh[hidden]{display:none!important}
+#financeApiBalancesRefresh.is-syncing svg{animation:rudi-crypto-refresh-spin .95s linear infinite}
+#financeApiBalancesRefresh:disabled{opacity:.65;cursor:wait}
+@keyframes rudi-crypto-refresh-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){#financeApiBalancesRefresh.is-syncing svg{animation:none}}
