@@ -21,10 +21,13 @@ test('motion is scoped and respects reduced-motion settings',()=>{
  assert.doesNotMatch(cssAdditionOnly(),/calendarScopeSwitch|calendar-scope-switch/);
  function cssAdditionOnly(){return css.slice(css.indexOf('RUDI v4.149: consistent motion'))}
 });
-test('release marker and app scripts are consistent',()=>{
- assert.match(html,/\/app\.js\?v=4\.149/);
- assert.match(html,/\/app\.css\?v=4\.149/);
- assert.equal(fs.readFileSync('VERSION','utf8').trim(),'v4.149');
+test('release marker and app scripts match the current release',()=>{
+ const version=fs.readFileSync('VERSION','utf8').trim();
+ const cacheToken=version.replace(/^v/,'');
+ assert.ok(/^v4\.[0-9]+$/.test(version));
+ assert.ok(html.includes('/app.js?v='+cacheToken));
+ assert.ok(html.includes('/app.css?v='+cacheToken));
+ assert.ok(html.includes('content="'+version+'"'));
 });
 
 test('Face ID can be enabled and revoked on iPhone without removing PIN',()=>{
