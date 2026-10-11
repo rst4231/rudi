@@ -7,6 +7,7 @@ const {
 } = require('./finance-store.cjs');
 const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport, moscowDateKey } = require('./finance-ai.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
+const cryptoWallets = require('./crypto-wallets.cjs');
 const { awardScore,readScoreState,reverseScoreByDedupeKey,scoreView,scoreDateKey,DAILY_EXPENSE_SCORE_UNITS } = require('./score-store.cjs');
 
 function financeDailyScoreKey(actor, dateKey = scoreDateKey()) {
@@ -45,6 +46,11 @@ function statusFor(code, error) {
   const auth = statusForError(error);
   if (auth !== 500) return auth;
   if (code === 'finance-owner-only') return 403;
+  if (code === 'crypto-owner-only') return 403;
+  if (code === 'crypto-wallet-not-found') return 404;
+  if (code === 'crypto-bybit-readonly-required') return 400;
+  if (code.startsWith('crypto-provider-') || code.startsWith('crypto-bybit-') || code.startsWith('crypto-rpc-') || code.startsWith('crypto-price-')) return 503;
+  if (code.startsWith('crypto-')) return 400;
   if (code.startsWith('market-ticker-unavailable')) return 503;
   if (['finance-obligation-not-found','finance-debt-not-found','finance-category-not-found','finance-expense-not-found','finance-wallet-not-found','finance-transfer-not-found','finance-wallet-income-not-found'].includes(code)) return 404;
   if ([
@@ -130,6 +136,27 @@ async function handler(req, res) {
     const { actor } = authorizeRequest(req, body.initData);
     const operation = String(body.operation || 'list').trim();
 
+    if (operation.startsWith('crypto-')) {
+      if (actor !== 'Рустам') throw new Error('crypto-owner-only');
+      if (operation === 'crypto-list') {
+        return res.status(200).json({ ok: true, actor, connections: await cryptoWallets.list(actor) });
+      }
+      if (operation === 'crypto-connect') {
+        const connection = await cryptoWallets.connect(actor, body);
+        return res.status(200).json({ ok: true, actor, connection });
+      }
+      if (operation === 'crypto-disconnect') {
+        await cryptoWallets.disconnect(actor, body.walletId);
+        return res.status(200).json({ ok: true, actor });
+      }
+      if (operation === 'crypto-refresh') {
+        const connections = await cryptoWallets.refresh(actor, { force: body.force === true });
+        const state = await readFinanceState();
+        return res.status(200).json({ ok: true, actor, connections, wallets: viewState(state, actor).wallets });
+      }
+      throw new Error('finance-operation-invalid');
+    }
+
     if (operation === 'list') {
       const state = await readFinanceState();
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
@@ -198,6 +225,10 @@ async function handler(req, res) {
     }
     if (operation === 'delete-wallet') {
       const state = await deleteWallet(actor, body.id);
+      if (actor === 'Рустам') {
+        try { await cryptoWallets.disconnect(actor, body.id); }
+        catch (_) { console.warn('RUDI_CRYPTO_WALLET_UNLINK_FAILED'); }
+      }
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
     if (operation === 'reorder-wallets') {

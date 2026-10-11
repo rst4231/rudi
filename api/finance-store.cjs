@@ -1469,11 +1469,33 @@ async function recordCapitalSnapshot(actor, payload = {}, options = {}) {
   });
 }
 
+// Only a verified server-side crypto integration may update a linked wallet.
+async function syncLinkedWalletBalance(actor, walletId, usdValue, options = {}) {
+  const safeActor = cleanActor(actor);
+  if (safeActor !== 'Рустам') throw new Error('crypto-owner-only');
+  const cleanId = cleanText(walletId, 100, { required: true });
+  const balance = cleanWalletBalance(usdValue);
+  if (balance < 0) throw new Error('crypto-balance-invalid');
+  return enqueueMutation(async () => {
+    const current = await readFinanceState(options);
+    const rows = current.wallets[safeActor] || [];
+    const wallet = rows.find(row => row.id === cleanId && !row.archived);
+    if (!wallet) throw new Error('crypto-wallet-not-found');
+    if (wallet.type !== 'regular') throw new Error('crypto-wallet-credit-unsupported');
+    if (Math.abs(Number(wallet.balance) - balance) < 1e-8) return current;
+    const wallets = rows.map(row => row.id === cleanId ? { ...row, balance } : row);
+    const next = normalizeState({ ...current, initialized: true, version: current.version + 1,
+      wallets: { ...current.wallets, [safeActor]: wallets } });
+    await writeState(next, options);
+    return next;
+  });
+}
+
 function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 
 module.exports = {
   NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanSignedMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanObligations, cleanPlan, cleanCapitalHistory, cleanSharedItems, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, incomeTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
   saveFinancePlan, setFinanceObligationPaid, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
-  saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, resetMutationQueueForTests,
+  saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, syncLinkedWalletBalance, resetMutationQueueForTests,
 };

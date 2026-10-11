@@ -1,0 +1,48 @@
+/* Owner-only cryptocurrency connections. Keep the existing finance layout intact. */
+#financeTabs{display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#financeTabs::-webkit-scrollbar{display:none}
+#financeTabs [hidden],#financeCryptoPanel[hidden],#financeCryptoConnectWrap[hidden],
+#financeCryptoConnectFields[hidden],#financeCryptoBybitFields[hidden],#financeCryptoUniswapFields[hidden],
+#financeCryptoDisconnectButton[hidden]{display:none!important}
+#financeTabs .finance-tab{white-space:nowrap;flex:1 0 auto;min-width:max-content;padding:0 9px}
+.finance-crypto-panel{padding:12px 0 36px}
+.finance-crypto-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
+.finance-crypto-top h2{font-size:24px;line-height:1.18;letter-spacing:-.035em;margin:4px 0 8px}
+.finance-crypto-top p{font-size:13px;color:var(--muted,#9297a1);margin:0;line-height:1.5}
+.finance-crypto-eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.1em;font-weight:800;color:#a990ff}
+.finance-crypto-refresh{border:1px solid rgba(160,160,210,.25);border-radius:12px;background:rgba(110,115,175,.09);color:inherit;padding:9px 12px;font-weight:700;font-size:12px;flex-shrink:0}
+.finance-crypto-refresh:disabled,.finance-crypto-primary:disabled{opacity:.5}
+.finance-crypto-overview{background:linear-gradient(125deg,#302a51,#161e32);border:1px solid rgba(179,164,255,.24);box-shadow:0 16px 32px rgba(24,23,48,.15);border-radius:20px;color:#fff;padding:22px 20px;display:grid;gap:7px}
+.finance-crypto-overview>span{font-size:12px;color:#c2c1db}
+.finance-crypto-overview>strong{font-size:clamp(28px,8vw,40px);line-height:1.1;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.finance-crypto-overview>small{font-size:12px;line-height:1.5;color:#c2c1db}
+.finance-crypto-cards{display:grid;gap:12px;margin:14px 0}
+.finance-crypto-source-card{background:var(--surface,rgba(255,255,255,.06));border:1px solid var(--line,rgba(128,128,148,.18));border-radius:18px;padding:18px;display:grid;gap:8px;min-width:0}
+.finance-crypto-source-head{display:flex;justify-content:space-between;gap:12px;align-items:center}
+.finance-crypto-source-head strong{font-size:16px;letter-spacing:-.02em}
+.finance-crypto-source-head span{font-size:12px;color:var(--muted,#969bab);text-align:right;overflow-wrap:anywhere}
+.finance-crypto-source-amount{font-size:24px;font-weight:800;letter-spacing:-.035em;line-height:1.2;font-variant-numeric:tabular-nums}
+.finance-crypto-source-card small{font-size:12px;color:var(--muted,#9a9ba9);line-height:1.5}
+.finance-crypto-source-card code{font-size:11px;overflow-wrap:anywhere;color:var(--muted,#9a9ba9)}
+.finance-crypto-warning,.finance-crypto-error{font-size:12px;line-height:1.5;margin:2px 0 0}
+.finance-crypto-warning{color:#cfa957}.finance-crypto-error{color:#ed8793}
+.finance-crypto-guide{padding:14px 15px;border:1px solid var(--line,rgba(130,130,150,.2));border-radius:15px;color:var(--muted,#9297a1);line-height:1.65;font-size:12px}
+.finance-crypto-status{font-size:12px;line-height:1.5;min-height:0;margin-top:8px;color:var(--muted,#9297a1)}
+.finance-crypto-empty{color:var(--muted,#9297a1);font-size:13px;line-height:1.6;margin:5px 0}
+.finance-crypto-wallet-connect{border-top:1px solid var(--line,rgba(140,140,155,.18));margin-top:16px;padding:18px 0 5px;display:grid;gap:12px}
+.finance-crypto-wallet-head{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.finance-crypto-wallet-head>div{min-width:0;display:grid;gap:4px}
+.finance-crypto-wallet-head strong{font-size:14px}
+.finance-crypto-wallet-head small{font-size:11px;line-height:1.45;color:var(--muted,#949aa7);overflow-wrap:anywhere}
+.finance-crypto-wallet-head button{border:1px solid rgba(131,114,220,.4);background:rgba(131,114,220,.09);color:inherit;border-radius:11px;padding:8px 11px;flex-shrink:0;font-size:12px;font-weight:700}
+.finance-crypto-connect-fields{display:grid;gap:11px}
+.finance-crypto-connect-fields .finance-input-field{margin:0}
+.finance-crypto-connect-fields>div{display:grid;gap:11px}
+.finance-crypto-connect-fields small{font-size:11px;color:var(--muted,#969bab);line-height:1.5}
+.finance-crypto-primary{background:#7866df;color:#fff;border:0;border-radius:12px;min-height:43px;font-size:13px;font-weight:800;padding:12px}
+.finance-crypto-unlink{color:#e17c8e;border:0;background:none;text-align:left;align-self:start;padding:4px 0;font-size:12px}
+@media(min-width:700px){.finance-crypto-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.finance-crypto-scope-consent{display:flex;gap:10px;align-items:flex-start;border:1px solid rgba(178,146,79,.3);border-radius:12px;padding:11px;background:rgba(178,146,79,.08);font-size:11px;line-height:1.5;cursor:pointer}
+.finance-crypto-scope-consent input{width:17px;height:17px;flex:0 0 auto;margin-top:2px;accent-color:#7967db}
+.finance-crypto-scope-consent span{font-weight:500}
