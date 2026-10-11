@@ -1,22 +1,19 @@
 {
-  "current": "v4.167",
-  "versionBranch": "fix/rudi-crypto-partial-wallet-and-zero-pools",
+  "current": "v4.168",
+  "versionBranch": "feature/rudi-crypto-bybit-trust-balance-history",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.166",
+  "basedOnProduction": "v4.167",
   "notes": [
-    "Hide Uniswap v3/v4 LP cards with zero liquidity and zero claimable amounts.",
-    "Display verified partial LP subtotal in Connected assets instead of an empty placeholder, clearly marked partial when v4 indexer is unavailable.",
-    "Sync a verified partial estimate into the existing finance wallet in its original currency, tagging the wallet cryptoPartial and remembering last synced amount; protect manual balances higher than the estimate.",
-    "No fake income or expense events and no double counting of already withdrawn fees.",
-    "Tests for partial balance flags, wallet synchronization, protection of manual overrides, and no extra finance ledger entries.",
-    "Bybit.com integration: configure only the /api/finances.js function to use Vercel Frankfurt region rather than default US API egress.",
-    "Bybit failures now expose safe, actionable diagnostics for HTTP403 regional restrictions, invalid keys, signatures, read-only permissions, API IP allowlists and rate limits.",
-    "Mask the Bybit API Key input on screen; never log upstream error bodies or save rejected credentials.",
-    "Additional tests cover masked credentials, HTTP status diagnostics, Bybit V5 retCodes, and route-specific region configuration.",
-    "Deployment pending owner confirmation."
+    "Read-only Bybit V5 UTA, Funding, Earn category balances with known assets and partial coverage statuses.",
+    "Trust Wallet address-only Ethereum, Arbitrum, TON USDT, NEAR and Polkadot DOT with known-token coverage.",
+    "D1-backed Moscow-dated real portfolio snapshots and interactive history chart for 7/30/60/90/365 days.",
+    "Correlate confirmed on-chain Bybit transfers with EVM incoming/outgoing operations; no income/expense ledger mutation.",
+    "Remove lengthy crypto captions, show updated timestamp and compact partial balance indicator.",
+    "Automated regression tests and GitHub CI required before production release.",
+    "Do not deploy until explicit user confirmation."
   ],
-  "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
+  "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
