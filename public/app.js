@@ -5427,7 +5427,7 @@
       }
 
       function setFinanceTab(tab){
-        const allowed=['shared','personal','debts','literacy'];activeFinanceTab=allowed.includes(tab)?tab:'personal';
+        const allowed=['shared','personal','debts','literacy','crypto'];activeFinanceTab=allowed.includes(tab)&&(tab!=='crypto'||currentActor==='Рустам')?tab:'personal';
         const page=document.getElementById('financePage');if(page)page.dataset.financeTone=activeFinanceTab;
         document.body.dataset.financeTone=activeFinanceTab;
         document.querySelectorAll('[data-finance-tab]').forEach(button=>{const active=button.dataset.financeTab===activeFinanceTab;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',active?'true':'false')});
@@ -5436,10 +5436,13 @@
         restartRudiMotion(activePanel,'finance-panel-enter',420);
         if(activeFinanceTab==='literacy')loadFinanceLiteracy().catch(()=>{});
         if(activeFinanceTab==='personal')refreshFinanceInsight().catch(()=>{});
+        if(activeFinanceTab==='crypto')window.RudiCrypto?.open();else window.RudiCrypto?.close();
       }
       function applyFinancePermissions(){
         const canEdit=currentActor==='Рустам',rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput'),save=document.getElementById('financeSaveButton'),add=document.getElementById('financeSharedAddButton'),note=document.getElementById('financeReadOnlyNote');
         if(rent)rent.disabled=!canEdit;if(utilities)utilities.disabled=!canEdit;if(save)save.hidden=!canEdit;if(add)add.hidden=!canEdit;if(note)note.hidden=canEdit;
+        const cryptoTab=document.getElementById('financeCryptoTab');if(cryptoTab)cryptoTab.hidden=!canEdit;
+        if(!canEdit&&activeFinanceTab==='crypto')setFinanceTab('personal');
       }
       function renderFinanceState(data,{month='',personalMonth='',preserveIncome=false,preservePlan=false}={}){
         financeState={
