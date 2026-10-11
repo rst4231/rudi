@@ -370,7 +370,7 @@ async function refresh(actor, options = {}) {
     const summary = [];
     let changed = false;
     for (const [id, connection] of Object.entries(connections)) {
-      const last = Date.parse(connection.lastSyncAt || '') || 0;
+      const last = Date.parse(connection.lastSyncAt || connection.partialSyncAt || '') || 0;
       if (!options.force && now - last < REFRESH_MS) { summary.push(safeConnection(id, connection)); continue; }
       try {
         const wallet = await assertWallet(id, options);
