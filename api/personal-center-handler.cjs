@@ -2,6 +2,7 @@
 const {authorizeRequest,statusForError}=require('./rudi-request-auth.cjs');
 const state=require('./personal-center-store.cjs');
 const {WHO_SOURCE}=require('./personal-center-ai.cjs');
+const {generateForActor}=require('./personal-center-cron-handler.cjs');
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const {readMoodHistory}=require('./daily-mood-store.cjs');
 const {computeEmotionSignals}=require('./personal-center-emotions.cjs');
@@ -29,6 +30,12 @@ module.exports=async function handler(req,res){
       return res.status(200).json({ok:true,actor,unchanged:true});
     }
     return res.status(200).json({ok:true,actor,data:{...data,emotions},report:latest,indicator,cycle:actor==='Диана'&&cycle?{...cycleViewForDate(cycle,state.moscowDate()),cycleLengthDays:cycle.cycleLengthDays}:null,whoSource:WHO_SOURCE});
+  }
+  if(operation==='generate-report'){
+    // Today's report only: no client-supplied actor, date or prompt; shared lock stops repeat AI calls.
+    const now=Date.now(),result=await generateForActor(actor,state.moscowDate(now),{now});
+    if(result.status==='failed')return res.status(503).json({ok:false,error:'report-generation-failed'});
+    return res.status(200).json({ok:true,actor,status:result.status,report:result.report||null});
   }
   if(operation==='read-report'){await state.seen(actor);return res.status(200).json({ok:true});}
   if(operation==='history'){const history=await state.history(actor);return res.status(200).json({ok:true,actor,history});}

@@ -225,3 +225,53 @@ test('Diana cycle stays directly below dynamics chart, independently of calendar
  assert.doesNotMatch(app,/pcCycleOriginalAnchor|slot\.append\(card\)/);
  assert.match(css,/#dianaCycleCard\[data-app-tab-section="schedule"\]/);
 });
+
+test('manual button creates only the authorized actor morning report at any hour, then reuses it',async()=>{
+ map.clear();const c=client(),now=Date.parse('2026-10-11T13:40:00Z'),date='2026-10-11';
+ let generated=0;
+ const generate=async(actor,day,slot)=>{generated++;assert.equal(slot,'morning');assert.equal(day,date);return {narrative:{overview:'Сводка '+actor},model:'test'};};
+ const first=await cron.generateForActor('Диана',date,{client:c,now,generate});
+ assert.equal(first.status,'created');
+ assert.equal(first.report.date,date);
+ assert.equal(first.report.slot,'morning');
+ assert.equal(generated,1);
+ const repeat=await cron.generateForActor('Диана',date,{client:c,now,generate});
+ assert.equal(repeat.status,'exists');
+ assert.equal(generated,1);
+ assert.equal((await store.latest('Рустам',{client:c})),null);
+ assert.match((await store.latest('Диана',{client:c})).narrative.overview,/Диана/);
+ const rustam=await cron.generateForActor('Рустам',date,{client:c,now,generate});
+ assert.equal(rustam.status,'created');
+ assert.equal(generated,2);
+ await assert.rejects(()=>cron.generateForActor('Незнакомец',date,{client:c,now,generate}),/rudi-access-denied/);
+});
+test('manual and scheduled AI requests use the same distributed per-actor lock',async()=>{
+ map.clear();const c=client(),date='2026-10-11',now=Date.parse('2026-10-11T04:00:00Z');
+ let entered,finish,generated=0;
+ const started=new Promise(resolve=>{entered=resolve});
+ const generate=async()=>{generated++;entered();return new Promise(resolve=>{finish=resolve})};
+ const first=cron.generateForActor('Диана',date,{client:c,now,generate});
+ await started;
+ const duplicate=await cron.generateForActor('Диана',date,{client:c,now,generate});
+ assert.equal(duplicate.status,'already-running');
+ assert.equal(generated,1);
+ finish({narrative:{overview:'готово'},model:'test'});
+ assert.equal((await first).status,'created');
+ assert.equal((await cron.generateForActor('Диана',date,{client:c,now,generate})).status,'exists');
+ assert.equal(generated,1);
+});
+test('manual report is user authenticated, fixed to Moscow today and never generated on page open',()=>{
+ const handler=fs.readFileSync(path.join(__dirname,'..','api/personal-center-handler.cjs'),'utf8');
+ const cronCode=fs.readFileSync(path.join(__dirname,'..','api/personal-center-cron-handler.cjs'),'utf8');
+ const ui=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ assert.match(handler,/authorizeRequest\(req,body\.initData\)/);
+ assert.match(handler,/operation==='generate-report'/);
+ assert.match(handler,/generateForActor\(actor,state\.moscowDate\(now\),\{now\}\)/);
+ assert.match(cronCode,/setIfAbsent\(state\.NS,lockKey/);
+ assert.match(ui,/id="pcGenerateReport"/);
+ assert.match(ui,/call\('generate-report'\)/);
+ assert.match(ui,/report\?\.date===dayKey\(\)/);
+ assert.match(ui,/button\.disabled=manualLoading/);
+ const onOpen=ui.slice(ui.indexOf('async function show(){'),ui.indexOf('function hide(){'));
+ assert.doesNotMatch(onOpen,/generate-report|requestDailyReport/);
+});
