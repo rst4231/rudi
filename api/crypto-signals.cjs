@@ -40,9 +40,60 @@ function level(text,regex){
   const found=String(text||'').match(regex);
   return found?num(found[1]):null;
 }
+// Margin type is a reported fact only when the author explicitly names it.
+// Adding collateral is possible under both isolated and cross margin.
+function parseMarginMode(text){
+  const content=String(text||'');
+  const cross=/(?:^|[^\p{L}])(?:cross|кросс(?:ов\p{L}*)?|перекр[её]стн\p{L}*)(?=$|[^\p{L}])/iu.test(content);
+  const isolated=/(?:^|[^\p{L}])(?:isolated|изолированн\p{L}*|изолят\p{L}*)(?=$|[^\p{L}])/iu.test(content);
+  return cross===isolated?null:cross?'cross':'isolated';
+}
+function parseTradeAdjustment(row){
+  const text=String(row?.text||'');
+  if(!/(?:докид\p{L}*|докин\p{L}*|добав\p{L}*\s+(?:марж|обеспеч)|добир\p{L}*|усредня\p{L}*|увелич\p{L}*\s+(?:позици|объем|объ[её]м))/iu.test(text))return null;
+  const kind=/(?:марж|залог|обеспеч|collateral)/iu.test(text)?'margin-change':
+    /(?:позици|объ[её]м)/iu.test(text)?'position-increase':'unspecified-addition';
+  return {id:row.id,at:row.at,url:row.url,kind,marginMode:parseMarginMode(text),
+    excerpt:text.slice(0,220)};
+}
+function attachTradeUpdates(signals,messages){
+  const byId=new Map(signals.map(signal=>[signal.id,signal]));
+  for(const row of [...messages].sort((a,b)=>Date.parse(a.at)-Date.parse(b.at))){
+    const update=parseTradeAdjustment(row);
+    if(!update)continue;
+    const direct=[...new Set((row.references||[]).map(id=>byId.get(id)).filter(Boolean))]
+      .filter(s=>Date.parse(s.at)<Date.parse(row.at));
+    let candidates=direct;
+    if(!candidates.length){
+      const windowStart=Date.parse(row.at)-7*86400000;
+      candidates=signals.filter(s=>Date.parse(s.at)<Date.parse(row.at)&&
+        Date.parse(s.at)>=windowStart&&
+        new RegExp('(^|[^A-Za-z0-9])\\$?'+s.symbol+'(?=$|[^A-Za-z0-9])','i').test(row.text||''));
+    }
+    // No link if several entries plausibly match the same update.
+    if(candidates.length!==1)continue;
+    const trade=candidates[0];
+    if(!Array.isArray(trade.adjustments))trade.adjustments=[];
+    if(trade.adjustments.some(item=>item.id===update.id))continue;
+    trade.adjustments.push(update);
+    if(!trade.marginModeReported&&update.marginMode){
+      trade.marginModeReported=update.marginMode;
+      trade.marginSource='linked-update';
+    }
+  }
+  for(const signal of signals){
+    signal.adjustmentCount=(signal.adjustments||[]).length;
+    signal.adjustments=(signal.adjustments||[]).slice(-8);
+  }
+  return signals;
+}
+
 function parseSignal(row){
   if(!row?.text)return null;
   const text=String(row.text),lower=text.toLowerCase();
+  // Position top-ups are follow-ups, not fresh virtual entries.
+  if(parseTradeAdjustment(row)&&
+    !/(?:^|[^а-яёa-z])(?:открыл|открываю|заш[её]л|вхожу|беру)(?=$|[^а-яёa-z])/i.test(text))return null;
   if(/(?:^|[^а-яёa-z])(отзыв|розыгрыш|реферал|учебник|подписка|вакансия)(?=$|[^а-яёa-z])/i.test(text)&&
      !/(?:беру|заш[её]л|вхожу|открыл|открываю)\s.{0,40}(?:шорт|лонг)/i.test(text))return null;
   const ticker=text.match(/\$([a-z0-9]{2,14})\b/i)?.[1]?.toUpperCase();
@@ -58,7 +109,7 @@ function parseSignal(row){
   const leverage=level(text,/(?:плечо|leverage)\s*(?:x|х|:|=|\s)*([\d]+(?:[.,]\d+)?)/i);
   const complete=Boolean(entry&&(take||stop));
   return {id:row.id,at:row.at,url:row.url,symbol:ticker,market:'unconfirmed',
-    direction,entry,take,stop,leverage,conditional,qualified:complete&&!conditional,paperEligible:!conditional,
+    direction,entry,take,stop,leverage,marginModeReported:parseMarginMode(text),marginSource:parseMarginMode(text)?'signal':'unspecified',conditional,qualified:complete&&!conditional,paperEligible:!conditional,
     status:conditional?'conditional':complete?'awaiting-market':'insufficient-levels',
     excerpt:text.slice(0,400),authorClaim:null};
 }
@@ -215,7 +266,9 @@ function buildView(state,now=Date.now()){
   const signals=messages.map(parseSignal).filter(Boolean).map(signal=>{
     const row=state.results?.[signal.id];
     return {...signal,...(row||{}),url:signal.url,id:signal.id,at:signal.at};
-  }).sort((a,b)=>b.at.localeCompare(a.at));
+  });
+  attachTradeUpdates(signals,messages);
+  signals.sort((a,b)=>b.at.localeCompare(a.at));
   const verified=signals.filter(s=>(s.status==='won'||s.status==='lost')&&s.execution!=='next-hour-model');
   const won=verified.filter(s=>s.status==='won');
   const knownChange=verified.filter(s=>Number.isFinite(s.priceChangePct));
@@ -237,4 +290,4 @@ async function readSignals(options={}){
   return buildView(state,options.now??Date.now());
 }
 module.exports={NS,parsePreview,parseSignal,evaluateCandles,compareSignal:parseSignal,
-  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade};
+  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates};
