@@ -60,17 +60,28 @@
   const dateLabel=iso=>iso?new Date(iso).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Пока не обновлялся';
   const setStatus=(id,message)=>{const e=$(id);if(e)e.textContent=message||'';};
   function clearKeys(){for(const id of ['financeCryptoApiKey','financeCryptoApiSecret'])if($(id))$(id).value='';}
-  const pnlText=p=>!p?.available?'PNL за сутки: недостаточно данных':
-    'Изменение за 24 ч: '+(p.deltaUsd>0?'+':'')+cash(p.deltaUsd)+
-    ' ('+(p.percent>0?'+':'')+p.percent.toFixed(2)+'%)';
-  const pnlBadge=p=>{
+  const pnlText=(p,period='day')=>{
+    const label=period==='month'?'За месяц':'За 24 ч';
+    if(!p?.available)return label+': недостаточно данных';
+    return label+': '+(p.deltaUsd>0?'+':'')+cash(p.deltaUsd)+
+      ' ('+(p.percent>0?'+':'')+p.percent.toFixed(2)+'%)';
+  };
+  const pnlBadge=(p,period='day')=>{
     const el=document.createElement('small');el.className='finance-crypto-pnl';
-    el.textContent=pnlText(p);
+    el.textContent=pnlText(p,period);
     if(p?.available){
       el.classList.add(p.deltaUsd>0?'is-positive':p.deltaUsd<0?'is-negative':'is-neutral');
-      el.title='Изменение стоимости без корректировки на вводы/выводы. Это не чистый PNL.';
-    }else el.title='Для честного PNL нужны два полных снимка и учёт денежных потоков.';
+      el.title=p.note||'Изменение стоимости без корректировки на вводы/выводы. Это не чистый PNL.';
+    }else el.title=period==='month'
+      ?'Для оценки нужен полный баланс за первое число месяца и свежая синхронизация. Переводы и выводы не вычтены.'
+      :'Для оценки нужны два полных снимка за 24 часа. Переводы и выводы не вычтены.';
     return el;
+  };
+  const periodBadges=(day,month)=>{
+    const host=document.createElement('div');host.className='finance-crypto-period-pnl';
+    host.append(pnlBadge(day,'day'),pnlBadge(month,'month'));
+    host.title='Оценка изменения стоимости активов, не проверенный торговый PNL.';
+    return host;
   };
   async function loadPnl24h(){
     if(actor!=='Рустам'||!connections.length||pnlFlight)return pnlFlight;
@@ -111,7 +122,9 @@
         complete=false;
       }
       const detail=document.createElement('small');detail.textContent='Обновлено: '+dateLabel(link.incomplete?link.partialSyncAt:link.lastSyncAt);
-      card.append(head,amount,pnlBadge(pnl24h?.items?.find(p=>p.id===link.walletId)),detail);
+      const dailyChange=pnl24h?.items?.find(p=>p.id===link.walletId);
+      const monthlyChange=pnl24h?.month?.items?.find(p=>p.id===link.walletId);
+      card.append(head,amount,periodBadges(dailyChange,monthlyChange),detail);
       // Keep partial state in calculations and error reporting without the
       // repetitive "Частичный баланс" badge on every connected source card.
       if(link.provider==='uniswap'&&typeof link.walletUsd==='number'){
@@ -203,7 +216,7 @@
     const pnlHost=$('financeCryptoPnl24h');
     if(pnlHost){
       pnlHost.replaceChildren();
-      pnlHost.append(pnlBadge(pnl24h?.total));
+      pnlHost.append(periodBadges(pnl24h?.total,pnl24h?.month?.total));
     }
     if(label){
       const partial=connections.length>0&&!complete&&hasKnown;
