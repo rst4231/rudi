@@ -206,7 +206,9 @@ async function uniswapSnapshot(address, options = {}) {
   const total=walletUsd+lp.liquidityUsd+lp.feesUsd;
   if(!Number.isFinite(total)||total<0||total>1e12)throw new Error('crypto-balance-invalid');
   return {
-    balanceUsd:Math.round(total*1e8)/1e8,
+    balanceUsd:lp.incomplete?null:Math.round(total*1e8)/1e8,
+    incomplete:lp.incomplete,
+    partialUsd:lp.incomplete?Math.round(total*1e8)/1e8:null,
     walletUsd:Math.round(walletUsd*1e8)/1e8,
     liquidityUsd:Math.round(lp.liquidityUsd*1e8)/1e8,
     feesUsd:Math.round(lp.feesUsd*1e8)/1e8,
