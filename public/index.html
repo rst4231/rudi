@@ -689,8 +689,8 @@
                 </div>
                 <div id="financeCryptoUniswapFields" hidden>
                   <label class="finance-input-field"><span>Публичный адрес 0x...</span><input id="financeCryptoAddress" class="finance-text-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="42" placeholder="0x…"></label>
-                  <small>Ethereum mainnet. Seed-фраза и приватный ключ не нужны. LP v3/v4 не оцениваются как обычные токены.</small>
-                  <label class="finance-crypto-scope-consent"><input id="financeCryptoSpotConsent" type="checkbox"><span>Подтверждаю: в этом кошельке нужно автоматически учитывать только ETH, WETH, USDT и USDC в Ethereum Mainnet. Остальные активы и LP сюда не включаю.</span></label>
+                  <small>Ethereum mainnet. Seed-фраза и приватный ключ не нужны. LP оцениваются отдельно от токенов на адресе. Снятые комиссии повторно не суммируются.</small>
+                  <label class="finance-crypto-scope-consent"><input id="financeCryptoSpotConsent" type="checkbox"><span>Подтверждаю: автоматически учитывать ETH, WETH, USDT, USDC на адресе и пулы Uniswap v3/v4 с этими токенами в Ethereum Mainnet, включая суммы к получению. Неподдерживаемые сети и токены не включать.</span></label>
                 </div>
                 <button id="financeCryptoConnectButton" type="button" class="finance-crypto-primary">Подключить</button>
               </div>
@@ -1065,7 +1065,7 @@
           <small id="financeCryptoUpdated">Подключи кошелёк, чтобы получать баланс автоматически</small>
         </div>
         <div id="financeCryptoCards" class="finance-crypto-cards" aria-live="polite"></div>
-        <div class="finance-crypto-guide">Чтобы подключить уже созданный кошелёк, открой вкладку «Личные», нажми на кошелёк и выбери «Подключить API». Баланс обновится в текущей валюте кошелька по актуальному курсу. Открытые LP-позиции Uniswap пока не включаются в расчёт: при их обнаружении старый баланс сохраняется.</div>
+        <div class="finance-crypto-guide">Чтобы подключить уже созданный кошелёк, открой вкладку «Личные», нажми на кошелёк и выбери «Подключить API». Баланс обновится в текущей валюте кошелька по актуальному курсу. Активы в Uniswap v3/v4 и начисленные суммы к получению учитываются отдельно от токенов на адресе. Если пул или комиссия не поддаются надёжной оценке, прежний баланс сохраняется.</div>
         <div id="financeCryptoStatus" class="finance-crypto-status" role="status" aria-live="polite"></div>
       </div>
     </section>
