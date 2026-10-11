@@ -143,6 +143,7 @@ test('v4.168 UI provides history chart and hides deprecated captions',()=>{
   assert.match(html,/<option value="trust">Trust Wallet<\/option>/);
   assert.match(js,/Обновлено:/);
   assert.doesNotMatch(js,/Проверка позиций v3:/);
+  assert.doesNotMatch(js,/finance-crypto-switch-chain|Переключить на Ethereum Mainnet|Пулы в Arbitrum\? Переключить сеть/);
   assert.doesNotMatch(js,/Показаны только активные пулы v3\. Сумма частичная/);
   assert.doesNotMatch(html,/Баланс Bybit и кошелька Ethereum\. Только для твоего аккаунта/);
   assert.doesNotMatch(html,/Подтверждённая часть портфеля · USD\. Полный итог пока неизвестен/);
