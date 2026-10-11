@@ -322,7 +322,7 @@ test('strict JSON output, all-domain factual coach and compact 7-day dashboard a
  assert.match(app,/data-rhythm="habits"/);
  assert.match(app,/data-rhythm="expenses"/);
  assert.match(app,/data-rhythm="mood"/);
- assert.match(app,/values\.map\(d=>series\.has\(d\)\?series\.get\(d\):null\)/);
+ assert.match(app,/dates\.map\(d=>series\.has\(d\)\?series\.get\(d\):null\)/);
  assert.match(app,/report\.model!=='deterministic'/);
  assert.match(app,/id="pcGenerateReport"/);
  assert.match(css,/\.rudi-center__rhythm-tabs/);
