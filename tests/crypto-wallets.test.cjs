@@ -155,7 +155,7 @@ test('Arbitrum RPC only reads chain 42161 and uses Arbitrum ERC20 addresses', as
   });
   assert.equal(result.balanceUsd,3100);
   assert.equal(result.positions.length,0);
-  assert.match(result.scope,/arbitrum/);
+  assert.match(result.scope,/Arbitrum One/);
   assert.ok(called.includes('0x82af49447d8a07e3bd95bd0d56f35241523fbab1'));
   assert.ok(called.includes('0xaf88d065e77c8cc2239327c5edb3a432268e5831'));
   assert.ok(!called.includes('0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'));
