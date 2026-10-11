@@ -134,7 +134,7 @@ async function polkadot(address,options={}){
   for(const result of balances){
     if(result.status!=='fulfilled'||result.value.tokenSymbol!=='DOT')continue;
     const row=result.value;
-    if(!/^\\d+$/.test(String(row.free))||!/^\\d+$/.test(String(row.reserved)))continue;
+    if(!/^\d+$/.test(String(row.free))||!/^\d+$/.test(String(row.reserved)))continue;
     active.push(amountFromRaw((BigInt(row.free)+BigInt(row.reserved)).toString(),10));
   }
   if(!active.length)throw Error('crypto-trust-polkadot-unavailable');
