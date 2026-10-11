@@ -118,7 +118,7 @@
     graph(data.portfolio?.history||[]);
     const warnings=(data.portfolio?.warnings||[]).filter(Boolean);
     metric('cryptoWarning',warnings.join(' · '));
-    $('cryptoConnectHint').textContent='Данные Ethereum Mainnet. Сумма ориентировочная, без стоимости LP-позиций, неподдерживаемых токенов и возможных переводов между счетами.';
+    $('cryptoConnectHint').textContent='Данные Ethereum Mainnet. Оценка ориентировочная. Сейчас учтены Ethereum Mainnet и Bybit Unified. Не входят стоимость LP-позиций, Funding-кошелёк Bybit, другие сети и неподдерживаемые токены.';
   }
   async function refresh(force=false){
     if(working||!active)return;
