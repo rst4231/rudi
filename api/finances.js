@@ -3,7 +3,7 @@ const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan, setFinanceObligationPaid,
   saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
   savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
-  saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, viewState,
+  saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, viewState, cryptoOperationKey, classifyCryptoOperation,
 } = require('./finance-store.cjs');
 const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport, moscowDateKey } = require('./finance-ai.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
@@ -162,7 +162,38 @@ async function handler(req, res) {
       }
       if (operation === 'crypto-operations') {
         const result=await cryptoWallets.operations(actor,String(body.walletId||''));
-        return res.status(200).json({ok:true,actor,...result});
+        const state=await readFinanceState(),view=viewState(state,actor);
+        const expenses=new Map(view.personalExpenses.filter(r=>String(r.importKey||'').startsWith('crypto:')).map(r=>[r.importKey,r]));
+        const transfers=new Map(view.walletTransfers.filter(r=>String(r.importKey||'').startsWith('crypto:')).map(r=>[r.importKey,r]));
+        const items=(result.items||[]).map(row=>{
+          const key=cryptoOperationKey(body.walletId,row.id);
+          const expense=expenses.get(key),transfer=transfers.get(key);
+          const assignment=expense?{mode:'expense',categoryId:expense.categoryId,rubAmount:expense.rubAmount,note:expense.note}
+            :transfer?{mode:'transfer',targetWalletId:transfer.fromWalletId===body.walletId?transfer.toWalletId:transfer.fromWalletId,
+              rubAmount:transfer.rubAmount,note:transfer.note}:null;
+          return {...row,assignment};
+        });
+        return res.status(200).json({ok:true,actor,...result,items,
+          wallets:view.wallets.map(w=>({id:w.id,name:w.name,currency:w.currency})),
+          categories:view.categories.map(c=>({id:c.id,name:c.name,currency:c.currency}))});
+      }
+      if (operation === 'crypto-classify') {
+        const walletId=String(body.walletId||''),operationId=String(body.operationId||'');
+        const result=await cryptoWallets.operations(actor,walletId);
+        const row=(result.items||[]).find(r=>r.id===operationId);
+        if(!row)throw Error('crypto-operation-not-found');
+        const direction=row.kind==='transfer'?row.direction:row.kind;
+        if(!['send','receive'].includes(direction))throw Error('crypto-allocation-direction-invalid');
+        const allConnections=await cryptoWallets.list(actor);
+        const rates=await financeRubRates();
+        const saved=await classifyCryptoOperation(actor,{
+          walletId,operationId,mode:body.mode,direction,
+          categoryId:body.categoryId,targetWalletId:body.targetWalletId,
+          rubAmount:body.rubAmount,note:body.note,occurredAt:row.timestamp,
+          apiWalletIds:allConnections.map(c=>c.walletId),rates,
+        });
+        return res.status(200).json({ok:true,actor,allocation:saved.allocation,
+          ...viewState(saved.state,actor)});
       }
       if (operation === 'crypto-refresh') {
         const connections = await cryptoWallets.refresh(actor, { force: body.force === true });
