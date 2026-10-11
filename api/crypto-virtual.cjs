@@ -40,82 +40,147 @@ async function updateSettings(changes,options={}){
     updated_at:new Date().toISOString(),expires_at:null});
   return next;
 }
+
 function simulateVirtual(signals,config,now=Date.now()){
-  const start=Date.parse(config.startedAt),rows=(Array.isArray(signals)?signals:[])
-    .filter(s=>Date.parse(s.at)>=start&&Date.parse(s.at)<=now)
-    .filter(s=>(s.qualified||s.paperEligible)&&['linear','spot'].includes(s.market)&&s.entry&&s.entryAt&&Number.isFinite(Date.parse(s.entryAt)))
-    .filter(s=>s.market!=='spot'||s.direction==='long')
-    .filter(s=>['won','lost','breakeven','open'].includes(s.status))
-    .map(s=>({...s,openedMs:Date.parse(s.entryAt),
-      closedMs:s.exitAt&&Number.isFinite(Date.parse(s.exitAt))?Date.parse(s.exitAt):null}))
-    .sort((a,b)=>a.openedMs-b.openedMs||a.id-b.id);
-  let cash=config.initialUsd;
-  const active=new Map(),closed=[],all=[];
+  const start=Date.parse(config.startedAt),round=money;
+  const feeRates={spot:0.001,linear:0.00055};
+  const slippageRate=0.0005; // Model assumption, NOT a Bybit execution receipt.
+  const rows=(Array.isArray(signals)?signals:[]).filter(s=>
+    Date.parse(s.at)>=start&&Date.parse(s.at)<=now&&Number.isFinite(Date.parse(s.entryAt))&&
+    Date.parse(s.entryAt)>=start&&s.entry>0&&['linear','spot'].includes(s.market)&&
+    (s.market!=='spot'||s.direction==='long')&&
+    (s.qualified||s.paperEligible)&&['open','won','lost','breakeven'].includes(s.status));
+  const excluded=(Array.isArray(signals)?signals:[]).filter(s=>['size-unknown','ambiguous',
+    'liquidation-risk-unverified'].includes(s.status));
   const events=[];
-  for(const row of rows){
-    events.push({time:row.openedMs,kind:'entry',row});
-    if(['won','lost','breakeven'].includes(row.status)&&row.closedMs!==null&&row.closedMs>=row.openedMs)
-      events.push({time:row.closedMs,kind:'exit',row});
+  for(const s of rows){
+    const openedMs=Date.parse(s.entryAt),rate=feeRates[s.market];
+    events.push({kind:'entry',at:openedMs,row:s});
+    let legs=(Array.isArray(s.legs)?s.legs:[]).filter(l=>
+      Number(l.fraction)>0&&Number(l.price)>0&&Number.isFinite(Date.parse(l.at)));
+    if(!legs.length&&['won','lost','breakeven'].includes(s.status)&&Number.isFinite(Date.parse(s.exitAt))&&s.exitPrice>0)
+      legs=[{fraction:1,price:s.exitPrice,at:s.exitAt,type:'legacy-exit'}];
+    for(const leg of legs)events.push({kind:'exit',at:Date.parse(leg.at),row:s,leg});
+    if(s.market==='linear'&&Array.isArray(s.fundingRates)){
+      for(const point of s.fundingRates){
+        const at=Date.parse(point.at),rate=Number(point.rate);
+        if(Number.isFinite(at)&&Number.isFinite(rate)&&at>openedMs&&at<=now)
+          events.push({kind:'funding',at,row:s,rate});
+      }
+    }
   }
-  events.sort((a,b)=>a.time-b.time||(a.kind==='exit'?-1:1));
+  events.sort((a,b)=>a.at-b.at||({funding:0,exit:1,entry:2}[a.kind]-{funding:0,exit:1,entry:2}[b.kind])||(Number(a.row.id)-Number(b.row.id)));
+  let cash=round(config.initialUsd), maxConcurrent=0;
+  const positions=new Map(),closed=[],all=[],curve=[{at:config.startedAt,usd:round(config.initialUsd)}];
+  const calcEquity=()=>round(cash+[...positions.values()].reduce((s,p)=>s+p.investedUsd*p.remaining,0));
   for(const event of events){
-    const row=event.row;
+    const row=event.row,existing=positions.get(row.id);
     if(event.kind==='entry'){
-      const amount=money(cash*config.allocationPct/100);
-      if(amount<=0)continue;
-      cash=money(cash-amount);
+      if(existing)continue;
       const leverage=row.market==='spot'?1:config.leverage;
-      const position={id:row.id,symbol:row.symbol,direction:row.direction,market:row.market,url:row.url,
-        entry:row.entry,entryAt:row.entryAt,
-        investedUsd:amount,leverage,execution:row.execution||'explicit-level',
-        authorMarginMode:row.marginModeReported||null,virtualMarginMode:row.market==='spot'?'cash':'isolated',
-        adjustmentCount:Number(row.adjustmentCount||0),
-        status:'open',pnlUsd:0};
-      active.set(row.id,position);all.push(position);
+      const feeRate=feeRates[row.market];
+      const target=round(cash*config.allocationPct/100);
+      const invested=round(Math.min(target,cash/(1+leverage*(feeRate+slippageRate))));
+      if(invested<=0)continue;
+      const entryFee=round(invested*leverage*(feeRate+slippageRate));
+      cash=round(cash-invested-entryFee);
+      const p={id:row.id,symbol:row.symbol,market:row.market,direction:row.direction,
+        entry:row.entry,entryAt:row.entryAt,url:row.url,execution:row.execution||'explicit-level',
+        investedUsd:invested,remaining:1,leverage,
+        authorMarginMode:row.marginModeReported||null,
+        virtualMarginMode:row.market==='spot'?'cash':'isolated',
+        adjustmentCount:Number(row.adjustmentCount||0),events:row.events||[],
+        feeUsd:entryFee,estimatedSlippageAndFeeUsd:entryFee,realizedGrossUsd:0,
+        fundingPnlUsd:0,realizedPnlUsd:-entryFee,pnlUsd:-entryFee,status:'open',
+        fundingComplete:row.market==='spot'||row.fundingComplete===true,
+        warnings:row.unquantifiedAdditions?['Unquantified additions were not executed']:[]};
+      positions.set(row.id,p);all.push(p);maxConcurrent=Math.max(maxConcurrent,positions.size);
+    }else if(!existing)continue;
+    else if(event.kind==='funding'){
+      // Actual Bybit historical settlement rates, when fetched and complete.
+      const sign=existing.direction==='long'?-1:1;
+      const cashflow=round(sign*existing.investedUsd*existing.leverage*existing.remaining*event.rate);
+      cash=round(cash+cashflow);existing.fundingPnlUsd=round(existing.fundingPnlUsd+cashflow);
+      existing.realizedPnlUsd=round(existing.realizedPnlUsd+cashflow);
+      existing.pnlUsd=round(existing.pnlUsd+cashflow);
     }else{
-      const position=active.get(row.id);
-      if(!position)continue;
-      const rate=Number(row.priceChangePct);
-      if(!Number.isFinite(rate))continue;
-      const pnl=Math.max(-position.investedUsd,money(position.investedUsd*position.leverage*rate/100));
-      position.pnlUsd=pnl;
-      position.returnPct=money(rate*position.leverage);
-      position.status=row.status;
-      position.exitAt=row.exitAt;
-      cash=money(cash+position.investedUsd+pnl);
-      active.delete(row.id);closed.push(position);
+      const fraction=Math.min(existing.remaining,Number(event.leg.fraction));
+      if(!(fraction>0))continue;
+      const sign=existing.direction==='short'?-1:1,ratio=event.leg.price/row.entry;
+      const gross=round(existing.investedUsd*existing.leverage*fraction*sign*(ratio-1));
+      const closingFee=round(existing.investedUsd*existing.leverage*fraction*
+        (feeRates[row.market]*ratio+slippageRate));
+      // Isolated-margin equity cannot lose more than the collateral allocated.
+      const net=Math.max(-existing.investedUsd*fraction,round(gross-closingFee));
+      const released=round(existing.investedUsd*fraction+net);
+      existing.realizedGrossUsd=round(existing.realizedGrossUsd+gross);
+      existing.feeUsd=round(existing.feeUsd+closingFee);
+      existing.estimatedSlippageAndFeeUsd=round(existing.estimatedSlippageAndFeeUsd+closingFee);
+      existing.realizedPnlUsd=round(existing.realizedPnlUsd+net);
+      existing.pnlUsd=round(existing.pnlUsd+net);
+      existing.remaining=Math.max(0,Math.round((existing.remaining-fraction)*1e10)/1e10);
+      existing.exitAt=event.leg.at;
+      existing.exitPrice=event.leg.price;
+      cash=round(cash+released);
+      if(existing.remaining<=1e-8){
+        existing.remaining=0;
+        existing.status=existing.pnlUsd>0?'won':existing.pnlUsd<0?'lost':'breakeven';
+        positions.delete(row.id);closed.push(existing);
+      }
     }
+    curve.push({at:new Date(event.at).toISOString(),usd:calcEquity()});
   }
-  let floating=0,marked=0;
-  for(const p of active.values()){
-    const row=rows.find(s=>s.id===p.id);
-    const current=Number(row?.marketPrice);
-    if(!Number.isFinite(current)||current<=0){
-      p.status='unpriced';p.pnlUsd=null;continue;
-    }
-    const factor=p.direction==='short'?-1:1;
-    p.pnlUsd=Math.max(-p.investedUsd,money(p.investedUsd*p.leverage*factor*(current-p.entry)/p.entry));
-    p.returnPct=money(p.pnlUsd/p.investedUsd*100);
-    p.marketPrice=current;floating+=p.pnlUsd;marked++;
+  let floating=0,known=0;
+  for(const p of positions.values()){
+    const s=rows.find(row=>row.id===p.id),price=Number(s?.marketPrice);
+    if(!(price>0)){p.status='unpriced';p.pnlUsd=null;continue;}
+    const sign=p.direction==='short'?-1:1;
+    const openGross=round(p.investedUsd*p.remaining*p.leverage*sign*(price/p.entry-1));
+    const afterCosts=Math.max(-p.investedUsd*p.remaining,openGross);
+    p.marketPrice=price;p.unrealizedPnlUsd=round(afterCosts);
+    p.pnlUsd=round(p.realizedPnlUsd+afterCosts);
+    p.returnPct=round(p.pnlUsd/p.investedUsd*100);
+    floating+=afterCosts;known++;
   }
-  const open=[...active.values()];
-  const invested=open.reduce((sum,p)=>sum+p.investedUsd,0);
-  const realized=closed.reduce((sum,p)=>sum+p.pnlUsd,0);
-  const completeMarks=marked===open.length;
-  const equity=completeMarks?money(cash+invested+floating):null;
-  const wins=closed.filter(p=>p.pnlUsd>0).length,losses=closed.filter(p=>p.pnlUsd<0).length;
-  const breakeven=closed.length-wins-losses,decided=wins+losses;
-  return {channel:'@ne_investor',config,
-    cashUsd:money(cash),investedUsd:money(invested),
-    equityUsd:equity,realizedPnlUsd:money(realized),unrealizedPnlUsd:completeMarks?money(floating):null,
-    totalPnlUsd:equity===null?null:money(equity-config.initialUsd),
-    totalPnlPct:equity===null?null:money((equity/config.initialUsd-1)*100),
-    stats:{total:all.length,closed:closed.length,open:open.length,
-      wins,losses,breakeven,
-      winratePct:decided?money(wins/decided*100):null,
-      lossratePct:decided?money(losses/decided*100):null},
-    positions:all.slice().sort((a,b)=>Date.parse(b.entryAt)-Date.parse(a.entryAt)).slice(0,150),
-    note:'Спот Bybit моделируется без плеча. Фьючерсы Bybit — с изолированным залогом и плечом симуляции. Неподтверждённые рынки не исполняются. Реальный размер позиции автора, пополнения, ликвидации, комиссии, funding и проскальзывание не подтверждены; результат оценочный.',
-    dataComplete:completeMarks};
+  const active=[...positions.values()],completeMarks=known===active.length;
+  const invested=active.reduce((s,p)=>s+p.investedUsd*p.remaining,0);
+  const equity=completeMarks?round(cash+invested+floating):null;
+  const totalPnl=equity===null?null:round(equity-config.initialUsd);
+  const wins=closed.filter(p=>p.pnlUsd>0),losses=closed.filter(p=>p.pnlUsd<0);
+  const breakeven=closed.length-wins.length-losses.length,decided=wins.length+losses.length;
+  const grossWin=wins.reduce((v,p)=>v+p.pnlUsd,0),grossLoss=losses.reduce((v,p)=>v-Math.abs(p.pnlUsd),0);
+  let peak=config.initialUsd,maxDrawdownPct=0;
+  for(const point of curve){peak=Math.max(peak,point.usd);
+    if(peak>0)maxDrawdownPct=Math.max(maxDrawdownPct,round((peak-point.usd)/peak*100));}
+  const stats={total:all.length,closed:closed.length,open:active.length,
+    excluded:excluded.length,maxConcurrent,
+    wins:wins.length,losses:losses.length,breakeven,
+    winratePct:decided?round(wins.length/decided*100):null,
+    lossratePct:decided?round(losses.length/decided*100):null,
+    avgWinUsd:wins.length?round(grossWin/wins.length):null,
+    avgLossUsd:losses.length?round(grossLoss/losses.length):null,
+    profitFactor:losses.length?round(grossWin/Math.abs(grossLoss)):null,
+    maxDrawdownPct,fundingMissing:all.filter(p=>!p.fundingComplete).length};
+  const calendar={};
+  for(const p of closed){const date=String(p.exitAt||'').slice(0,10);
+    if(!date)continue;const day=calendar[date]||{date,count:0,pnlUsd:0};
+    day.count++;day.pnlUsd=round(day.pnlUsd+p.pnlUsd);calendar[date]=day;}
+  const reported={tpClaims:0,slClaims:0,withLinkedUpdates:0};
+  for(const s of Array.isArray(signals)?signals:[]){
+    const e=s.events||[];if(e.length)reported.withLinkedUpdates++;
+    if(e.some(x=>x.type==='author-claimed-tp'))reported.tpClaims++;
+    if(e.some(x=>x.type==='author-claimed-sl'))reported.slClaims++;
+  }
+  return {channel:'@ne_investor',config,exchange:'Bybit',
+    cashUsd:round(cash),investedUsd:round(invested),equityUsd:equity,
+    realizedPnlUsd:round(all.reduce((n,p)=>n+p.realizedPnlUsd,0)),
+    unrealizedPnlUsd:completeMarks?round(floating):null,
+    totalPnlUsd:totalPnl,totalPnlPct:totalPnl===null?null:round(totalPnl/config.initialUsd*100),
+    stats,reported,equityCurve:curve.slice(-600),
+    calendar:Object.values(calendar).sort((a,b)=>b.date.localeCompare(a.date)),
+    positions:all.slice().sort((a,b)=>Date.parse(b.entryAt)-Date.parse(a.entryAt)).slice(0,160),
+    note:'Смоделированные исполнения по свечам Bybit, без фактических ордеров. Учтены оценочные taker-комиссии (Spot 0,1%, USDT perpetual 0,055%) и проскальзывание 5 bps. Funding учитывается только при наличии подтверждённой истории; неточности, ликвидации и операции без объёма исключены. Изолированная маржа ограничивает потери залогом.',
+    costAssumptions:{spotFeePct:0.1,linearFeePct:0.055,slippageBps:5},
+    dataComplete:completeMarks,netIncludesFunding:stats.fundingMissing===0};
 }
 module.exports={NS,normalizeConfig,settings,updateSettings,simulateVirtual};
