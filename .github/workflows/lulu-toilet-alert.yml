@@ -29,6 +29,7 @@ jobs:
             -H "Authorization: Bearer ${TOKEN}" \
             "${RUDI_ENDPOINT}"
       - name: Refresh crypto monitors every 15 minutes (independent, on demand)
+        if: always()
         shell: bash
         continue-on-error: true
         env:
