@@ -126,8 +126,8 @@
   <script defer src="/supplement-advanced.js?v=4.149"></script>
   <link rel="stylesheet" href="/personal-center.css?v=4.157">
   <script defer src="/personal-center.js?v=4.157"></script>
-  <link rel="stylesheet" href="/crypto-wallets.css?v=4.162">
-  <script defer src="/crypto-wallets.js?v=4.162"></script>
+  <link rel="stylesheet" href="/crypto-wallets.css?v=4.165">
+  <script defer src="/crypto-wallets.js?v=4.165"></script>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -680,7 +680,7 @@
               </div>
               <div id="financeCryptoConnectFields" class="finance-crypto-connect-fields" hidden>
                 <label class="finance-input-field"><span>Источник</span>
-                  <select id="financeCryptoProvider" class="finance-select"><option value="bybit">Bybit</option><option value="uniswap">Uniswap · Ethereum</option></select>
+                  <select id="financeCryptoProvider" class="finance-select"><option value="bybit">Bybit</option><option value="uniswap">Uniswap</option></select>
                 </label>
                 <div id="financeCryptoBybitFields">
                   <label class="finance-input-field"><span>API Key (только чтение)</span><input id="financeCryptoApiKey" class="finance-text-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="150"></label>
@@ -688,9 +688,15 @@
                   <small>Создай системный HMAC API-ключ Bybit с правами Read-only. Ключи с правами торговли или вывода отклоняются.</small>
                 </div>
                 <div id="financeCryptoUniswapFields" hidden>
+                  <label class="finance-input-field"><span>Сеть блокчейна</span>
+                    <select id="financeCryptoChain" class="finance-select">
+                      <option value="ethereum">Ethereum Mainnet</option>
+                      <option value="arbitrum">Arbitrum One</option>
+                    </select>
+                  </label>
                   <label class="finance-input-field"><span>Публичный адрес 0x...</span><input id="financeCryptoAddress" class="finance-text-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="42" placeholder="0x…"></label>
-                  <small>Ethereum mainnet. Seed-фраза и приватный ключ не нужны. LP оцениваются отдельно от токенов на адресе. Снятые комиссии повторно не суммируются.</small>
-                  <label class="finance-crypto-scope-consent"><input id="financeCryptoSpotConsent" type="checkbox"><span>Подтверждаю: автоматически учитывать ETH, WETH, USDT, USDC на адресе и пулы Uniswap v3/v4 с этими токенами в Ethereum Mainnet, включая суммы к получению. Неподдерживаемые сети и токены не включать.</span></label>
+                  <small id="financeCryptoNetworkHelp">Нужна та же сеть, что указана в позиции Uniswap. Seed-фраза и приватный ключ не нужны.</small>
+                  <label class="finance-crypto-scope-consent"><input id="financeCryptoSpotConsent" type="checkbox"><span id="financeCryptoScopeLabel">Подтверждаю учёт только поддерживаемых активов и LP-пулов выбранной сети, включая суммы к получению.</span></label>
                 </div>
                 <button id="financeCryptoConnectButton" type="button" class="finance-crypto-primary">Подключить</button>
               </div>
@@ -1065,7 +1071,7 @@
           <small id="financeCryptoUpdated">Подключи кошелёк, чтобы получать баланс автоматически</small>
         </div>
         <div id="financeCryptoCards" class="finance-crypto-cards" aria-live="polite"></div>
-        <div class="finance-crypto-guide">Чтобы подключить уже созданный кошелёк, открой вкладку «Личные», нажми на кошелёк и выбери «Подключить API». Баланс обновится в текущей валюте кошелька по актуальному курсу. Активы в Uniswap v3/v4 и начисленные суммы к получению учитываются отдельно от токенов на адресе. Если пул или комиссия не поддаются надёжной оценке, прежний баланс сохраняется.</div>
+        <div class="finance-crypto-guide">Чтобы подключить уже созданный кошелёк, открой вкладку «Личные», нажми на кошелёк и выбери «Подключить API». Баланс обновится в текущей валюте кошелька по актуальному курсу. Выбирай ту же сеть, что указана в Uniswap: Ethereum или Arbitrum One. Пулы v3/v4 и суммы к получению учитываются отдельно от токенов на адресе. При неполной оценке старый баланс сохраняется. Для другой сети создай отдельный кошелёк, чтобы избежать двойного счёта.</div>
         <div id="financeCryptoStatus" class="finance-crypto-status" role="status" aria-live="polite"></div>
       </div>
     </section>
