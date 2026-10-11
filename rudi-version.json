@@ -1,16 +1,18 @@
 {
-  "current": "v4.175",
+  "current": "v4.176",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.174",
+  "basedOnProduction": "v4.175",
   "notes": [
-    "Added signal monitor for public @ne_investor channel, 30-day report and scheduled 5-minute scans.",
-    "Added simulated 10000 USD isolated-margin portfolio with configurable 2x or 3x leverage.",
-    "Added 24-hour wallet and portfolio valuation change with appropriate incomplete-data labels.",
-    "Signals and virtual positions remain separate from real crypto holdings; no trades are placed."
+    "Bybit Spot vs USDT perpetual market validation, conservative backtest of partial exits and breakeven stops, mark-price risk screening.",
+    "Updated isolated $10,000 virtual portfolio for 2x/3x, modeled fees/slippage, funding when verified, calendar and risk metrics.",
+    "Added authenticated first signal sync and bounded crypto source refresh to reduce finance timeouts.",
+    "Fixed shared calendar task + being overlaid by the hidden personal +.",
+    "Removed partial-balance badges on connected crypto source cards while retaining incomplete-data safeguards.",
+    "Added per-pool Uniswap halo: green in range, red out of range; unknown state remains neutral."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
