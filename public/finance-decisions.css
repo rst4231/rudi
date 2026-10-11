@@ -134,7 +134,7 @@
 
 /* v4.174 expense period scale selectors and readable year bars */
 .rudi-expense-periods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:2px 0 12px;padding:4px;border:1px solid var(--line);border-radius:13px;background:var(--soft)}
-.rudi-expense-periods button{min-width:0;border:0;border-radius:10px;padding:9px 3px;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:730;cursor:pointer}
+.rudi-expense-periods button{touch-action:manipulation;min-width:0;border:0;border-radius:10px;padding:9px 3px;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:730;cursor:pointer}
 .rudi-expense-periods button[aria-pressed="true"]{background:color-mix(in srgb,#2dcea2 28%,var(--surface));color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.08)}
 .rudi-expense-periods button:focus-visible,.rudi-weekly-day-plot:focus-visible{outline:2px solid #28bc92;outline-offset:1px}
 .rudi-weekly-chart{grid-template-columns:repeat(var(--rudi-week-count,7),minmax(0,1fr))}
