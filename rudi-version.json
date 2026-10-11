@@ -13,7 +13,10 @@
     "Avoid duplicate buttons for opening an already generated daily report.",
     "Edge swipe from left to right closes the personal AI center detail sheet or returns from personal center to RUDI, while preserving vertical scrolling.",
     "Regression checks for positive indicators, report insight hierarchy, design and swipe behavior.",
-    "Release requires explicit user confirmation before any production deployment."
+    "Release requires explicit user confirmation before any production deployment.",
+    "Rustam alone can manually regenerate personal AI reports unlimited times per day; no app retry counter or cooldown, while previous report remains if provider fails.",
+    "Diana's AI generation button is hidden, manual endpoint is denied server-side and her daily 07:00 Moscow report is saved on her profile.",
+    "AI reports are not sent to Telegram; existing 04:00 UTC GitHub Actions schedule stays in place."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

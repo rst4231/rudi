@@ -32,8 +32,9 @@ module.exports=async function handler(req,res){
     return res.status(200).json({ok:true,actor,data:{...data,emotions},report:latest,indicator,cycle:actor==='Диана'&&cycle?{...cycleViewForDate(cycle,state.moscowDate()),cycleLengthDays:cycle.cycleLengthDays}:null,whoSource:WHO_SOURCE});
   }
   if(operation==='generate-report'){
-    // Today's report only: no client-supplied actor, date or prompt; shared lock stops repeat AI calls.
-    const now=Date.now(),result=await generateForActor(actor,state.moscowDate(now),{now,retryFallback:true});
+    // Only the authenticated Rustam account may request manual generation.
+    if(actor!=='Рустам')return res.status(403).json({ok:false,error:'manual-report-disabled'});
+    const now=Date.now(),result=await generateForActor(actor,state.moscowDate(now),{now,manual:true});
     if(result.status==='failed')return res.status(503).json({ok:false,error:'report-generation-failed'});
     return res.status(200).json({ok:true,actor,status:result.status,report:result.report||null,
       retryAfterSeconds:result.retryAfterSeconds||0});

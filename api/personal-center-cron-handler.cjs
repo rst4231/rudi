@@ -5,15 +5,17 @@ const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const state=require('./personal-center-store.cjs');
 const {generate}=require('./personal-center-ai.cjs');
 function slotAt(now=Date.now()){const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hourCycle:'h23'}).format(new Date(now)));return hour>=7&&hour<10?'morning':'';}
-// Shared idempotent daily generation. Used by the 07:00 schedule and an authenticated manual button.
+// Scheduled reports are idempotent; manual regeneration is available only for Rustam.
 const RETRY_LIMIT=3,RETRY_WAIT_MS=90*1000;
 async function generateForActor(actor,date,options={}){
  if(!state.ACTORS.includes(actor))throw Error('rudi-access-denied');
+ const manual=options.manual===true;
+ if(manual&&actor!=='Рустам')throw Error('rudi-access-denied');
  const now=options.now||Date.now(),slot='morning';
  const client=options.client||createRudiStateClient({env:options.env||process.env,fetchImpl:options.fetchImpl||globalThis.fetch});
  const key=state.reportKey(actor,date,slot),lockKey='lock:'+key,retryKey='retry:'+key;
  const initial=(await client.getRecord(state.NS,key))?.value||null;
- if(initial&&(!options.retryFallback||initial.model!=='deterministic'))
+ if(initial&&!manual&&(!options.retryFallback||initial.model!=='deterministic'))
   return {actor,status:'exists',report:initial,model:initial.model||''};
  const acquired=await client.setIfAbsent(state.NS,lockKey,{at:new Date(now).toISOString()},{ttl:600,tags:['personal-ai-lock']});
  if(!acquired){
@@ -23,9 +25,9 @@ async function generateForActor(actor,date,options={}){
  try{
   // Re-check inside the lock: manual and scheduled requests can arrive simultaneously.
   const existing=(await client.getRecord(state.NS,key))?.value||null;
-  if(existing&&(!options.retryFallback||existing.model!=='deterministic'))
+  if(existing&&!manual&&(!options.retryFallback||existing.model!=='deterministic'))
    return {actor,status:'exists',report:existing,model:existing.model||''};
-  const retry=existing&&options.retryFallback;
+  const retry=Boolean(existing&&options.retryFallback&&!manual);
   if(retry){
    const prior=(await client.getRecord(state.NS,retryKey))?.value||{};
    const attempts=Math.max(0,Number(prior.attempts)||0),notBefore=Math.max(0,Number(prior.notBefore)||0);
@@ -42,6 +44,17 @@ async function generateForActor(actor,date,options={}){
     return {actor,status:'unavailable',report:existing,retryAfterSeconds:Math.ceil(RETRY_WAIT_MS/1000),failureReason:result.failureReason||''};
    const upgraded=await state.upgradeFallbackReport(actor,date,slot,result,{client,now});
    return {actor,status:upgraded.upgraded?'upgraded':'exists',report:upgraded.report,model:result.model||''};
+  }
+  // Keep the previous usable report when an unlimited manual retry fails.
+  if(manual&&existing){
+   if(result.model==='deterministic')
+    return {actor,status:'unavailable',report:existing,failureReason:result.failureReason||'provider-unavailable'};
+   if(existing.model==='deterministic'){
+    const upgraded=await state.upgradeFallbackReport(actor,date,slot,result,{client,now});
+    return {actor,status:upgraded.upgraded?'upgraded':'exists',report:upgraded.report,model:result.model||''};
+   }
+   const replaced=await state.replaceReport(actor,date,slot,result,{client,now});
+   return {actor,status:replaced.replaced?'regenerated':'exists',report:replaced.report,model:result.model||''};
   }
   const saved=await state.saveReport(actor,date,slot,result,{client,now});
   return {actor,status:saved.created?'created':'exists',report:saved.report,model:result.model||''};

@@ -266,12 +266,14 @@ test('manual report is user authenticated, fixed to Moscow today and never gener
  const ui=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
  assert.match(handler,/authorizeRequest\(req,body\.initData\)/);
  assert.match(handler,/operation==='generate-report'/);
- assert.match(handler,/generateForActor\(actor,state\.moscowDate\(now\),\{now,retryFallback:true\}\)/);
+ assert.match(handler,/generateForActor\(actor,state\.moscowDate\(now\),\{now,manual:true\}\)/);
  assert.match(cronCode,/setIfAbsent\(state\.NS,lockKey/);
  assert.match(ui,/id="pcGenerateReport"/);
  assert.match(ui,/call\('generate-report'\)/);
  assert.match(ui,/report\?\.date===dayKey\(\)/);
  assert.match(ui,/button\.disabled=manualLoading/);
+ assert.match(ui,/button\.hidden=who!=='Рустам'/);
+ assert.match(handler,/if\(actor!=='Рустам'\)return res\.status\(403\)/);
  const onOpen=ui.slice(ui.indexOf('async function show(){'),ui.indexOf('function hide(){'));
  assert.doesNotMatch(onOpen,/generate-report|requestDailyReport/);
 });
@@ -362,4 +364,54 @@ test('personal center swipe-back and responsive report design remain wired',()=>
  assert.match(css,/rudi-center__report-section--action/);
  assert.match(css,/rudi-center__report-evidence/);
  assert.match(css,/@media\(max-width:799px\)/);
+});
+
+test('Rustam can repeatedly regenerate today without an application-level daily limit',async()=>{
+ map.clear();
+ const c=client(),date='2026-10-11',now=Date.parse('2026-10-11T10:00:00Z');
+ let count=0;
+ const generate=async()=>({model:'test',narrative:{overview:'Обновление '+(++count)}});
+ const first=await cron.generateForActor('Рустам',date,{client:c,now,manual:true,generate});
+ assert.equal(first.status,'created');
+ for(let i=0;i<7;i++){
+  const next=await cron.generateForActor('Рустам',date,{client:c,now:now+(i+1)*1000,manual:true,generate});
+  assert.equal(next.status,'regenerated');
+  assert.equal(next.report.revision,i+2);
+  assert.equal(next.report.createdAt,first.report.createdAt);
+ }
+ assert.equal(count,8);
+ assert.equal((await store.history('Рустам',{client:c})).length,1);
+ assert.equal((await store.latest('Рустам',{client:c})).narrative.overview,'Обновление 8');
+ assert.equal((await store.latest('Диана',{client:c})),null);
+ const after=await cron.generateForActor('Рустам',date,{client:c,now:now+9000,generate});
+ assert.equal(after.status,'exists');
+ assert.equal(count,8);
+});
+test('Rustam manual regeneration preserves the previous report on provider failure',async()=>{
+ map.clear();const c=client(),date='2026-10-11',now=Date.parse('2026-10-11T11:00:00Z');
+ await store.saveReport('Рустам',date,'morning',{model:'test',narrative:{overview:'Сохранённый результат'}},{client:c,now});
+ const failed=await cron.generateForActor('Рустам',date,{client:c,now:now+2000,manual:true,generate:async()=>({model:'deterministic',failureReason:'rate-limited'})});
+ assert.equal(failed.status,'unavailable');
+ assert.equal((await store.latest('Рустам',{client:c})).narrative.overview,'Сохранённый результат');
+ const successful=await cron.generateForActor('Рустам',date,{client:c,now:now+3000,manual:true,generate:async()=>({model:'test',narrative:{overview:'Новый результат'}})});
+ assert.equal(successful.status,'regenerated');
+ assert.equal((await store.latest('Рустам',{client:c})).narrative.overview,'Новый результат');
+});
+test('Diana is cron-only: no manual invocation, no button and an idempotent 07:00 Moscow report',async()=>{
+ map.clear();const c=client(),date='2026-10-11',now=Date.parse('2026-10-11T04:00:00Z');
+ let count=0;
+ const gen=async()=>{count++;return {model:'test',narrative:{overview:'Утренний анализ Дианы'}}};
+ await assert.rejects(()=>cron.generateForActor('Диана',date,{client:c,now,manual:true,generate:gen}),/rudi-access-denied/);
+ assert.equal(count,0);
+ const scheduled=await cron.run({client:c,now,generate:gen});
+ assert.equal(scheduled.ok,true);
+ const stored=await store.latest('Диана',{client:c});
+ assert.equal(stored.date,date);assert.equal(stored.slot,'morning');
+ assert.equal(stored.narrative.overview,'Утренний анализ Дианы');
+ const repeated=await cron.run({client:c,now,generate:gen});
+ assert.equal(repeated.results.find(x=>x.actor==='Диана').status,'exists');
+ assert.equal(count,2);
+ const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ assert.match(app,/button.hidden=who!=='Рустам'/);
+ assert.match(app,/if\(who!=='Рустам'\|\|manualLoading\)return/);
 });

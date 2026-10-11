@@ -27,7 +27,7 @@ function makeMarkup(){
  p.push('<header class="rudi-center__bar"><button id="pcBack" class="rudi-center__back" type="button">← Назад</button><b>Мой AI-центр</b><button id="pcSettings" class="rudi-center__icon" type="button" aria-label="Управление данными">⚙</button></header>');
  p.push('<div class="rudi-center__wrap"><div class="rudi-center__content">');
  p.push('<div class="rudi-center__hero"><small>✦ ЛИЧНЫЙ ОБЗОР</small><div class="rudi-center__hero-identity"><div class="rudi-center__hero-avatar" aria-hidden="true"><span id="pcHeroInitial">Р</span><img id="pcHeroImage" alt="" hidden></div><div class="rudi-center__hero-name"><h1 id="pcPerson">Мой день</h1><p id="pcHeroMeta">Возраст — · Вес — · Рост —</p></div></div></div>');
- p.push('<div class="rudi-center__card rudi-center__report"><div class="rudi-center__head"><div><small class="rudi-center__eyebrow">ТВОЙ ДЕНЬ</small><h2>✦ AI-разбор</h2></div><span class="rudi-center__meta" id="pcReportDate">Сегодня</span></div><p class="rudi-center__report-lead" id="pcReport">Нажми кнопку, чтобы получить обзор.</p><div class="rudi-center__summary-grid" id="pcSummaryGrid" hidden><div class="rudi-center__summary-main" id="pcMainBlock"><small>ГЛАВНОЕ</small><p id="pcMainChange">—</p></div><div class="rudi-center__summary-action" id="pcActionBlock"><small>ЧТО СДЕЛАТЬ</small><p id="pcMainAction">—</p></div><div class="rudi-center__summary-note" id="pcObservationBlock"><small>НАБЛЮДЕНИЕ</small><p id="pcMainObservation">—</p></div><div class="rudi-center__summary-note" id="pcForecastBlock"><small>ЧТО ДАЛЬШЕ</small><p id="pcForecast">—</p></div></div><button id="pcReportMore" class="rudi-center__report-more" data-open="report" type="button" hidden>Открыть подробности →</button><button id="pcGenerateReport" class="rudi-center__btn rudi-center__generate-report" type="button">Получить обзор</button><div class="rudi-center__status" id="pcStatus" role="status" aria-live="polite"></div></div>');
+ p.push('<div class="rudi-center__card rudi-center__report"><div class="rudi-center__head"><div><small class="rudi-center__eyebrow">ТВОЙ ДЕНЬ</small><h2>✦ AI-разбор</h2></div><span class="rudi-center__meta" id="pcReportDate">Сегодня</span></div><p class="rudi-center__report-lead" id="pcReport">Нажми кнопку, чтобы получить обзор.</p><div class="rudi-center__summary-grid" id="pcSummaryGrid" hidden><div class="rudi-center__summary-main" id="pcMainBlock"><small>ГЛАВНОЕ</small><p id="pcMainChange">—</p></div><div class="rudi-center__summary-action" id="pcActionBlock"><small>ЧТО СДЕЛАТЬ</small><p id="pcMainAction">—</p></div><div class="rudi-center__summary-note" id="pcObservationBlock"><small>НАБЛЮДЕНИЕ</small><p id="pcMainObservation">—</p></div><div class="rudi-center__summary-note" id="pcForecastBlock"><small>ЧТО ДАЛЬШЕ</small><p id="pcForecast">—</p></div></div><button id="pcReportMore" class="rudi-center__report-more" data-open="report" type="button" hidden>Открыть подробности →</button><button id="pcGenerateReport" class="rudi-center__btn rudi-center__generate-report" type="button" hidden>Получить обзор</button><div class="rudi-center__status" id="pcStatus" role="status" aria-live="polite"></div></div>');
  p.push('<section class="rudi-center__card rudi-center__rhythm" aria-labelledby="pcRhythmTitle"><div class="rudi-center__head"><div><small class="rudi-center__eyebrow">7 ДНЕЙ</small><h2 id="pcRhythmTitle">Ритм недели</h2></div><span class="rudi-center__rhythm-period" id="pcRhythmPeriod">За неделю</span></div><div class="rudi-center__rhythm-tabs" role="group" aria-label="Показатель графика"><button type="button" data-rhythm="habits" class="active" aria-pressed="true">Привычки</button><button type="button" data-rhythm="expenses" aria-pressed="false">Расходы</button><button type="button" data-rhythm="mood" aria-pressed="false">Настроение</button></div><div class="rudi-center__rhythm-head"><strong id="pcRhythmMetric">—</strong><span id="pcRhythmSub">Отмеченные дни</span></div><svg id="pcRhythmGraph" class="rudi-center__rhythm-chart" viewBox="0 0 350 174" role="img" aria-label="График записей за семь дней"></svg><p class="rudi-center__rhythm-empty" id="pcRhythmEmpty" hidden>Пока нет записей за эту неделю.</p><small class="rudi-center__rhythm-foot" id="pcRhythmFoot">Отображаются только сохранённые записи.</small></section>');
  p.push('<div class="rudi-center__tile-grid"><button class="rudi-center__tile" data-open="symptoms"><span class="rudi-center__tile-icon">♡</span><strong>Здоровье</strong><small id="pcSymptomsCount">Дневник здоровья</small></button><button class="rudi-center__tile" data-open="weight"><span class="rudi-center__tile-icon">↟</span><strong>Моё тело</strong><small id="pcWeight">Вес и рост</small></button></div>');
  p.push('<div class="rudi-center__card"><div class="rudi-center__head"><h2>Динамика позитивных эмоций</h2><button class="rudi-center__link" data-open="history" type="button">История →</button></div><svg class="rudi-center__chart" id="pcGraph" viewBox="0 0 350 115" role="img" aria-label="График доли позитивных эмоций"></svg><small class="rudi-center__meta" id="pcHistoryCaption">История по дням, неделям и месяцам</small></div>');
@@ -93,6 +93,7 @@ async function fetchOverview(force=false){
 async function show(){
  if(open)return;attach();open=true;root.hidden=false;document.body.classList.add('rudi-center-open');
  if(!data)showOffline();
+ updateReportButton();
  setStatus('');
  try{await fetchOverview(false);}
  catch(_){if(!data&&!showOffline())setStatus('Нет соединения с RUDI · попробуй позже');}
@@ -304,28 +305,23 @@ async function recordPersonalCycle(){
 }
 function updateReportButton(){
  const button=$('pcGenerateReport');if(!button)return;
+ button.hidden=who!=='Рустам';
+ if(button.hidden)return;
  const current=report?.date===dayKey()&&report?.slot==='morning';
  button.disabled=manualLoading;
- button.textContent=manualLoading?'Формирую сводку…':current?(report?.model==='deterministic'?'Повторить AI-анализ':'Открыть сегодняшнюю сводку'):'Получить AI-сводку';
+ button.textContent=manualLoading?'Анализирую…':current?(report?.model==='deterministic'?'Повторить AI-анализ':'Обновить AI-анализ'):'Получить AI-сводку';
  button.setAttribute('aria-busy',manualLoading?'true':'false');
 }
 async function requestDailyReport(){
- if(manualLoading)return;
+ if(who!=='Рустам'||manualLoading)return;
  manualLoading=true;updateReportButton();
  try{
   // The initial read may still be running. Wait before deciding whether AI is needed.
   if(overviewPromise)await overviewPromise.catch(()=>{});
-  if(report?.date===dayKey()&&report?.slot==='morning'&&report?.model!=='deterministic'){sheet('report');return;}
   setStatus('Готовлю сводку за сегодня…');
   const result=await call('generate-report');
   if(result.status==='already-running'){
    setStatus('Сводка уже формируется. Попробуй ещё раз через минуту.');return;
-  }
-  if(result.status==='retry-limit'){
-   setStatus('Лимит повторных AI-запросов на сегодня достигнут. Резервная сводка сохранена.');return;
-  }
-  if(result.status==='retry-cooldown'){
-   setStatus('Следующая попытка через '+Math.max(1,Math.ceil((result.retryAfterSeconds||90)/60))+' мин.');return;
   }
   if(result.report){
    report=result.report;who=result.actor;
@@ -335,10 +331,11 @@ async function requestDailyReport(){
    }else await fetchOverview(true);
   }
   if(result.status==='unavailable'){
-   setStatus('AI пока не ответил. Резервная сводка сохранена; повтори через пару минут.');return;
+   setStatus('AI пока не ответил. Предыдущая сводка сохранена, можно повторить позже.');return;
   }
   setStatus(report?.model==='deterministic'?'AI пока недоступен. Нажми «Повторить AI-анализ» немного позже.':
    result.status==='upgraded'?'Полноценный AI-анализ готов!':
+   result.status==='regenerated'?'AI-сводка обновлена!':
    result.status==='created'?'Сводка за сегодня готова':'Сегодняшняя сводка уже сохранена');
  }catch(error){
   setStatus(error?.message==='Требуется вход'?'Нужно войти в RUDI':'Не удалось получить сводку. Попробуй позже.');
@@ -361,7 +358,7 @@ function draw(){
  for(const [id,block,value] of blocks){const show=Boolean(ready&&reportHasText(value));const el=$(block);if(el)el.hidden=!show;if(show){showText(id,value);visible++;}}
  if($('pcSummaryGrid'))$('pcSummaryGrid').hidden=!visible;
  showText('pcHistoryCaption',(emotions?.daysRecorded||0)+' дней с отметками настроения');
- if($('pcReportMore'))$('pcReportMore').hidden=!ready||(report?.date===dayKey()&&report?.slot==='morning');
+ if($('pcReportMore'))$('pcReportMore').hidden=!ready;
  updateReportButton();
  renderRhythm();
  graph();
