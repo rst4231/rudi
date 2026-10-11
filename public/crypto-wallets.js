@@ -94,6 +94,24 @@
         }
       }
       if(link.scope){const scope=document.createElement('small');scope.textContent=link.scope;card.append(scope);}
+      if(link.provider==='uniswap'){
+        const chain=link.chain==='arbitrum'?'arbitrum':'ethereum';
+        const target=chain==='ethereum'?'arbitrum':'ethereum';
+        const switchButton=document.createElement('button');
+        switchButton.type='button';switchButton.className='finance-crypto-switch-chain';
+        switchButton.textContent=chain==='ethereum'?'Пулы в Arbitrum? Переключить сеть':'Переключить на Ethereum Mainnet';
+        switchButton.addEventListener('click',async()=>{
+          switchButton.disabled=true;
+          setStatus('financeCryptoStatus','Переключаю сеть и проверяю пулы…');
+          try{
+            await request('crypto-set-chain',{walletId:link.walletId,chain:target});
+            await load();await refresh(true);
+          }catch(err){setStatus('financeCryptoStatus',errorLabel(err));}
+          finally{switchButton.disabled=false;}
+        });
+        card.append(switchButton);
+      }
+
       if(link.lastError){const err=document.createElement('p');err.className='finance-crypto-error';err.textContent=errorLabel({message:link.lastError});card.append(err);}
       else if(link.warning){const warning=document.createElement('p');warning.className='finance-crypto-warning';warning.textContent=link.warning;card.append(warning);}
       if(link.address){const address=document.createElement('code');address.textContent=link.address.slice(0,8)+'…'+link.address.slice(-6);card.append(address);}
