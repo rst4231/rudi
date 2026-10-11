@@ -66,6 +66,8 @@ function simulateVirtual(signals,config,now=Date.now()){
       const position={id:row.id,symbol:row.symbol,direction:row.direction,url:row.url,
         entry:row.entry,entryAt:row.entryAt,
         investedUsd:amount,leverage:config.leverage,execution:row.execution||'explicit-level',
+        authorMarginMode:row.marginModeReported||null,virtualMarginMode:'isolated',
+        adjustmentCount:Number(row.adjustmentCount||0),
         status:'open',pnlUsd:0};
       active.set(row.id,position);all.push(position);
     }else{
@@ -111,7 +113,7 @@ function simulateVirtual(signals,config,now=Date.now()){
       winratePct:decided?money(wins/decided*100):null,
       lossratePct:decided?money(losses/decided*100):null},
     positions:all.slice().sort((a,b)=>Date.parse(b.entryAt)-Date.parse(a.entryAt)).slice(0,150),
-    note:'Виртуальные входы по следующему часовому бару после явного сообщения не отражают фактическую цену сделки автора. Комиссии, funding и проскальзывание не учтены. Исторические сигналы до запуска симуляции исключены.',
+    note:'Виртуальные позиции рассчитываются с изолированным залогом независимо от неизвестного или явно указанного кросс-режима автора. Пополнения и доборы из Telegram фиксируются, но не увеличивают виртуальную позицию без проверенного объёма и цены. Ликвидации, комиссии, funding и проскальзывание пока не моделируются. Исторические сигналы до запуска исключены.',
     dataComplete:completeMarks};
 }
 module.exports={NS,normalizeConfig,settings,updateSettings,simulateVirtual};
