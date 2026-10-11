@@ -1,20 +1,19 @@
 {
-  "current": "v4.161",
-  "versionBranch": "main",
-  "releaseCommit": "58065c3e1441d3b7c9787d47bc517039a27c3851",
+  "current": "v4.162",
+  "versionBranch": "feature/rudi-crypto-wallet-sync",
+  "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.160",
+  "basedOnProduction": "v4.161",
   "notes": [
-    "Daily AI summary: recover from provider invalid-json with strict Groq JSON-schema output and low-effort reasoning.",
-    "Manual button retries today's saved deterministic placeholder (up to 3 timed attempts) and upgrades only on successful full analysis, preserving the report identity and history.",
-    "Fact-first personal coach for work, finances, productivity, habits, lifestyle, plans and wellbeing; prohibits invented personal facts and medical claims.",
-    "New iPhone-friendly AI dashboard with prominent insight, concrete next action and a seven-day chart switching between confirmed habits, recorded expenses and daily mood observations.",
-    "Suppress empty four-card placeholders and routine technical status text; keep useful error and retry messages.",
-    "Fix two existing personal-center CI test regressions and keep morning-only 07:00 Moscow scheduling.",
-    "No new Vercel serverless function, no additional cron job and no automatic AI calls on opening the AI center.",
-    "Release provenance records the verified v4.161 application commit; published build is not skipped when prior commits were test-only."
+    "Owner-only Crypto tab next to Financial Literacy within Finance, hidden from Diana.",
+    "Read-only Bybit API key/secret connection encrypted at rest; rejects keys with write permission.",
+    "Public-address Ethereum integration for native ETH, USDT, USDC and WETH spot balances; blocks erroneous balance overwrite if onchain Uniswap v3/v4 LP NFTs are found.",
+    "Connect or disconnect previously created finance wallets; auto-sync every 10 minutes while the finance page is open and refresh manually.",
+    "Convert remote USD equity to each existing wallet's native RUDI currency without creating income or expense transactions; preserve old balances on provider errors.",
+    "Separate server-side connection storage, no API credentials in client responses, no new cron or functions.",
+    "Pending production release: prepared on feature branch only. Deployment requires explicit user confirmation."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
