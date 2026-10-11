@@ -84,6 +84,26 @@ test('two API-connected wallets show the linked transfer without changing either
   assert.equal(state.wallets.find(x=>x.id==='api-wallet').balance,500);
   assert.equal(state.wallets.find(x=>x.id==='api-peer').balance,700);
 });
+test('one canonical confirmed transfer is idempotent when viewed from both API wallets',async()=>{
+  const {view,options}=await setup();
+  const {createHash}=require('node:crypto');
+  const pair=['api-peer:blockchain:tx-xyz','api-wallet:bybit:withdraw:123'].sort();
+  const sharedKey=cryptoOperationKey('paired',createHash('sha256').update(JSON.stringify(pair)).digest('hex'));
+  await classifyCryptoOperation('Рустам',payload({
+    targetWalletId:'api-peer',apiWalletIds:['api-wallet','api-peer'],allocationKey:sharedKey
+  }),options);
+  await classifyCryptoOperation('Рустам',payload({
+    walletId:'api-peer',operationId:'blockchain:tx-xyz',direction:'receive',
+    targetWalletId:'api-wallet',apiWalletIds:['api-wallet','api-peer'],allocationKey:sharedKey,
+  }),options);
+  const state=await view();
+  assert.equal(state.walletTransfers.length,1);
+  assert.equal(state.walletTransfers[0].fromWalletId,'api-wallet');
+  assert.equal(state.walletTransfers[0].toWalletId,'api-peer');
+  assert.equal(state.walletTransfers[0].importKey,sharedKey);
+  assert.equal(state.wallets.find(x=>x.id==='api-wallet').balance,500);
+  assert.equal(state.wallets.find(x=>x.id==='api-peer').balance,700);
+});
 test('incoming API transaction deducts manually tracked source once; cannot label as expense',async()=>{
   const {view,options}=await setup();
   const p=payload({direction:'receive',targetWalletId:'manual-wallet',rubAmount:900});
