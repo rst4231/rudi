@@ -237,7 +237,7 @@ async function connect(actor, input = {}, options = {}) {
     await bybitSnapshot({ apiKey, apiSecret }, options);
     secret = encryptSecret(apiKey, apiSecret);
   } else {
-    if (String(input.scopeConfirm || '') !== 'ethereum-mainnet-spot-only') throw new Error('crypto-uniswap-scope-confirm-required');
+    if (!['ethereum-mainnet-spot-only','ethereum-mainnet-including-lp'].includes(String(input.scopeConfirm || ''))) throw new Error('crypto-uniswap-scope-confirm-required');
     address = String(input.address || '').trim();
     if (!/^0x[a-f0-9]{40}$/i.test(address)) throw new Error('crypto-address-invalid');
     // An address may contain LP positions. Save its public address, but never
