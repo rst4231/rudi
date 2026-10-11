@@ -1,5 +1,7 @@
 'use strict';
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
+const {linkUpdates}=require('./crypto-trade-events.cjs');
+const {tradeOutcome,screenLiquidationRisk}=require('./crypto-signal-outcome.cjs');
 const NS='rudi-crypto-signal-monitor-v1', KEY='ne_investor', PERIOD_MS=30*86400000, INTERVAL_MS=300000;
 const cleanText=s=>String(s||'').slice(0,1800);
 function entities(text){
@@ -163,7 +165,7 @@ async function candlesForSignal(signal,options={}){
   const symbol=signal.symbol+'USDT';
   const start=Math.floor((Date.parse(signal.at)+3600000)/3600000)*3600000;
   const end=Date.now();
-  const url='https://api.bybit.com/v5/market/kline?'+new URLSearchParams({
+  const url='https://api.bybit.com/v5/market/'+(options.mark?'mark-price-kline':'kline')+'?'+new URLSearchParams({
     category:signal.market,symbol,interval:'60',start:String(start),end:String(end),limit:'1000'});
   const response=await fetcher(url,{signal:AbortSignal.timeout(9000),cache:'no-store'});
   if(!response.ok)throw Error('market-http-'+response.status);
@@ -236,7 +238,8 @@ async function refreshSignals(options={}){
           if(batch.some(m=>Date.parse(m.at)<cutoff)){complete=true;break;}
         }
       }
-      const signals=[...posts.values()].map(parseSignal).filter(Boolean).sort((a,b)=>b.at.localeCompare(a.at));
+      const signals=linkUpdates([...posts.values()].map(parseSignal).filter(Boolean),
+        [...posts.values()]).sort((a,b)=>b.at.localeCompare(a.at));
       const oldResults=previous.results&&typeof previous.results==='object'?previous.results:{};
       const results={};
       // Prioritize never-checked and least-recently-checked positions so a busy
@@ -259,9 +262,17 @@ async function refreshSignals(options={}){
         }
         if(attempts>=Math.min(5,Math.max(1,Number(options.maxChecks||5)))){if(acceptedPrev)results[s.id]=acceptedPrev;continue;}
         attempts++;
-        try{const candles=await candlesForSignal(s,options);
-          results[s.id]={...(s.qualified?evaluateCandles(s,candles,now):
-            modeledTrade(s,candles,[...posts.values()],now)),market:s.market,checkedAt:new Date(now).toISOString()};}
+        try{
+          const candles=await candlesForSignal(s,options);
+          let outcome=tradeOutcome(s,candles,{now});
+          if(s.market==='linear'&&['open','won','lost','breakeven'].includes(outcome.status)){
+            try{
+              const mark=await candlesForSignal(s,{...options,mark:true});
+              outcome=screenLiquidationRisk(outcome,s,mark,Number(options.virtualLeverage||2));
+            }catch(_){outcome={...outcome,liquidationScreen:'unavailable'};}
+          }
+          results[s.id]={...outcome,market:s.market,checkedAt:new Date(now).toISOString()};
+        }
         catch(e){priceError=String(e?.message||e);results[s.id]={...(acceptedPrev||{status:'market-unavailable'}),market:s.market,checkedAt:new Date(now).toISOString()};}
       }
       const state={messages:[...posts.values()].sort((a,b)=>b.id-a.id).slice(0,1000),
@@ -285,6 +296,7 @@ function buildView(state,now=Date.now()){
     return {...signal,...(row||{}),url:signal.url,id:signal.id,at:signal.at};
   });
   attachTradeUpdates(signals,messages);
+  linkUpdates(signals,messages);
   signals.sort((a,b)=>b.at.localeCompare(a.at));
   const verified=signals.filter(s=>(s.status==='won'||s.status==='lost')&&s.execution!=='next-hour-model');
   const won=verified.filter(s=>s.status==='won');
@@ -307,4 +319,4 @@ async function readSignals(options={}){
   return buildView(state,options.now??Date.now());
 }
 module.exports={NS,parsePreview,parseSignal,evaluateCandles,compareSignal:parseSignal,
-  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText};
+  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk};
