@@ -10,7 +10,7 @@
     if(!res.ok||!data.ok){const err=new Error(String(data.error||'crypto-sync-unavailable'));err.status=res.status;throw err;}
     return data;
   };
-  const providerName=name=>name==='bybit'?'Bybit':'Uniswap';
+  const providerName=name=>name==='bybit'?'Bybit':name==='trust'?'Trust Wallet':'Uniswap';
   const errorLabel=err=>{
     const code=String(err?.message||err||'');
     const messages={
@@ -69,12 +69,12 @@
       const card=document.createElement('article');card.className='finance-crypto-source-card';
       const head=document.createElement('div');head.className='finance-crypto-source-head';
       const title=document.createElement('strong');title.textContent=providerName(link.provider);
-      const note=document.createElement('span');note.textContent=wallet.name+(link.provider==='uniswap'?' · '+(link.chain==='arbitrum'?'Arbitrum One':'Ethereum'):'');
+      const note=document.createElement('span');note.textContent=wallet.name+(link.provider==='bybit'?'':' · '+(link.chain||'ethereum'));
       head.append(title,note);
       const amount=document.createElement('div');amount.className='finance-crypto-source-amount';
       if(typeof link.balanceUsd==='number'&&Number.isFinite(link.balanceUsd)){amount.textContent=cash(link.balanceUsd);total+=link.balanceUsd;knownTotal+=link.balanceUsd;hasKnown=true;}
       else if(link.incomplete&&typeof link.partialUsd==='number'&&Number.isFinite(link.partialUsd)){knownTotal+=link.partialUsd;hasKnown=true;
-        amount.textContent='Проверено в v3: '+cash(link.partialUsd);complete=false;
+        amount.textContent=cash(link.partialUsd);complete=false;
       }
       else{
         amount.textContent=link.incomplete&&typeof link.partialUsd==='number'
@@ -82,15 +82,10 @@
           :'Баланс не получен';
         complete=false;
       }
-      const detail=document.createElement('small');detail.textContent=link.incomplete
-  ?'Проверка позиций v3: '+dateLabel(link.partialSyncAt)
-  :'Последняя синхронизация: '+dateLabel(link.lastSyncAt);
+      const detail=document.createElement('small');detail.textContent='Обновлено: '+dateLabel(link.incomplete?link.partialSyncAt:link.lastSyncAt);
       card.append(head,amount,detail);
       if(link.incomplete){
-        const warning=document.createElement('p');
-        warning.className='finance-crypto-warning';
-        warning.textContent='Показаны только активные пулы v3. Сумма частичная: v4 не проверен. В кошельке «Личные» отображается оценка подтверждённой части.';
-        card.append(warning);
+        const badge=document.createElement('span');badge.className='finance-crypto-partial-badge';badge.textContent='Частичный баланс';card.append(badge);
       }
       if(link.provider==='uniswap'&&typeof link.walletUsd==='number'){
         const summary=document.createElement('div');summary.className='finance-crypto-breakdown';
@@ -119,7 +114,7 @@
           card.append(box);
         }
       }
-      if(link.scope){const scope=document.createElement('small');scope.textContent=link.scope;card.append(scope);}
+      // Scope detail available from server only.
       if(link.provider==='uniswap'){
         const chain=link.chain==='arbitrum'?'arbitrum':'ethereum';
         const target=chain==='ethereum'?'arbitrum':'ethereum';
@@ -146,9 +141,7 @@
     if(!connections.length){const empty=document.createElement('p');empty.className='finance-crypto-empty';empty.textContent='Кошельки пока не подключены. Добавь API через редактор существующего кошелька.';cards.append(empty);}
     const amount=$('financeCryptoTotal'),label=$('financeCryptoUpdated');
     if(amount)amount.textContent=complete?cash(total):hasKnown?cash(knownTotal):'—';
-    if(label)label.textContent=connections.length
-      ?(complete?'Все подключённые источники · USD':hasKnown?'Подтверждённая часть портфеля · USD. Полный итог пока неизвестен':'Баланс пока не получен')
-      :'Без выдуманных цифр: данные появятся после подключения';
+    if(label)label.textContent=connections.length?(complete?'Синхронизировано':hasKnown?'● Частично подтверждено':'Пока нет данных'):'Нет подключений';
     renderEditor();
   }
   function renderEditor(){
@@ -178,7 +171,7 @@
   async function refresh(force=false){
     if(actor!=='Рустам'||pending||!connections.length)return;
     const now=Date.now();
-    if(!force&&now-lastAttempt<10*60*1000)return;
+    if(!force&&now-lastAttempt<3*60*1000)return;
     pending=true;lastAttempt=now;const button=$('financeCryptoRefresh');
     if(button)button.disabled=true;
     setStatus('financeCryptoStatus','Обновляю баланс…');
@@ -197,22 +190,30 @@
   function switchChain(){
     const arbitrum=$('financeCryptoChain')?.value==='arbitrum';
     const help=$('financeCryptoNetworkHelp'),label=$('financeCryptoScopeLabel');
+    if($('financeCryptoProvider')?.value==='trust'){
+      if(help)help.textContent='Нужен публичный адрес выбранной сети. Seed-фраза и приватный ключ не нужны.';
+      if(label)label.textContent='Подтверждаю чтение публичных балансов этой сети. Другие активы могут быть не учтены.';
+      if($('financeCryptoSpotConsent'))$('financeCryptoSpotConsent').checked=false;
+      return;
+    }
     if(help)help.textContent=arbitrum?'Arbitrum One · поддерживаются WETH, USDT, нативный USDC и USDC.e, Uniswap v3/v4.':'Ethereum Mainnet · поддерживаются ETH, WETH, USDT, USDC, Uniswap v3/v4.';
     if(label)label.textContent='Подтверждаю учёт токенов и пулов Uniswap v3/v4 в '+(arbitrum?'Arbitrum One':'Ethereum Mainnet')+', включая суммы к получению. Другие сети не включать.';
     if($('financeCryptoSpotConsent'))$('financeCryptoSpotConsent').checked=false;
   }
   function switchProvider(){
-    const uniswap=$('financeCryptoProvider')?.value==='uniswap';
-    if($('financeCryptoBybitFields'))$('financeCryptoBybitFields').hidden=uniswap;
-    if($('financeCryptoUniswapFields'))$('financeCryptoUniswapFields').hidden=!uniswap;
-    if(uniswap)switchChain();
+    const provider=$('financeCryptoProvider')?.value;
+    if($('financeCryptoBybitFields'))$('financeCryptoBybitFields').hidden=provider!=='bybit';
+    if($('financeCryptoUniswapFields'))$('financeCryptoUniswapFields').hidden=provider==='bybit';
+    for(const chain of $('financeCryptoChain')?.options||[])chain.hidden=provider==='uniswap'&&!['ethereum','arbitrum'].includes(chain.value);
+    if(provider==='uniswap'&&!['ethereum','arbitrum'].includes($('financeCryptoChain').value))$('financeCryptoChain').value='ethereum';
+    if(provider!=='bybit')switchChain();
   }
   function onOpenWallet(ev){
     editingWalletId=String(ev.detail?.walletId||'');
     if($('financeCryptoConnectFields'))$('financeCryptoConnectFields').hidden=true;
     clearKeys();if($('financeCryptoSpotConsent'))$('financeCryptoSpotConsent').checked=false;setStatus('financeCryptoWalletStatus','');
     const wallet=wallets.find(w=>w.id===editingWalletId);
-    const provider=/uniswap/i.test(wallet?.name||'')?'uniswap':'bybit';
+    const provider=/trust/i.test(wallet?.name||'')?'trust':/uniswap/i.test(wallet?.name||'')?'uniswap':'bybit';
     const existing=connections.find(c=>c.walletId===editingWalletId);
     if($('financeCryptoProvider'))$('financeCryptoProvider').value=existing?.provider||provider;
     if($('financeCryptoChain'))$('financeCryptoChain').value=existing?.chain||'ethereum';
@@ -239,7 +240,7 @@
           :{address:$('financeCryptoAddress')?.value,
              chain:$('financeCryptoChain')?.value||'ethereum',
              scopeConfirm:$('financeCryptoSpotConsent')?.checked
-              ?($('financeCryptoChain')?.value==='arbitrum'?'arbitrum-one-including-lp':'ethereum-mainnet-including-lp'):''};
+              ?(provider==='trust'?'public-address-readonly':$('financeCryptoChain')?.value==='arbitrum'?'arbitrum-one-including-lp':'ethereum-mainnet-including-lp'):''};
         await request('crypto-connect',{walletId,provider,...payload});
         clearKeys();if($('financeCryptoConnectFields'))$('financeCryptoConnectFields').hidden=true;
         await load();
