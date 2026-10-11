@@ -47,6 +47,7 @@ function normalizeBlockscout(payload,address,network,kind){
     const eventId=isToken?String(tx.log_index??tx.index??tx.token?.address_hash??symbol):'native';
     out.push({id:network+':'+hash+':'+eventId,source:'blockchain',kind:type,
       timestamp,symbol,amount,network,transactionHash:hash,
+      fromAddress:from,toAddress:to,
       url:(network==='arbitrum'?'https://arbiscan.io/tx/':'https://etherscan.io/tx/')+hash});
   }
   return out;
@@ -75,23 +76,41 @@ function normalizeBybit(rows,category){
   const result=[];
   for(const row of rows){
     const amount=goodAmount(row?.amount),symbol=String(row?.coin||'').slice(0,20);
-    const timestamp=timeISO(row?.successAt||row?.createTime||row?.timestamp);
+    const timestamp=timeISO(row?.successAt||row?.createTime||row?.updateTime||row?.timestamp);
     const ref=String(row?.id||row?.withdrawId||row?.transferId||row?.txID||'').slice(0,150);
     if(!timestamp||!symbol||amount===null||amount===0||!ref)continue;
     const kind=category==='deposit'?'receive':category==='withdraw'?'send':'internal';
-    result.push({id:'bybit:'+category+':'+ref,source:'bybit',kind,timestamp,symbol,amount,network:'Bybit',transactionHash:'',url:'',
+    const txHash=String(row.txID||'').trim();
+    const chain=String(row.chain||'').toUpperCase();
+    const network=/^(ETH|ERC20)$/.test(chain)?'ethereum':/^(ARBITRUM|ARBI|ARB)$/.test(chain)?'arbitrum':chain.toLowerCase();
+    result.push({id:'bybit:'+category+':'+ref,source:'bybit',kind,timestamp,symbol,amount,network:network||'Bybit',
+      transactionHash:txHash,toAddress:String(row.toAddress||'').toLowerCase(),fromAddress:String(row.fromAddress||'').toLowerCase(),
+      fee:goodAmount(row.withdrawFee||'0')||0,url:'',
+
       details:category==='internal'?String(row.fromAccountType||'')+' → '+String(row.toAccountType||''):''});
   }
   return result;
 }
 async function bybit(keys,options={},bybitGet){
-  const outcomes=await Promise.allSettled(BYBIT_ENDPOINTS.map(([,path,query])=>bybitGet(path,query,keys,options)));
+  const outcomes=await Promise.allSettled(BYBIT_ENDPOINTS.map(async([,path,query,,])=>{
+    let cursor='',all=[];
+    for(let page=0;page<4;page++){
+      const response=await bybitGet(path,{...query,...(cursor?{cursor}:{})},keys,options);
+      const rows=response.rows||response.list;
+      if(!Array.isArray(rows))throw Error('crypto-history-provider-invalid');
+      all.push(...rows);
+      if(!response.nextPageCursor)return {items:all,truncated:false};
+      if(cursor===response.nextPageCursor)throw Error('crypto-history-pagination-invalid');
+      cursor=response.nextPageCursor;
+    }
+    return {items:all,truncated:true};
+  }));
   const all=[];let incomplete=false;
   for(let i=0;i<outcomes.length;i++){
-    const response=outcomes[i], [category,,,field]=BYBIT_ENDPOINTS[i];
-    if(response.status!=='fulfilled'||!Array.isArray(response.value?.[field])){incomplete=true;continue;}
-    all.push(...normalizeBybit(response.value[field],category));
-    if(response.value.nextPageCursor)incomplete=true;
+    const response=outcomes[i], [category]=BYBIT_ENDPOINTS[i];
+    if(response.status!=='fulfilled'||!Array.isArray(response.value?.items)){incomplete=true;continue;}
+    all.push(...normalizeBybit(response.value.items,category));
+    if(response.value.truncated)incomplete=true;
   }
   if(!all.length&&incomplete)throw Error('crypto-history-provider-unavailable');
   return {items:unique(all),incomplete,periodDays:30,
@@ -105,4 +124,26 @@ async function read(connection,options={},deps={}){
   }
   throw Error('crypto-history-provider-unsupported');
 }
-module.exports={read,evm,bybit,normalizeBlockscout,normalizeBybit};
+
+function linkTransfers(report,peers=[]){
+  const target=report.items||[];
+  const other=peers.flatMap(peer=>(peer.items||[]).map(row=>({...row,peer})));
+  function sameTransaction(a,b){
+    const ha=String(a.transactionHash||'').toLowerCase(),hb=String(b.transactionHash||'').toLowerCase();
+    if(!ha||!hb||ha!==hb||a.kind===b.kind||
+      !['send','receive'].includes(a.kind)||!['send','receive'].includes(b.kind))return false;
+    if(a.symbol.toUpperCase()!==b.symbol.toUpperCase())return false;
+    const networkA=String(a.network||'').toLowerCase(),networkB=String(b.network||'').toLowerCase();
+    if(networkA&&networkB&&networkA!=='bybit'&&networkB!=='bybit'&&networkA!==networkB)return false;
+    return Math.abs(Number(a.amount)-Number(b.amount))<=Math.max(0.00000001,Math.abs(Number(a.amount))*0.02);
+  }
+  const items=target.map(item=>{
+    const found=other.find(peer=>sameTransaction(item,peer));
+    if(!found)return item;
+    return {...item,kind:'transfer',direction:item.kind,paired:true,
+      peerWalletId:found.peer.walletId,peerName:found.peer.name,
+      details:item.kind==='send'?'Перевод в '+found.peer.name:'Получено из '+found.peer.name};
+  });
+  return {...report,items};
+}
+module.exports={read,evm,bybit,normalizeBlockscout,normalizeBybit,linkTransfers};
