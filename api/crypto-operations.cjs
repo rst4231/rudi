@@ -142,7 +142,7 @@ function linkTransfers(report,peers=[]){
     const found=other.find(peer=>sameTransaction(item,peer));
     if(!found)return item;
     return {...item,kind:'transfer',direction:item.kind,paired:true,
-      peerWalletId:found.peer.walletId,peerName:found.peer.name,
+      peerWalletId:found.peer.walletId,peerOperationId:found.id,peerName:found.peer.name,
       details:item.kind==='send'?'Перевод в '+found.peer.name:'Получено из '+found.peer.name};
   });
   return {...report,items};
