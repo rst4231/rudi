@@ -4,7 +4,7 @@ const a=require('../api/crypto-algorithms.cjs');
 const NOW=Date.parse('2026-10-11T12:12:00Z');
 function bars(overrides={}){
   const candles=Array.from({length:50},(_,i)=>{
-    const close=100+i*.24;
+    const close=98+i*.18;
     return {at:NOW-(50-i)*300000,open:close-.12,high:close+.18,low:close-.22,
       close,volume:100};
   });
