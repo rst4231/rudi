@@ -105,9 +105,8 @@
       }
       const detail=document.createElement('small');detail.textContent='Обновлено: '+dateLabel(link.incomplete?link.partialSyncAt:link.lastSyncAt);
       card.append(head,amount,pnlBadge(pnl24h?.items?.find(p=>p.id===link.walletId)),detail);
-      if(link.incomplete){
-        const badge=document.createElement('span');badge.className='finance-crypto-partial-badge';badge.textContent='Частичный баланс';card.append(badge);
-      }
+      // Keep partial state in calculations and error reporting without the
+      // repetitive "Частичный баланс" badge on every connected source card.
       if(link.provider==='uniswap'&&typeof link.walletUsd==='number'){
         const summary=document.createElement('div');summary.className='finance-crypto-breakdown';
         for(const [label,value] of [['На адресе',link.walletUsd],['В пулах',link.liquidityUsd],['К получению',link.feesUsd]]){
