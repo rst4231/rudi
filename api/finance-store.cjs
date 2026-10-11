@@ -1524,7 +1524,8 @@ async function classifyCryptoOperation(actor,payload={},options={}){
   if(safeActor!=='Рустам')throw Error('crypto-owner-only');
   const walletId=cleanText(payload.walletId,100,{required:true});
   const operationId=cleanText(payload.operationId,200,{required:true});
-  const key=cryptoOperationKey(walletId,operationId);
+  const key=payload.allocationKey||cryptoOperationKey(walletId,operationId);
+  if(!/^crypto:[a-f0-9]{64}$/.test(key))throw Error('crypto-allocation-key-invalid');
   const mode=String(payload.mode||''),direction=String(payload.direction||'');
   if(!['transfer','expense'].includes(mode))throw Error('crypto-allocation-mode-invalid');
   if(!['send','receive'].includes(direction)||(mode==='expense'&&direction!=='send'))
