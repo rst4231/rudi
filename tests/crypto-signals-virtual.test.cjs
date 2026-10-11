@@ -50,8 +50,15 @@ test('Virtual investment excludes signals before sim start and protects capital'
   const report=simulateVirtual(trades,config,now);
   assert.equal(report.stats.wins,1);
   assert.equal(report.stats.open,1);
-  assert.equal(report.equityUsd,10201);
-  assert.equal(report.realizedPnlUsd,100);
+  assert.equal(report.equityUsd,10404);
+  assert.equal(report.realizedPnlUsd,200);
+});
+test('Paper trading accepts only 2x or 3x with 2x by default',()=>{
+  const defaults=normalizeConfig({startedAt:created});
+  assert.equal(defaults.leverage,2);
+  assert.equal(normalizeConfig({leverage:3}).leverage,3);
+  assert.throws(()=>normalizeConfig({leverage:1}),/virtual-settings-invalid/);
+  assert.throws(()=>normalizeConfig({leverage:5}),/virtual-settings-invalid/);
 });
 test('24h source changes are explicitly not verified PNL',()=>{
   const result=compare24h([
