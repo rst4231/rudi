@@ -43,14 +43,14 @@ function level(text,regex){
 function parseSignal(row){
   if(!row?.text)return null;
   const text=String(row.text),lower=text.toLowerCase();
-  if(/\b(отзыв|розыгрыш|реферал|учебник|подписка|вакансия)\b/i.test(text)&&
-     !/(?:беру|зашел|вхожу|открыл|открываю)\s.{0,40}(?:шорт|лонг)/i.test(text))return null;
+  if(/(?:^|[^а-яёa-z])(отзыв|розыгрыш|реферал|учебник|подписка|вакансия)(?=$|[^а-яёa-z])/i.test(text)&&
+     !/(?:беру|заш[её]л|вхожу|открыл|открываю)\s.{0,40}(?:шорт|лонг)/i.test(text))return null;
   const ticker=text.match(/\$([a-z0-9]{2,14})\b/i)?.[1]?.toUpperCase();
-  if(!ticker||!/\b(шорт|short|лонг|long)\b/i.test(text))return null;
-  const direction=/\b(шорт|short)\b/i.test(text)?'short':'long';
-  const actionable=/(?:\b(?:беру|заш[её]л|вхожу|открыл|открываю|набираю|набираюсь|докупаю|лонгую|шорчу)\b|можно\s+(?:брать|открывать))/i.test(lower);
+  if(!ticker||!/(?:^|[^а-яёa-z])(шорт|short|лонг|long)(?=$|[^а-яёa-z])/i.test(text))return null;
+  const direction=/(?:^|[^а-яёa-z])(шорт|short)(?=$|[^а-яёa-z])/i.test(text)?'short':'long';
+  const actionable=/(?:^|[^а-яёa-z])(?:беру|заш[её]л|вхожу|открыл|открываю|набираю|набираюсь|докупаю|лонгую|шорчу)(?=$|[^а-яёa-z])|можно\s+(?:брать|открывать)/i.test(lower);
   if(!actionable)return null;
-  const conditional=/\b(?:если|после|при\s+условии|можно\s+брать|планирую)\b/i.test(lower);
+  const conditional=/(?:^|[^а-яёa-z])(?:если|после|планирую)(?=$|[^а-яёa-z])|при\s+условии|можно\s+брать/i.test(lower);
   // Do not infer entry from a mentioned market level or from "now".
   const entry=level(text,/(?:вход(?:а|е|ить)?|открыл\s+по|заш[её]л\s+по|entry)\s*(?:по|от|в|=|:|\$|≈|~|\s)*([\d][\d\s.,]*)/i);
   const take=level(text,/(?:\btp\d*\b|тейк(?:[- ]?профит)?\w*|цель\w*|take\s*profit)\s*(?:по|на|=|:|в|\$|≈|~|\s)*([\d][\d\s.,]*)/i);
