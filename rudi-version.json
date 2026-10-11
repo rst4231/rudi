@@ -11,7 +11,8 @@
     "Finance transaction count no longer determines report priority; review can cover up to four evidence-backed life domains.",
     "New report cards present cross-domain observations and measured next steps before technical evidence.",
     "Keep previous reports intact and explicitly omit unsupported domains; new analysis takes effect on regeneration or next scheduled report.",
-    "Revisions require user confirmation before production deploy."
+    "Revisions require user confirmation before production deploy.",
+    "Verified mood-spending patterns compare positive/negative mood days, recorded-spending frequency, daily spending median, and recorded categories. Missing transactions are never assumed zero."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

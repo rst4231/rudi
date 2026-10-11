@@ -445,7 +445,7 @@ test('review domain coverage and output validation never invent absent records',
  ]},payload);
  assert.deepEqual(response.lifeAreas.map(x=>x.domain),['tasks','habits','mood']);
  assert.equal(response.lifeAreas[0].nextStep,'Уточни приоритет');
- assert.equal(ai.availableReviewDomains({}),[].length);
+ assert.deepEqual(ai.availableReviewDomains({}),[]);
  const none=ai.sanitize({lifeAreas:[{domain:'finances',observation:'Куплено 3 товара'}]},
   {data:{profile:{slot:'morning'},connections:{findings:[]}}});
  assert.deepEqual(none.lifeAreas,[]);
