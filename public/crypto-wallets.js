@@ -18,6 +18,7 @@
       'crypto-bybit-api-rejected':'Bybit отклонил API-запрос. Проверь ключ, разрешения и IP-ограничения.',
       'crypto-credentials-invalid':'Проверь формат API Key и API Secret.',
       'crypto-address-invalid':'Нужен публичный адрес Ethereum: 0x и 40 символов.',
+      'crypto-uniswap-scope-confirm-required':'Подтверди, что в автоматическом балансе нужно учитывать только ETH, WETH, USDT и USDC сети Ethereum.',
       'crypto-uniswap-lp-not-covered':'Найдена LP-позиция Uniswap. Её стоимость пока не рассчитывается, прежний баланс сохранён.',
       'crypto-price-incomplete':'Некоторые монеты нельзя надёжно оценить. Баланс не менялся.',
       'crypto-wallet-usd-required':'Для автосинхронизации выбери валюту кошелька USD или USDT и сохрани изменения.',
@@ -108,7 +109,7 @@
   function onOpenWallet(ev){
     editingWalletId=String(ev.detail?.walletId||'');
     if($('financeCryptoConnectFields'))$('financeCryptoConnectFields').hidden=true;
-    clearKeys();setStatus('financeCryptoWalletStatus','');
+    clearKeys();if($('financeCryptoSpotConsent'))$('financeCryptoSpotConsent').checked=false;setStatus('financeCryptoWalletStatus','');
     const wallet=wallets.find(w=>w.id===editingWalletId);
     const provider=/uniswap/i.test(wallet?.name||'')?'uniswap':'bybit';
     if($('financeCryptoProvider'))$('financeCryptoProvider').value=connections.find(c=>c.walletId===editingWalletId)?.provider||provider;
@@ -130,7 +131,7 @@
       try{
         const payload=provider==='bybit'
           ?{apiKey:$('financeCryptoApiKey')?.value,apiSecret:$('financeCryptoApiSecret')?.value}
-          :{address:$('financeCryptoAddress')?.value};
+          :{address:$('financeCryptoAddress')?.value,scopeConfirm:$('financeCryptoSpotConsent')?.checked?'ethereum-mainnet-spot-only':''};
         await request('crypto-connect',{walletId,provider,...payload});
         clearKeys();if($('financeCryptoConnectFields'))$('financeCryptoConnectFields').hidden=true;
         await load();
