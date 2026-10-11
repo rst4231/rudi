@@ -1504,11 +1504,121 @@ async function syncLinkedWalletBalance(actor, walletId, usdValue, options = {}) 
   });
 }
 
+
+function cryptoOperationKey(walletId,operationId){
+  const wallet=cleanText(walletId,100,{required:true});
+  const op=cleanText(operationId,200,{required:true});
+  return 'crypto:'+createHash('sha256').update(wallet+'|'+op).digest('hex');
+}
+function cryptoOperationMonth(date){
+  const d=new Date(date);
+  if(Number.isNaN(d.getTime()))throw Error('finance-date-invalid');
+  const fields=new Intl.DateTimeFormat('en-US',{year:'numeric',month:'2-digit',timeZone:'Europe/Moscow'}).formatToParts(d);
+  const parts=Object.fromEntries(fields.map(f=>[f.type,f.value]));
+  return cleanMonth(parts.year+'-'+parts.month);
+}
+// API transactions already moved funds at the provider. Classification changes
+// the finance ledger, never re-debits an API-connected balance.
+async function classifyCryptoOperation(actor,payload={},options={}){
+  const safeActor=cleanActor(actor);
+  if(safeActor!=='Рустам')throw Error('crypto-owner-only');
+  const walletId=cleanText(payload.walletId,100,{required:true});
+  const operationId=cleanText(payload.operationId,200,{required:true});
+  const key=cryptoOperationKey(walletId,operationId);
+  const mode=String(payload.mode||''),direction=String(payload.direction||'');
+  if(!['transfer','expense'].includes(mode))throw Error('crypto-allocation-mode-invalid');
+  if(!['send','receive'].includes(direction)||(mode==='expense'&&direction!=='send'))
+    throw Error('crypto-allocation-direction-invalid');
+  const targetWalletId=cleanText(payload.targetWalletId,100);
+  const categoryId=cleanText(payload.categoryId,100);
+  const rubAmount=cleanMoney(payload.rubAmount);
+  if(rubAmount<=0)throw Error('finance-amount-invalid');
+  const occurredAt=cleanOccurredAt(payload.occurredAt,options.now||Date.now());
+  const month=cryptoOperationMonth(occurredAt),note=cleanText(payload.note,120);
+  const rates=payload.rates||{};
+  const apiIds=new Set(Array.isArray(payload.apiWalletIds)?payload.apiWalletIds:[]);
+  if(!apiIds.has(walletId))throw Error('crypto-wallet-not-found');
+  return enqueueMutation(async()=>{
+    const current=await readFinanceState(options);
+    const walletRows=current.wallets[safeActor]||[];
+    const source=walletRows.find(w=>w.id===walletId&&!w.archived);
+    const destination=walletRows.find(w=>w.id===targetWalletId&&!w.archived);
+    const category=(current.categories[safeActor]||[]).find(c=>c.id===categoryId&&!c.archived);
+    if(!source)throw Error('finance-wallet-not-found');
+    if(mode==='transfer'&&(!destination||destination.id===source.id))throw Error('finance-wallet-not-found');
+    if(mode==='expense'&&!category)throw Error('finance-category-not-found');
+    const rate=currency=>{
+      const n=currency==='RUB'?1:Number(rates[currency]);
+      if(!Number.isFinite(n)||n<=0)throw Error('finance-rate-invalid');
+      return n;
+    };
+    let wallets=[...walletRows];
+    function adjust(id,delta){
+      const w=wallets.find(x=>x.id===id);
+      if(!w)throw Error('finance-wallet-not-found');
+      const value=Number(w.balance||0)+delta;
+      if(!Number.isFinite(value)||value>1e12||value<-(Number(w.creditLimit||0)||0)-1e-8)
+        throw Error('finance-wallet-insufficient');
+      wallets=wallets.map(x=>x.id===id?{...x,balance:cleanWalletBalance(value)}:x);
+    }
+    const oldExpense=current.personalExpenses.find(r=>r.actor===safeActor&&r.importKey===key);
+    const oldTransfer=current.walletTransfers.find(r=>r.actor===safeActor&&r.importKey===key);
+    if(oldExpense&&oldTransfer)throw Error('crypto-allocation-duplicate-invalid');
+    if(oldExpense&&oldExpense.walletId!==source.id)throw Error('crypto-allocation-source-invalid');
+    if(oldTransfer&&![oldTransfer.fromWalletId,oldTransfer.toWalletId].includes(source.id))
+      throw Error('crypto-allocation-source-invalid');
+    if(oldTransfer){
+      if(oldTransfer.balanceAdjustedSource)adjust(oldTransfer.fromWalletId,oldTransfer.sourceAmount);
+      if(oldTransfer.balanceAdjustedTarget)adjust(oldTransfer.toWalletId,-oldTransfer.targetAmount);
+    }
+    const personalExpenses=current.personalExpenses.filter(r=>r.actor!==safeActor||r.importKey!==key);
+    const walletTransfers=current.walletTransfers.filter(r=>r.actor!==safeActor||r.importKey!==key);
+    const now=new Date(options.now||Date.now()).toISOString(),id='crypto-op-'+key.slice(7,47);
+    const allocation={mode,key,rubAmount,note,direction};
+    if(mode==='expense'){
+      const amount=cleanMoney(rubAmount/rate(category.currency));
+      const sourceAmount=cleanAssetAmount(rubAmount/rate(source.currency));
+      if(amount<=0||sourceAmount<=0)throw Error('finance-amount-invalid');
+      personalExpenses.push({
+        id,actor:safeActor,month,categoryId:category.id,amount,note,label:'',
+        walletId:source.id,sourceAmount,sourceCurrency:source.currency,
+        targetCurrency:category.currency,exchangeRate:rate(source.currency)/rate(category.currency),
+        rubAmount,manualAdjustment:false,importKey:key,requestId:key.slice(0,100),
+        occurredAt,createdAt:oldExpense?.createdAt||now,updatedAt:now,
+      });
+      allocation.categoryId=category.id;
+    }else{
+      const from=direction==='send'?source:destination,to=direction==='send'?destination:source;
+      const sourceAmount=cleanAssetAmount(rubAmount/rate(from.currency));
+      const targetAmount=cleanAssetAmount(rubAmount/rate(to.currency));
+      if(sourceAmount<=0||targetAmount<=0)throw Error('finance-amount-invalid');
+      const balanceAdjustedSource=!apiIds.has(from.id),balanceAdjustedTarget=!apiIds.has(to.id);
+      if(balanceAdjustedSource)adjust(from.id,-sourceAmount);
+      if(balanceAdjustedTarget)adjust(to.id,targetAmount);
+      walletTransfers.push({
+        id,actor:safeActor,month,fromWalletId:from.id,toWalletId:to.id,
+        sourceAmount,sourceCurrency:from.currency,targetAmount,targetCurrency:to.currency,
+        sourceRate:rate(from.currency),targetRate:rate(to.currency),rubAmount,note,
+        importKey:key,balanceAdjustedSource,balanceAdjustedTarget,
+        occurredAt,createdAt:oldTransfer?.createdAt||now,
+      });
+      allocation.targetWalletId=destination.id;
+    }
+    let next=normalizeState({...current,initialized:true,version:current.version+1,
+      wallets:{...current.wallets,[safeActor]:wallets},personalExpenses,walletTransfers});
+    for(const m of new Set([oldExpense?.month,month].filter(Boolean))){
+      next=normalizeState({...next,personal:syncPersonalMonthExpenses(next,safeActor,m,now)});
+    }
+    await writeState(next,options);
+    return {state:next,allocation};
+  });
+}
+
 function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 
 module.exports = {
   NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanSignedMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanObligations, cleanPlan, cleanCapitalHistory, cleanSharedItems, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, incomeTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
   saveFinancePlan, setFinanceObligationPaid, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
-  saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, syncLinkedWalletBalance, resetMutationQueueForTests,
+  saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, syncLinkedWalletBalance, cryptoOperationKey, classifyCryptoOperation, resetMutationQueueForTests,
 };
