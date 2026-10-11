@@ -1,6 +1,6 @@
 (()=>{'use strict';
   let actor='',wallets=[],connections=[],editingWalletId='',pending=false,loaded=false,lastAttempt=0;
-  let pnl24h=null,pnlFlight=null;
+  let pnl24h=null,pnlFlight=null,sourceSyncId='';
   const $=id=>document.getElementById(id);
   const request=async(operation,payload={})=>{
     try{await Promise.resolve(window.__rudiTelegramSdkReady)}catch(_){}
@@ -91,7 +91,14 @@
       const head=document.createElement('div');head.className='finance-crypto-source-head';
       const title=document.createElement('strong');title.textContent=providerName(link.provider);
       const note=document.createElement('span');note.textContent=wallet.name+(link.provider==='bybit'?'':' · '+(link.chain||'ethereum'));
-      head.append(title,note);
+      const actions=document.createElement('div');actions.className='finance-crypto-source-actions';
+      const sourceRefresh=document.createElement('button');
+      sourceRefresh.type='button';sourceRefresh.className='finance-crypto-source-refresh';
+      sourceRefresh.textContent=sourceSyncId===link.walletId?'Обновляю…':'Обновить';
+      sourceRefresh.disabled=Boolean(pending);
+      sourceRefresh.setAttribute('aria-label','Обновить только '+providerName(link.provider));
+      sourceRefresh.addEventListener('click',()=>void refreshSource(link.walletId));
+      actions.append(note,sourceRefresh);head.append(title,actions);
       const amount=document.createElement('div');amount.className='finance-crypto-source-amount';
       if(typeof link.balanceUsd==='number'&&Number.isFinite(link.balanceUsd)){amount.textContent=cash(link.balanceUsd);total+=link.balanceUsd;knownTotal+=link.balanceUsd;hasKnown=true;}
       else if(link.incomplete&&typeof link.partialUsd==='number'&&Number.isFinite(link.partialUsd)){knownTotal+=link.partialUsd;hasKnown=true;
@@ -213,6 +220,24 @@
     if(connections.some(c=>c.walletId===editingWalletId)&&$('financeWalletComposer')&&!$('financeWalletComposer').hidden)
       void loadApiWalletHistory(editingWalletId);
     return data;
+  }
+  async function refreshSource(walletId){
+    if(actor!=='Рустам'||pending||!connections.some(c=>c.walletId===walletId))return;
+    pending=true;sourceSyncId=walletId;render();
+    const name=providerName(connections.find(c=>c.walletId===walletId)?.provider);
+    setStatus('financeCryptoStatus','Обновляю только '+name+'…');
+    try{
+      const result=await request('crypto-refresh',{force:true,walletId});
+      connections=Array.isArray(result.connections)?result.connections:connections;
+      if(Array.isArray(result.wallets))wallets=result.wallets;
+      const refreshed=connections.find(c=>c.walletId===walletId);
+      setStatus('financeCryptoStatus',refreshed?.lastError
+        ?'Не удалось обновить '+name+'. Последний баланс сохранён.'
+        :name+' обновлён.');
+      void loadPnl24h();
+      document.dispatchEvent(new Event('rudi-finance-plan-saved'));
+    }catch(err){setStatus('financeCryptoStatus',errorLabel(err));}
+    finally{pending=false;sourceSyncId='';render();}
   }
   async function refresh(force=false){
     if(actor!=='Рустам'||pending||!connections.length)return;
