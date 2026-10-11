@@ -232,8 +232,16 @@ async function readLpPositions(owner,prices,{rpc,options={}}) {
   const [idsV3,idsV4]=await Promise.all([listV3(safe,ctx),listV4(safe,ctx)]);
   if(idsV3.length+idsV4.length>LIMIT)throw new Error('crypto-lp-too-many');
   const positions=[];
-  for(const id of idsV3)positions.push(await snapshotV3(safe,id,prices,ctx));
-  for(const id of idsV4)positions.push(await snapshotV4(safe,id,prices,ctx));
+  const tasks=[
+    ...idsV3.map(id=>()=>snapshotV3(safe,id,prices,ctx)),
+    ...idsV4.map(id=>()=>snapshotV4(safe,id,prices,ctx)),
+  ];
+  // Independent LP positions can be fetched in parallel; a small batch size
+  // prevents bursts against free RPC endpoints on wallets with many NFTs.
+  for(let i=0;i<tasks.length;i+=3){
+    const batch=await Promise.all(tasks.slice(i,i+3).map(task=>task()));
+    positions.push(...batch);
+  }
   const liquidityUsd=positions.reduce((s,p)=>s+p.liquidityUsd,0),feesUsd=positions.reduce((s,p)=>s+p.feesUsd,0);
   if(!Number.isFinite(liquidityUsd+feesUsd)||liquidityUsd+feesUsd>1e12)throw new Error('crypto-lp-amount-invalid');
   return { positions,liquidityUsd,feesUsd };
