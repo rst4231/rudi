@@ -1,20 +1,17 @@
 {
-  "current": "v4.161",
+  "current": "v4.162",
   "versionBranch": "main",
-  "releaseCommit": "58065c3e1441d3b7c9787d47bc517039a27c3851",
+  "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.160",
+  "basedOnProduction": "v4.161",
   "notes": [
-    "Daily AI summary: recover from provider invalid-json with strict Groq JSON-schema output and low-effort reasoning.",
-    "Manual button retries today's saved deterministic placeholder (up to 3 timed attempts) and upgrades only on successful full analysis, preserving the report identity and history.",
-    "Fact-first personal coach for work, finances, productivity, habits, lifestyle, plans and wellbeing; prohibits invented personal facts and medical claims.",
-    "New iPhone-friendly AI dashboard with prominent insight, concrete next action and a seven-day chart switching between confirmed habits, recorded expenses and daily mood observations.",
-    "Suppress empty four-card placeholders and routine technical status text; keep useful error and retry messages.",
-    "Fix two existing personal-center CI test regressions and keep morning-only 07:00 Moscow scheduling.",
-    "No new Vercel serverless function, no additional cron job and no automatic AI calls on opening the AI center.",
-    "Release provenance records the verified v4.161 application commit; published build is not skipped when prior commits were test-only."
+    "Private owner-only Crypto tab next to Financial Literacy, hidden for Diana and guarded by server-side session actor.",
+    "Read-only Bybit API verification, encrypted credentials, and Unified wallet balances.",
+    "Public Ethereum address connection, ETH and common ERC-20 balances, and optional Uniswap V3 The Graph positions.",
+    "Daily balance snapshots and a mobile portfolio chart; the total excludes LP value and unsupported assets.",
+    "Prepared on an isolated feature branch; production v4.161 is unchanged until separately approved deployment."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
