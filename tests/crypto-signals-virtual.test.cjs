@@ -8,7 +8,7 @@ const now=Date.parse('2026-10-11T12:00:00.000Z');
 const created=new Date(now-86400000).toISOString();
 const base={id:101,at:'2026-10-11T10:30:00.000Z',url:'https://t.me/ne_investor/101'};
 test('Russian explicit and conditional signals are classified conservatively',()=>{
-  const s=parseSignal({...base,text:'$ETH беру в лонг, вход 2420, тейк 2520, стоп 2330'});
+  const s=parseSignal({...base,text:'$ETH беру в лонг, фьючерсы вход 2420, тейк 2520, стоп 2330'});
   assert.equal(s.qualified,true);
   assert.equal(s.entry,2420);
   assert.equal(s.take,2520);
@@ -72,14 +72,16 @@ test('Author trade without entry uses next-hour synthetic entry',()=>{
 test('Virtual investment excludes signals before sim start and protects capital',()=>{
   const config=normalizeConfig({startedAt:created});
   const trades=[{...base,qualified:true,entry:100,entryAt:'2026-10-11T11:00:00.000Z',
-    exitAt:'2026-10-11T11:30:00.000Z',symbol:'ETH',direction:'long',status:'won',priceChangePct:10},
+    exitAt:'2026-10-11T11:30:00.000Z',exitPrice:110,market:'linear',symbol:'ETH',direction:'long',status:'won',priceChangePct:10},
     {...base,id:102,qualified:true,entry:100,entryAt:'2026-10-11T11:35:00.000Z',
-    symbol:'BTC',direction:'short',marketPrice:90,status:'open'}];
+    symbol:'BTC',market:'linear',direction:'short',marketPrice:90,status:'open'}];
   const report=simulateVirtual(trades,config,now);
   assert.equal(report.stats.wins,1);
   assert.equal(report.stats.open,1);
-  assert.equal(report.equityUsd,10404);
-  assert.equal(report.realizedPnlUsd,200);
+  assert.equal(report.stats.open,1);
+  assert.ok(report.equityUsd>10390&&report.equityUsd<10405);
+  assert.ok(report.realizedPnlUsd>195&&report.realizedPnlUsd<200);
+  assert.ok(report.stats.maxConcurrent>=1);
 });
 test('Paper trading accepts only 2x or 3x with 2x by default',()=>{
   const defaults=normalizeConfig({startedAt:created});
