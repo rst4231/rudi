@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readAppState, writeAppState } = require('./rudi-auth-db.cjs');
+const { readV3Positions } = require('./crypto-uniswap.cjs');
 
 const OWNER = 'Рустам';
 const CONFIG_KEY = 'crypto-connections-v1';
@@ -71,7 +72,7 @@ function publicData({config,portfolio},env=process.env) {
     bybitKeyMask:String(config.bybit?.masked||''),
     updatedAt:config.updatedAt,
     portfolio,
-    uniswapV3Enabled:Boolean(env.RUDI_UNISWAP_V3_SUBGRAPH_URL||env.RUDI_THEGRAPH_API_KEY),
+    uniswapV3Enabled:true,
   };
 }
 async function jsonFetch(url,options={},fetchImpl=globalThis.fetch) {
@@ -145,9 +146,13 @@ async function readEthereumWallet(address,price,env=process.env,fetchImpl=global
     assets.push({symbol:coin.symbol,amount,usdValue:usdPrice===null?null:Math.round(amount*usdPrice*100)/100});
   }
   if(settled.every(p=>p.status==='rejected'))throw new Error('crypto-ethereum-unavailable');
-  const graph=await uniswapV3Positions(address,env,fetchImpl).catch(()=>({positions:[],enabled:false,failed:true}));
-  return {address,assets,positions:graph.positions,positionsEnabled:graph.enabled,
-    positionsFailed:Boolean(graph.failed),usdValue:assets.every(a=>a.usdValue!==null)?assets.reduce((s,a)=>s+a.usdValue,0):null};
+  const lp=await readV3Positions(address,price,(to,data)=>ethRpc('eth_call',[{to,data},'latest'],rpc,fetchImpl))
+    .catch(()=>({positions:[],failed:true}));
+  const complete=!lp.failed&&!lp.partial&&assets.every(a=>a.usdValue!==null)
+    &&lp.positions.every(p=>p.valueUsd!==null);
+  return {address,assets,positions:lp.positions,positionsEnabled:!lp.failed,
+    positionsFailed:Boolean(lp.failed),positionsPartial:Boolean(lp.partial),
+    usdValue:complete?Math.round((assets.reduce((sum,a)=>sum+a.usdValue,0)+lp.positions.reduce((sum,p)=>sum+p.valueUsd,0))*100)/100:null};
 }
 async function readBybitAccount(enc,env=process.env,fetchImpl=globalThis.fetch) {
   const credentials=decryptCredentials(enc,env);
@@ -168,6 +173,7 @@ async function syncPortfolio(state,env=process.env,fetchImpl=globalThis.fetch) {
   const uniswap=walletResults.map((r,i)=>r.ok?r.value:current.uniswap.find(w=>w.address===config.addresses[i])||{address:config.addresses[i],assets:[],positions:[],usdValue:null,error:true});
   if(walletResults.some(r=>!r.ok))warnings.push('Некоторые Ethereum-кошельки временно недоступны');
   if(uniswap.some(w=>w.positionsFailed))warnings.push('Позиции Uniswap V3 пока не загрузились');
+  if(uniswap.some(w=>w.positionsPartial))warnings.push('Обнаружено больше 12 LP-позиций, оценка капитала неполная');
   let bybit=null;
   if(config.bybit){
     try{bybit=await readBybitAccount(config.bybit.encrypted,env,fetchImpl)}
