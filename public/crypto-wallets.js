@@ -105,9 +105,8 @@
       }
       const detail=document.createElement('small');detail.textContent='Обновлено: '+dateLabel(link.incomplete?link.partialSyncAt:link.lastSyncAt);
       card.append(head,amount,pnlBadge(pnl24h?.items?.find(p=>p.id===link.walletId)),detail);
-      if(link.incomplete){
-        const badge=document.createElement('span');badge.className='finance-crypto-partial-badge';badge.textContent='Частичный баланс';card.append(badge);
-      }
+      // Keep partial state in calculations and error reporting without the
+      // repetitive "Частичный баланс" badge on every connected source card.
       if(link.provider==='uniswap'&&typeof link.walletUsd==='number'){
         const summary=document.createElement('div');summary.className='finance-crypto-breakdown';
         for(const [label,value] of [['На адресе',link.walletUsd],['В пулах',link.liquidityUsd],['К получению',link.feesUsd]]){
@@ -118,10 +117,12 @@
         }
         card.append(summary);
         for(const pos of (Array.isArray(link.positions)?link.positions:[]).filter(pos=>Number(pos.liquidityUsd||0)+Number(pos.feesUsd||0)>0.005)){
-          const box=document.createElement('div');box.className='finance-crypto-lp';
+          const box=document.createElement('div');
+          const rangeState=pos.inRange===true?'in-range':pos.inRange===false?'out-of-range':'unknown';
+          box.className='finance-crypto-lp finance-crypto-lp--'+rangeState;
           const title=document.createElement('div');title.className='finance-crypto-lp-head';
           const name=document.createElement('strong');name.textContent='Uniswap '+pos.version+' · '+pos.pair+' · #'+pos.tokenId;
-          const state=document.createElement('small');state.textContent=pos.inRange?'В диапазоне':'Вне диапазона';
+          const state=document.createElement('small');state.textContent=rangeState==='in-range'?'В диапазоне':rangeState==='out-of-range'?'Вне диапазона':'Диапазон не определён';
           title.append(name,state);box.append(title);
           for(const [label,value] of [['Ликвидность',pos.liquidityUsd],['К получению',pos.feesUsd]]){
             const row=document.createElement('div');row.className='finance-crypto-lp-row';

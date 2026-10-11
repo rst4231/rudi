@@ -1724,3 +1724,11 @@ body[data-app-tab="schedule"] .work-page #workCalendarCard .calendar-navigation 
 body[data-app-tab="schedule"] .work-page #workCalendarCard .calendar-navigation :is(#calendarCreateTask,#calendarPersonalCreateTask)::after{content:"";position:absolute;top:50%;left:50%;background:currentColor;border-radius:2px;transform:translate(-50%,-50%);pointer-events:none}
 body[data-app-tab="schedule"] .work-page #workCalendarCard .calendar-navigation :is(#calendarCreateTask,#calendarPersonalCreateTask)::before{width:17px;height:2.5px}
 body[data-app-tab="schedule"] .work-page #workCalendarCard .calendar-navigation :is(#calendarCreateTask,#calendarPersonalCreateTask)::after{width:2.5px;height:17px}
+
+/* v4.176: keep inactive calendar + buttons truly hidden. The stronger v4.149
+   centered-plus display:grid rule previously overrode HTML [hidden],
+   allowing personal + to overlay shared + and swallow taps. */
+body[data-app-tab="schedule"] .work-page #workCalendarCard .calendar-navigation
+:is(#calendarCreateTask,#calendarPersonalCreateTask)[hidden]{
+  display:none!important;
+}

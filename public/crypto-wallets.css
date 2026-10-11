@@ -52,6 +52,19 @@
 .finance-crypto-breakdown-row>span,.finance-crypto-lp-row>span{color:var(--muted,#9297a1)}
 .finance-crypto-breakdown-row strong{font-weight:800;font-size:13px;white-space:nowrap}
 .finance-crypto-lp{display:grid;gap:8px;margin-top:4px;border-radius:13px;padding:12px 13px;border:1px solid var(--line,rgba(130,130,150,.18));min-width:0}
+/* Subtle per-position halo: green when in range, red when out of range. */
+.finance-crypto-lp.finance-crypto-lp--in-range{
+  border-color:rgba(36,186,112,.62);
+  background:rgba(36,186,112,.045);
+  box-shadow:0 0 0 1px rgba(36,186,112,.11),0 0 18px 2px rgba(36,186,112,.19);
+}
+.finance-crypto-lp.finance-crypto-lp--out-of-range{
+  border-color:rgba(232,78,94,.65);
+  background:rgba(232,78,94,.045);
+  box-shadow:0 0 0 1px rgba(232,78,94,.11),0 0 18px 2px rgba(232,78,94,.2);
+}
+.finance-crypto-lp--in-range .finance-crypto-lp-head small{color:#2bb77b;font-weight:750}
+.finance-crypto-lp--out-of-range .finance-crypto-lp-head small{color:#eb626e;font-weight:750}
 .finance-crypto-lp-head{display:grid;gap:4px}
 .finance-crypto-lp-head strong{font-size:12px;overflow-wrap:anywhere}
 .finance-crypto-lp-head small{font-size:11px;color:var(--muted,#9297a1)}

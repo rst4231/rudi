@@ -1,5 +1,7 @@
 'use strict';
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
+const {linkUpdates}=require('./crypto-trade-events.cjs');
+const {tradeOutcome,screenLiquidationRisk}=require('./crypto-signal-outcome.cjs');
 const NS='rudi-crypto-signal-monitor-v1', KEY='ne_investor', PERIOD_MS=30*86400000, INTERVAL_MS=300000;
 const cleanText=s=>String(s||'').slice(0,1800);
 function entities(text){
@@ -88,6 +90,17 @@ function attachTradeUpdates(signals,messages){
   return signals;
 }
 
+function marketFromText(text,direction){
+  const source=String(text||'');
+  const spot=/(?:^|[^\p{L}])(?:спот(?:ов\p{L}*)?|spot)(?=$|[^\p{L}])/iu.test(source);
+  const derivative=/(?:^|[^\p{L}])(?:фьючерс\p{L}*|перпетуал\p{L}*|perp(?:etual)?s?|futures?|usdt[- ]?m|isolated|cross|изолированн\p{L}*|кросс\p{L}*)(?=$|[^\p{L}])/iu.test(source);
+  if(spot&&derivative)return {market:'unconfirmed',marketSource:'conflicting-markets'};
+  if(spot&&direction==='short')return {market:'unconfirmed',marketSource:'spot-short-unverified'};
+  if(spot)return {market:'spot',marketSource:'explicit'};
+  if(derivative)return {market:'linear',marketSource:'explicit'};
+  if(direction==='short')return {market:'linear',marketSource:'short-derivative'};
+  return {market:'unconfirmed',marketSource:'not-specified'};
+}
 function parseSignal(row){
   if(!row?.text)return null;
   const text=String(row.text),lower=text.toLowerCase();
@@ -108,8 +121,9 @@ function parseSignal(row){
   const stop=level(text,/(?:\bsl\b|стоп(?:[- ]?лосс)?\w*|stop\s*loss)\s*(?:по|на|=|:|в|\$|≈|~|\s)*([\d][\d\s.,]*)/i);
   const leverage=level(text,/(?:плечо|leverage)\s*(?:x|х|:|=|\s)*([\d]+(?:[.,]\d+)?)/i);
   const complete=Boolean(entry&&(take||stop));
-  return {id:row.id,at:row.at,url:row.url,symbol:ticker,market:'unconfirmed',
-    direction,entry,take,stop,leverage,marginModeReported:parseMarginMode(text),marginSource:parseMarginMode(text)?'signal':'unspecified',conditional,qualified:complete&&!conditional,paperEligible:!conditional,
+  const {market,marketSource}=marketFromText(text,direction);
+  return {id:row.id,at:row.at,url:row.url,symbol:ticker,exchange:'bybit',market,marketSource,
+    direction,entry,take,stop,leverage,marginModeReported:parseMarginMode(text),marginSource:parseMarginMode(text)?'signal':'unspecified',conditional,qualified:complete&&!conditional&&market!=='unconfirmed',paperEligible:!conditional&&market!=='unconfirmed',
     status:conditional?'conditional':complete?'awaiting-market':'insufficient-levels',
     excerpt:text.slice(0,400),authorClaim:null};
 }
@@ -147,11 +161,12 @@ function evaluateCandles(signal,candles,now=Date.now()){
 }
 async function candlesForSignal(signal,options={}){
   const fetcher=options.fetchImpl||fetch;
+  if(!['linear','spot'].includes(signal?.market))throw Error('bybit-market-unconfirmed');
   const symbol=signal.symbol+'USDT';
   const start=Math.floor((Date.parse(signal.at)+3600000)/3600000)*3600000;
   const end=Date.now();
-  const url='https://api.bybit.com/v5/market/kline?'+new URLSearchParams({
-    category:'linear',symbol,interval:'60',start:String(start),end:String(end),limit:'1000'});
+  const url='https://api.bybit.com/v5/market/'+(options.mark?'mark-price-kline':'kline')+'?'+new URLSearchParams({
+    category:signal.market,symbol,interval:'60',start:String(start),end:String(end),limit:'1000'});
   const response=await fetcher(url,{signal:AbortSignal.timeout(9000),cache:'no-store'});
   if(!response.ok)throw Error('market-http-'+response.status);
   const payload=await response.json();
@@ -159,6 +174,22 @@ async function candlesForSignal(signal,options={}){
   return payload.result.list.map(r=>({at:Number(r[0]),open:Number(r[1]),high:Number(r[2]),low:Number(r[3]),close:Number(r[4])})).filter(r=>
     Number.isFinite(r.at)&&Number.isFinite(r.open)&&Number.isFinite(r.high)&&Number.isFinite(r.low)&&r.high>=r.low);
 }
+async function fundingForSignal(signal,options={}){
+  if(signal?.market!=='linear')return {rates:[],complete:true};
+  const fetcher=options.fetchImpl||fetch;
+  const start=Date.parse(signal.at),end=Number(options.now||Date.now());
+  const url='https://api.bybit.com/v5/market/funding/history?'+new URLSearchParams({
+    category:'linear',symbol:signal.symbol+'USDT',startTime:String(start),endTime:String(end),limit:'200'});
+  const response=await fetcher(url,{cache:'no-store',signal:AbortSignal.timeout(9000)});
+  if(!response.ok)throw Error('bybit-funding-http-'+response.status);
+  const json=await response.json(),list=json?.result?.list;
+  if(Number(json?.retCode)!==0||!Array.isArray(list))throw Error('bybit-funding-unavailable');
+  const rates=list.map(x=>({at:new Date(Number(x.fundingRateTimestamp)).toISOString(),
+    rate:Number(x.fundingRate)})).filter(x=>Number.isFinite(Date.parse(x.at))&&Number.isFinite(x.rate)
+      &&Math.abs(x.rate)<0.1).sort((a,b)=>a.at.localeCompare(b.at));
+  return {rates,complete:list.length<200};
+}
+
 async function fetchChannelPage(before,options={}){
   const fetcher=options.fetchImpl||fetch;
   const url='https://t.me/s/ne_investor'+(before?'?before='+encodeURIComponent(before):'');
@@ -212,7 +243,7 @@ async function refreshSignals(options={}){
       if(!cursor&&!complete)cursor=Math.min(...latest.map(m=>m.id));
       if(cursor&&!complete){
         // A failed old-page fetch must not discard successfully collected new posts.
-        for(let i=0;i<4;i++){
+        for(let i=0;i<Math.min(4,Math.max(1,Number(options.maxBackfillPages||4)));i++){
           let batch;
           try{batch=await fetchChannelPage(cursor,options);}
           catch(e){sourceError='older-page-unavailable';break;}
@@ -223,7 +254,8 @@ async function refreshSignals(options={}){
           if(batch.some(m=>Date.parse(m.at)<cutoff)){complete=true;break;}
         }
       }
-      const signals=[...posts.values()].map(parseSignal).filter(Boolean).sort((a,b)=>b.at.localeCompare(a.at));
+      const signals=linkUpdates([...posts.values()].map(parseSignal).filter(Boolean),
+        [...posts.values()]).sort((a,b)=>b.at.localeCompare(a.at));
       const oldResults=previous.results&&typeof previous.results==='object'?previous.results:{};
       const results={};
       // Prioritize never-checked and least-recently-checked positions so a busy
@@ -237,15 +269,39 @@ async function refreshSignals(options={}){
       for(const s of queue){
         if(!s.qualified&&!s.paperEligible)continue;
         const prev=oldResults[s.id];
-        if(prev?.status==='won'||prev?.status==='lost'||prev?.status==='breakeven'||prev?.status==='ambiguous'){
-          results[s.id]=prev;continue;
+        // Existing results for a different market must never be re-used,
+        // even when its outcome was already marked as closed.
+        if(prev?.market&&prev.market!==s.market)delete oldResults[s.id];
+        const acceptedPrev=prev?.market&&prev.market===s.market?prev:null;
+        if(acceptedPrev&&['won','lost','breakeven','ambiguous'].includes(acceptedPrev.status)){
+          results[s.id]=acceptedPrev;continue;
         }
-        if(attempts>=5){if(prev)results[s.id]=prev;continue;}
+        if(attempts>=Math.min(5,Math.max(1,Number(options.maxChecks||5)))){if(acceptedPrev)results[s.id]=acceptedPrev;continue;}
         attempts++;
-        try{const candles=await candlesForSignal(s,options);
-          results[s.id]={...(s.qualified?evaluateCandles(s,candles,now):
-            modeledTrade(s,candles,[...posts.values()],now)),checkedAt:new Date(now).toISOString()};}
-        catch(e){priceError=String(e?.message||e);results[s.id]={...(prev||{status:'market-unavailable'}),checkedAt:new Date(now).toISOString()};}
+        try{
+          const candles=await candlesForSignal(s,options);
+          let outcome=tradeOutcome(s,candles,{now});
+          if(s.market==='linear'&&['open','won','lost','breakeven'].includes(outcome.status)){
+            const [mark,funding]=await Promise.allSettled([
+              candlesForSignal(s,{...options,mark:true}),
+              fundingForSignal(s,{...options,now})
+            ]);
+            if(mark.status==='fulfilled'){
+              const relevant=mark.value.filter(c=>c.at>Date.parse(outcome.entryAt)&&
+                (!outcome.exitAt||c.at<=Date.parse(outcome.exitAt)));
+              outcome={...outcome,markExtremes:relevant.length?{
+                high:Math.max(...relevant.map(c=>c.high)),
+                low:Math.min(...relevant.map(c=>c.low))}:null};
+              outcome=screenLiquidationRisk(outcome,s,mark.value,Number(options.virtualLeverage||2));
+            }else outcome={...outcome,liquidationScreen:'unavailable',markExtremes:null};
+            if(funding.status==='fulfilled'){
+              outcome.fundingRates=funding.value.rates;
+              outcome.fundingComplete=funding.value.complete;
+            }else outcome.fundingComplete=false;
+          }else if(s.market==='spot')outcome.fundingComplete=true;
+          results[s.id]={...outcome,market:s.market,checkedAt:new Date(now).toISOString()};
+        }
+        catch(e){priceError=String(e?.message||e);results[s.id]={...(acceptedPrev||{status:'market-unavailable'}),market:s.market,checkedAt:new Date(now).toISOString()};}
       }
       const state={messages:[...posts.values()].sort((a,b)=>b.id-a.id).slice(0,1000),
         results,backfillComplete:complete,cursor,updatedAt:new Date(now).toISOString(),
@@ -268,12 +324,17 @@ function buildView(state,now=Date.now()){
     return {...signal,...(row||{}),url:signal.url,id:signal.id,at:signal.at};
   });
   attachTradeUpdates(signals,messages);
+  linkUpdates(signals,messages);
   signals.sort((a,b)=>b.at.localeCompare(a.at));
   const verified=signals.filter(s=>(s.status==='won'||s.status==='lost')&&s.execution!=='next-hour-model');
   const won=verified.filter(s=>s.status==='won');
   const knownChange=verified.filter(s=>Number.isFinite(s.priceChangePct));
   const avgChange=knownChange.length?Math.round(knownChange.reduce((s,r)=>s+r.priceChangePct,0)*100/knownChange.length)/100:null;
+  const ids=messages.map(m=>Number(m.id)).filter(Number.isFinite).sort((a,b)=>a-b);
+  const gapsEstimate=ids.reduce((n,id,i)=>i&&id>ids[i-1]+1?n+id-ids[i-1]-1:n,0);
   return {channel:'@ne_investor',days:30,updatedAt:state.updatedAt||null,
+    messagesCount:messages.length,oldestMessageAt:messages.length?messages[messages.length-1]?.at:null,
+    gapsEstimate,scanComplete:Boolean(state.backfillComplete),
     backfillComplete:Boolean(state.backfillComplete),sourceError:state.sourceError||null,
     priceError:state.priceError||null,
     stats:{total:signals.length,verified:verified.length,won:won.length,lost:verified.length-won.length,
@@ -290,4 +351,4 @@ async function readSignals(options={}){
   return buildView(state,options.now??Date.now());
 }
 module.exports={NS,parsePreview,parseSignal,evaluateCandles,compareSignal:parseSignal,
-  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates};
+  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk,fundingForSignal};

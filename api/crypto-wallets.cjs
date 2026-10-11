@@ -98,8 +98,12 @@ function decryptSecret(value) {
   decipher.setAuthTag(Buffer.from(parts[2], 'base64url'));
   return JSON.parse(Buffer.concat([decipher.update(Buffer.from(parts[3], 'base64url')), decipher.final()]).toString('utf8'));
 }
+function networkTimeout(options={}){
+  const remaining=options.deadlineAt?Number(options.deadlineAt)-Date.now():11000;
+  return Math.max(1,Math.min(11000,remaining));
+}
 async function jsonResponse(url, init = {}, options = {}) {
-  const response = await (options.fetchImpl || fetch)(url, { ...init, signal: AbortSignal.timeout(11000), cache: 'no-store' });
+  const response = await (options.fetchImpl || fetch)(url, { ...init, signal: AbortSignal.timeout(networkTimeout(options)), cache: 'no-store' });
   if (!response.ok) throw new Error('crypto-provider-unavailable');
   const data = await response.json();
   if (!data || typeof data !== 'object') throw new Error('crypto-provider-invalid-response');
@@ -129,7 +133,7 @@ async function bybitGet(path, query, keys, options = {}) {
     response = await (options.fetchImpl || fetch)(url, {
       headers: { 'X-BAPI-API-KEY': keys.apiKey, 'X-BAPI-TIMESTAMP': timestamp,
         'X-BAPI-RECV-WINDOW': recvWindow, 'X-BAPI-SIGN': signature, 'X-BAPI-SIGN-TYPE': '2' },
-      signal: AbortSignal.timeout(11000), cache: 'no-store',
+      signal: AbortSignal.timeout(networkTimeout(options)), cache: 'no-store',
     });
   } catch (_) {
     // Never expose raw HTTP errors; some providers include request headers.
@@ -362,31 +366,41 @@ async function usdToWalletCurrency(balanceUsd, currency, options = {}) {
   return Math.round(converted * 1e8) / 1e8;
 }
 
+let refreshFlight=null;
 async function refresh(actor, options = {}) {
   owner(actor);
-  return lock(async () => {
-    const connections = await readState(options);
+  // Do not queue a second expensive provider sync within the same runtime.
+  if(refreshFlight)return refreshFlight;
+  const run=lock(async () => {
+    const deadlineAt=Date.now()+42000;
+    const limited={...options,deadlineAt};
+    const connections = await readState(limited);
     const now = Date.now();
     const summary = [];
     let changed = false;
     for (const [id, connection] of Object.entries(connections)) {
+      if(Date.now()>=deadlineAt){
+        connection.lastError='crypto-refresh-deferred';
+        summary.push(safeConnection(id,connection));changed=true;
+        continue;
+      }
       const last = Date.parse(connection.lastSyncAt || connection.partialSyncAt || '') || 0;
       if (!options.force && now - last < REFRESH_MS) { summary.push(safeConnection(id, connection)); continue; }
       try {
-        const wallet = await assertWallet(id, options);
+        const wallet = await assertWallet(id, limited);
         const snapshot = connection.provider === 'bybit'
-          ? await bybitSnapshot(decryptSecret(connection.secret),options)
+          ? await bybitSnapshot(decryptSecret(connection.secret),limited)
           : connection.provider==='trust'
-            ? await trustChains.snapshot(connection.address,connection.chain||'ethereum',options,
+            ? await trustChains.snapshot(connection.address,connection.chain||'ethereum',limited,
                 {rpc,networkOf,unitAmount})
-            : await uniswapSnapshot(connection.address,{...options,chain:connection.chain||'ethereum'});
+            : await uniswapSnapshot(connection.address,{...limited,chain:connection.chain||'ethereum'});
         if (snapshot.incomplete) {
           // Show verified LPs and update only the known, labeled partial wallet
           // estimate. A missing v4 indexer can never assert a complete total.
           const knownUsd = Number(snapshot.partialUsd);
           if (!Number.isFinite(knownUsd) || knownUsd < 0) throw new Error('crypto-balance-invalid');
-          const knownNative = await usdToWalletCurrency(knownUsd, wallet.currency, options);
-          await syncLinkedWalletBalance('Рустам', id, knownNative, { ...options, partial: true });
+          const knownNative = await usdToWalletCurrency(knownUsd, wallet.currency, limited);
+          await syncLinkedWalletBalance('Рустам', id, knownNative, { ...limited, partial: true });
           Object.assign(connection, snapshot, {
             balanceUsd: null,
             lastSyncAt: '',
@@ -395,8 +409,8 @@ async function refresh(actor, options = {}) {
               :connection.provider==='trust'?'crypto-trust-coverage-incomplete':'crypto-lp-discovery-unavailable',
           });
         } else {
-          const balanceNative = await usdToWalletCurrency(snapshot.balanceUsd, wallet.currency, options);
-          await syncLinkedWalletBalance('Рустам', id, balanceNative, options);
+          const balanceNative = await usdToWalletCurrency(snapshot.balanceUsd, wallet.currency, limited);
+          await syncLinkedWalletBalance('Рустам', id, balanceNative, limited);
           Object.assign(connection, snapshot, {
             lastSyncAt: new Date().toISOString(), partialSyncAt: '', lastError: '',
           });
@@ -404,7 +418,7 @@ async function refresh(actor, options = {}) {
         try {
           const amount=snapshot.incomplete?snapshot.partialUsd:snapshot.balanceUsd;
           if(typeof amount==='number'&&Number.isFinite(amount))
-            await balanceHistory.capture(id,amount,{...options,partial:Boolean(snapshot.incomplete)});
+            await balanceHistory.capture(id,amount,{...limited,partial:Boolean(snapshot.incomplete)});
         }catch(_) {console.warn('RUDI_CRYPTO_HISTORY_SAVE_WARN');}
         changed = true;
       } catch (error) {
@@ -415,17 +429,19 @@ async function refresh(actor, options = {}) {
       }
       summary.push(safeConnection(id, connection));
     }
-    if(changed)await writeState(connections,options);
+    if(changed)await writeState(connections,limited);
     const known=summary.map(c=>typeof c.balanceUsd==='number'?c.balanceUsd:
       c.incomplete&&typeof c.partialUsd==='number'?c.partialUsd:null);
     if(known.some(n=>n!==null)){
       try{
         await balanceHistory.capture('__portfolio__',known.filter(n=>n!==null).reduce((a,b)=>a+b,0),
-          {...options,partial:known.some(n=>n===null)||summary.some(c=>c.incomplete||c.lastError)});
+          {...limited,partial:known.some(n=>n===null)||summary.some(c=>c.incomplete||c.lastError)});
       }catch(_){console.warn('RUDI_CRYPTO_PORTFOLIO_HISTORY_WARN');}
     }
     return summary;
   });
+  refreshFlight=run;
+  try{return await run}finally{if(refreshFlight===run)refreshFlight=null;}
 }
 async function history(actor,walletId,days,options={}) {
   owner(actor);
