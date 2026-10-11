@@ -160,8 +160,11 @@ async function refreshSignals(options={}){
       latest.forEach(m=>{if(Date.parse(m.at)>=cutoff)posts.set(m.id,m)});
       if(!cursor&&!complete)cursor=Math.min(...latest.map(m=>m.id));
       if(cursor&&!complete){
+        // A failed old-page fetch must not discard successfully collected new posts.
         for(let i=0;i<4;i++){
-          const batch=await fetchChannelPage(cursor,options);
+          let batch;
+          try{batch=await fetchChannelPage(cursor,options);}
+          catch(e){sourceError='older-page-unavailable';break;}
           const old=Math.min(...batch.map(m=>m.id));
           if(old>=cursor){complete=true;break;}
           batch.forEach(m=>{if(Date.parse(m.at)>=cutoff)posts.set(m.id,m)});
@@ -187,7 +190,7 @@ async function refreshSignals(options={}){
       }
       const state={messages:[...posts.values()].sort((a,b)=>b.id-a.id).slice(0,1000),
         results,backfillComplete:complete,cursor,updatedAt:new Date(now).toISOString(),
-        sourceError:null,priceError};
+        sourceError,priceError};
       await client.setRecord({namespace:NS,key:KEY,value:state,tags:['rudi-crypto-signals'],
         updated_at:state.updatedAt,expires_at:null});
       return buildView(state,now);
