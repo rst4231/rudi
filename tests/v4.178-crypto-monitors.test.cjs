@@ -12,6 +12,7 @@ test('only one 15-minute schedule runs author and independent short portfolio sc
   const rewrites=JSON.parse(src('vercel.json')).rewrites;
   assert.match(reliable,/cron: '\*\/15 \* \* \* \*'/);
   assert.match(reliable,/Check Lulu toilet probability/);
+  assert.match(reliable,/if: always\(\)/);
   assert.match(reliable,/continue-on-error: true/);
   assert.match(reliable,/crypto-monitor-cron/);
   assert.doesNotMatch(old,/cron: '\*\/5 \* \* \* \*'/);
