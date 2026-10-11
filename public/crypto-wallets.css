@@ -46,3 +46,14 @@
 .finance-crypto-scope-consent{display:flex;gap:10px;align-items:flex-start;border:1px solid rgba(178,146,79,.3);border-radius:12px;padding:11px;background:rgba(178,146,79,.08);font-size:11px;line-height:1.5;cursor:pointer}
 .finance-crypto-scope-consent input{width:17px;height:17px;flex:0 0 auto;margin-top:2px;accent-color:#7967db}
 .finance-crypto-scope-consent span{font-weight:500}
+
+.finance-crypto-breakdown{display:grid;gap:9px;margin-top:8px;padding:13px 14px;border-radius:13px;background:var(--soft,rgba(110,110,130,.06))}
+.finance-crypto-breakdown-row,.finance-crypto-lp-row{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px;font-variant-numeric:tabular-nums}
+.finance-crypto-breakdown-row>span,.finance-crypto-lp-row>span{color:var(--muted,#9297a1)}
+.finance-crypto-breakdown-row strong{font-weight:800;font-size:13px;white-space:nowrap}
+.finance-crypto-lp{display:grid;gap:8px;margin-top:4px;border-radius:13px;padding:12px 13px;border:1px solid var(--line,rgba(130,130,150,.18));min-width:0}
+.finance-crypto-lp-head{display:grid;gap:4px}
+.finance-crypto-lp-head strong{font-size:12px;overflow-wrap:anywhere}
+.finance-crypto-lp-head small{font-size:11px;color:var(--muted,#9297a1)}
+.finance-crypto-lp-row b{font-size:12px;font-weight:750;white-space:nowrap}
+.finance-crypto-lp>small{font-size:11px;line-height:1.5;color:#c89552}

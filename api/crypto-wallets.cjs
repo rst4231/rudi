@@ -4,6 +4,7 @@ const { createRudiStateClient } = require('./rudi-state-client.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readFinanceState, syncLinkedWalletBalance } = require('./finance-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
+const { readLpPositions } = require('./uniswap-lp.cjs');
 
 const NS = 'rudi-crypto-wallet-connections-v1';
 const KEY = 'rustam';
@@ -159,28 +160,40 @@ function unitAmount(raw, decimals) {
   return Number(raw / unit) + Number(raw % unit) / Number(unit);
 }
 async function uniswapSnapshot(address, options = {}) {
-  const call = (contract) => rpc('eth_call', [{ to: contract, data: '0x70a08231' + paddedAddress(address) }, 'latest'], options);
-  const [eth, ...balances] = await Promise.all([
-    rpc('eth_getBalance', [address, 'latest'], options),
-    ...ETHEREUM_TOKENS.map(token => call(token.contract)),
-    ...LP_NFT_CONTRACTS.map(contract => call(contract)),
+  const call = contract => rpc('eth_call', [{to:contract,data:'0x70a08231'+paddedAddress(address)},'latest'], options);
+  const [eth,...tokenBalances] = await Promise.all([
+    rpc('eth_getBalance',[address,'latest'],options),
+    ...ETHEREUM_TOKENS.map(token=>call(token.contract)),
   ]);
-  const lpV3 = balances[ETHEREUM_TOKENS.length], lpV4 = balances[ETHEREUM_TOKENS.length + 1];
-  // A spot-only value would silently erase the value of an LP-heavy Uniswap wallet.
-  if (lpV3 > 0n || lpV4 > 0n) throw new Error('crypto-uniswap-lp-not-covered');
   const prices = await marketRates(options);
-  const assets = [{ symbol: 'ETH', amount: unitAmount(eth, 18) }];
-  for (let i = 0; i < ETHEREUM_TOKENS.length; i++) {
-    assets.push({ symbol: ETHEREUM_TOKENS[i].symbol, amount: unitAmount(balances[i], ETHEREUM_TOKENS[i].decimals) });
+  const assets = [{symbol:'ETH',amount:unitAmount(eth,18)}];
+  for(let i=0;i<ETHEREUM_TOKENS.length;i++)assets.push({
+    symbol:ETHEREUM_TOKENS[i].symbol,
+    amount:unitAmount(tokenBalances[i],ETHEREUM_TOKENS[i].decimals),
+  });
+  let walletUsd=0;
+  for(const item of assets){
+    if(!Number.isFinite(item.amount)||item.amount<0||!(prices[item.symbol]>0))throw new Error('crypto-price-incomplete');
+    walletUsd+=item.amount*prices[item.symbol];
   }
-  let total = 0;
-  for (const item of assets) {
-    if (!Number.isFinite(item.amount) || item.amount < 0 || !(prices[item.symbol] > 0)) throw new Error('crypto-price-incomplete');
-    total += item.amount * prices[item.symbol];
-  }
-  if (!Number.isFinite(total) || total > 1e12) throw new Error('crypto-balance-invalid');
-  return { balanceUsd: Math.round(total * 1e8) / 1e8, assets: assets.filter(x => x.amount > 0),
-    scope: 'Ethereum · ETH, WETH, USDT, USDC', warning: 'Другие токены, LP на иных сетях и DeFi-позиции не учитываются' };
+  // Do not silently omit v3/v4 NFTs or price unknown LP assets at zero.
+  // On ANY incomplete NFT/indexer/fee read the linked wallet's old balance
+  // remains intact via refresh() catch and atomic balance mutation.
+  const lp=await readLpPositions(address,prices,{rpc,options});
+  const total=walletUsd+lp.liquidityUsd+lp.feesUsd;
+  if(!Number.isFinite(total)||total<0||total>1e12)throw new Error('crypto-balance-invalid');
+  return {
+    balanceUsd:Math.round(total*1e8)/1e8,
+    walletUsd:Math.round(walletUsd*1e8)/1e8,
+    liquidityUsd:Math.round(lp.liquidityUsd*1e8)/1e8,
+    feesUsd:Math.round(lp.feesUsd*1e8)/1e8,
+    positions:lp.positions,
+    assets:assets.filter(x=>x.amount>0),
+    scope:'Ethereum mainnet · кошелёк, Uniswap v3/v4 LP и суммы к получению',
+    warning:lp.positions.some(x=>x.claimableIncludesPrincipal)
+      ?'v3: сумма к получению может включать ранее снятую ликвидность; это не обязательно только заработанные комиссии.'
+      :'Комиссии в расчёте — начисленные, но ещё не полученные. Выведенные комиссии уже входят в баланс кошелька.',
+  };
 }
 function safeConnection(walletId, conn) {
   return {
@@ -188,6 +201,10 @@ function safeConnection(walletId, conn) {
     connectedAt: conn.connectedAt || '', lastSyncAt: conn.lastSyncAt || '',
     balanceUsd: Number.isFinite(conn.balanceUsd) ? conn.balanceUsd : null,
     assets: Array.isArray(conn.assets) ? conn.assets : [],
+    positions: Array.isArray(conn.positions) ? conn.positions : [],
+    walletUsd: Number.isFinite(conn.walletUsd) ? conn.walletUsd : null,
+    liquidityUsd: Number.isFinite(conn.liquidityUsd) ? conn.liquidityUsd : null,
+    feesUsd: Number.isFinite(conn.feesUsd) ? conn.feesUsd : null,
     scope: conn.scope || '', warning: conn.warning || '', lastError: conn.lastError || '',
   };
 }
@@ -220,7 +237,7 @@ async function connect(actor, input = {}, options = {}) {
     await bybitSnapshot({ apiKey, apiSecret }, options);
     secret = encryptSecret(apiKey, apiSecret);
   } else {
-    if (String(input.scopeConfirm || '') !== 'ethereum-mainnet-spot-only') throw new Error('crypto-uniswap-scope-confirm-required');
+    if (!['ethereum-mainnet-spot-only','ethereum-mainnet-including-lp'].includes(String(input.scopeConfirm || ''))) throw new Error('crypto-uniswap-scope-confirm-required');
     address = String(input.address || '').trim();
     if (!/^0x[a-f0-9]{40}$/i.test(address)) throw new Error('crypto-address-invalid');
     // An address may contain LP positions. Save its public address, but never

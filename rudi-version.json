@@ -1,18 +1,20 @@
 {
-  "current": "v4.163",
-  "versionBranch": "fix/crypto-ethereum-rate-and-rpc-fallback",
+  "current": "v4.164",
+  "versionBranch": "feature/rudi-uniswap-lp-principal-fees",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.162",
+  "basedOnProduction": "v4.163",
   "notes": [
-    "Fix Uniswap sync error caused by failed third-party market price and RPC requests.",
-    "Use RUDI's existing cached Kraken-backed ETH quotes instead of Bybit public market API (restricted on US server IPs).",
-    "Fail over from the primary Ethereum public RPC to a second independent public endpoint if the first RPC is rate limited or unreachable.",
-    "Show provider-specific non-sensitive error messages and preserve previously saved wallet balances on failed refresh.",
-    "New regression test verifies ETH spot balance calculation with Bybit blocked and primary Ethereum RPC HTTP 429.",
-    "No new Vercel functions, no database migration and no changes to Bybit account auth."
+    "Integrate Ethereum mainnet Uniswap v3 and v4 LP NFT positions with owner validation and read-only onchain principal valuation.",
+    "Compute underlying token amounts by liquidity and live tick/range and estimate v3 claimable amounts via simulated collect eth_call; compute v4 unclaimed swap fees via StateView fee growth.",
+    "Unclaimed fees and unwithdrawn principal are shown separately; v3 claimable may include withdrawn principal as explicitly labeled.",
+    "Display per-position v3/v4, in/out-of-range status, wallet tokens vs LP vs claimable, without double counting collected fees.",
+    "Use ERC721Enumerable v3 NFT discovery; for v4 use read-only public Blockscout NFT indexing with onchain ownership validation, fail closed if discovery is unavailable or incomplete.",
+    "Limit valuations to Ethereum ETH/WETH/USDT/USDC and refuse automatic wallet updates when pool tokens, prices, ownership or fees cannot be fully validated.",
+    "Server-only reads, no wallet transactions, no new Vercel functions, no DB migrations and no extra scheduled jobs.",
+    "Release pending owner approval; changes prepared in GitHub feature branch only."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
