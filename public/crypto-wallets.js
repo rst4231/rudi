@@ -39,6 +39,7 @@
     for(const link of connections){
       const wallet=wallets.find(w=>w.id===link.walletId);
       if(!wallet){complete=false;continue;}
+      if(link.lastError)complete=false;
       const card=document.createElement('article');card.className='finance-crypto-source-card';
       const head=document.createElement('div');head.className='finance-crypto-source-head';
       const title=document.createElement('strong');title.textContent=providerName(link.provider);
