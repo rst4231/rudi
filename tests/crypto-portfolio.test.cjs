@@ -5,6 +5,7 @@ const {
   assertOwner,safeConfig,safePortfolio,encryptCredentials,decryptCredentials,
   verifyBybitReadOnly,units,
 } = require('../api/crypto-handler.cjs');
+const {positionAmounts,readV3Positions} = require('../api/crypto-uniswap.cjs');
 
 test('cryptocurrency access is exclusively Rustam',()=>{
   assert.doesNotThrow(()=>assertOwner('Рустам'));
@@ -52,4 +53,38 @@ test('ERC-20 balances decode fractional amounts correctly',()=>{
   assert.equal(units('1500000',6),1.5);
   assert.equal(units('1000000000000000000',18),1);
   assert.equal(units('0',18),0);
+});
+
+test('Uniswap V3 computes in-range amounts and displays values without signing transactions',async()=>{
+  const amounts=positionAmounts(1000000n,-60,60,2n**96n);
+  assert.ok(amounts.raw0>0);
+  assert.ok(amounts.raw1>0);
+  const word=value=>BigInt(value).toString(16).padStart(64,'0');
+  const addr=value=>value.slice(2).toLowerCase().padStart(64,'0');
+  const wallet='0x'+'1'.repeat(40);
+  const token0='0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+  const token1='0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2';
+  const pool='0x'+'3'.repeat(40);
+  const rpc=async(to,data)=>{
+    const selector=data.slice(0,10);
+    if(selector==='0x70a08231')return '0x'+word(1);
+    if(selector==='0x2f745c59')return '0x'+word(123);
+    if(selector==='0x99fbab88')return '0x'+[
+      word(0),word(0),addr(token0),addr(token1),word(3000),
+      word(BigInt.asUintN(256,-120n)),word(120),word(100000000000n),
+      word(0),word(0),word(1000000),word(100000000000000000n)
+    ].join('');
+    if(selector==='0x1698ee82')return '0x'+addr(pool);
+    if(selector==='0x3850c7bd')return '0x'+[
+      word(2n**96n),word(0),word(0),word(0),word(0),word(0),word(0)
+    ].join('');
+    throw Error('unsupported-mock-contract-call');
+  };
+  const positions=await readV3Positions(wallet,{usd:2500},rpc);
+  assert.equal(positions.positions.length,1);
+  assert.equal(positions.positions[0].id,'123');
+  assert.equal(positions.positions[0].pair,'USDC/WETH');
+  assert.equal(positions.positions[0].feeTier,3000);
+  assert.equal(positions.positions[0].inRange,true);
+  assert.ok(positions.positions[0].valueUsd>0);
 });
