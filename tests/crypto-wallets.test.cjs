@@ -103,12 +103,18 @@ test('fails closed if a Bybit API key is not read-only', async () => {
 
 test('protects a Uniswap LP wallet from being overwritten by its spot balance', async () => {
   await cryptoWallets.connect('Рустам', {
-    walletId: 'uniswap-wallet', provider: 'uniswap', address: '0x' + 'a'.repeat(40),
+    walletId: 'uniswap-wallet', provider: 'uniswap', address: '0x' + 'a'.repeat(40), scopeConfirm: 'ethereum-mainnet-spot-only',
   }, { client });
   const original = wallets[1].balance;
   const result = await cryptoWallets.refresh('Рустам', { client, fetchImpl: dataFetch, force: true });
   assert.equal(wallets[1].balance, original);
   assert.equal(result.find(row => row.walletId === 'uniswap-wallet').lastError, 'crypto-uniswap-lp-not-covered');
+});
+
+test('requires explicit consent before replacing any Ethereum wallet value', async () => {
+  await assert.rejects(() => cryptoWallets.connect('Рустам', {
+    walletId: 'uniswap-wallet', provider: 'uniswap', address: '0x' + 'a'.repeat(40),
+  }, { client }), /crypto-uniswap-scope-confirm-required/);
 });
 
 test('disconnect removes the encrypted key without clearing the finance balance', async () => {
