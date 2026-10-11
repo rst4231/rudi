@@ -12,6 +12,7 @@
     return new Date(values.year,values.month-1,values.day,12,0,0);
   };
   let snapshot=null,loadedAt=0,working=false,activeMode='purchase';
+  let expenseChartPeriod='week',expenseChartSelected=-1;
   const request=async(operation,payload={})=>{
     try{await window.__rudiTelegramSdkReady}catch(_){}
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
@@ -63,11 +64,16 @@
             <h2 id="rudiWeeklyHeading">Расходы за неделю</h2>
             <span id="rudiWeeklyRange"></span>
           </div>
-          <div id="rudiWeeklyBars" class="rudi-weekly-chart" role="img" aria-label="Недельные расходы">
+          <div id="rudiExpensePeriods" class="rudi-expense-periods" role="group" aria-label="Период расходов">
+            <button type="button" data-rudi-expense-period="week" aria-pressed="true">Неделя</button>
+            <button type="button" data-rudi-expense-period="month" aria-pressed="false">Месяц</button>
+            <button type="button" data-rudi-expense-period="year" aria-pressed="false">Год</button>
+          </div>
+          <div id="rudiWeeklyBars" class="rudi-weekly-chart" role="group" aria-label="Расходы за выбранный период">
             <span class="rudi-decision-muted">Загружаю данные…</span>
           </div>
         </section>
-        <section class="rudi-decision-card" aria-labelledby="rudiAlertsHeading">
+        <section id="rudiAlertsCard" class="rudi-decision-card" aria-labelledby="rudiAlertsHeading">
           <details id="rudiAlertsDetails" class="rudi-alert-details">
             <summary class="rudi-decision-head rudi-decision-summary">
               <h2 id="rudiAlertsHeading">Где уходят деньги</h2>
@@ -76,7 +82,7 @@
             <div id="rudiAlertList" class="rudi-decision-list" aria-live="polite"></div>
           </details>
         </section>
-        <section class="rudi-decision-card" aria-labelledby="rudiScenarioHeading">
+        <section id="rudiScenarioCard" class="rudi-decision-card" aria-labelledby="rudiScenarioHeading">
           <details id="rudiScenarioDetails" class="rudi-scenario-details">
             <summary class="rudi-scenario-summary">
               <h2 id="rudiScenarioHeading">Симулятор решений</h2>
@@ -100,6 +106,16 @@
       id('rudiScenarioMode')?.addEventListener('change',e=>{activeMode=e.target.value;renderScenarioFields()});
       id('rudiScenarioRun')?.addEventListener('click',runScenario);
       renderScenarioFields();
+      id('rudiExpensePeriods')?.addEventListener('click',event=>{
+        const button=event.target.closest?.('button[data-rudi-expense-period]');
+        if(!button||button.dataset.rudiExpensePeriod===expenseChartPeriod)return;
+        expenseChartPeriod=button.dataset.rudiExpensePeriod;expenseChartSelected=-1;renderWeeklyExpenses();
+      });
+      id('rudiWeeklyBars')?.addEventListener('click',event=>{
+        const button=event.target.closest?.('button[data-rudi-expense-index]');
+        if(!button)return;
+        expenseChartSelected=Number(button.dataset.rudiExpenseIndex);renderWeeklyExpenses();
+      });
     }
     if(!id('rudiGoalAdvisor')){
       const adviser=document.createElement('div');adviser.id='rudiGoalAdvisor';adviser.className='rudi-goal-advisor';
@@ -270,28 +286,41 @@
   function renderWeeklyExpenses(){
     const host=id('rudiWeeklyBars'),range=id('rudiWeeklyRange');
     if(!host||!snapshot)return;
-    const data=core.weeklyExpenses(snapshot,nowMoscow()),ctx=currencyContext();
+    const data=core.expensePeriod(snapshot,nowMoscow(),expenseChartPeriod),ctx=currencyContext();
     const dateText=key=>new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'})
       .format(new Date(key+'T12:00:00Z'));
-    if(range)range.textContent=dateText(data.from)+' – '+dateText(data.to);
+    const titles={week:'неделю',month:'месяц',year:'год'},title=id('rudiWeeklyHeading');
+    if(title)title.textContent='Расходы за '+titles[expenseChartPeriod];
+    if(range)range.textContent=expenseChartPeriod==='year'?data.from.slice(0,4):dateText(data.from)+' – '+dateText(data.to);
+    document.querySelectorAll('[data-rudi-expense-period]').forEach(button=>
+      button.setAttribute('aria-pressed',String(button.dataset.rudiExpensePeriod===expenseChartPeriod)));
     const hidden=id('financeBalanceEyeButton')?.getAttribute('aria-pressed')==='true';
-    const max=Math.max(0,...data.days.map(day=>day.total));
-    const bars=data.days.map(day=>{
-      const visible=day.total>0;
-      const height=visible&&max?Math.max(4,Math.round(day.total/max*75)):0;
-      const formatted=visible?displayMoney(day.total,ctx):'0';
-      const amount=hidden?'••••':formatted;
-      return '<div class="rudi-weekly-day"><div class="rudi-weekly-day-plot">'+
-        (visible?'<div class="rudi-weekly-bar" style="--rudi-week-height:'+height+'%">'+
-          '<span class="rudi-weekly-amount">'+html(amount)+'</span></div>':
-          '<span class="rudi-weekly-zero" aria-hidden="true"></span>')+
-        '</div><span class="rudi-weekly-day-label">'+day.label+'</span></div>';
-    }).join('');
-    host.innerHTML=bars;
+    const buckets=data.buckets,maximum=Math.max(0,...buckets.map(x=>x.total));
+    if(expenseChartSelected>=buckets.length)expenseChartSelected=-1;
+    const selected=expenseChartSelected>=0?expenseChartSelected:buckets.findIndex(x=>x.total===maximum&&maximum>0);
     host.classList.toggle('is-private',hidden);
-    host.setAttribute('aria-label',hidden?'Суммы недельных расходов скрыты':
-      'Расходы за неделю, '+dateText(data.from)+' – '+dateText(data.to)+': '+
-      data.days.map(day=>day.label+' '+displayMoney(day.total,ctx)).join(', '));
+    host.classList.toggle('is-year',expenseChartPeriod==='year');
+    host.style.setProperty('--rudi-week-count',String(buckets.length));
+    host.innerHTML=buckets.map((bucket,index)=>{
+      const filled=bucket.total>0,height=filled&&maximum?Math.max(4,Math.round(bucket.total/maximum*74)):0;
+      const value=hidden?'••••':displayMoney(bucket.total,ctx);
+      const showValue=filled&&(expenseChartPeriod!=='year'||selected===index);
+      return '<div class="rudi-weekly-day"><button type="button" data-rudi-expense-index="'+index+
+        '" class="rudi-weekly-day-plot'+(selected===index?' is-selected':'')+
+        '" aria-label="'+html(bucket.label+': '+value)+'">'+
+        (filled?'<span class="rudi-weekly-bar" style="--rudi-week-height:'+height+'%">'+
+          (showValue?'<span class="rudi-weekly-amount">'+html(value)+'</span>':'')+'</span>':
+          '<span class="rudi-weekly-zero" aria-hidden="true"></span>')+
+        '</button><span class="rudi-weekly-day-label">'+html(bucket.label)+'</span></div>';
+    }).join('');
+    let info=id('rudiExpenseSelectedDetail');
+    if(!info){info=document.createElement('p');info.id='rudiExpenseSelectedDetail';
+      info.className='rudi-expense-selected';host.insertAdjacentElement('afterend',info);}
+    const selectedBucket=buckets[selected];
+    info.textContent=selectedBucket?(selectedBucket.label+': '+(hidden?'••••':displayMoney(selectedBucket.total,ctx))):'Расходов за период нет';
+    info.hidden=expenseChartPeriod!=='year';
+    host.setAttribute('aria-label',hidden?'Суммы расходов скрыты':
+      'Расходы за '+titles[expenseChartPeriod]+', всего '+displayMoney(data.total,ctx));
   }
   function render(){
     if(!snapshot||!mount())return;

@@ -149,6 +149,46 @@
     days.forEach(day=>{day.total=Math.max(0,day.total)});
     return {from:days[0].date,to:days[6].date,days,total:money(days.reduce((sum,day)=>sum+day.total,0))};
   }
+
+  function expensePeriod(state={},now=new Date(),period='week'){
+    if(period==='week'){
+      const week=weeklyExpenses(state,now);
+      return {period,from:week.from,to:week.to,total:week.total,
+        buckets:week.days.map(day=>({label:day.label,from:day.date,to:day.date,total:day.total}))};
+    }
+    if(!['month','year'].includes(period))throw new Error('finance-expense-period-invalid');
+    const current=dateKey(now),year=Number(current.slice(0,4)),month=Number(current.slice(5,7));
+    const mStr=String(month).padStart(2,'0');
+    const last=new Date(Date.UTC(year,month,0)).getUTCDate();
+    const from=period==='month'?year+'-'+mStr+'-01':year+'-01-01';
+    const to=period==='month'?year+'-'+mStr+'-'+String(last).padStart(2,'0'):year+'-12-31';
+    const buckets=[];
+    if(period==='year'){
+      ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'].forEach((label,i)=>{
+        const m=String(i+1).padStart(2,'0');
+        const end=new Date(Date.UTC(year,i+1,0)).getUTCDate();
+        buckets.push({label,from:year+'-'+m+'-01',
+          to:year+'-'+m+'-'+String(end).padStart(2,'0'),total:0});
+      });
+    }else{
+      let day=1;
+      while(day<=last){
+        const dow=new Date(Date.UTC(year,month-1,day)).getUTCDay();
+        const end=Math.min(last,day+6-((dow+6)%7));
+        const key=n=>year+'-'+mStr+'-'+String(n).padStart(2,'0');
+        buckets.push({label:day+'–'+end,from:key(day),to:key(end),total:0});
+        day=end+1;
+      }
+    }
+    for(const row of rows(state.personalExpenses)){
+      if(row?.manualAdjustment)continue;
+      const key=moscowExpenseDate(row),value=Number(row?.rubAmount??row?.amount);
+      if(!key||key<from||key>to||!Number.isFinite(value)||value<=0)continue;
+      const bucket=buckets.find(x=>key>=x.from&&key<=x.to);
+      if(bucket)bucket.total=money(bucket.total+value);
+    }
+    return {period,from,to,buckets,total:money(buckets.reduce((a,b)=>a+b.total,0))};
+  }
   function detectIssues(state,now){
     const current=monthKey(now),last=addMonths(current,-1);
     const history=monthHistory(state,now);
@@ -261,5 +301,5 @@
     }
     return {main:null,secondary:null,explanation:'Выбери сценарий.',warning:''};
   }
-  return {forecast,detectIssues,weeklyExpenses,goal,recommendations,simulate,dateKey,monthKey,monthHistory};
+  return {forecast,detectIssues,weeklyExpenses,expensePeriod,goal,recommendations,simulate,dateKey,monthKey,monthHistory};
 });

@@ -48,3 +48,31 @@ test('weekly finance chart mounts before where-money-goes and hides duplicate da
  assert.doesNotMatch(html,/class="finance-category-yesterday"/);
  assert.match(css,/\.rudi-weekly-bar/);
 });
+
+test('monthly and yearly expenses are grouped by Moscow calendar without fake values',()=>{
+ const state={personalExpenses:[
+ {occurredAt:'2026-10-04T21:30:00Z',rubAmount:100},
+ {occurredAt:'2026-10-11T17:00:00Z',rubAmount:200},
+ {occurredAt:'2026-10-11T22:30:00Z',rubAmount:250},
+ {occurredAt:'2026-09-30T12:00:00Z',rubAmount:500},
+ {occurredAt:'2026-10-09T12:00:00Z',rubAmount:500,manualAdjustment:true}]};
+ const now=new Date(2026,9,11,12);
+ const w=core.expensePeriod(state,now,'week');assert.equal(w.total,300);assert.equal(w.buckets.length,7);
+ const m=core.expensePeriod(state,now,'month');
+ assert.equal(m.from,'2026-10-01');assert.equal(m.to,'2026-10-31');
+ assert.deepEqual(m.buckets.map(x=>x.total),[0,300,250,0,0]);
+ assert.equal(m.total,550);
+ const y=core.expensePeriod(state,now,'year');
+ assert.equal(y.buckets.length,12);assert.equal(y.buckets[8].total,500);
+ assert.equal(y.buckets[9].total,550);assert.equal(y.total,1050);
+});
+test('financial insight cards use stable IDs and all three expense scales exist',()=>{
+ const fs=require('node:fs'),css=fs.readFileSync('public/finance-cards.css','utf8');
+ const js=fs.readFileSync('public/finance-decisions-ui.js','utf8');
+ assert.match(js,/id="rudiAlertsCard"/);assert.match(js,/id="rudiScenarioCard"/);
+ assert.match(js,/data-rudi-expense-period="month"/);
+ assert.match(js,/data-rudi-expense-period="year"/);
+ assert.match(css,/#financePersonalPanel #rudiAlertsCard/);
+ assert.match(css,/#financePersonalPanel #rudiScenarioCard/);
+ assert.doesNotMatch(css,/\.rudi-decision-card:(first-child|nth-child)/);
+});

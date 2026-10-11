@@ -131,3 +131,18 @@
   .rudi-weekly-head h2{font-size:16px}
   .rudi-weekly-amount{font-size:9px}
 }
+
+/* v4.174 expense period scale selectors and readable year bars */
+.rudi-expense-periods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:2px 0 12px;padding:4px;border:1px solid var(--line);border-radius:13px;background:var(--soft)}
+.rudi-expense-periods button{min-width:0;border:0;border-radius:10px;padding:9px 3px;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:730;cursor:pointer}
+.rudi-expense-periods button[aria-pressed="true"]{background:color-mix(in srgb,#2dcea2 28%,var(--surface));color:var(--text);box-shadow:0 1px 6px rgba(0,0,0,.08)}
+.rudi-expense-periods button:focus-visible,.rudi-weekly-day-plot:focus-visible{outline:2px solid #28bc92;outline-offset:1px}
+.rudi-weekly-chart{grid-template-columns:repeat(var(--rudi-week-count,7),minmax(0,1fr))}
+.rudi-weekly-day-plot{appearance:none;border:0;border-bottom:1px solid var(--line);background:transparent;padding:0;cursor:pointer;font:inherit;color:inherit}
+.rudi-weekly-day-plot.is-selected .rudi-weekly-bar{filter:brightness(1.12)}
+.rudi-weekly-chart.is-year{gap:1px}
+.rudi-weekly-chart.is-year .rudi-weekly-bar{width:min(76%,24px);border-radius:6px 6px 0 0}
+.rudi-weekly-chart.is-year .rudi-weekly-day-label{font-size:clamp(8px,1.9vw,10px);letter-spacing:-.03em}
+.rudi-weekly-chart.is-year .rudi-weekly-amount{font-size:9px;z-index:2}
+.rudi-expense-selected{margin:10px 0 0;text-align:center;color:var(--muted);font-size:11px}
+.rudi-expense-selected[hidden]{display:none!important}
