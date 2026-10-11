@@ -1,7 +1,7 @@
 {
   "current": "v4.161",
   "versionBranch": "main",
-  "releaseCommit": "",
+  "releaseCommit": "58065c3e1441d3b7c9787d47bc517039a27c3851",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
@@ -13,7 +13,8 @@
     "New iPhone-friendly AI dashboard with prominent insight, concrete next action and a seven-day chart switching between confirmed habits, recorded expenses and daily mood observations.",
     "Suppress empty four-card placeholders and routine technical status text; keep useful error and retry messages.",
     "Fix two existing personal-center CI test regressions and keep morning-only 07:00 Moscow scheduling.",
-    "No new Vercel serverless function, no additional cron job and no automatic AI calls on opening the AI center."
+    "No new Vercel serverless function, no additional cron job and no automatic AI calls on opening the AI center.",
+    "Release provenance records the verified v4.161 application commit; published build is not skipped when prior commits were test-only."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
