@@ -159,3 +159,8 @@
 .finance-crypto-overview .finance-crypto-period-pnl .finance-crypto-pnl{font-size:13px;color:#c2c1db}
 .finance-crypto-overview .finance-crypto-period-pnl .finance-crypto-pnl.is-positive{color:#56d69a}
 .finance-crypto-overview .finance-crypto-period-pnl .finance-crypto-pnl.is-negative{color:#f77a88}
+
+/* v4.178: lightweight, non-blocking Bybit read-only access check */
+.finance-crypto-history-check{opacity:.89;margin-top:2px}
+.finance-crypto-history-check:disabled{opacity:.53;cursor:wait}
+.finance-crypto-history-check-status{display:block;margin-top:5px;font-size:11px;line-height:1.5;overflow-wrap:anywhere;color:var(--muted,#aeb0bb)}
