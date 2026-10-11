@@ -93,7 +93,7 @@ test('Arbitrum owner has three v3 WETH/USDC pools with claimable fees',async()=>
     if(sig===lp.selector('ownerOf(uint256)'))return ownerAsInt;
     if(sig===lp.selector('positions(uint256)')){
       const id=BigInt('0x'+tx.data.slice(-64));positionsAsked.push(id);
-      return encode(0,0,BigInt(WETH),0xaf88d065e77c8cc2239327c5edb3a432268e5831n,500,-600,600,100000000,0,0,0,0);
+      return encode(0,0,0x82af49447d8a07e3bd95bd0d56f35241523fbab1n,0xaf88d065e77c8cc2239327c5edb3a432268e5831n,500,-600,600,100000000,0,0,0,0);
     }
     if(sig===lp.selector('getPool(address,address,uint24)'))return BigInt(POOL);
     if(sig===lp.selector('slot0()'))return encode(Q96,0,0,0,0,0,0);
