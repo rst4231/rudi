@@ -84,6 +84,67 @@ test('two API-connected wallets show the linked transfer without changing either
   assert.equal(state.wallets.find(x=>x.id==='api-wallet').balance,500);
   assert.equal(state.wallets.find(x=>x.id==='api-peer').balance,700);
 });
+test('100 USDT to a USD wallet is auto-converted without entering rubles',async()=>{
+  const {view,options}=await setup();
+  await saveWallet('Рустам',{name:'USD получатель',currency:'USD',balance:30},
+    {...options,id:'wallet-dollar'});
+  const selection=payload({
+    targetWalletId:'wallet-dollar',autoAmount:true,assetSymbol:'USDT',assetAmount:100,
+    rubAmount:undefined,
+  });
+  await classifyCryptoOperation('Рустам',selection,options);
+  let state=await view(),transfer=state.walletTransfers[0];
+  assert.equal(state.wallets.find(x=>x.id==='api-wallet').balance,500);
+  assert.equal(state.wallets.find(x=>x.id==='wallet-dollar').balance,130);
+  assert.equal(transfer.sourceAmount,100);
+  assert.equal(transfer.targetAmount,100);
+  assert.equal(transfer.rubAmount,9000);
+  assert.equal(transfer.targetCurrency,'USD');
+  await classifyCryptoOperation('Рустам',selection,options);
+  state=await view();
+  assert.equal(state.walletTransfers.length,1);
+  assert.equal(state.wallets.find(x=>x.id==='wallet-dollar').balance,130);
+  assert.equal(state.personalMonths.find(x=>x.month==='2026-10')?.expenses||0,0);
+});
+test('USDT-to-USD uses actual stablecoin USD quote with full precision',async()=>{
+  const {view,options}=await setup();
+  await saveWallet('Рустам',{name:'USD получатель',currency:'USD',balance:30},
+    {...options,id:'wallet-dollar'});
+  const selection=payload({
+    targetWalletId:'wallet-dollar',autoAmount:true,assetSymbol:'USDT',assetAmount:100,
+    rubAmount:undefined,rates:{...rates,USDT:90.45},
+  });
+  await classifyCryptoOperation('Рустам',selection,options);
+  let state=await view();
+  assert.equal(state.walletTransfers[0].sourceAmount,100.5);
+  assert.equal(state.walletTransfers[0].targetAmount,100.5);
+  assert.equal(state.walletTransfers[0].rubAmount,9045);
+  assert.equal(state.wallets.find(x=>x.id==='wallet-dollar').balance,130.5);
+});
+test('auto transfer to a USDT wallet keeps the source token amount exactly',async()=>{
+  const {view,options}=await setup();
+  await saveWallet('Рустам',{name:'USDT получатель',currency:'USDT',balance:15},
+    {...options,id:'wallet-usdt'});
+  await classifyCryptoOperation('Рустам',payload({
+    targetWalletId:'wallet-usdt',autoAmount:true,assetSymbol:'USDT',assetAmount:100,
+    rubAmount:undefined,rates:{...rates,USDT:90.45},
+  }),options);
+  const state=await view();
+  assert.equal(state.walletTransfers[0].targetAmount,100);
+  assert.equal(state.wallets.find(x=>x.id==='wallet-usdt').balance,115);
+});
+test('automatic mode refuses unrelated coins and RUB wallets, without changing balances',async()=>{
+  const {view,options}=await setup();
+  await assert.rejects(()=>classifyCryptoOperation('Рустам',payload({
+    autoAmount:true,assetSymbol:'BTC',assetAmount:1,rubAmount:undefined,
+  }),options),/crypto-auto-amount-unsupported/);
+  await assert.rejects(()=>classifyCryptoOperation('Рустам',payload({
+    autoAmount:true,assetSymbol:'USDT',assetAmount:100,rubAmount:undefined,
+  }),options),/crypto-auto-amount-unsupported/);
+  const state=await view();
+  assert.equal(state.walletTransfers.length,0);
+  assert.equal(state.wallets.find(x=>x.id==='manual-wallet').balance,1000);
+});
 test('one canonical confirmed transfer is idempotent when viewed from both API wallets',async()=>{
   const {view,options}=await setup();
   const {createHash}=require('node:crypto');
@@ -130,6 +191,9 @@ test('API crypto cards and existing wallet editor present clickable transaction 
   assert.match(js,/function operationElement/);
   assert.match(js,/function loadApiWalletHistory/);
   assert.match(js,/crypto-classify/);
+  assert.match(js,/autoAmount,rubAmount/);
+  assert.match(js,/Сумма перевода · /);
+  assert.match(server,/assetSymbol:row.symbol,assetAmount:row.amount/);
   assert.match(server,/classifyCryptoOperation/);
   assert.match(server,/cryptoOperationKey/);
 });

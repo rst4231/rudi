@@ -1532,8 +1532,12 @@ async function classifyCryptoOperation(actor,payload={},options={}){
     throw Error('crypto-allocation-direction-invalid');
   const targetWalletId=cleanText(payload.targetWalletId,100);
   const categoryId=cleanText(payload.categoryId,100);
-  const rubAmount=cleanMoney(payload.rubAmount);
-  if(rubAmount<=0)throw Error('finance-amount-invalid');
+  // USDT transfers to a USD/USDT wallet are valued directly from the
+  // verified on-chain/exchange amount. The RUB value is only accounting data.
+  const autoAmount=payload.autoAmount===true;
+  const usdtAmount=autoAmount?cleanAssetAmount(payload.assetAmount):null;
+  if(autoAmount&&(mode!=='transfer'||String(payload.assetSymbol||'').toUpperCase()!=='USDT'||!(usdtAmount>0)))
+    throw Error('crypto-auto-amount-unsupported');
   const occurredAt=cleanOccurredAt(payload.occurredAt,options.now||Date.now());
   const month=cryptoOperationMonth(occurredAt),note=cleanText(payload.note,120);
   const rates=payload.rates||{};
@@ -1553,6 +1557,14 @@ async function classifyCryptoOperation(actor,payload={},options={}){
       if(!Number.isFinite(n)||n<=0)throw Error('finance-rate-invalid');
       return n;
     };
+    if(autoAmount){
+      const selected=direction==='send'?destination:source;
+      if(!selected||!['USD','USDT'].includes(selected.currency))throw Error('crypto-auto-amount-unsupported');
+    }
+    const rubAmount=autoAmount
+      ?cleanMoney(usdtAmount*rate('USDT'))
+      :cleanMoney(payload.rubAmount);
+    if(rubAmount<=0)throw Error('finance-amount-invalid');
     let wallets=[...walletRows];
     function adjust(id,delta){
       const w=wallets.find(x=>x.id===id);
@@ -1590,8 +1602,11 @@ async function classifyCryptoOperation(actor,payload={},options={}){
       allocation.categoryId=category.id;
     }else{
       const from=direction==='send'?source:destination,to=direction==='send'?destination:source;
-      const sourceAmount=cleanAssetAmount(rubAmount/rate(from.currency));
-      const targetAmount=cleanAssetAmount(rubAmount/rate(to.currency));
+      const convertedAmount=currency=>autoAmount&&['USD','USDT'].includes(currency)
+        ?cleanAssetAmount(usdtAmount*rate('USDT')/rate(currency))
+        :cleanAssetAmount(rubAmount/rate(currency));
+      const sourceAmount=convertedAmount(from.currency);
+      const targetAmount=convertedAmount(to.currency);
       if(sourceAmount<=0||targetAmount<=0)throw Error('finance-amount-invalid');
       const balanceAdjustedSource=!apiIds.has(from.id),balanceAdjustedTarget=!apiIds.has(to.id);
       if(balanceAdjustedSource)adjust(from.id,-sourceAmount);
@@ -1604,6 +1619,13 @@ async function classifyCryptoOperation(actor,payload={},options={}){
         occurredAt,createdAt:oldTransfer?.createdAt||now,
       });
       allocation.targetWalletId=destination.id;
+      if(autoAmount){
+        allocation.autoAmount=true;
+        allocation.assetAmount=usdtAmount;
+        allocation.assetSymbol='USDT';
+        allocation.targetAmount=targetAmount;
+        allocation.targetCurrency=to.currency;
+      }
     }
     let next=normalizeState({...current,initialized:true,version:current.version+1,
       wallets:{...current.wallets,[safeActor]:wallets},personalExpenses,walletTransfers});

@@ -1,19 +1,18 @@
 {
-  "current": "v4.168",
-  "versionBranch": "feature/rudi-crypto-bybit-trust-balance-history",
+  "current": "v4.169",
+  "versionBranch": "fix/rudi-crypto-usdt-usd-auto-conversion",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.167",
+  "basedOnProduction": "v4.168",
   "notes": [
-    "Read-only Bybit V5 UTA, Funding, Earn category balances with known assets and partial coverage statuses.",
-    "Trust Wallet address-only Ethereum, Arbitrum, TON USDT, NEAR and Polkadot DOT with known-token coverage.",
-    "D1-backed Moscow-dated real portfolio snapshots and interactive history chart for 7/30/60/90/365 days.",
-    "Correlate confirmed on-chain Bybit transfers with EVM incoming/outgoing operations; no income/expense ledger mutation.",
-    "Remove lengthy crypto captions, show updated timestamp and compact partial balance indicator.",
-    "Automated regression tests and GitHub CI required before production release.",
-    "Do not deploy until explicit user confirmation."
+    "API wallet transfer classifier automatically values USDT transactions into USD or USDT wallets without requiring a RUB amount.",
+    "Server uses verified transaction asset amount and market USDT/USD rate; stores RUB equivalent only for accounting.",
+    "Avoid re-debiting API-connected wallets or double-counting previously classified transfers.",
+    "Retain manually entered RUB amounts for other assets and for expense categories.",
+    "Automated regression tests for exact USDT 1:1 transfers, variable USD quote and duplicate prevention.",
+    "Production release requires passing GitHub tests and user permission (granted in chat)."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

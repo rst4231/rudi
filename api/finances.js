@@ -199,6 +199,7 @@ async function handler(req, res) {
           walletId,operationId,allocationKey:cryptoAssignmentKey(walletId,row),mode:body.mode,direction,
           categoryId:body.categoryId,targetWalletId:body.targetWalletId,
           rubAmount:body.rubAmount,note:body.note,occurredAt:row.timestamp,
+          autoAmount:body.autoAmount===true,assetSymbol:row.symbol,assetAmount:row.amount,
           apiWalletIds:allConnections.map(c=>c.walletId),rates,
         });
         return res.status(200).json({ok:true,actor,allocation:saved.allocation,
