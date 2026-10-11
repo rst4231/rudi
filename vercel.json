@@ -35,12 +35,6 @@
         "fra1"
       ],
       "maxDuration": 60
-    },
-    "api/crypto-signals-cron.js": {
-      "maxDuration": 300,
-      "regions": [
-        "fra1"
-      ]
     }
   },
   "headers": [
@@ -185,6 +179,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/crypto-signals-cron",
+      "destination": "/api/index?route=crypto-signals-cron"
+    },
     {
       "source": "/api/personal-center",
       "destination": "/api/index?route=personal-center"
