@@ -133,8 +133,32 @@
         card.append(switchButton);
       }
 
-      if(link.lastError){const err=document.createElement('p');err.className='finance-crypto-error';err.textContent=errorLabel({message:link.lastError});card.append(err);}
-      else if(link.warning){const warning=document.createElement('p');warning.className='finance-crypto-warning';warning.textContent=link.warning;card.append(warning);}
+      if(link.lastError&&!link.incomplete){const err=document.createElement('p');err.className='finance-crypto-error';err.textContent=errorLabel({message:link.lastError});card.append(err);}
+      if(link.provider==='bybit'&&Array.isArray(link.sections)){
+        const groups=document.createElement('div');groups.className='finance-crypto-sections';
+        for(const section of link.sections){
+          const entry=document.createElement('details');entry.className='finance-crypto-section';
+          const label=document.createElement('summary');label.textContent=section.name+(typeof section.usd==='number'?' · '+cash(section.usd):' · недоступно');entry.append(label);
+          for(const asset of section.assets||[]){
+            const row=document.createElement('div');row.className='finance-crypto-asset';
+            const name=document.createElement('span');name.textContent=asset.symbol+' · '+Number(asset.amount).toLocaleString('ru-RU',{maximumFractionDigits:8});
+            const value=document.createElement('strong');value.textContent=typeof asset.usd==='number'?cash(asset.usd):'—';
+            row.append(name,value);entry.append(row);
+          }
+          groups.append(entry);
+        }card.append(groups);
+      }else if(link.provider==='trust'&&Array.isArray(link.assets)&&link.assets.length){
+        const items=document.createElement('div');items.className='finance-crypto-sections';
+        for(const asset of link.assets){
+          const row=document.createElement('div');row.className='finance-crypto-asset';
+          const name=document.createElement('span');name.textContent=asset.symbol+' · '+Number(asset.amount).toLocaleString('ru-RU',{maximumFractionDigits:8})+' · '+(asset.network||link.chain).toUpperCase();
+          const value=document.createElement('strong');value.textContent=typeof asset.usd==='number'?cash(asset.usd):'—';
+          row.append(name,value);items.append(row);
+        }card.append(items);
+      }
+      const operationButton=document.createElement('button');operationButton.type='button';operationButton.className='finance-crypto-operations-button';operationButton.textContent='История операций';
+      operationButton.addEventListener('click',()=>void showOperations(link.walletId,card));
+      card.append(operationButton);
       if(link.address){const address=document.createElement('code');address.textContent=link.address.slice(0,8)+'…'+link.address.slice(-6);card.append(address);}
       cards.append(card);
     }
@@ -220,6 +244,67 @@
     if($('financeCryptoAddress'))$('financeCryptoAddress').value=existing?.address||'';
     switchProvider();renderEditor();
   }
+
+  function toggleHistory(open){
+    const main=$('financeCryptoMain'),history=$('financeCryptoHistory'),overview=$('financeCryptoTotal')?.closest('.finance-crypto-overview');
+    if(main)main.hidden=open;
+    if(history)history.hidden=!open;
+    if(overview)overview.hidden=open;
+    if(open)void loadHistory();
+  }
+  let historyPeriod=30;
+  async function loadHistory(){
+    setStatus('financeCryptoHistoryStatus','');
+    try{
+      const result=await request('crypto-history',{walletId:'__portfolio__',days:historyPeriod});
+      const rows=Array.isArray(result.points)?result.points:[];
+      const chart=$('financeCryptoChart'),summary=$('financeCryptoHistoryStats'),points=$('financeCryptoHistoryPoints');
+      if(!chart||!summary||!points)return;
+      chart.replaceChildren();summary.replaceChildren();points.replaceChildren();
+      const svg=(tag,attrs)=>{const e=document.createElementNS('http://www.w3.org/2000/svg',tag);for(const [key,value] of Object.entries(attrs||{}))e.setAttribute(key,String(value));return e;};
+      if(!rows.length){setStatus('financeCryptoHistoryStatus','История появится после первой синхронизации.');return;}
+      const vals=rows.map(r=>r.usd),lo=Math.min(...vals),hi=Math.max(...vals),spread=Math.max(hi-lo,1);
+      const x=i=>20+(rows.length===1?150:300*i/(rows.length-1)),y=n=>150-105*(n-lo)/spread;
+      const d=rows.map((r,i)=>(i?'L':'M')+x(i).toFixed(2)+' '+y(r.usd).toFixed(2)).join(' ');
+      chart.append(svg('path',{d,fill:'none',stroke:'#bba7ff','stroke-width':3,'stroke-linecap':'round','stroke-linejoin':'round'}));
+      const tip=$('financeCryptoChartTooltip');
+      rows.forEach((r,i)=>{
+        const dot=svg('circle',{cx:x(i),cy:y(r.usd),r:rows.length===1?5:3,fill:r.partial?'#ffbd7c':'#e0daff',tabindex:0,role:'button','aria-label':r.date+' '+cash(r.usd)});
+        const show=()=>{if(tip)tip.textContent=r.date+' · '+cash(r.usd)+(r.partial?' · частично':'');};
+        dot.addEventListener('click',show);dot.addEventListener('focus',show);
+        dot.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')show();});chart.append(dot);
+      });
+      const first=rows[0],last=rows[rows.length-1],delta=last.usd-first.usd;
+      const pct=first.usd>0?(delta/first.usd*100).toFixed(2)+'%':'—';
+      summary.textContent='Начало '+cash(first.usd)+' · Сейчас '+cash(last.usd)+' · '+(delta>=0?'+':'')+cash(delta)+' · '+pct;
+      const badge=$('financeCryptoHistoryBadge');
+      if(badge)badge.textContent=rows.some(row=>row.partial)?'● Частичные снимки':'● Подтверждённые снимки';
+      for(const row of rows.slice(-15).reverse()){
+        const line=document.createElement('div');line.className='finance-crypto-asset';
+        const time=document.createElement('span');time.textContent=row.date+(row.partial?' · частично':'');
+        const value=document.createElement('strong');value.textContent=cash(row.usd);line.append(time,value);points.append(line);
+      }
+    }catch(error){setStatus('financeCryptoHistoryStatus',errorLabel(error));}
+  }
+  async function showOperations(walletId,card){
+    let wrap=card.querySelector('.finance-crypto-operations');
+    if(wrap){wrap.remove();return;}
+    wrap=document.createElement('div');wrap.className='finance-crypto-operations';wrap.textContent='Получаю операции…';card.append(wrap);
+    try{
+      const result=await request('crypto-operations',{walletId});
+      wrap.replaceChildren();
+      const rows=Array.isArray(result.items)?result.items:[];
+      if(!rows.length){wrap.textContent='Операций пока нет';return;}
+      for(const row of rows.slice(0,25)){
+        const item=document.createElement('div');item.className='finance-crypto-asset';
+        const label=document.createElement('span');
+        label.textContent=(row.kind==='transfer'?row.details:row.kind==='receive'?'Пополнение':row.kind==='send'?'Вывод':'Перемещение')+' · '+row.symbol+' · '+new Date(row.timestamp).toLocaleDateString('ru-RU');
+        const value=document.createElement('strong');value.textContent=Number(row.amount).toLocaleString('ru-RU',{maximumFractionDigits:8});
+        item.append(label,value);wrap.append(item);
+      }
+      if(result.incomplete){const warning=document.createElement('small');warning.textContent='Показана доступная история, часть данных недоступна.';wrap.append(warning);}
+    }catch(error){wrap.textContent=errorLabel(error);}
+  }
   function boot(){
     if(!$('financeCryptoPanel'))return;
     $('financeCryptoProvider')?.addEventListener('change',switchProvider);
@@ -229,6 +314,15 @@
       if(!form.hidden)$('financeCryptoProvider')?.focus();
     });
     $('financeCryptoRefresh')?.addEventListener('click',()=>void refresh(true));
+    const summary=$('financeCryptoTotal');
+    summary?.addEventListener('click',()=>toggleHistory(true));
+    summary?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleHistory(true);}});
+    $('financeCryptoHistoryBack')?.addEventListener('click',()=>toggleHistory(false));
+    document.querySelectorAll('[data-crypto-period]').forEach(button=>button.addEventListener('click',()=>{
+      historyPeriod=Number(button.dataset.cryptoPeriod);
+      document.querySelectorAll('[data-crypto-period]').forEach(b=>b.classList.toggle('active',b===button));
+      void loadHistory();
+    }));
     $('financeCryptoConnectButton')?.addEventListener('click',async()=>{
       const walletId=editingWalletId,provider=$('financeCryptoProvider')?.value||'bybit';
       if(!walletId||actor!=='Рустам')return;
