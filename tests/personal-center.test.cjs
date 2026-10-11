@@ -342,10 +342,10 @@ test('positive mood charts and detailed AI insights are shown before evidence',(
  assert.ok(app.includes("positiveShare(x)"));
  assert.ok(app.includes("v.positive+' из '+v.total+' позитивных"));
  assert.ok(app.includes("report?.date===dayKey()&&report?.slot==='morning'"));
- assert.ok(app.includes("section('Что сделать сегодня',n.mainAction)"));
+ assert.ok(app.includes("section('Что сделать сегодня',n.mainAction,'action')"));
  assert.ok(app.includes("section('На что обратить внимание',n.mainObservation)"));
  assert.ok(app.includes('<details class="rudi-center__report-evidence">'));
- assert.ok(app.indexOf("section('Что сделать сегодня',n.mainAction)")<app.indexOf("const evidence=[]"));
+ assert.ok(app.indexOf("section('Что сделать сегодня',n.mainAction,'action')")<app.indexOf("const evidence=[]"));
  assert.ok(generator.includes('Составь содержательный персональный разбор, а не каталог показателей'));
  assert.doesNotMatch(app,/Динамика негативных эмоций|Негативные отметки|Доля негативных отметок/);
 });
