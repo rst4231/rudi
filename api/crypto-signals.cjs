@@ -58,7 +58,7 @@ function parseSignal(row){
   const leverage=level(text,/(?:плечо|leverage)\s*(?:x|х|:|=|\s)*([\d]+(?:[.,]\d+)?)/i);
   const complete=Boolean(entry&&(take||stop));
   return {id:row.id,at:row.at,url:row.url,symbol:ticker,market:'unconfirmed',
-    direction,entry,take,stop,leverage,conditional,qualified:complete&&!conditional,
+    direction,entry,take,stop,leverage,conditional,qualified:complete&&!conditional,paperEligible:!conditional,
     status:conditional?'conditional':complete?'awaiting-market':'insufficient-levels',
     excerpt:text.slice(0,400),authorClaim:null};
 }
@@ -105,8 +105,8 @@ async function candlesForSignal(signal,options={}){
   if(!response.ok)throw Error('market-http-'+response.status);
   const payload=await response.json();
   if(Number(payload.retCode)!==0||!Array.isArray(payload.result?.list))throw Error('market-data-unavailable');
-  return payload.result.list.map(r=>({at:Number(r[0]),high:Number(r[2]),low:Number(r[3]),close:Number(r[4])})).filter(r=>
-    Number.isFinite(r.at)&&Number.isFinite(r.high)&&Number.isFinite(r.low)&&r.high>=r.low);
+  return payload.result.list.map(r=>({at:Number(r[0]),open:Number(r[1]),high:Number(r[2]),low:Number(r[3]),close:Number(r[4])})).filter(r=>
+    Number.isFinite(r.at)&&Number.isFinite(r.open)&&Number.isFinite(r.high)&&Number.isFinite(r.low)&&r.high>=r.low);
 }
 async function fetchChannelPage(before,options={}){
   const fetcher=options.fetchImpl||fetch;
@@ -119,6 +119,27 @@ async function fetchChannelPage(before,options={}){
   const items=parsePreview(body);
   if(!items.length)throw Error('telegram-page-empty');
   return items;
+}
+function modeledTrade(signal,candles,messages=[],now=Date.now()){
+  if(!signal?.paperEligible||signal.qualified)return null;
+  const available=(Array.isArray(candles)?candles:[]).filter(c=>c.at>Date.parse(signal.at)&&
+    c.at<=now&&Number.isFinite(c.open)&&c.open>0).sort((a,b)=>a.at-b.at);
+  const first=available[0],last=available[available.length-1];
+  if(!first)return {status:'waiting-entry',execution:'next-hour-model'};
+  const closure=(Array.isArray(messages)?messages:[]).find(m=>
+    m.id>signal.id&&Date.parse(m.at)>Date.parse(signal.at)&&
+    Array.isArray(m.references)&&m.references.includes(signal.id)&&
+    /(?:закрыл\s+полностью|полностью\s+закрыл|вышел\s+(?:из\s+)?(?:позиции|сделки)\s+полностью)/i.test(m.text));
+  const exit=closure&&available.find(c=>c.at>Date.parse(closure.at));
+  const entry=first.open,price=exit?exit.open:last.close;
+  const side=signal.direction==='short'?-1:1;
+  const pct=Math.round(side*(price-entry)/entry*10000)/100;
+  if(exit)return {status:pct>0?'won':pct<0?'lost':'breakeven',execution:'next-hour-model',
+    entry,entryAt:new Date(first.at).toISOString(),exitAt:new Date(exit.at).toISOString(),
+    exitPrice:price,priceChangePct:pct,authorExitUrl:closure.url};
+  return {status:'open',execution:'next-hour-model',entry,
+    entryAt:new Date(first.at).toISOString(),marketPrice:price,
+    lastPriceAt:new Date(last.at).toISOString()};
 }
 let refreshFlight=null;
 async function refreshSignals(options={}){
@@ -153,14 +174,15 @@ async function refreshSignals(options={}){
       const results={};
       let attempts=0;
       for(const s of signals){
-        if(!s.qualified)continue;
+        if(!s.qualified&&!s.paperEligible)continue;
         const prev=oldResults[s.id];
-        if(prev?.status==='won'||prev?.status==='lost'||prev?.status==='ambiguous'){
+        if(prev?.status==='won'||prev?.status==='lost'||prev?.status==='breakeven'||prev?.status==='ambiguous'){
           results[s.id]=prev;continue;
         }
         if(attempts>=5){if(prev)results[s.id]=prev;continue;}
         attempts++;
-        try{results[s.id]=evaluateCandles(s,await candlesForSignal(s,options),now)}
+        try{const candles=await candlesForSignal(s,options);
+          results[s.id]=s.qualified?evaluateCandles(s,candles,now):modeledTrade(s,candles,[...posts.values()],now)}
         catch(e){priceError=String(e?.message||e);results[s.id]=prev||{status:'market-unavailable'};}
       }
       const state={messages:[...posts.values()].sort((a,b)=>b.id-a.id).slice(0,1000),
@@ -183,7 +205,7 @@ function buildView(state,now=Date.now()){
     const row=state.results?.[signal.id];
     return {...signal,...(row||{}),url:signal.url,id:signal.id,at:signal.at};
   }).sort((a,b)=>b.at.localeCompare(a.at));
-  const verified=signals.filter(s=>s.status==='won'||s.status==='lost');
+  const verified=signals.filter(s=>(s.status==='won'||s.status==='lost')&&s.execution!=='next-hour-model');
   const won=verified.filter(s=>s.status==='won');
   const knownChange=verified.filter(s=>Number.isFinite(s.priceChangePct));
   const avgChange=knownChange.length?Math.round(knownChange.reduce((s,r)=>s+r.priceChangePct,0)*100/knownChange.length)/100:null;
@@ -204,4 +226,4 @@ async function readSignals(options={}){
   return buildView(state,options.now??Date.now());
 }
 module.exports={NS,parsePreview,parseSignal,evaluateCandles,compareSignal:parseSignal,
-  buildView,readSignals,refreshSignals,candlesForSignal};
+  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade};
