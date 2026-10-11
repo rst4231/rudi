@@ -479,7 +479,7 @@ async function operations(actor,walletId,options={}) {
 async function checkBybitTradeHistory(actor,walletId,options={}){
   owner(actor);
   const id=String(walletId||'').trim();
-  if(!/^[\\w-]{1,100}$/.test(id))throw Error('crypto-wallet-not-found');
+  if(!/^[\w-]{1,100}$/.test(id))throw Error('crypto-wallet-not-found');
   const links=await readState(options),connection=links[id];
   if(!connection||connection.provider!=='bybit')throw Error('crypto-wallet-not-found');
   const keys=(options.decryptSecret||decryptSecret)(connection.secret);
