@@ -96,7 +96,7 @@ function render(data){
   const updated=$('cryptoSignalsUpdated');if(updated)updated.textContent=s.updatedAt?
     'Синхр. '+new Date(s.updatedAt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Ещё не синхронизировано';
   const allocation=$('cryptoSignalsAllocation');if(allocation)allocation.value=String(p.config?.allocationPct||10);
-  const leverage=$('cryptoSignalsLeverage');if(leverage)leverage.value=String(p.config?.leverage||1);
+  const leverage=$('cryptoSignalsLeverage');if(leverage)leverage.value=String(p.config?.leverage||2);
   const status=$('cryptoSignalsStatus');if(status){
     const parts=[];
     if(!s.updatedAt)parts.push('Данные ещё не загружены. Фоновая проверка стартует по расписанию.');
