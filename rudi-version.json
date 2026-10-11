@@ -1,16 +1,16 @@
 {
-  "current": "v4.174",
+  "current": "v4.175",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.173",
+  "basedOnProduction": "v4.174",
   "notes": [
-    "Expense chart switches week/month/year from recorded transactions without new requests.",
-    "Crypto portfolio chart offers 5h, 12h, 24h via recorded timestamps; legacy daily history preserved.",
-    "Restored finance insights and simulator styling with permanent IDs instead of positional CSS selectors.",
-    "One combined production release after regression checks."
+    "Added signal monitor for public @ne_investor channel, 30-day report and scheduled 5-minute scans.",
+    "Added simulated 10000 USD isolated-margin portfolio with configurable 2x or 3x leverage.",
+    "Added 24-hour wallet and portfolio valuation change with appropriate incomplete-data labels.",
+    "Signals and virtual positions remain separate from real crypto holdings; no trades are placed."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
