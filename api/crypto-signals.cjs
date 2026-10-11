@@ -66,7 +66,7 @@ function evaluateCandles(signal,candles,now=Date.now()){
   if(!signal?.qualified||!signal.entry)return {status:signal?.status||'insufficient-levels'};
   const side=signal.direction==='long'?1:-1;
   const candlesAsc=(Array.isArray(candles)?candles:[]).slice().sort((a,b)=>a.at-b.at);
-  let entered=false,entryAt=null,ended=false,outcome=null,exitPrice=null;
+  let entered=false,entryAt=null,ended=false,outcome=null,exitPrice=null,exitAt=null;
   for(const c of candlesAsc){
     if(!Number.isFinite(c.at)||c.at<=Date.parse(signal.at)||c.at>now)continue;
     if(!entered){
@@ -77,15 +77,18 @@ function evaluateCandles(signal,candles,now=Date.now()){
     }
     const tp=signal.take!==null&&(side===1?c.high>=signal.take:c.low<=signal.take);
     const sl=signal.stop!==null&&(side===1?c.low<=signal.stop:c.high>=signal.stop);
-    if(tp&&sl){outcome='ambiguous';ended=true;break;}
-    if(tp||sl){outcome=tp?'won':'lost';exitPrice=tp?signal.take:signal.stop;ended=true;break;}
+    if(tp&&sl){outcome='ambiguous';ended=true;exitAt=c.at;break;}
+    if(tp||sl){outcome=tp?'won':'lost';exitPrice=tp?signal.take:signal.stop;exitAt=c.at;ended=true;break;}
   }
   if(!entered)return {status:'not-entered'};
-  if(!ended)return {status:'open',entryAt:new Date(entryAt).toISOString()};
-  if(outcome==='ambiguous')return {status:'ambiguous',entryAt:new Date(entryAt).toISOString()};
+  const last=candlesAsc[candlesAsc.length-1];
+  if(!ended)return {status:'open',entryAt:new Date(entryAt).toISOString(),
+    lastPrice:Number.isFinite(last?.close)?last.close:null,lastPriceAt:last?new Date(last.at).toISOString():null};
+  if(outcome==='ambiguous')return {status:'ambiguous',entryAt:new Date(entryAt).toISOString(),
+    exitAt:exitAt?new Date(exitAt).toISOString():null};
   const percent=Math.round(side*(exitPrice-signal.entry)/signal.entry*10000)/100;
   return {status:outcome,entryAt:new Date(entryAt).toISOString(),
-    priceChangePct:percent,leveragedPct:signal.leverage?Math.round(percent*signal.leverage*100)/100:null,
+    exitAt:new Date(exitAt).toISOString(),exitPrice,priceChangePct:percent,leveragedPct:signal.leverage?Math.round(percent*signal.leverage*100)/100:null,
     calculation:'gross-unleveraged-excludes-fees-funding-slippage'};
 }
 async function candlesForSignal(signal,options={}){
@@ -99,7 +102,7 @@ async function candlesForSignal(signal,options={}){
   if(!response.ok)throw Error('market-http-'+response.status);
   const payload=await response.json();
   if(Number(payload.retCode)!==0||!Array.isArray(payload.result?.list))throw Error('market-data-unavailable');
-  return payload.result.list.map(r=>({at:Number(r[0]),high:Number(r[2]),low:Number(r[3])})).filter(r=>
+  return payload.result.list.map(r=>({at:Number(r[0]),high:Number(r[2]),low:Number(r[3]),close:Number(r[4])})).filter(r=>
     Number.isFinite(r.at)&&Number.isFinite(r.high)&&Number.isFinite(r.low)&&r.high>=r.low);
 }
 async function fetchChannelPage(before,options={}){
@@ -136,9 +139,10 @@ async function refreshSignals(options={}){
         for(let i=0;i<4;i++){
           const batch=await fetchChannelPage(cursor,options);
           const old=Math.min(...batch.map(m=>m.id));
-          if(old>=cursor||batch.some(m=>Date.parse(m.at)<cutoff)){complete=true;break;}
+          if(old>=cursor){complete=true;break;}
           batch.forEach(m=>{if(Date.parse(m.at)>=cutoff)posts.set(m.id,m)});
           cursor=old;
+          if(batch.some(m=>Date.parse(m.at)<cutoff)){complete=true;break;}
         }
       }
       const signals=[...posts.values()].map(parseSignal).filter(Boolean);
