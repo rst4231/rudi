@@ -27,6 +27,7 @@ const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require(
 const { buildHealthPayload } = require('./control-plane-health.cjs');
 const { createRudiStateClient } = require('./rudi-state-client.cjs');
 const handlePersonalCenter = require('./personal-center-handler.cjs');
+const { handleCrypto } = require('./crypto-handler.cjs');
 const handlePersonalCenterCron = require('./personal-center-cron-handler.cjs');
 const { migrateD1ToVercel, storageMigrationStatus, rollbackStorageToD1, isMigrationAuthorized } = require('./d1-to-vercel-migration.cjs');
 const { scheduleCarNoteTelegram } = require('./car-notes-telegram.cjs');
@@ -144,6 +145,7 @@ async function publishDailyLaborArticle(options = {}) {
 async function handler(req, res) {
   try {
     if (req.query?.route === 'personal-center') return handlePersonalCenter(req, res);
+    if (req.query?.route === 'crypto') return handleCrypto(req, res);
     if (req.query?.route === 'personal-center-cron') return handlePersonalCenterCron(req, res);
     if (req.query?.route === 'wallet-logo') return handleWalletLogo(req, res);
     if (req.query?.route === 'calendar-day-summary') return handleCalendarDaySummary(req, res);
