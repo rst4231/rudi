@@ -106,7 +106,9 @@ async function ton(address,options={}){
   };
   const item=list.balances.find(row=>canonical(row.jetton?.address)===canonical(USDT_TON));
   const balance=item?amountFromRaw(item.balance,6):0;
-  const result=summarize([{symbol:'USDT',amount:balance,network:'ton',usd:balance,priceUsd:1}],[],'ton');
+  const rate=Number((await prices(['coingecko:tether'],options))['coingecko:tether']?.price);
+  if(!(rate>0))throw Error('crypto-price-unavailable');
+  const result=summarize([{symbol:'USDT',amount:balance,network:'ton',usd:balance*rate,priceUsd:rate}],[],'ton');
   return {...result,incomplete:true,balanceUsd:null,partialUsd:result.balanceUsd,
     warning:'Проверен USDT TON. Нативный TON и другие Jetton не включены.'};
 }
