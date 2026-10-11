@@ -33,7 +33,8 @@
     "api/finances.js": {
       "regions": [
         "fra1"
-      ]
+      ],
+      "maxDuration": 60
     }
   },
   "headers": [
