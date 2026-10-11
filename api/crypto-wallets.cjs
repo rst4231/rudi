@@ -106,6 +106,7 @@ async function marketRates(options = {}) {
     if (pair.endsWith('USDT') && price > 0 && Number.isFinite(price)) prices[pair.slice(0, -4)] = price;
   }
   if (!(prices.ETH > 0)) throw new Error('crypto-price-unavailable');
+  prices.WETH = prices.ETH;
   return prices;
 }
 async function bybitSnapshot(keys, options = {}) {
@@ -218,8 +219,8 @@ async function connect(actor, input = {}, options = {}) {
   } else {
     address = String(input.address || '').trim();
     if (!/^0x[a-f0-9]{40}$/i.test(address)) throw new Error('crypto-address-invalid');
-    // Do not connect a position-heavy address and then replace its value with only spot tokens.
-    await uniswapSnapshot(address, options);
+    // An address may contain LP positions. Save its public address, but never
+    // overwrite the manually entered balance if the portfolio cannot be valued.
   }
   return lock(async () => {
     const connections = await readState(options);
