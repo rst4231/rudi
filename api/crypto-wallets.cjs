@@ -111,36 +111,28 @@ async function marketRates(options = {}) {
   return prices;
 }
 async function bybitSnapshot(keys, options = {}) {
-  const [unified, funding, prices] = await Promise.all([
-    bybitGet('/v5/account/wallet-balance', { accountType: 'UNIFIED' }, keys, options),
-    bybitGet('/v5/asset/transfer/query-account-coins-balance', { accountType: 'FUND' }, keys, options),
-    marketRates(options),
-  ]);
+  // The UNIFIED account includes spot, derivatives and total equity.
+  // Funding balances require explicit coin filters in newer Bybit API
+  // versions; do not represent an unenumerated partial result as all assets.
+  const unified = await bybitGet('/v5/account/wallet-balance', { accountType: 'UNIFIED' }, keys, options);
   const account = Array.isArray(unified.list) ? unified.list.find(row => row.accountType === 'UNIFIED') : null;
-  if (!account || !Number.isFinite(Number(account.totalEquity))) throw new Error('crypto-bybit-balance-unavailable');
-  const assets = [];
-  const tradingUsd = Number(account.totalEquity);
-  if (tradingUsd < 0) throw new Error('crypto-balance-invalid');
-  for (const row of account.coin || []) {
-    if (!row.coin || !Number(row.walletBalance)) continue;
-    assets.push({ symbol: String(row.coin), amount: Number(row.walletBalance), source: 'Unified' });
+  if (!account || account.totalEquity === undefined || account.totalEquity === null || account.totalEquity === '') {
+    throw new Error('crypto-bybit-balance-unavailable');
   }
-  let fundingUsd = 0;
-  const coins = Array.isArray(funding.balance) ? funding.balance : [];
-  for (const item of coins) {
-    const symbol = String(item.coin || '').toUpperCase();
-    const amount = Number(item.walletBalance || 0);
-    if (!amount) continue;
-    const price = prices[symbol];
-    if (!symbol || !Number.isFinite(amount) || !(price > 0)) throw new Error('crypto-price-incomplete');
-    fundingUsd += amount * price;
-    assets.push({ symbol, amount, source: 'Funding' });
-  }
-  const value = tradingUsd + fundingUsd;
+  const value = Number(account.totalEquity);
   if (!Number.isFinite(value) || value < 0 || value > 1e12) throw new Error('crypto-balance-invalid');
-  return { balanceUsd: Math.round(value * 1e8) / 1e8, assets: assets.slice(0, 100),
-    scope: 'Bybit Unified + Funding', warning: '' };
+  const assets = [];
+  for (const row of account.coin || []) {
+    const amount = Number(row.walletBalance);
+    if (!row.coin || !Number.isFinite(amount) || amount === 0) continue;
+    assets.push({ symbol: String(row.coin), amount, source: 'Unified' });
+  }
+  return { balanceUsd: Math.round(value * 1e8) / 1e8,
+    assets: assets.slice(0, 100),
+    scope: 'Bybit Unified',
+    warning: 'Funding и отдельные субаккаунты не включены в баланс' };
 }
+
 function paddedAddress(address) { return address.slice(2).toLowerCase().padStart(64, '0'); }
 async function rpc(method, params, options = {}) {
   const payload = await jsonResponse(RPC_URL, {
