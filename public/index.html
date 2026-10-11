@@ -126,6 +126,8 @@
   <script defer src="/supplement-advanced.js?v=4.149"></script>
   <link rel="stylesheet" href="/personal-center.css?v=4.157">
   <script defer src="/personal-center.js?v=4.157"></script>
+  <link rel="stylesheet" href="/crypto-wallets.css?v=4.162">
+  <script defer src="/crypto-wallets.js?v=4.162"></script>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -338,6 +340,7 @@
         <button type="button" class="finance-tab" data-finance-tab="debts" role="tab" aria-selected="false">Долги</button>
         <button type="button" class="finance-tab" data-finance-tab="shared" role="tab" aria-selected="false">Совместные</button>
         <button type="button" class="finance-tab" data-finance-tab="literacy" role="tab" aria-selected="false">Грамотность</button>
+        <button type="button" class="finance-tab" data-finance-tab="crypto" role="tab" aria-selected="false" hidden>Крипта</button>
       </nav>
 
       <div id="financeSharedPanel" class="finance-tab-panel" data-finance-panel="shared" hidden>
@@ -669,6 +672,31 @@
             </div>
             <label class="finance-input-field"><span id="financeWalletBalanceLabel">Баланс</span><input id="financeWalletBalance" class="finance-text-input" type="number" min="-1000000000000" max="1000000000000" step="any" inputmode="decimal" placeholder="0" aria-label="Баланс кошелька"></label>
             <button id="financeWalletSaveButton" class="finance-analyst-button" type="button">Сохранить</button>
+
+            <section id="financeCryptoConnectWrap" class="finance-crypto-wallet-connect" hidden>
+              <div class="finance-crypto-wallet-head">
+                <div><strong>Автоматический баланс</strong><small id="financeCryptoWalletState">Не подключён</small></div>
+                <button id="financeCryptoToggleConnect" type="button">Подключить API</button>
+              </div>
+              <div id="financeCryptoConnectFields" class="finance-crypto-connect-fields" hidden>
+                <label class="finance-input-field"><span>Источник</span>
+                  <select id="financeCryptoProvider" class="finance-select"><option value="bybit">Bybit</option><option value="uniswap">Uniswap · Ethereum</option></select>
+                </label>
+                <div id="financeCryptoBybitFields">
+                  <label class="finance-input-field"><span>API Key (только чтение)</span><input id="financeCryptoApiKey" class="finance-text-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="150"></label>
+                  <label class="finance-input-field"><span>API Secret</span><input id="financeCryptoApiSecret" class="finance-text-input" type="password" autocomplete="off" maxlength="200"></label>
+                  <small>Создай системный HMAC API-ключ Bybit с правами Read-only. Ключи с правами торговли или вывода отклоняются.</small>
+                </div>
+                <div id="financeCryptoUniswapFields" hidden>
+                  <label class="finance-input-field"><span>Публичный адрес 0x...</span><input id="financeCryptoAddress" class="finance-text-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="42" placeholder="0x…"></label>
+                  <small>Ethereum mainnet. Seed-фраза и приватный ключ не нужны. LP v3/v4 не оцениваются как обычные токены.</small>
+                </div>
+                <button id="financeCryptoConnectButton" type="button" class="finance-crypto-primary">Подключить</button>
+              </div>
+              <button id="financeCryptoDisconnectButton" type="button" class="finance-crypto-unlink" hidden>Отключить автосинхронизацию</button>
+              <div id="financeCryptoWalletStatus" class="finance-crypto-status" role="status" aria-live="polite"></div>
+            </section>
+
 
             <div id="financeWalletStatus" class="finance-status" role="status" aria-live="polite"></div>
             <div id="financeWalletHistoryWrap" class="finance-wallet-history-wrap" hidden>
@@ -1023,6 +1051,21 @@
           <div id="financeLiteracyStatus" class="finance-status" role="status" aria-live="polite"></div>
         </article>
 
+      </div>
+
+      <div id="financeCryptoPanel" class="finance-tab-panel finance-crypto-panel" data-finance-panel="crypto" hidden>
+        <div class="finance-crypto-top">
+          <div><span class="finance-crypto-eyebrow">Портфель</span><h2>Криптовалюта</h2><p>Баланс Bybit и кошелька Ethereum. Только для твоего аккаунта.</p></div>
+          <button id="financeCryptoRefresh" type="button" class="finance-crypto-refresh">Обновить</button>
+        </div>
+        <div class="finance-crypto-overview">
+          <span>Подключённые активы</span>
+          <strong id="financeCryptoTotal">—</strong>
+          <small id="financeCryptoUpdated">Подключи кошелёк, чтобы получать баланс автоматически</small>
+        </div>
+        <div id="financeCryptoCards" class="finance-crypto-cards" aria-live="polite"></div>
+        <div class="finance-crypto-guide">Чтобы подключить уже созданный кошелёк, открой вкладку «Личные», нажми на кошелёк и выбери «Подключить API». Для корректного баланса его валюта должна быть USD или USDT. Открытые LP-позиции Uniswap пока не включаются в расчёт: при их обнаружении старый баланс сохраняется.</div>
+        <div id="financeCryptoStatus" class="finance-crypto-status" role="status" aria-live="polite"></div>
       </div>
     </section>
     <section class="panel partner-message" data-app-tab-section="home" data-home-tile="partner" aria-label="Послание">
