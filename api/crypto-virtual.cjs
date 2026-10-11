@@ -1,7 +1,7 @@
 'use strict';
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const NS='rudi-crypto-virtual-settings-v1', KEY='ne_investor';
-const DEFAULT_INITIAL_USD=10000, DEFAULT_ALLOC_PCT=10, DEFAULT_LEVERAGE=1;
+const DEFAULT_INITIAL_USD=10000, DEFAULT_ALLOC_PCT=10, DEFAULT_LEVERAGE=2;
 const money=n=>Math.round((Number(n)||0)*100)/100;
 function normalizeConfig(input={},now=Date.now()){
   const initial=Number(input.initialUsd??DEFAULT_INITIAL_USD);
@@ -9,7 +9,7 @@ function normalizeConfig(input={},now=Date.now()){
   const leverage=Number(input.leverage??DEFAULT_LEVERAGE);
   if(!Number.isFinite(initial)||initial<100||initial>10000000||
     !Number.isFinite(allocation)||allocation<=0||allocation>100||
-    !Number.isFinite(leverage)||leverage<1||leverage>50)throw Error('virtual-settings-invalid');
+    !Number.isFinite(leverage)||![2,3].includes(leverage))throw Error('virtual-settings-invalid');
   const date=Date.parse(input.startedAt||'');
   return {initialUsd:money(initial),allocationPct:allocation,leverage,
     startedAt:Number.isFinite(date)?new Date(date).toISOString():new Date(now).toISOString()};
@@ -17,7 +17,12 @@ function normalizeConfig(input={},now=Date.now()){
 async function settings(options={}){
   const client=options.client||createRudiStateClient(options);
   const existing=await client.getRecord(NS,KEY);
-  if(existing?.value?.startedAt)return normalizeConfig(existing.value,options.now??Date.now());
+  if(existing?.value?.startedAt){
+    const raw=existing.value;
+    // A previously saved unsupported setting must not break the portfolio page.
+    const safeLeverage=[2,3].includes(Number(raw.leverage))?Number(raw.leverage):DEFAULT_LEVERAGE;
+    return normalizeConfig({...raw,leverage:safeLeverage},options.now??Date.now());
+  }
   const config=normalizeConfig({},options.now??Date.now());
   await client.setIfAbsent(NS,KEY,config,{tags:['rudi-crypto-virtual']});
   const saved=await client.getRecord(NS,KEY);
