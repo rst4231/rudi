@@ -9,6 +9,7 @@ const STRATEGIES=[
   {id:'rsi',name:'RSI разворот',description:'Перекупленность и подтверждённый краткосрочный разворот.'}
 ];
 const round=x=>Math.round(Number(x)*100)/100;
+const quote=x=>Number(Number(x).toPrecision(10));
 const date=t=>new Date(t).toISOString();
 const num=x=>Number(x)||0;
 function initial(now=Date.now()){
@@ -78,11 +79,16 @@ async function bybit(path,fetchImpl=globalThis.fetch){
   }finally{clearTimeout(timer);}
 }
 function marketUniverse(response){
-  return (response?.result?.list||[])
+  const eligible=(response?.result?.list||[])
     .filter(v=>/^([A-Z0-9]+)USDT$/.test(String(v.symbol||''))&&
       num(v.turnover24h)>=8000000&&num(v.lastPrice)>0&&!String(v.symbol).includes('1000'))
-    .sort((a,b)=>num(b.turnover24h)-num(a.turnover24h))
-    .slice(0,36).map(v=>({symbol:v.symbol,price:num(v.lastPrice)}));
+    .sort((a,b)=>num(b.turnover24h)-num(a.turnover24h));
+  // Liquid majors + high-turnover positive movers, not only BTC/ETH.
+  const liquid=eligible.slice(0,22);
+  const movers=eligible.filter(v=>num(v.price24hPcnt)>0.04)
+    .sort((a,b)=>num(b.price24hPcnt)-num(a.price24hPcnt)).slice(0,18);
+  return [...new Map([...liquid,...movers].map(v=>[v.symbol,v])).values()]
+    .slice(0,40).map(v=>({symbol:v.symbol,price:num(v.lastPrice)}));
 }
 function mark(portfolio,prices){
   let equity=portfolio.cash;
@@ -101,7 +107,7 @@ function settle(portfolio,p,price,at,reason){
   const exitFee=p.notional*(exit/p.entry)*FEE;
   const pnl=round(gross-p.entryFee-exitFee);
   portfolio.cash=round(portfolio.cash+p.margin+gross-exitFee);
-  const trade={...p,exitPrice:round(exit),exitAt:date(at),exitReason:reason,
+  const trade={...p,exitPrice:quote(exit),exitAt:date(at),exitReason:reason,
     pnlUsd:pnl,pnlPct:round(pnl/p.margin*100),feeUsd:round(p.entryFee+exitFee),status:'closed'};
   delete trade.unrealizedPnl;
   portfolio.positions=portfolio.positions.filter(x=>x.id!==p.id);
@@ -143,9 +149,9 @@ function openPosition(portfolio,signal,now,prices){
   const id=signal.strategy+':'+signal.symbol+':'+signal.at;
   portfolio.cash=round(portfolio.cash-margin-fee);
   portfolio.positions.push({id,symbol:signal.symbol,strategy:signal.strategy,score:signal.score,
-    indicators:signal.indicators,entry:fill,entryAt:date(now),signalAt:date(signal.at),
+    indicators:signal.indicators,entry:quote(fill),entryAt:date(now),signalAt:date(signal.at),
     margin,notional,leverage:LEV,entryFee:fee,lastPrice:price,
-    stop:round(fill*1.035),take:round(fill*.94),lastBarAt:0,status:'open'});
+    stop:quote(fill*1.035),take:quote(fill*.94),lastBarAt:0,status:'open'});
   portfolio.seen[signal.symbol]=now;
   return true;
 }
@@ -205,8 +211,19 @@ async function scan(options={}){
     if(state.lastScanAt&&now-Date.parse(state.lastScanAt)<240000)return report(state);
     let markets=[],failed=0;
     try{
-      markets=marketUniverse(await bybit('/v5/market/tickers?category=linear',options.fetchImpl));
+      const tickerResponse=await bybit('/v5/market/tickers?category=linear',options.fetchImpl);
+      markets=marketUniverse(tickerResponse);
       if(!markets.length)throw Error('bybit-empty-universe');
+      // Open symbols must remain monitored even after leaving the top movers.
+      const rawTickers=new Map((tickerResponse?.result?.list||[]).map(t=>[t.symbol,t]));
+      for(const p of Object.values(state.portfolios)){
+        for(const position of p.positions){
+          if(markets.some(m=>m.symbol===position.symbol))continue;
+          const ticker=rawTickers.get(position.symbol);
+          if(ticker&&num(ticker.lastPrice)>0)
+            markets.push({symbol:position.symbol,price:num(ticker.lastPrice)});
+        }
+      }
       const prices=Object.fromEntries(markets.map(m=>[m.symbol,m.price]));
       for(const p of Object.values(state.portfolios))for(const position of p.positions)
         if(!prices[position.symbol])prices[position.symbol]=position.lastPrice;
