@@ -155,6 +155,15 @@ async function handler(req, res) {
         await cryptoWallets.disconnect(actor, body.walletId);
         return res.status(200).json({ ok: true, actor });
       }
+      if (operation === 'crypto-history') {
+        const result=await cryptoWallets.history(actor,
+          String(body.walletId||'__portfolio__'),Number(body.days||30));
+        return res.status(200).json({ok:true,actor,...result});
+      }
+      if (operation === 'crypto-operations') {
+        const result=await cryptoWallets.operations(actor,String(body.walletId||''));
+        return res.status(200).json({ok:true,actor,...result});
+      }
       if (operation === 'crypto-refresh') {
         const connections = await cryptoWallets.refresh(actor, { force: body.force === true });
         const state = await readFinanceState();
