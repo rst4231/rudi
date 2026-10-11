@@ -133,6 +133,7 @@ function linkTransfers(report,peers=[]){
     if(!ha||!hb||ha!==hb||a.kind===b.kind||
       !['send','receive'].includes(a.kind)||!['send','receive'].includes(b.kind))return false;
     if(a.symbol.toUpperCase()!==b.symbol.toUpperCase())return false;
+    if(a.toAddress&&b.toAddress&&String(a.toAddress).toLowerCase()!==String(b.toAddress).toLowerCase())return false;
     const networkA=String(a.network||'').toLowerCase(),networkB=String(b.network||'').toLowerCase();
     if(networkA&&networkB&&networkA!=='bybit'&&networkB!=='bybit'&&networkA!==networkB)return false;
     return Math.abs(Number(a.amount)-Number(b.amount))<=Math.max(0.00000001,Math.abs(Number(a.amount))*0.02);
