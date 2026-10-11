@@ -350,9 +350,12 @@ async function refresh(actor, options = {}) {
           ? await bybitSnapshot(decryptSecret(connection.secret), options)
           : await uniswapSnapshot(connection.address, { ...options, chain:connection.chain||'ethereum' });
         if (snapshot.incomplete) {
-          // Persist verified v3 positions for display without writing an incomplete
-          // total into the user's finance ledger. Keep lastSyncAt empty so the
-          // cached value cannot be misinterpreted as a complete valuation.
+          // Show verified LPs and update only the known, labeled partial wallet
+          // estimate. A missing v4 indexer can never assert a complete total.
+          const knownUsd = Number(snapshot.partialUsd);
+          if (!Number.isFinite(knownUsd) || knownUsd < 0) throw new Error('crypto-balance-invalid');
+          const knownNative = await usdToWalletCurrency(knownUsd, wallet.currency, options);
+          await syncLinkedWalletBalance('Рустам', id, knownNative, { ...options, partial: true });
           Object.assign(connection, snapshot, {
             balanceUsd: null,
             lastSyncAt: '',
