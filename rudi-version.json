@@ -1,19 +1,22 @@
 {
-  "current": "v4.166",
-  "versionBranch": "fix/rudi-uniswap-v3-partial-visibility",
+  "current": "v4.167",
+  "versionBranch": "fix/rudi-crypto-partial-wallet-and-zero-pools",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.165",
+  "basedOnProduction": "v4.166",
   "notes": [
-    "During an Arbitrum v4 NFT indexer outage, enumerate and value existing Uniswap v3 pools without hiding them.",
-    "Mark detected v3 liquidity and accrued fees as partial, while keeping the complete cryptocurrency balance explicitly unknown.",
-    "Never mutate the saved personal-finance wallet balance using an incomplete LP valuation.",
-    "Display partial data and clear warning in Crypto tab, including the timestamp of its last partial scan.",
-    "Move the Crypto tab between Personal and Debts; remains accessible only to owner.",
-    "Regression test for three Arbitrum v3 WETH/USDC positions when v4 NFT discovery returns HTTP 503.",
-    "One production deployment only after final explicit approval."
+    "Hide Uniswap v3/v4 LP cards with zero liquidity and zero claimable amounts.",
+    "Display verified partial LP subtotal in Connected assets instead of an empty placeholder, clearly marked partial when v4 indexer is unavailable.",
+    "Sync a verified partial estimate into the existing finance wallet in its original currency, tagging the wallet cryptoPartial and remembering last synced amount; protect manual balances higher than the estimate.",
+    "No fake income or expense events and no double counting of already withdrawn fees.",
+    "Tests for partial balance flags, wallet synchronization, protection of manual overrides, and no extra finance ledger entries.",
+    "Bybit.com integration: configure only the /api/finances.js function to use Vercel Frankfurt region rather than default US API egress.",
+    "Bybit failures now expose safe, actionable diagnostics for HTTP403 regional restrictions, invalid keys, signatures, read-only permissions, API IP allowlists and rate limits.",
+    "Mask the Bybit API Key input on screen; never log upstream error bodies or save rejected credentials.",
+    "Additional tests cover masked credentials, HTTP status diagnostics, Bybit V5 retCodes, and route-specific region configuration.",
+    "Deployment pending owner confirmation."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

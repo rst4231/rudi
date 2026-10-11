@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
-  splitAmounts, personalAmounts, readFinanceState, saveFinanceMonth, savePersonalMonth, saveDebt, toggleDebt, viewState, resetMutationQueueForTests,
+  splitAmounts, personalAmounts, readFinanceState, saveFinanceMonth, savePersonalMonth, saveDebt, toggleDebt, viewState, saveWallet, syncLinkedWalletBalance, resetMutationQueueForTests,
 } = require('../api/finance-store.cjs');
 
 function memoryCache() {
@@ -66,4 +66,26 @@ test('personal finances and debts are private to their author', async () => {
 
   assert.equal(rustamView.debts.some(row=>row.id==='diana-debt'),false);
   assert.equal(dianaView.debts.some(row=>row.id==='rustam-debt'),false);
+});
+
+test('partial crypto balance is tagged, never overwrites a higher manual balance, and preserves no fake transactions',async()=>{
+  resetMutationQueueForTests();
+  const financeCache=memoryCache(),options={financeCache};
+  await saveWallet('Рустам',{id:'crypto-test',name:'Uniswap',currency:'USD',balance:0},{...options,id:'crypto-test'});
+  await syncLinkedWalletBalance('Рустам','crypto-test',18500,{...options,partial:true});
+  let state=await readFinanceState(options);
+  let wallet=state.wallets['Рустам'].find(x=>x.id==='crypto-test');
+  assert.equal(wallet.balance,18500);
+  assert.equal(wallet.cryptoPartial,true);
+  assert.equal(wallet.cryptoSyncedAmount,18500);
+  assert.equal(state.walletIncomes.length,0);
+  assert.equal(state.personalExpenses.length,0);
+  await syncLinkedWalletBalance('Рустам','crypto-test',18100,{...options,partial:true});
+  wallet=(await readFinanceState(options)).wallets['Рустам'].find(x=>x.id==='crypto-test');
+  assert.equal(wallet.balance,18100);
+  await saveWallet('Рустам',{id:'crypto-test',name:'Uniswap',currency:'USD',balance:25000},{...options,id:'crypto-test'});
+  await syncLinkedWalletBalance('Рустам','crypto-test',18300,{...options,partial:true});
+  wallet=(await readFinanceState(options)).wallets['Рустам'].find(x=>x.id==='crypto-test');
+  assert.equal(wallet.balance,25000);
+  await assert.rejects(()=>syncLinkedWalletBalance('Диана','crypto-test',18000,{...options,partial:true}),/crypto-owner-only/);
 });

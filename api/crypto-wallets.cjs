@@ -101,19 +101,48 @@ async function jsonResponse(url, init = {}, options = {}) {
   if (!data || typeof data !== 'object') throw new Error('crypto-provider-invalid-response');
   return data;
 }
+function bybitFailure(retCode) {
+  const code = Number(retCode);
+  if ([10003, -2015, 33004].includes(code)) return 'crypto-bybit-key-invalid';
+  if (code === 10004) return 'crypto-bybit-sign-invalid';
+  if (code === 10005) return 'crypto-bybit-permission-denied';
+  if (code === 10009) return 'crypto-bybit-region-blocked';
+  if (code === 10010) return 'crypto-bybit-ip-mismatch';
+  if (code === 10002 || code === -1) return 'crypto-bybit-time-invalid';
+  if (code === 10006 || code === 429) return 'crypto-bybit-rate-limited';
+  return 'crypto-bybit-api-rejected';
+}
 async function bybitGet(path, query, keys, options = {}) {
   const params = new URLSearchParams(query || {});
   const search = params.toString();
   const timestamp = String(Date.now());
-  const window = '5000';
+  const recvWindow = '5000';
   const signature = crypto.createHmac('sha256', keys.apiSecret)
-    .update(timestamp + keys.apiKey + window + search).digest('hex');
+    .update(timestamp + keys.apiKey + recvWindow + search).digest('hex');
   const url = BYBIT_URL + path + (search ? '?' + search : '');
-  const data = await jsonResponse(url, {
-    headers: { 'X-BAPI-API-KEY': keys.apiKey, 'X-BAPI-TIMESTAMP': timestamp,
-      'X-BAPI-RECV-WINDOW': window, 'X-BAPI-SIGN': signature, 'X-BAPI-SIGN-TYPE': '2' },
-  }, options);
-  if (Number(data.retCode) !== 0) throw new Error('crypto-bybit-api-rejected');
+  let response;
+  try {
+    response = await (options.fetchImpl || fetch)(url, {
+      headers: { 'X-BAPI-API-KEY': keys.apiKey, 'X-BAPI-TIMESTAMP': timestamp,
+        'X-BAPI-RECV-WINDOW': recvWindow, 'X-BAPI-SIGN': signature, 'X-BAPI-SIGN-TYPE': '2' },
+      signal: AbortSignal.timeout(11000), cache: 'no-store',
+    });
+  } catch (_) {
+    // Never expose raw HTTP errors; some providers include request headers.
+    throw new Error('crypto-bybit-network-unavailable');
+  }
+  if (!response.ok) {
+    if (response.status === 403) throw new Error('crypto-bybit-access-blocked');
+    if (response.status === 401) throw new Error('crypto-bybit-key-invalid');
+    if (response.status === 429) throw new Error('crypto-bybit-rate-limited');
+    if (response.status >= 500) throw new Error('crypto-bybit-network-unavailable');
+    throw new Error('crypto-bybit-api-rejected');
+  }
+  let data;
+  try { data = await response.json(); }
+  catch (_) { throw new Error('crypto-bybit-response-invalid'); }
+  if (!data || typeof data !== 'object') throw new Error('crypto-bybit-response-invalid');
+  if (Number(data.retCode) !== 0) throw new Error(bybitFailure(data.retCode));
   return data.result || {};
 }
 async function marketRates(options = {}) {
@@ -350,9 +379,12 @@ async function refresh(actor, options = {}) {
           ? await bybitSnapshot(decryptSecret(connection.secret), options)
           : await uniswapSnapshot(connection.address, { ...options, chain:connection.chain||'ethereum' });
         if (snapshot.incomplete) {
-          // Persist verified v3 positions for display without writing an incomplete
-          // total into the user's finance ledger. Keep lastSyncAt empty so the
-          // cached value cannot be misinterpreted as a complete valuation.
+          // Show verified LPs and update only the known, labeled partial wallet
+          // estimate. A missing v4 indexer can never assert a complete total.
+          const knownUsd = Number(snapshot.partialUsd);
+          if (!Number.isFinite(knownUsd) || knownUsd < 0) throw new Error('crypto-balance-invalid');
+          const knownNative = await usdToWalletCurrency(knownUsd, wallet.currency, options);
+          await syncLinkedWalletBalance('Рустам', id, knownNative, { ...options, partial: true });
           Object.assign(connection, snapshot, {
             balanceUsd: null,
             lastSyncAt: '',

@@ -279,6 +279,8 @@ function normalizeState(value) {
           icon: cleanIcon(raw?.icon || '💳'),
           currency: cleanCurrency(raw?.currency || 'RUB'),
           balance: cleanWalletBalance(raw?.balance || 0),
+          cryptoPartial: raw?.cryptoPartial === true,
+          cryptoSyncedAmount: Number.isFinite(Number(raw?.cryptoSyncedAmount)) && raw?.cryptoSyncedAmount !== '' && raw?.cryptoSyncedAmount != null ? cleanWalletBalance(raw.cryptoSyncedAmount) : null,
           type: raw?.type === 'credit' ? 'credit' : 'regular',
           creditLimit: cleanAssetAmount(raw?.creditLimit || 0),
           annualRate: Math.max(0, Math.min(1000, Number(raw?.annualRate || 0))),
@@ -1482,8 +1484,16 @@ async function syncLinkedWalletBalance(actor, walletId, usdValue, options = {}) 
     const wallet = rows.find(row => row.id === cleanId && !row.archived);
     if (!wallet) throw new Error('crypto-wallet-not-found');
     if (wallet.type !== 'regular') throw new Error('crypto-wallet-credit-unsupported');
-    if (Math.abs(Number(wallet.balance) - balance) < 1e-8) return current;
-    const wallets = rows.map(row => row.id === cleanId ? { ...row, balance } : row);
+    const partial = options.partial === true;
+    // A partial Uniswap valuation must not replace a manually-entered higher
+    // amount or a wallet which changed since the last automatic sync.
+    if (partial) {
+      const wasSynced = wallet.cryptoSyncedAmount !== null && Math.abs(Number(wallet.balance) - wallet.cryptoSyncedAmount) < 0.000001;
+      if (!wasSynced && Number(wallet.balance) > balance) return current;
+    }
+    if (Math.abs(Number(wallet.balance) - balance) < 1e-8 && Boolean(wallet.cryptoPartial) === partial) return current;
+    const wallets = rows.map(row => row.id === cleanId
+      ? { ...row, balance, cryptoPartial: partial, cryptoSyncedAmount: balance } : row);
     const next = normalizeState({ ...current, initialized: true, version: current.version + 1,
       wallets: { ...current.wallets, [safeActor]: wallets } });
     await writeState(next, options);

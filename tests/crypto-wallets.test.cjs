@@ -93,6 +93,49 @@ test('encrypts Bybit secrets and does not return them to the UI', async () => {
   }
 });
 
+test('Bybit HTTP 403 is explicitly reported and never stores rejected API credentials', async () => {
+  const old = JSON.stringify(records.get(cryptoWallets.NS + ':' + cryptoWallets.KEY)?.value?.connections?.['bybit-wallet'] || null);
+  await assert.rejects(() => cryptoWallets.connect('Рустам', {
+    walletId: 'bybit-wallet', provider: 'bybit', apiKey: 'test-blocked-key-001', apiSecret: 'test-blocked-secret-001',
+  }, { client, fetchImpl: async () => ({ ok: false, status: 403 }) }), /crypto-bybit-access-blocked/);
+  const now = JSON.stringify(records.get(cryptoWallets.NS + ':' + cryptoWallets.KEY)?.value?.connections?.['bybit-wallet'] || null);
+  assert.equal(now, old);
+  assert.doesNotMatch(JSON.stringify(records.get(cryptoWallets.NS + ':' + cryptoWallets.KEY)?.value || {}), /test-blocked-(?:secret|key)-001/);
+});
+
+test('Bybit V5 diagnostic errors distinguish invalid key, signature, permissions and IP mismatch', async () => {
+  const cases = [
+    [10003, 'crypto-bybit-key-invalid'],
+    [10004, 'crypto-bybit-sign-invalid'],
+    [10005, 'crypto-bybit-permission-denied'],
+    [10009, 'crypto-bybit-region-blocked'],
+    [10010, 'crypto-bybit-ip-mismatch'],
+    [10002, 'crypto-bybit-time-invalid'],
+    [10006, 'crypto-bybit-rate-limited'],
+  ];
+  for (const [code, expected] of cases) {
+    await assert.rejects(() => cryptoWallets.bybitGet('/v5/user/query-api', {},
+      { apiKey: 'public-test-key', apiSecret: 'private-test-secret' },
+      { fetchImpl: async () => response({ retCode: code, retMsg: 'Details from API must not leak', result: {} }) }),
+      error => error?.message === expected && !error.message.includes('private-test-secret'));
+  }
+});
+
+test('Bybit HTTP authorization, rate limiting and outages use safe codes', async () => {
+  for (const [status, expected] of [[401,'crypto-bybit-key-invalid'],[429,'crypto-bybit-rate-limited'],[502,'crypto-bybit-network-unavailable']]) {
+    await assert.rejects(() => cryptoWallets.bybitGet('/v5/user/query-api', {},
+      {apiKey:'test-123-key', apiSecret:'private-test-secret'},
+      {fetchImpl: async()=>({ok:false,status})}), new RegExp(expected));
+  }
+});
+
+test('Bybit finance API is configured for Frankfurt, not US egress', () => {
+  const fs = require('node:fs'), path = require('node:path');
+  const settings = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'vercel.json'),'utf8'));
+  assert.deepEqual(settings.functions['api/finances.js'].regions,['fra1']);
+  assert.equal(settings.functions['api/index.js'].regions,undefined);
+});
+
 test('fails closed if a Bybit API key is not read-only', async () => {
   const badFetch = async (url, init) => {
     if (String(url).includes('/v5/user/query-api')) return response({ retCode: 0, result: { readOnly: 0 } });

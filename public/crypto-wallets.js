@@ -16,6 +16,16 @@
     const messages={
       'crypto-bybit-readonly-required':'Ключ Bybit должен быть только для чтения. Создай Read-only API Key.',
       'crypto-bybit-api-rejected':'Bybit отклонил API-запрос. Проверь ключ, разрешения и IP-ограничения.',
+      'crypto-bybit-access-blocked':'Bybit отклонил запрос (HTTP 403). Возможны ограничения страны, IP или доступа к Bybit.com. RUDI использует сервер в Европе.',
+      'crypto-bybit-region-blocked':'Bybit ограничивает доступ для региона аккаунта или сервера. Проверь правила Bybit для своей страны.',
+      'crypto-bybit-ip-mismatch':'Bybit: IP сервера RUDI не совпадает со списком разрешённых IP у ключа. Серверное подключение требует подходящего IP-доступа.',
+      'crypto-bybit-key-invalid':'Bybit не распознал API Key. Проверь, для какого сайта он создан (Bybit.com, Bybit EU и т. д.), и не истёк ли срок.',
+      'crypto-bybit-sign-invalid':'Bybit отклонил подпись API-запроса. Проверь пару API Key и API Secret.',
+      'crypto-bybit-permission-denied':'Bybit запретил доступ к балансу. Проверь разрешения Read-only для чтения Unified Account.',
+      'crypto-bybit-time-invalid':'Bybit отклонил временную метку запроса. Попробуй обновить позже.',
+      'crypto-bybit-rate-limited':'Bybit временно ограничил частоту запросов. Повтори через минуту.',
+      'crypto-bybit-network-unavailable':'Не удалось связаться с Bybit. Проверь доступность сервиса и попробуй позже.',
+      'crypto-bybit-response-invalid':'Bybit вернул некорректный ответ. Баланс не изменён.',
       'crypto-credentials-invalid':'Проверь формат API Key и API Secret.',
       'crypto-address-invalid':'Нужен публичный EVM-адрес 0x и 40 символов.',
       'crypto-network-unsupported':'Выбери Ethereum Mainnet или Arbitrum One.',
@@ -51,7 +61,7 @@
   function render(){
     const cards=$('financeCryptoCards');if(!cards)return;
     cards.replaceChildren();
-    let total=0,complete=connections.length>0;
+    let total=0,complete=connections.length>0,knownTotal=0,hasKnown=false;
     for(const link of connections){
       const wallet=wallets.find(w=>w.id===link.walletId);
       if(!wallet){complete=false;continue;}
@@ -62,7 +72,10 @@
       const note=document.createElement('span');note.textContent=wallet.name+(link.provider==='uniswap'?' · '+(link.chain==='arbitrum'?'Arbitrum One':'Ethereum'):'');
       head.append(title,note);
       const amount=document.createElement('div');amount.className='finance-crypto-source-amount';
-      if(typeof link.balanceUsd==='number'&&Number.isFinite(link.balanceUsd)){amount.textContent=cash(link.balanceUsd);total+=link.balanceUsd;}
+      if(typeof link.balanceUsd==='number'&&Number.isFinite(link.balanceUsd)){amount.textContent=cash(link.balanceUsd);total+=link.balanceUsd;knownTotal+=link.balanceUsd;hasKnown=true;}
+      else if(link.incomplete&&typeof link.partialUsd==='number'&&Number.isFinite(link.partialUsd)){knownTotal+=link.partialUsd;hasKnown=true;
+        amount.textContent='Проверено в v3: '+cash(link.partialUsd);complete=false;
+      }
       else{
         amount.textContent=link.incomplete&&typeof link.partialUsd==='number'
           ?'Найдено в v3: '+cash(link.partialUsd)
@@ -76,7 +89,7 @@
       if(link.incomplete){
         const warning=document.createElement('p');
         warning.className='finance-crypto-warning';
-        warning.textContent='Показаны проверенные пулы v3. Проверить позиции v4 пока не удалось, поэтому итог неполный и баланс в финансах не изменён.';
+        warning.textContent='Показаны только активные пулы v3. Сумма частичная: v4 не проверен. В кошельке «Личные» отображается оценка подтверждённой части.';
         card.append(warning);
       }
       if(link.provider==='uniswap'&&typeof link.walletUsd==='number'){
@@ -88,7 +101,7 @@
           row.append(name,sum);summary.append(row);
         }
         card.append(summary);
-        for(const pos of Array.isArray(link.positions)?link.positions:[]){
+        for(const pos of (Array.isArray(link.positions)?link.positions:[]).filter(pos=>Number(pos.liquidityUsd||0)+Number(pos.feesUsd||0)>0.005)){
           const box=document.createElement('div');box.className='finance-crypto-lp';
           const title=document.createElement('div');title.className='finance-crypto-lp-head';
           const name=document.createElement('strong');name.textContent='Uniswap '+pos.version+' · '+pos.pair+' · #'+pos.tokenId;
@@ -132,9 +145,9 @@
     }
     if(!connections.length){const empty=document.createElement('p');empty.className='finance-crypto-empty';empty.textContent='Кошельки пока не подключены. Добавь API через редактор существующего кошелька.';cards.append(empty);}
     const amount=$('financeCryptoTotal'),label=$('financeCryptoUpdated');
-    if(amount)amount.textContent=complete?cash(total):'—';
+    if(amount)amount.textContent=complete?cash(total):hasKnown?cash(knownTotal):'—';
     if(label)label.textContent=connections.length
-      ?(complete?'Все подключённые источники · USD':'Сумма не показана: не все источники успешно обновились')
+      ?(complete?'Все подключённые источники · USD':hasKnown?'Подтверждённая часть портфеля · USD. Полный итог пока неизвестен':'Баланс пока не получен')
       :'Без выдуманных цифр: данные появятся после подключения';
     renderEditor();
   }
@@ -146,7 +159,12 @@
     const link=connections.find(row=>row.walletId===editingWalletId);
     const state=$('financeCryptoWalletState'),button=$('financeCryptoToggleConnect'),disconnect=$('financeCryptoDisconnectButton');
     if(state)state.textContent=link
-      ? providerName(link.provider)+(link.provider==='uniswap'?' · '+(link.chain==='arbitrum'?'Arbitrum':'Ethereum'):'')+' · '+(link.lastSyncAt?'Обновлён '+dateLabel(link.lastSyncAt):link.lastError?errorLabel({message:link.lastError}):'Ожидает обновления')
+      ? providerName(link.provider)+(link.provider==='uniswap'?' · '+(link.chain==='arbitrum'?'Arbitrum':'Ethereum'):'')+' · '+(
+          link.incomplete&&typeof link.partialUsd==='number'
+            ?'Найдено '+cash(link.partialUsd)+' (частично, v3) · '+dateLabel(link.partialSyncAt)
+            :link.lastSyncAt?'Обновлён '+dateLabel(link.lastSyncAt)
+            :link.lastError?errorLabel({message:link.lastError}):'Ожидает обновления'
+        )
       :'Не подключён';
     if(button)button.textContent=link?'Изменить подключение':'Подключить API';
     if(disconnect)disconnect.hidden=!link;

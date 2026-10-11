@@ -48,7 +48,9 @@ function statusFor(code, error) {
   if (code === 'finance-owner-only') return 403;
   if (code === 'crypto-owner-only') return 403;
   if (code === 'crypto-wallet-not-found') return 404;
-  if (code === 'crypto-bybit-readonly-required') return 400;
+  if (['crypto-bybit-readonly-required','crypto-bybit-key-invalid',
+    'crypto-bybit-sign-invalid','crypto-bybit-ip-mismatch','crypto-bybit-permission-denied',
+    'crypto-bybit-time-invalid'].includes(code)) return 400;
   if (code.startsWith('crypto-provider-') || code.startsWith('crypto-bybit-') || code.startsWith('crypto-rpc-') || code.startsWith('crypto-price-')) return 503;
   if (code.startsWith('crypto-')) return 400;
   if (code.startsWith('market-ticker-unavailable')) return 503;
