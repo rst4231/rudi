@@ -2,7 +2,7 @@
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const {linkUpdates}=require('./crypto-trade-events.cjs');
 const {tradeOutcome,screenLiquidationRisk}=require('./crypto-signal-outcome.cjs');
-const NS='rudi-crypto-signal-monitor-v1', KEY='ne_investor', PERIOD_MS=30*86400000, INTERVAL_MS=300000;
+const NS='rudi-crypto-signal-monitor-v1', KEY='ne_investor', PERIOD_MS=30*86400000, INTERVAL_MS=15*60000;
 const cleanText=s=>String(s||'').slice(0,1800);
 function entities(text){
   return String(text||'').replace(/&#(x[0-9a-f]+|\d+);/gi,(_,n)=>{
@@ -310,8 +310,15 @@ async function refreshSignals(options={}){
         updated_at:state.updatedAt,expires_at:null});
       return buildView(state,now);
     }catch(e){
-      sourceError=String(e?.message||e);
-      return buildView({...previous,sourceError},now);
+      sourceError=String(e?.message||e).slice(0,180);
+      // Persist failures so the existing report does not quietly pretend that
+      // the monitor is active, but preserve the last successful timestamp.
+      const failed={...previous,sourceError,lastAttemptAt:new Date(now).toISOString()};
+      console.warn('RUDI_AUTHOR_SIGNAL_SOURCE_WARN',sourceError);
+      try{await client.setRecord({namespace:NS,key:KEY,value:failed,
+        tags:['rudi-crypto-signals'],updated_at:failed.lastAttemptAt,expires_at:null});}
+      catch(error){console.warn('RUDI_AUTHOR_SIGNAL_PERSIST_WARN',String(error?.message||error));}
+      return buildView(failed,now);
     }
   })();
   try{return await refreshFlight}finally{refreshFlight=null;}
