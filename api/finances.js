@@ -166,7 +166,7 @@ async function handler(req, res) {
       }
       if (operation === 'crypto-history') {
         const result=await cryptoWallets.history(actor,
-          String(body.walletId||'__portfolio__'),Number(body.days||30));
+          String(body.walletId||'__portfolio__'),Number(body.days||30),{hours:body.hours||0});
         return res.status(200).json({ok:true,actor,...result});
       }
       if (operation === 'crypto-operations') {

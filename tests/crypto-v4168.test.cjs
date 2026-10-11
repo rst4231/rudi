@@ -151,3 +151,23 @@ test('v4.168 UI provides history chart and hides deprecated captions',()=>{
   assert.doesNotMatch(html,/Баланс Bybit и кошелька Ethereum\. Только для твоего аккаунта/);
   assert.doesNotMatch(html,/Подтверждённая часть портфеля · USD\. Полный итог пока неизвестен/);
 });
+
+test('intraday balance samples preserve daily records and reflect actual sync times',async()=>{
+ const records=new Map(),client={
+  async getRecord(ns,key){return records.get(ns+':'+key)||null},
+  async setRecord(r){records.set(r.namespace+':'+r.key,{value:structuredClone(r.value)})}
+ };
+ const at=Date.UTC(2026,9,11,12);
+ await history.capture('__portfolio__',1000,{at,client});
+ await history.capture('__portfolio__',1005,{at:at+4*60000,client});
+ await history.capture('__portfolio__',1008,{at:at+11*60000,client});
+ const hourly=await history.range('__portfolio__',30,{client,now:at+12*60000,hours:5});
+ assert.equal(hourly.hours,5);assert.equal(hourly.points.length,2);
+ assert.deepEqual(hourly.points.map(p=>p.usd),[1005,1008]);
+ assert.match(hourly.points[0].at,/T12:04:00/);
+ const day=await history.range('__portfolio__',30,{client,now:at+12*60000});
+ assert.equal(day.points.length,1);assert.equal(day.points[0].usd,1008);
+ const empty=await history.range('__portfolio__',30,{client,now:at+26*3600000,hours:5});
+ assert.equal(empty.points.length,0,'no artificial backfill');
+ await assert.rejects(()=>history.range('__portfolio__',30,{client,hours:6}),/crypto-history-period-invalid/);
+});
