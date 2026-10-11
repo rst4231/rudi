@@ -4,10 +4,12 @@ const sum=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximu
 const percent=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
 const signed=(v,pct=false)=>v===null||v===undefined?'—':(v>0?'+':'')+(pct?percent(v):sum(v));
 const marginName=mode=>mode==='cross'?'Кросс':mode==='isolated'?'Изолированная':'Не указана';
+const marketName=m=>m==='spot'?'Bybit Spot':m==='linear'?'Bybit Perpetual':'Bybit · рынок не указан';
 const statuses={won:'TP · плюс',lost:'SL · минус',open:'Открыта',unpriced:'Открыта, нет цены',
   'not-entered':'Не вошла','insufficient-levels':'Недостаточно уровней',
   conditional:'Условная идея',ambiguous:'Неясный результат',
-  'awaiting-market':'Ожидает проверки','market-unavailable':'Нет котировок'};
+  'awaiting-market':'Ожидает проверки','market-unavailable':'Нет котировок',
+  'market-unconfirmed':'Рынок не указан'};
 let current=null,loading=false;
 async function request(operation,values={}){
   try{await Promise.resolve(window.__rudiTelegramSdkReady)}catch(_){}
@@ -75,8 +77,9 @@ function render(data){
   const list=$('cryptoVirtualPositions');if(list){list.replaceChildren();
     for(const x of p.positions||[]){
       const title=x.symbol+' '+(x.direction==='short'?'SHORT':'LONG');
-      const info='Вход '+x.entry+' · Позиция '+sum(x.investedUsd)+' · '+(statuses[x.status]||x.status)+
-        ' · Маржа автора: '+marginName(x.authorMarginMode)+' · Виртуально: изолированная'+
+      const info='Вход +x.entry+' · Позиция '+sum(x.investedUsd)+' · '+(statuses[x.status]||x.status)+
+        ' · '+marketName(x.market)+' · Маржа автора: '+marginName(x.authorMarginMode)+
+        ' · Виртуально: '+(x.market==='spot'?'без плеча':'изолированная '+x.leverage+'×')+
         (x.adjustmentCount?' · Пополнений/доборов: '+x.adjustmentCount:'');
       const pnl=x.pnlUsd===null?'PNL недоступен':signed(x.pnlUsd);
       list.append(line(title,pnl,{link:x.url,meta:info,color:x.pnlUsd>0?'is-positive':x.pnlUsd<0?'is-negative':''}));
@@ -87,7 +90,7 @@ function render(data){
     for(const x of s.signals||[]){
       const title=x.symbol+' '+(x.direction==='short'?'SHORT':'LONG');
       const entry=x.entry?('Вход '+x.entry):'Точная цена входа отсутствует';
-      const info=entry+' · '+new Date(x.at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+
+      const info=entry+' · '+marketName(x.market)+' · '+new Date(x.at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+
         ' · Маржа автора: '+marginName(x.marginModeReported)+
         (x.adjustmentCount?' · Сообщений о пополнении/доборе: '+x.adjustmentCount:'');
       const status=statuses[x.status]||x.status||'Не подтверждён';
@@ -109,7 +112,7 @@ function render(data){
     if(s.sourceError)parts.push('Telegram временно недоступен. Показаны последние сохранённые данные.');
     if(s.priceError)parts.push('Некоторые котировки не удалось проверить.');
     if(!p.dataComplete)parts.push('Баланс пока нельзя точно оценить: нет рыночных цен по всем открытым сделкам.');
-    parts.push('По умолчанию виртуальная маржа изолированная. «Докидывает» не означает доказанный кросс: пополнения/доборы не меняют расчёт без точных параметров. Ликвидации пока не моделируются.');
+    parts.push('Bybit Spot — без плеча; фьючерсы Bybit — изолированная маржа. Неуказанный рынок не исполняется. «Докидывает» не доказывает кросс. Реальные ликвидации пока не моделируются.');
     parts.push('Виртуальный баланс не связан с твоими реальными кошельками. История до запуска симуляции не торгуется задним числом.');
     status.textContent=parts.join('\n');
   }
@@ -119,8 +122,14 @@ async function load(){
   const status=$('cryptoSignalsStatus'),button=$('cryptoSignalsRefresh');
   if(button)button.disabled=true;
   if(status&&!current)status.textContent='Получаю сигналы и виртуальный портфель…';
-  try{render(await request('crypto-signal-report'))}
-  catch(e){if(status)status.textContent='Не удалось обновить отчёт. '+e.message}
+  try{
+    const report=await request('crypto-signal-report');render(report);
+    const age=Date.now()-Date.parse(report.signals?.updatedAt||0);
+    if(navigator.onLine!==false&&(!report.signals?.updatedAt||age>10*60000)){
+      if(status)status.textContent='Получаю свежие сообщения @ne_investor с Bybit…';
+      render(await request('crypto-signal-sync'));
+    }
+  }catch(e){if(status)status.textContent='Не удалось обновить отчёт: '+e.message}
   finally{loading=false;if(button)button.disabled=false;}
 }
 function show(open){
@@ -133,7 +142,13 @@ function show(open){
 function boot(){
   $('financeCryptoSignalsOpen')?.addEventListener('click',()=>show(true));
   $('financeCryptoSignalsBack')?.addEventListener('click',()=>show(false));
-  $('cryptoSignalsRefresh')?.addEventListener('click',()=>void load());
+  $('cryptoSignalsRefresh')?.addEventListener('click',async()=>{
+    if(loading)return;
+    loading=true;const btn=$('cryptoSignalsRefresh'),status=$('cryptoSignalsStatus');if(btn)btn.disabled=true;
+    try{render(await request('crypto-signal-sync'))}
+    catch(e){if(status)status.textContent='Синхронизация недоступна: '+e.message}
+    finally{loading=false;if(btn)btn.disabled=false;}
+  });
   $('cryptoSignalsSettingsSave')?.addEventListener('click',async()=>{
     if(loading)return;
     const btn=$('cryptoSignalsSettingsSave'),status=$('cryptoSignalsStatus');btn.disabled=true;
