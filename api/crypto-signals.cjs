@@ -174,6 +174,22 @@ async function candlesForSignal(signal,options={}){
   return payload.result.list.map(r=>({at:Number(r[0]),open:Number(r[1]),high:Number(r[2]),low:Number(r[3]),close:Number(r[4])})).filter(r=>
     Number.isFinite(r.at)&&Number.isFinite(r.open)&&Number.isFinite(r.high)&&Number.isFinite(r.low)&&r.high>=r.low);
 }
+async function fundingForSignal(signal,options={}){
+  if(signal?.market!=='linear')return {rates:[],complete:true};
+  const fetcher=options.fetchImpl||fetch;
+  const start=Date.parse(signal.at),end=Number(options.now||Date.now());
+  const url='https://api.bybit.com/v5/market/funding/history?'+new URLSearchParams({
+    category:'linear',symbol:signal.symbol+'USDT',startTime:String(start),endTime:String(end),limit:'200'});
+  const response=await fetcher(url,{cache:'no-store',signal:AbortSignal.timeout(9000)});
+  if(!response.ok)throw Error('bybit-funding-http-'+response.status);
+  const json=await response.json(),list=json?.result?.list;
+  if(Number(json?.retCode)!==0||!Array.isArray(list))throw Error('bybit-funding-unavailable');
+  const rates=list.map(x=>({at:new Date(Number(x.fundingRateTimestamp)).toISOString(),
+    rate:Number(x.fundingRate)})).filter(x=>Number.isFinite(Date.parse(x.at))&&Number.isFinite(x.rate)
+      &&Math.abs(x.rate)<0.1).sort((a,b)=>a.at.localeCompare(b.at));
+  return {rates,complete:list.length<200};
+}
+
 async function fetchChannelPage(before,options={}){
   const fetcher=options.fetchImpl||fetch;
   const url='https://t.me/s/ne_investor'+(before?'?before='+encodeURIComponent(before):'');
@@ -266,11 +282,18 @@ async function refreshSignals(options={}){
           const candles=await candlesForSignal(s,options);
           let outcome=tradeOutcome(s,candles,{now});
           if(s.market==='linear'&&['open','won','lost','breakeven'].includes(outcome.status)){
-            try{
-              const mark=await candlesForSignal(s,{...options,mark:true});
-              outcome=screenLiquidationRisk(outcome,s,mark,Number(options.virtualLeverage||2));
-            }catch(_){outcome={...outcome,liquidationScreen:'unavailable'};}
-          }
+            const [mark,funding]=await Promise.allSettled([
+              candlesForSignal(s,{...options,mark:true}),
+              fundingForSignal(s,{...options,now})
+            ]);
+            outcome=mark.status==='fulfilled'?
+              screenLiquidationRisk(outcome,s,mark.value,Number(options.virtualLeverage||2)):
+              {...outcome,liquidationScreen:'unavailable'};
+            if(funding.status==='fulfilled'){
+              outcome.fundingRates=funding.value.rates;
+              outcome.fundingComplete=funding.value.complete;
+            }else outcome.fundingComplete=false;
+          }else if(s.market==='spot')outcome.fundingComplete=true;
           results[s.id]={...outcome,market:s.market,checkedAt:new Date(now).toISOString()};
         }
         catch(e){priceError=String(e?.message||e);results[s.id]={...(acceptedPrev||{status:'market-unavailable'}),market:s.market,checkedAt:new Date(now).toISOString()};}
@@ -319,4 +342,4 @@ async function readSignals(options={}){
   return buildView(state,options.now??Date.now());
 }
 module.exports={NS,parsePreview,parseSignal,evaluateCandles,compareSignal:parseSignal,
-  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk};
+  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk,fundingForSignal};
