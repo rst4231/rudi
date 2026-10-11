@@ -200,6 +200,10 @@ async function handler(req, res) {
           String(body.walletId||'__portfolio__'),Number(body.days||30),{hours:body.hours||0});
         return res.status(200).json({ok:true,actor,...result});
       }
+      if (operation === 'crypto-bybit-history-check') {
+        const result=await cryptoWallets.checkBybitTradeHistory(actor,String(body.walletId||''));
+        return res.status(200).json({ok:true,actor,...result});
+      }
       if (operation === 'crypto-operations') {
         const result=await cryptoWallets.operations(actor,String(body.walletId||''));
         const state=await readFinanceState(),view=viewState(state,actor);
