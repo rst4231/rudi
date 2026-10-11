@@ -1,10 +1,10 @@
 /* Owner-only cryptocurrency connections. Keep the existing finance layout intact. */
-#financeTabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#financeTabs{display:flex;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 #financeTabs::-webkit-scrollbar{display:none}
 #financeTabs [hidden],#financeCryptoPanel[hidden],#financeCryptoConnectWrap[hidden],
 #financeCryptoConnectFields[hidden],#financeCryptoBybitFields[hidden],#financeCryptoUniswapFields[hidden],
 #financeCryptoDisconnectButton[hidden]{display:none!important}
-#financeTabs .finance-tab{white-space:nowrap;flex-shrink:0}
+#financeTabs .finance-tab{white-space:nowrap;flex:1 0 auto;min-width:max-content;padding:0 9px}
 .finance-crypto-panel{padding:12px 0 36px}
 .finance-crypto-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
 .finance-crypto-top h2{font-size:24px;line-height:1.18;letter-spacing:-.035em;margin:4px 0 8px}
