@@ -50,7 +50,8 @@ async function fetchSection(section,keys,{bybitGet,options}){
     const batch=holdingsFor(section,data);unknown ||= batch.unknown;
     all.push(...batch.items);
     const cursor=String(data.nextPageCursor||'');
-    if(!section.paginate||!cursor)return {items:all,unknown};
+    if(!section.paginate){if(cursor)throw Error('crypto-bybit-pagination-unexpected');return {items:all,unknown};}
+    if(!cursor)return {items:all,unknown};
     if(cursor===next||page===14)throw Error('crypto-bybit-pagination-incomplete');
     next=cursor;
   }
@@ -61,8 +62,11 @@ async function snapshot(keys,{bybitGet,marketRates,options={}}){
   const unified=(data.list||[]).find(x=>x.accountType==='UNIFIED');
   const value=validNumber(unified?.totalEquity);
   if(value===null)throw Error('crypto-bybit-balance-unavailable');
-  const sections=[{id:'unified',name:'Единый торговый',usd:value,verified:true}];
-  const assets=Array.isArray(unified.coin)?unified.coin.filter(x=>Number(x.walletBalance)>0).slice(0,100).map(x=>({symbol:String(x.coin),amount:Number(x.walletBalance),source:'Unified'})):[];
+  const sections=[{id:'unified',name:'Единый торговый',usd:value,verified:true,assets:[]}];
+  const assets=Array.isArray(unified.coin)?unified.coin.filter(x=>Number(x.walletBalance)>0)
+    .slice(0,200).map(x=>({symbol:String(x.coin),amount:Number(x.walletBalance),network:'Bybit',
+      usd:validNumber(x.usdValue),section:'unified'})):[];
+  sections[0].assets=assets;
   const rates=await marketRates(options);
   const quotes={...rates,BTC:Number(rates.BTC||0)};
   let subtotal=value,incomplete=false;const unknown=[];
@@ -90,27 +94,38 @@ async function snapshot(keys,{bybitGet,marketRates,options={}}){
         incomplete=true;unknown.push(section.id);continue;
       }
       const {items,unknown:invalid}=out.value;
-      let total=0,miss=invalid;
+      let total=0,miss=invalid;const sectionAssets=[];
       for(const asset of items){
         if(asset.amount===0)continue;
         const rate=await price(asset.coin);
         if(!(rate>0)){miss=true;continue}
-        total+=asset.amount*rate;
+        const usd=asset.amount*rate;
+        total+=usd;
+        sectionAssets.push({symbol:asset.coin,amount:asset.amount,network:'Bybit',section:section.id,usd:Number(usd.toFixed(8))});
       }
       if(!Number.isFinite(total)||total>1e12)miss=true;
-      sections.push({id:section.id,name:section.name,usd:Math.round(total*1e8)/1e8,verified:!miss});
+      const mayDuplicate=section.id==='earn-token'&&assets.some(a=>a.symbol==='BYUSDT'||a.symbol==='USDT');
+      if(mayDuplicate)miss=true;
+      sections.push({id:section.id,name:section.name,usd:Math.round(total*1e8)/1e8,verified:!miss,
+        includedInTotal:!mayDuplicate,assets:sectionAssets});
       if(miss){incomplete=true;unknown.push(section.id);}
-      subtotal+=total;
+      if(!mayDuplicate)subtotal+=total;
     }
   }
+  // A read-only UTA key does not necessarily permit enumeration of subaccounts.
+  // Subaccount discovery requires transfer/withdrawal permissions and is intentionally
+  // not requested. Never certify that an unseen subaccount is empty.
+  sections.push({id:'subaccounts',name:'Субаккаунты',usd:null,verified:false,assets:[]});
+  incomplete=true;unknown.push('subaccounts');
   const rounded=Math.round(subtotal*1e8)/1e8;
   return {
     balanceUsd:incomplete?null:rounded,
     partialUsd:incomplete?rounded:null,incomplete,
-    sections,assets,scope:'Bybit',warning:'',
+    sections,assets:sections.flatMap(section=>section.assets||[]),scope:'Bybit',warning:'',
     // Subaccounts and specialized Bybit products have independent permissions;
     // even successful section reads do not certify those absent elsewhere.
-    coverageNote:'Субаккаунты и неподдерживаемые продукты не проверяются автоматически.',
+    unknownSections:unknown,
+    coverageNote:'Субаккаунты и некоторые продукты требуют отдельных разрешений. Доступная сумма частичная.',
   };
 }
 module.exports={SECTION_REQUESTS,holdingsFor,fetchSection,snapshot};
