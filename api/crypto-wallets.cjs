@@ -8,10 +8,11 @@ const { readLpPositions } = require('./uniswap-lp.cjs');
 const bybitHoldings=require('./bybit-holdings.cjs');
 const balanceHistory=require('./crypto-balance-history.cjs');
 const cryptoOperations=require('./crypto-operations.cjs');
+const trustChains=require('./crypto-trust-chains.cjs');
 
 const NS = 'rudi-crypto-wallet-connections-v1';
 const KEY = 'rustam';
-const REFRESH_MS = 10 * 60 * 1000;
+const REFRESH_MS = 3 * 60 * 1000;
 const RPC_URLS = ['https://ethereum-rpc.publicnode.com', 'https://public.1rpc.io/eth'];
 const BYBIT_URL = 'https://api.bybit.com';
 const ARBITRUM_RPC_URLS = ['https://arb1.arbitrum.io/rpc','https://arbitrum-one-rpc.publicnode.com'];
@@ -286,10 +287,11 @@ async function connect(actor, input = {}, options = {}) {
     secret = encryptSecret(apiKey, apiSecret);
   } else {
     if(provider==='trust'){
-      if(input.scopeConfirm!=='evm-spot-readonly')throw new Error('crypto-trust-scope-confirm-required');
-      chain=networkOf(input.chain||'ethereum').name;
+      if(!['evm-spot-readonly','public-address-readonly'].includes(input.scopeConfirm))
+        throw new Error('crypto-trust-scope-confirm-required');
+      chain=String(input.chain||'ethereum').toLowerCase();
       address=String(input.address||'').trim();
-      if(!/^0x[a-f0-9]{40}$/i.test(address))throw new Error('crypto-address-invalid');
+      if(!trustChains.addressValid(chain,address))throw new Error('crypto-address-invalid');
     }else{
     if (!['ethereum-mainnet-spot-only','ethereum-mainnet-including-lp','arbitrum-one-including-lp'].includes(String(input.scopeConfirm || ''))) throw new Error('crypto-uniswap-scope-confirm-required');
     chain=networkOf(input.chain||'ethereum').name;
@@ -373,9 +375,11 @@ async function refresh(actor, options = {}) {
       try {
         const wallet = await assertWallet(id, options);
         const snapshot = connection.provider === 'bybit'
-          ? await bybitSnapshot(decryptSecret(connection.secret), options)
-          : await uniswapSnapshot(connection.address, { ...options,
-            spotOnly:connection.provider==='trust',chain:connection.chain||'ethereum' });
+          ? await bybitSnapshot(decryptSecret(connection.secret),options)
+          : connection.provider==='trust'
+            ? await trustChains.snapshot(connection.address,connection.chain||'ethereum',options,
+                {rpc,networkOf,unitAmount})
+            : await uniswapSnapshot(connection.address,{...options,chain:connection.chain||'ethereum'});
         if (snapshot.incomplete) {
           // Show verified LPs and update only the known, labeled partial wallet
           // estimate. A missing v4 indexer can never assert a complete total.
@@ -387,7 +391,8 @@ async function refresh(actor, options = {}) {
             balanceUsd: null,
             lastSyncAt: '',
             partialSyncAt: new Date().toISOString(),
-            lastError: connection.provider==='bybit'?'crypto-bybit-coverage-incomplete':'crypto-lp-discovery-unavailable',
+            lastError: connection.provider==='bybit'?'crypto-bybit-coverage-incomplete'
+              :connection.provider==='trust'?'crypto-trust-coverage-incomplete':'crypto-lp-discovery-unavailable',
           });
         } else {
           const balanceNative = await usdToWalletCurrency(snapshot.balanceUsd, wallet.currency, options);
@@ -433,10 +438,21 @@ async function history(actor,walletId,days,options={}) {
 async function operations(actor,walletId,options={}) {
   owner(actor);
   const id=String(walletId||'').trim();
-  await assertWallet(id,options);
-  const links=await readState(options),connection=links[id];
-  if(!connection)throw Error('crypto-wallet-not-found');
-  return cryptoOperations.read(connection,options,{bybitGet,decryptSecret});
+  if(!/^[\\w-]{1,100}$/.test(id))throw Error('crypto-wallet-not-found');
+  const links=await readState(options);
+  if(!links[id])throw Error('crypto-wallet-not-found');
+  const entries=Object.entries(links);
+  const reports=await Promise.allSettled(entries.map(([,connection])=>
+    cryptoOperations.read(connection,options,{bybitGet,decryptSecret})));
+  const report=reports[entries.findIndex(([key])=>key===id)];
+  if(report.status!=='fulfilled')throw report.reason;
+  const peers=[];
+  entries.forEach(([key,row],index)=>{
+    if(key!==id&&reports[index].status==='fulfilled')
+      peers.push({walletId:key,name:row.provider==='bybit'?'Bybit':row.provider==='trust'?'Trust Wallet':'Uniswap',
+        items:reports[index].value.items});
+  });
+  return cryptoOperations.linkTransfers({...report.value,walletId:id},peers);
 }
 module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, setChain, refresh, history, operations,
   encryptSecret, decryptSecret, bybitGet, bybitSnapshot, uniswapSnapshot, marketRates, usdToWalletCurrency };
