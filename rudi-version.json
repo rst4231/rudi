@@ -1,21 +1,16 @@
 {
-  "current": "v4.177",
+  "current": "v4.178",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.176",
+  "basedOnProduction": "v4.177",
   "notes": [
-    "Renamed author's monitor to Analysis of Oleg Artemyev signals; retained existing author data.",
-    "Added independent Bybit perpetual short paper trading: pump fade, false breakout, RSI reversal, $10000 per algorithm.",
-    "Added per-strategy closed/open positions, PNL, metrics, equity curves, risk model and persisted D1 state.",
-    "Adjusted mobile layout for both author and algorithm signal reports.",
-    "Reused existing authenticated GitHub Actions cron; no real trade orders and no new Vercel deployment until approval.",
-    "Per-source manual refresh buttons update only the selected connected crypto wallet; other sources are not re-requested.",
-    "Bybit hides zero-value advanced Earn sections and unavailable subaccounts without suppressing funded positions.",
-    "Uniswap labels use 'Комиссии в этом месяце' (unavailable without full history) and 'Всего комиссии' (uncollected fees); possible LP principal is flagged separately.",
-    "Added daily and month-to-date asset valuation changes for portfolio and sources with conservative baseline checks, never described as verified trading PNL."
+    "Removed the explanatory paragraph below the Uniswap commissions block.",
+    "Removed duplicate Bybit wallet name beside the refresh button while keeping the source header and refresh action.",
+    "Added owner-protected read-only Bybit spot execution-history API probe; returns no trade details or secrets.",
+    "Added a manual access-check control on the Bybit card to verify current key permissions without orders, balance mutation, or deployment after each check."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
