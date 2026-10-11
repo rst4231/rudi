@@ -7,6 +7,8 @@ function classifyUpdate(message){
   if(/(?:стоп\s*(?:в|на)\s*(?:бу|б\/у|безубыт)|(?:перен[её]с|переношу|переставил)\s+стоп\s+(?:в|на)\s+(?:бу|б\/у|безубыт))/iu.test(text))type='stop-to-breakeven';
   else if(/(?:закрыл|закрываю|фиксирую|зафиксировал|снял)\s*(?:часть|частично|\d+(?:[.,]\d+)?\s*%)/iu.test(text)||/(?:частичн\p{L}*\s+(?:закрыл|закрываю|фиксац\p{L}*))/iu.test(text))type='partial-close';
   else if(/(?:закрыл\s+полностью|полностью\s+закрыл|вышел\s+(?:из\s+)?(?:позиции|сделки)\s+полностью)/iu.test(text))type='full-close';
+  else if(/(?:сработал\s+(?:тейк|tp)|(?:достигли|взял|отработал)\s+(?:тейк|tp|цель))/iu.test(text))type='author-claimed-tp';
+  else if(/(?:выбил\s+стоп|сработал\s+(?:стоп|sl)|закрыл[ао]?\s+по\s+стоп)/iu.test(text))type='author-claimed-sl';
   else if(/(?:докид\p{L}*|докин\p{L}*|добав\p{L}*\s+(?:марж|обеспеч)|добир\p{L}*|усредня\p{L}*|увелич\p{L}*\s+(?:позици|объ[её]м|объем))/iu.test(text))
     type=/(?:марж|залог|обеспеч|collateral)/iu.test(text)?'collateral-addition':
       /(?:позици|объ[её]м|объем)/iu.test(text)?'position-addition':'unspecified-addition';
