@@ -49,6 +49,7 @@
       'crypto-wallet-usd-required':'Для автосинхронизации выбери валюту кошелька USD или USDT и сохрани изменения.',
       'crypto-wallet-credit-unsupported':'Кредитный счёт нельзя подключить как криптокошелёк.',
       'crypto-wallet-not-found':'Этот кошелёк удалён. Обнови страницу.',
+      'crypto-auto-amount-unsupported':'Автоматический расчёт доступен для переводов USDT в USD/USDT-кошелёк. Выбери подходящий кошелёк.',
       'crypto-bybit-balance-unavailable':'Bybit не вернул баланс Unified, старое значение сохранено.',
       'crypto-encryption-unavailable':'На сервере не настроено шифрование ключей.',
     };
@@ -358,6 +359,32 @@
     const label=(text,input)=>{const box=document.createElement('label');box.className='finance-crypto-allocation-field';
       const caption=document.createElement('span');caption.textContent=text;box.append(caption,input);return box;};
     const targetLabel=label('Куда отнести',target);
+    const amountField=label('Сумма операции в рублях',amount);
+    const help=document.createElement('p');help.className='finance-crypto-allocation-help';
+    const manualHelp='Укажи стоимость этой операции в рублях. Балансы API-кошельков повторно не списываются.';
+    let manualRub=amount.value;
+    let automaticallyPriced=false;
+    amount.addEventListener('input',()=>{if(!amount.readOnly)manualRub=amount.value;});
+    const updateAmountMode=()=>{
+      const selectedWallet=(result.wallets||[]).find(w=>w.id===target.value);
+      const auto=type.value==='transfer'&&String(row.symbol||'').toUpperCase()==='USDT'&&
+        ['USD','USDT'].includes(String(selectedWallet?.currency||'').toUpperCase())&&
+        Number(row.amount)>0&&Number.isFinite(Number(row.amount));
+      if(auto!==automaticallyPriced){
+        amount.value=auto?String(Number(row.amount)):manualRub;
+        automaticallyPriced=auto;
+      }
+      amount.readOnly=auto;
+      amount.required=!auto;
+      amountField.querySelector('span').textContent=auto?
+        'Сумма перевода · '+selectedWallet.currency:'Сумма операции в рублях';
+      amount.placeholder=auto?'Рассчитано из USDT':'Сумма в ₽';
+      help.textContent=auto?
+        'Подставлено автоматически: '+Number(row.amount).toLocaleString('ru-RU',{maximumFractionDigits:8})+
+        ' USDT ≈ '+Number(row.amount).toLocaleString('ru-RU',{maximumFractionDigits:8})+' '+
+        selectedWallet.currency+'. Фактический USD/RUB-эквивалент для истории рассчитывается по курсу при сохранении.':
+        manualHelp;
+    };
     const refreshTarget=()=>{
       target.replaceChildren();
       const candidates=type.value==='expense'?result.categories:result.wallets;
@@ -367,30 +394,35 @@
       }
       const selected=type.value==='expense'?row.assignment?.categoryId:row.assignment?.targetWalletId;
       if(selected&&[...target.options].some(o=>o.value===selected))target.value=selected;
+      updateAmountMode();
     };
-    type.addEventListener('change',refreshTarget);refreshTarget();
-    const help=document.createElement('p');help.className='finance-crypto-allocation-help';
-    help.textContent='Укажи стоимость этой операции в рублях. Для API-кошельков деньги повторно не списываются. Если выбран обычный кошелёк, его баланс изменится.';
+    type.addEventListener('change',refreshTarget);
+    target.addEventListener('change',updateAmountMode);
+    refreshTarget();
     const status=document.createElement('div');status.className='finance-crypto-allocation-status';
     status.setAttribute('role','status');
     const save=document.createElement('button');save.className='finance-crypto-allocation-save';
     save.type='button';save.textContent='Сохранить';
     sheet.append(top,detail,label('Тип операции',type),targetLabel,
-      label('Сумма операции в рублях',amount),label('Комментарий',note),help,status,save);
+      amountField,label('Комментарий',note),help,status,save);
     backdrop.append(sheet);document.body.append(backdrop);
     const finish=()=>backdrop.remove();
     close.addEventListener('click',finish);
     backdrop.addEventListener('click',e=>{if(e.target===backdrop)finish();});
     backdrop.addEventListener('keydown',e=>{if(e.key==='Escape')finish();});
     save.addEventListener('click',async()=>{
-      const rubAmount=Number(amount.value);
-      if(!(rubAmount>0)||!target.value){status.textContent='Выбери кошелёк или категорию и введи сумму в рублях.';return;}
+      const autoAmount=automaticallyPriced&&type.value==='transfer';
+      const rubAmount=autoAmount?undefined:Number(amount.value);
+      if(!target.value||(!autoAmount&&!(rubAmount>0))){
+        status.textContent=autoAmount?'Выбери кошелёк для перевода.':'Выбери кошелёк или категорию и введи сумму в рублях.';
+        return;
+      }
       if(allocationBusy)return;allocationBusy=true;save.disabled=true;save.textContent='Сохраняю…';status.textContent='';
       try{
         await request('crypto-classify',{walletId,operationId:row.id,mode:type.value,
           categoryId:type.value==='expense'?target.value:undefined,
           targetWalletId:type.value==='transfer'?target.value:undefined,
-          rubAmount,note:note.value});
+          autoAmount,rubAmount,note:note.value});
         finish();
         document.dispatchEvent(new Event('rudi-finance-plan-saved'));
         setStatus('financeCryptoStatus','Операция сохранена в истории выбранного кошелька или категории.');
