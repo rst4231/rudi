@@ -21,6 +21,10 @@
       'crypto-uniswap-scope-confirm-required':'Подтверди, что в автоматическом балансе нужно учитывать только ETH, WETH, USDT и USDC сети Ethereum.',
       'crypto-uniswap-lp-not-covered':'Найдена LP-позиция Uniswap. Её стоимость пока не рассчитывается, прежний баланс сохранён.',
       'crypto-price-incomplete':'Некоторые монеты нельзя надёжно оценить. Баланс не менялся.',
+      'crypto-price-unavailable':'Сейчас недоступны котировки ETH. Баланс сохранён, попробуй обновить позже.',
+      'crypto-rpc-unavailable':'Не удалось связаться с Ethereum. Оба RPC-сервера недоступны. Баланс сохранён.',
+      'crypto-provider-unavailable':'Внешний сервис API отклонил запрос. Баланс сохранён, попробуй обновить позже.',
+
       'crypto-wallet-usd-required':'Для автосинхронизации выбери валюту кошелька USD или USDT и сохрани изменения.',
       'crypto-wallet-credit-unsupported':'Кредитный счёт нельзя подключить как криптокошелёк.',
       'crypto-wallet-not-found':'Этот кошелёк удалён. Обнови страницу.',
