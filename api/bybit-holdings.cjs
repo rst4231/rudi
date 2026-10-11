@@ -59,11 +59,15 @@ async function fetchSection(section,keys,{bybitGet,options,fundingCoins=[]}){
     const results=await Promise.allSettled(chunks.map(chunk=>bybitGet(
       section.path,{...section.query,coin:chunk.join(',')},keys,options
     )));
-    const items=[];let failed=false;
+    const items=[],seen=new Set();let failed=false;
     for(const result of results){
       if(result.status!=='fulfilled'){failed=true;continue;}
       const normalized=holdingsFor(section,result.value);
-      items.push(...normalized.items);failed ||= normalized.unknown;
+      for(const item of normalized.items){
+        if(seen.has(item.coin)){failed=true;continue;}
+        seen.add(item.coin);items.push(item);
+      }
+      failed ||= normalized.unknown;
     }
     // Even successful baskets omit unsupported or unlisted assets.
     return {items,unknown:true,fundingScanError:failed};
@@ -131,7 +135,7 @@ async function snapshot(keys,{bybitGet,marketRates,options={}}){
         sectionAssets.push({symbol:asset.coin,amount:asset.amount,network:'Bybit',section:section.id,usd:Number(usd.toFixed(8))});
       }
       if(!Number.isFinite(total)||total>1e12)miss=true;
-      const mayDuplicate=section.id==='earn-token'&&assets.some(a=>a.symbol==='BYUSDT');
+      const mayDuplicate=section.id==='earn-token'&&(assets.some(a=>a.symbol==='BYUSDT')||sections.some(s=>s.id==='funding'&&s.assets?.some(a=>a.symbol==='BYUSDT')));
       if(mayDuplicate)miss=true;
       sections.push({id:section.id,name:section.name,usd:Math.round(total*1e8)/1e8,verified:!miss,
         includedInTotal:!mayDuplicate,assets:sectionAssets});
