@@ -7,11 +7,12 @@
   "createdAt": "2026-10-11",
   "basedOnProduction": "v4.161",
   "notes": [
-    "Private owner-only Crypto tab next to Financial Literacy, hidden for Diana and guarded by server-side session actor.",
-    "Read-only Bybit API verification, encrypted credentials, and Unified wallet balances.",
-    "Public Ethereum address connection, ETH and common ERC-20 balances, and optional Uniswap V3 The Graph positions.",
-    "Daily balance snapshots and a mobile portfolio chart; the total excludes LP value and unsupported assets.",
-    "Prepared on an isolated feature branch; production v4.161 is unchanged until separately approved deployment."
+    "Only Rustam sees Crypto tab placed immediately after Financial Literacy in Finances; server requires authenticated Rustam role.",
+    "Read-only Bybit API key validation and AES-256-GCM encryption at rest; Bybit Unified balances, asset breakdown and unrealized PnL.",
+    "Public Ethereum Mainnet addresses read ETH and supported ERC-20 balances, plus live onchain Uniswap V3 NFT liquidity position values and range status.",
+    "Cached automatic refresh (15 minutes), manual refresh cooldown (one minute), and saved daily USD portfolio snapshots.",
+    "Totals are withheld when asset valuation is incomplete; Bybit Funding, other networks and unsupported assets are explicitly excluded.",
+    "Prepared on feature branch with no deployment; API route reuses existing api/index.js serverless entrypoint."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
