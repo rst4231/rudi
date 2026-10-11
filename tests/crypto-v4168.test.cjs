@@ -143,6 +143,9 @@ test('v4.168 UI provides history chart and hides deprecated captions',()=>{
   assert.match(html,/<option value="trust">Trust Wallet<\/option>/);
   assert.match(js,/Обновлено:/);
   assert.doesNotMatch(js,/Проверка позиций v3:/);
+  assert.doesNotMatch(js,/● Частично подтверждено/);
+  assert.match(js,/label\.hidden=partial/);
+  assert.match(js,/finance-crypto-partial-badge/);
   assert.doesNotMatch(js,/finance-crypto-switch-chain|Переключить на Ethereum Mainnet|Пулы в Arbitrum\? Переключить сеть/);
   assert.doesNotMatch(js,/Показаны только активные пулы v3\. Сумма частичная/);
   assert.doesNotMatch(html,/Баланс Bybit и кошелька Ethereum\. Только для твоего аккаунта/);
