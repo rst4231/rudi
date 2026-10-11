@@ -35,6 +35,9 @@
         "fra1"
       ],
       "maxDuration": 60
+    },
+    "api/crypto-signals-cron.js": {
+      "maxDuration": 300
     }
   },
   "headers": [
