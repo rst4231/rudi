@@ -6,6 +6,10 @@ const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const dayKey=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const asDate=v=>{let d=new Date(v);return Number.isFinite(d.valueOf())?d.toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric'}):String(v||'')};
+function positiveShare(entry){
+ const total=Number(entry?.total),positive=Number(entry?.positive);
+ return Number.isFinite(total)&&total>0&&Number.isFinite(positive)?Math.round(100*positive/total):null;
+}
 let root=null,open=false,who='',data=null,report=null,lastStatus=0,loading=false,manualLoading=false,activeSheet='',cycleInfo=null,overviewAt=0,refreshing=false,overviewPromise=null,rhythmMode='habits';
 const cachePrefix='rudi-personal-center-session:';
 function setStatus(t){if($('pcStatus'))$('pcStatus').textContent=String(t||'')}
@@ -26,7 +30,7 @@ function makeMarkup(){
  p.push('<div class="rudi-center__card rudi-center__report"><div class="rudi-center__head"><div><small class="rudi-center__eyebrow">ТВОЙ ДЕНЬ</small><h2>✦ AI-разбор</h2></div><span class="rudi-center__meta" id="pcReportDate">Сегодня</span></div><p class="rudi-center__report-lead" id="pcReport">Нажми кнопку, чтобы получить обзор.</p><div class="rudi-center__summary-grid" id="pcSummaryGrid" hidden><div class="rudi-center__summary-main" id="pcMainBlock"><small>ГЛАВНОЕ</small><p id="pcMainChange">—</p></div><div class="rudi-center__summary-action" id="pcActionBlock"><small>ЧТО СДЕЛАТЬ</small><p id="pcMainAction">—</p></div><div class="rudi-center__summary-note" id="pcObservationBlock"><small>НАБЛЮДЕНИЕ</small><p id="pcMainObservation">—</p></div><div class="rudi-center__summary-note" id="pcForecastBlock"><small>ЧТО ДАЛЬШЕ</small><p id="pcForecast">—</p></div></div><button id="pcReportMore" class="rudi-center__report-more" data-open="report" type="button" hidden>Открыть подробности →</button><button id="pcGenerateReport" class="rudi-center__btn rudi-center__generate-report" type="button">Получить обзор</button><div class="rudi-center__status" id="pcStatus" role="status" aria-live="polite"></div></div>');
  p.push('<section class="rudi-center__card rudi-center__rhythm" aria-labelledby="pcRhythmTitle"><div class="rudi-center__head"><div><small class="rudi-center__eyebrow">7 ДНЕЙ</small><h2 id="pcRhythmTitle">Ритм недели</h2></div><span class="rudi-center__rhythm-period" id="pcRhythmPeriod">За неделю</span></div><div class="rudi-center__rhythm-tabs" role="group" aria-label="Показатель графика"><button type="button" data-rhythm="habits" class="active" aria-pressed="true">Привычки</button><button type="button" data-rhythm="expenses" aria-pressed="false">Расходы</button><button type="button" data-rhythm="mood" aria-pressed="false">Настроение</button></div><div class="rudi-center__rhythm-head"><strong id="pcRhythmMetric">—</strong><span id="pcRhythmSub">Отмеченные дни</span></div><svg id="pcRhythmGraph" class="rudi-center__rhythm-chart" viewBox="0 0 350 174" role="img" aria-label="График записей за семь дней"></svg><p class="rudi-center__rhythm-empty" id="pcRhythmEmpty" hidden>Пока нет записей за эту неделю.</p><small class="rudi-center__rhythm-foot" id="pcRhythmFoot">Отображаются только сохранённые записи.</small></section>');
  p.push('<div class="rudi-center__tile-grid"><button class="rudi-center__tile" data-open="symptoms"><span class="rudi-center__tile-icon">♡</span><strong>Здоровье</strong><small id="pcSymptomsCount">Дневник здоровья</small></button><button class="rudi-center__tile" data-open="weight"><span class="rudi-center__tile-icon">↟</span><strong>Моё тело</strong><small id="pcWeight">Вес и рост</small></button></div>');
- p.push('<div class="rudi-center__card"><div class="rudi-center__head"><h2>Динамика негативных эмоций</h2><button class="rudi-center__link" data-open="history" type="button">История →</button></div><svg class="rudi-center__chart" id="pcGraph" viewBox="0 0 350 115" role="img" aria-label="График доли негативных эмоций"></svg><small class="rudi-center__meta" id="pcHistoryCaption">История по дням, неделям и месяцам</small></div>');
+ p.push('<div class="rudi-center__card"><div class="rudi-center__head"><h2>Динамика позитивных эмоций</h2><button class="rudi-center__link" data-open="history" type="button">История →</button></div><svg class="rudi-center__chart" id="pcGraph" viewBox="0 0 350 115" role="img" aria-label="График доли позитивных эмоций"></svg><small class="rudi-center__meta" id="pcHistoryCaption">История по дням, неделям и месяцам</small></div>');
  p.push('<div id="pcDianaCycleSlot" class="rudi-center__cycle-slot" hidden><section class="rudi-center__card rudi-center__cycle-card"><div class="rudi-center__head"><h2>Цикл Дианы</h2><span class="rudi-center__meta">Прогноз</span></div><div class="rudi-center__cycle-grid"><div><span>Фаза</span><strong id="pcCyclePhase">—</strong></div><div><span>День цикла</span><strong id="pcCycleDay">—</strong></div><div><span>До следующих месячных</span><strong id="pcCycleCountdown">—</strong></div><div><span>Последнее начало</span><strong id="pcCyclePeriod">—</strong></div></div><p id="pcCycleNote" class="rudi-center__meta">Прогноз ориентировочный.</p><button id="pcCycleRecord" class="rudi-center__btn" type="button" hidden>Отметить начало сегодня</button></section></div>');
  p.push('</div></div>');
  p.push('<div class="rudi-center__overlay" id="pcOverlay" hidden><div class="rudi-center__sheet" role="dialog" aria-modal="true" aria-labelledby="pcSheetTitle"><div class="rudi-center__sheet-head"><button id="pcSheetClose" class="rudi-center__back" type="button">← Назад</button><h2 id="pcSheetTitle">Данные</h2><span class="rudi-center__sheet-spacer" aria-hidden="true"></span></div><div id="pcSheetContent" class="rudi-center__sheet-content"></div></div></div>');
@@ -59,6 +63,7 @@ function attach(){
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void checkStatus();});
  window.addEventListener('focus',()=>void checkStatus());
  installCenterPullRefresh();
+ installCenterSwipeBack();
 }
 async function checkStatus(force=false){
  if(open||document.hidden||document.body.classList.contains('auth-pending'))return;
@@ -126,17 +131,17 @@ function renderRhythm(){
  const observations=report?.observations||{};
  const habits=new Map((observations.habits?.recent||[]).map(x=>[x.day,Number(x.completed)||0]));
  const expenses=new Map((observations.finances?.recentExpenseDays||[]).map(x=>[x.day,Number(x.rub)||0]));
- const moods=new Map((data?.emotions?.daily||[]).filter(x=>Number.isFinite(x.negativePercent)).map(x=>[x.date,Number(x.negativePercent)]));
+ const moods=new Map((data?.emotions?.daily||[]).map(x=>[x.date,positiveShare(x)]).filter(([,value])=>Number.isFinite(value)));
  const maps={habits,expenses,mood:moods},units={habits:'отметок',expenses:'₽',mood:'%'};
  const mode=maps[rhythmMode]?rhythmMode:'habits',series=maps[mode],values=dates.map(d=>series.has(d)?series.get(d):null);
  const valid=values.filter(Number.isFinite),max=Math.max(mode==='mood'?100:1,...valid);
- const title={habits:'Привычки',expenses:'Расходы',mood:'Негативные отметки'}[mode];
+ const title={habits:'Привычки',expenses:'Расходы',mood:'Позитивные отметки'}[mode];
  const renderValue=n=>mode==='expenses'?Math.round(n).toLocaleString('ru-RU')+' ₽':mode==='mood'?Math.round(n)+'%':Math.round(n)+'';
  root.querySelectorAll('[data-rhythm]').forEach(btn=>{const active=btn.dataset.rhythm===mode;btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',active?'true':'false');});
  showText('pcRhythmMetric',valid.length?valid.length+' из 7 дней':'Нет отметок');
  showText('pcRhythmSub',title+' · '+(valid.length?units[mode]:'нет записей'));
  showText('pcRhythmPeriod','7 дней');
- showText('pcRhythmFoot',mode==='expenses'?'Показаны только дни с записанными расходами.':mode==='mood'?'Доля негативных отметок из дневника настроения.':'Показаны дни с отмеченными результатами привычек.');
+ showText('pcRhythmFoot',mode==='expenses'?'Показаны только дни с записанными расходами.':mode==='mood'?'Доля позитивных отметок из дневника настроения.':'Показаны дни с отмеченными результатами привычек.');
  const empty=$('pcRhythmEmpty');if(empty)empty.hidden=valid.length>0;
  svg.hidden=!valid.length;
  svg.replaceChildren();if(!valid.length)return;
@@ -161,7 +166,7 @@ function renderRhythm(){
 }
 function graph(){
  const graphEl=$('pcGraph');if(!graphEl)return;graphEl.replaceChildren();
- const items=(data?.emotions?.daily||[]).filter(x=>Number.isFinite(x.negativePercent)).slice(-30).map(x=>({d:x.date,v:x.negativePercent}));
+ const items=(data?.emotions?.daily||[]).map(x=>({d:x.date,v:positiveShare(x)})).filter(x=>Number.isFinite(x.v)).slice(-30);
  if(items.length<2){
   const txt=document.createElementNS('http://www.w3.org/2000/svg','text');txt.setAttribute('x','12');txt.setAttribute('y','55');txt.setAttribute('fill','currentColor');txt.setAttribute('font-size','12');txt.textContent='График появится после двух записей настроения';graphEl.append(txt);return;
  }
@@ -216,6 +221,32 @@ function installCenterPullRefresh(){
  };
  viewport.addEventListener('touchend',()=>void finish(),{passive:true});
  viewport.addEventListener('touchcancel',reset,{passive:true});
+}
+// iOS/PWA: an edge swipe goes back one level without disrupting vertical scroll.
+function installCenterSwipeBack(){
+ let start=null;
+ root.addEventListener('touchstart',event=>{
+  start=null;
+  if(!open||event.touches.length!==1)return;
+  const point=event.touches[0];
+  if(point.clientX>64||event.target.closest('input,textarea,select,[contenteditable="true"]'))return;
+  start={x:point.clientX,y:point.clientY,at:Date.now(),sheet:activeSheet};
+ },{passive:true});
+ root.addEventListener('touchmove',event=>{
+  if(!start||event.touches.length!==1)return;
+  const dx=event.touches[0].clientX-start.x,dy=Math.abs(event.touches[0].clientY-start.y);
+  if(dx>25&&dy<dx*.55&&event.cancelable)event.preventDefault();
+ },{passive:false});
+ root.addEventListener('touchend',event=>{
+  if(!start||!open||!event.changedTouches.length)return;
+  const swipe=start;start=null;
+  const dx=event.changedTouches[0].clientX-swipe.x;
+  const dy=Math.abs(event.changedTouches[0].clientY-swipe.y);
+  if(dx<75||dy>Math.max(40,dx*.55)||Date.now()-swipe.at>950)return;
+  if(swipe.sheet&&activeSheet===swipe.sheet)closeSheet();
+  else if(!activeSheet)hide();
+ },{passive:true});
+ root.addEventListener('touchcancel',()=>{start=null;},{passive:true});
 }
 function syncSheetViewport(){
  if(!$('pcOverlay')||$('pcOverlay').hidden)return;
@@ -330,7 +361,7 @@ function draw(){
  for(const [id,block,value] of blocks){const show=Boolean(ready&&reportHasText(value));const el=$(block);if(el)el.hidden=!show;if(show){showText(id,value);visible++;}}
  if($('pcSummaryGrid'))$('pcSummaryGrid').hidden=!visible;
  showText('pcHistoryCaption',(emotions?.daysRecorded||0)+' дней с отметками настроения');
- if($('pcReportMore'))$('pcReportMore').hidden=!ready;
+ if($('pcReportMore'))$('pcReportMore').hidden=!ready||(report?.date===dayKey()&&report?.slot==='morning');
  updateReportButton();
  renderRhythm();
  graph();
@@ -358,31 +389,48 @@ function sheet(name){
    [['active','Продолжается'],['better','Лучше'],['same','Без изменений'],['worse','Хуже'],['resolved','Прошло']].map(([s,t])=>'<option value="'+s+'"'+(v.state===s?' selected':'')+'>'+t+'</option>').join('')+'</select>'+itemDelete('symptom',v.id,'')+'</div>';
   }
   html+='</div><small class="rudi-center__meta">Наблюдения не являются медицинским диагнозом. При серьёзном или ухудшающемся состоянии обратитесь за медицинской помощью.</small>';
- } else if(name==='report'){
+  } else if(name==='report'){
   title='Подробная AI-сводка';
   if(!report?.narrative){html='<p class="rudi-center__meta">Данных пока нет</p>';}
   else {
     const n=safeNarrative(report),ctx=report.observations||{},source=ctx.moodHistory;
-    const section=(head,value)=>value?'<section class="rudi-center__report-section"><h3>'+esc(head)+'</h3><p>'+esc(value)+'</p></section>':'';
-    html='<p class="rudi-center__meta">'+esc(asDate(report.createdAt))+' · '+(report.slot==='morning'?'Утро':'Вечер')+'</p>';
-    html+=section(n.headline||'Главное',n.overview);
-    if(Array.isArray(n.focus)&&n.focus.length){html+='<section class="rudi-center__report-section"><h3>Важные наблюдения</h3><div class="rudi-center__focus">'+n.focus.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div></section>';}
-    html+=section('Финансы',n.financeText)+section('Задачи',n.taskText)+section('Привычки',n.habitsText)+section('Динамика',n.trendText);
-    if(source?.latest?.length)html+=section('Настроение по дневнику RUDI','Последняя запись: '+source.latest.at(-1).mood+'. Записей всего: '+source.entries+'.');
+    const section=(head,value,kind='')=>reportHasText(value)?'<section class="rudi-center__report-section'+(kind?' rudi-center__report-section--'+kind:'')+'"><h3>'+esc(head)+'</h3><p>'+esc(value)+'</p></section>':'';
+    html='<div class="rudi-center__report-cover"><small>✦ ЛИЧНЫЙ АНАЛИЗ</small><strong>Что важно сегодня</strong><span>'+esc(asDate(report.createdAt))+' · '+(report.slot==='morning'?'Утро':'Вечер')+'</span></div>';
+    if(report.model==='deterministic'){
+      html+=section('Анализ пока недоступен','AI-модель не ответила. Факты сохранены, но персональные выводы и рекомендации пока не сформированы.');
+    }else{
+      // Show meaningful analysis first, not a long digest of unrelated records.
+      html+=section('Главный вывод',n.overview,'priority');
+      html+=section('Что изменилось',n.mainChange);
+      html+=section('На что обратить внимание',n.mainObservation);
+      html+=section('Что сделать сегодня',n.mainAction,'action');
+      html+=section('Что проверить дальше',n.forecast);
+      if(ctx.connections?.findings?.length)html+=section('Связи между разделами',n.connectionsText);
+    }
+    const evidence=[];
+    if(Array.isArray(n.focus)&&n.focus.length){
+      evidence.push('<section class="rudi-center__report-section"><h3>Подтверждающие наблюдения</h3><div class="rudi-center__focus">'+n.focus.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div></section>');
+    }
+    evidence.push(section('Финансы',n.financeText),section('Задачи',n.taskText),section('Привычки',n.habitsText),section('Динамика',n.trendText));
+    if(source?.latest?.length)evidence.push(section('Настроение по дневнику RUDI','Последняя запись: '+source.latest.at(-1).mood+'. Записей всего: '+source.entries+'.'));
     const w=ctx.profile?.body?.weightChange;
-    if(w?.significant)html+=section('Вес','За '+w.spanDays+' дней изменение составило '+w.deltaKg+' кг ('+w.percent+'%) по '+w.measurements+' измерениям.');
-    if(ctx.profile?.biorhythm)html+=section('Биоритм','Фаза дня по расписанию RUDI: '+ctx.profile.biorhythm.phase+'. Это не измерение физической энергии.');
+    if(w?.significant)evidence.push(section('Вес','За '+w.spanDays+' дней изменение составило '+w.deltaKg+' кг ('+w.percent+'%) по '+w.measurements+' измерениям.'));
+    if(ctx.profile?.biorhythm)evidence.push(section('Биоритм','Фаза дня по расписанию RUDI: '+ctx.profile.biorhythm.phase+'. Это не измерение физической энергии.'));
     if(who==='Диана'&&ctx.cycle){
       let cycle='Текущая ориентировочная фаза: '+ctx.cycle.phase+'. День цикла: '+(ctx.cycle.cycleDay||'—')+'.';
       if(ctx.cycle.comparisons?.length)cycle+=' Сопоставление фаз с личными записями: '+ctx.cycle.comparisons.filter(x=>x.eligibleForPattern).map(x=>x.phase+' — '+x.recordedDays+' дней наблюдений').join('; ')+'.';
-      html+=section('Цикл',cycle+' По датам нельзя установить причину настроения или симптомов.');
+      evidence.push(section('Цикл',cycle+' По датам нельзя установить причину настроения или симптомов.'));
     }
-        const p=ctx.profile?.body;if(p?.vision&&(p.vision.left!==null||p.vision.right!==null))html+=section('Зрение','Последние записанные показатели: левый глаз '+(p.vision.left??'—')+' дптр, правый глаз '+(p.vision.right??'—')+' дптр.');
-    if(Array.isArray(p?.chronicConditions)&&p.chronicConditions.length)html+=section('Указанные хронические заболевания',p.chronicConditions.join('; ')+'.');
-const h=ctx.profile?.health;if(h?.activeSymptoms?.length)html+=section('Дневник здоровья','Активных симптомов: '+h.activeSymptoms.length+'. Записи отражают наблюдения и не являются диагнозом.');
-    html+='<p class="rudi-center__meta">AI различает факты, наблюдения и гипотезы. Медицинские утверждения требуют научного подтверждения.</p>';
+    const p=ctx.profile?.body;
+    if(p?.vision&&(p.vision.left!==null||p.vision.right!==null))evidence.push(section('Зрение','Последние записанные показатели: левый глаз '+(p.vision.left??'—')+' дптр, правый глаз '+(p.vision.right??'—')+' дптр.'));
+    if(Array.isArray(p?.chronicConditions)&&p.chronicConditions.length)evidence.push(section('Указанные хронические заболевания',p.chronicConditions.join('; ')+'.'));
+    const h=ctx.profile?.health;
+    if(h?.activeSymptoms?.length)evidence.push(section('Дневник здоровья','Активных симптомов: '+h.activeSymptoms.length+'. Записи отражают наблюдения и не являются диагнозом.'));
+    const supported=evidence.filter(Boolean).join('');
+    if(supported)html+='<details class="rudi-center__report-evidence"><summary>Данные, на которых основан разбор</summary>'+supported+'</details>';
+    if(report.model!=='deterministic')html+='<p class="rudi-center__meta">Закономерности не доказывают причинность. Выводы основаны только на сохранённых записях.</p>';
   }
- } else if(name==='weight'){
+} else if(name==='weight'){
   title='Вес и показатели';
   html='<form class="rudi-center__form" id="pcBodyProfileForm">'+
      formField('Рост, см','<input name="height" type="number" min="100" max="230" value="'+esc(data?.profile?.height||'')+'" placeholder="Укажи рост" required>')+
@@ -397,16 +445,16 @@ const h=ctx.profile?.health;if(h?.activeSymptoms?.length)html+=section('Днев
   for(const v of [...(data?.weights||[])].reverse().slice(0,60))html+='<div class="rudi-center__item"><p>'+esc(v.kg)+' кг · '+asDate(v.at)+'</p>'+itemDelete('weight',v.id,'')+'</div>';
   html+='</div>';
  } else if(name==='history'){
-  title='История эмоциональной динамики';
-  const days=(data?.emotions?.daily||[]).filter(v=>v.total>0).slice().sort((a,b)=>b.date.localeCompare(a.date));
-  const aggregate=prefix=>{const map=new Map();for(const r of days){const k=prefix(r.date);const x=map.get(k)||{n:0,total:0,negative:0};x.n++;x.total+=r.total;x.negative+=r.negative;map.set(k,x);}return [...map].sort(([a],[b])=>b.localeCompare(a)).slice(0,24)};
-  const value=v=>v.total?Math.round(v.negative/v.total*100)+'% негативных отметок':'Недостаточно данных';
+  title='История позитивного настроения';
+  const days=(data?.emotions?.daily||[]).filter(v=>Number.isFinite(positiveShare(v))).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const aggregate=prefix=>{const map=new Map();for(const r of days){const k=prefix(r.date);const x=map.get(k)||{n:0,total:0,positive:0};x.n++;x.total+=r.total;x.positive+=r.positive;map.set(k,x);}return [...map].sort(([a],[b])=>b.localeCompare(a)).slice(0,24)};
+  const value=v=>v.total?Math.round(v.positive/v.total*100)+'% позитивных отметок':'Недостаточно данных';
   const weekly=aggregate(x=>{const d=new Date(x+'T00:00:00Z');d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return d.toISOString().slice(0,10)});
   const monthly=aggregate(x=>x.slice(0,7));
   html='<p class="rudi-center__meta">Данные из существующего дневника настроения. Это не измерение медицинского стресса.</p>'+
     '<h3>По неделям</h3>'+weekly.map(([k,v])=>'<div class="rudi-center__item"><p>С '+esc(k)+' · '+value(v)+' · '+v.n+' дней</p></div>').join('')+
     '<h3>По месяцам</h3>'+monthly.map(([k,v])=>'<div class="rudi-center__item"><p>'+esc(k)+' · '+value(v)+' · '+v.n+' дней</p></div>').join('')+
-    '<h3>По дням</h3>'+days.slice(0,70).map(v=>'<div class="rudi-center__item"><p>'+esc(v.date)+' · '+v.negative+' из '+v.total+' негативных ('+v.negativePercent+'%)</p></div>').join('');
+    '<h3>По дням</h3>'+days.slice(0,70).map(v=>'<div class="rudi-center__item"><p>'+esc(v.date)+' · '+v.positive+' из '+v.total+' позитивных ('+positiveShare(v)+'%)</p></div>').join('');
   html+='<h3>AI-сводки</h3><div id="pcReportsList"><p class="rudi-center__meta">Загружаю историю сводок…</p></div>';
  }else if(name==='settings'){
   title='Управление данными';

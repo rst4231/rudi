@@ -111,7 +111,7 @@ test('AI center never calls LLM on open or pull refresh; source data is not reen
  assert.doesNotMatch(app,/openai\\.com|groq\\.com/);
  assert.doesNotMatch(app,/ЭМОЦИОНАЛЬНАЯ ДИНАМИКА|pcEmotionValue|pcEmotionCaption/);
  assert.doesNotMatch(app,/pcCheckinForm|name="stress"/);
- assert.match(app,/Динамика негативных эмоций/);
+ assert.match(app,/Динамика позитивных эмоций/);
  assert.match(app,/pcGraph/);
  assert.doesNotMatch(app,/name="mood"|name="energy"/);
  assert.match(app,/data-open="weight"/);
@@ -152,7 +152,7 @@ test('AI center hides the entire emotion summary card but keeps derived mood his
  assert.doesNotMatch(css,/rudi-center__stress-card|rudi-center__stress-control/);
  assert.match(app,/data-open="symptoms"/);
  assert.match(app,/data-open="weight"/);
- assert.match(app,/Динамика негативных эмоций/);
+ assert.match(app,/Динамика позитивных эмоций/);
  assert.match(app,/pcDianaCycleSlot/);
  assert.match(app,/const emotions=data.emotions/);
 });
@@ -327,4 +327,39 @@ test('strict JSON output, all-domain factual coach and compact 7-day dashboard a
  assert.match(app,/id="pcGenerateReport"/);
  assert.match(css,/\.rudi-center__rhythm-tabs/);
  assert.doesNotMatch(app,/Данные сохранены\. AI-анализ временно недоступен/);
+});
+
+test('positive mood charts and detailed AI insights are shown before evidence',()=>{
+ const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ const generator=fs.readFileSync(path.join(__dirname,'..','api','personal-center-ai.cjs'),'utf8');
+ assert.match(app,/function positiveShare\(entry\)/);
+ assert.match(app,/entry\?\.positive/);
+ assert.ok(app.includes("mood:'Позитивные отметки'"));
+ assert.ok(app.includes('Доля позитивных отметок из дневника настроения.'));
+ assert.ok(app.includes('Динамика позитивных эмоций'));
+ assert.ok(app.includes("positiveShare(x)"));
+ assert.ok(app.includes("v.positive+' из '+v.total+' позитивных"));
+ assert.ok(app.includes("report?.date===dayKey()&&report?.slot==='morning'"));
+ assert.ok(app.includes("section('Что сделать сегодня',n.mainAction)"));
+ assert.ok(app.includes("section('На что обратить внимание',n.mainObservation)"));
+ assert.ok(app.includes('<details class="rudi-center__report-evidence">'));
+ assert.ok(app.indexOf("section('Что сделать сегодня',n.mainAction)")<app.indexOf("const evidence=[]"));
+ assert.ok(generator.includes('Составь содержательный персональный разбор, а не каталог показателей'));
+ assert.doesNotMatch(app,/Динамика негативных эмоций|Негативные отметки|Доля негативных отметок/);
+});
+
+test('personal center swipe-back and responsive report design remain wired',()=>{
+ const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ const css=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
+ assert.match(app,/installCenterSwipeBack\(\);/);
+ assert.match(app,/root\.addEventListener\('touchstart'/);
+ assert.match(app,/root\.addEventListener\('touchend'/);
+ assert.match(app,/if\(dx<75\|\|dy>Math\.max\(40,dx\*\.55\)/);
+ assert.match(app,/if\(swipe\.sheet&&activeSheet===swipe\.sheet\)closeSheet\(\)/);
+ assert.match(app,/else if\(!activeSheet\)hide\(\)/);
+ assert.match(css,/rudi-center__report-cover/);
+ assert.match(css,/rudi-center__report-section--priority/);
+ assert.match(css,/rudi-center__report-section--action/);
+ assert.match(css,/rudi-center__report-evidence/);
+ assert.match(css,/@media\(max-width:799px\)/);
 });

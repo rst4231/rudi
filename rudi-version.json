@@ -1,18 +1,19 @@
 {
-  "current": "v4.169",
-  "versionBranch": "fix/rudi-crypto-usdt-usd-auto-conversion",
+  "current": "v4.170",
+  "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.168",
+  "basedOnProduction": "v4.169",
   "notes": [
-    "API wallet transfer classifier automatically values USDT transactions into USD or USDT wallets without requiring a RUB amount.",
-    "Server uses verified transaction asset amount and market USDT/USD rate; stores RUB equivalent only for accounting.",
-    "Avoid re-debiting API-connected wallets or double-counting previously classified transfers.",
-    "Retain manually entered RUB amounts for other assets and for expense categories.",
-    "Automated regression tests for exact USDT 1:1 transfers, variable USD quote and duplicate prevention.",
-    "Production release requires passing GitHub tests and user permission (granted in chat)."
+    "Personal AI center weekly mood chart, positive mood dynamics and detailed history use actual positive entries (joy/love) rather than negative percentages.",
+    "Personal AI center overview and detailed analysis gain improved visual hierarchy and responsive design.",
+    "Detailed AI report prioritizes insights, changes, next steps and cautious conditional conclusions; raw facts are collapsible evidence.",
+    "Avoid duplicate buttons for opening an already generated daily report.",
+    "Edge swipe from left to right closes the personal AI center detail sheet or returns from personal center to RUDI, while preserving vertical scrolling.",
+    "Regression checks for positive indicators, report insight hierarchy, design and swipe behavior.",
+    "Release requires explicit user confirmation before any production deployment."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
