@@ -147,7 +147,35 @@
       catch(err){setStatus('financeCryptoWalletStatus',errorLabel(err));}
       finally{if(button)button.disabled=false;}
     });
-    document.addEventListener('rudi:finance-wallet-composer',onOpenWallet);
+    // Keep this integration isolated from the large core app.js bundle.
+    // Capture crypto-tab clicks before the legacy four-tab controller.
+    document.addEventListener('click',event=>{
+      const btn=event.target.closest?.('[data-finance-tab="crypto"]');
+      if(!btn||actor!=='Рустам')return;
+      event.preventDefault();event.stopPropagation();
+      document.querySelectorAll('[data-finance-tab]').forEach(tab=>{
+        const selected=tab===btn;tab.classList.toggle('is-active',selected);tab.setAttribute('aria-selected',selected?'true':'false');
+      });
+      document.querySelectorAll('[data-finance-panel]').forEach(panel=>{panel.hidden=panel.dataset.financePanel!=='crypto';});
+      const page=$('financePage');if(page)page.dataset.financeTone='crypto';
+      document.body.dataset.financeTone='crypto';
+      void load().then(()=>refresh(false)).catch(err=>setStatus('financeCryptoStatus',errorLabel(err)));
+      try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
+    },true);
+    // The wallet editor is opened by the existing finance code. Track only the
+    // selected wallet ID on the already-present tile, without changing its handlers.
+    const walletList=$('financeWalletList'),modal=$('financeWalletComposer');
+    const markWallet=event=>{
+      const tile=event.target.closest?.('.finance-wallet-item');
+      if(tile?.dataset.walletId)editingWalletId=tile.dataset.walletId;
+      else if(event.target.closest?.('#financeWalletCreateButton'))editingWalletId='';
+    };
+    walletList?.addEventListener('pointerdown',markWallet,true);
+    walletList?.addEventListener('click',markWallet,true);
+    walletList?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')markWallet(event);},true);
+    if(modal)new MutationObserver(()=>{
+      if(!modal.hidden&&modal.getAttribute('aria-hidden')!=='true')onOpenWallet({detail:{walletId:editingWalletId}});
+    }).observe(modal,{attributes:true,attributeFilter:['hidden','aria-hidden']});
     document.addEventListener('rudi-finances-updated',async(ev)=>{
       actor=String(ev.detail?.actor||'');
       wallets=Array.isArray(ev.detail?.wallets)?ev.detail.wallets:[];
