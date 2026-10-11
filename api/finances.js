@@ -11,6 +11,7 @@ const cryptoWallets = require('./crypto-wallets.cjs');
 const {calculatePnl24h}=require('./crypto-pnl.cjs');
 const {readSignals,refreshSignals}=require('./crypto-signals.cjs');
 const virtualSignals=require('./crypto-virtual.cjs');
+const cryptoAlgorithms=require('./crypto-algorithms.cjs');
 const { createHash } = require('node:crypto');
 function cryptoAssignmentKey(walletId,row){
   if(row?.paired&&row?.peerWalletId&&row?.peerOperationId){
@@ -170,6 +171,10 @@ async function handler(req, res) {
       if (operation === 'crypto-pnl-24h') {
         const links=await cryptoWallets.list(actor);
         return res.status(200).json({ok:true,actor,...await calculatePnl24h(links)});
+      }
+      if (operation === 'crypto-algo-report') {
+        return res.status(200).json({ok:true,actor,
+          ...(await cryptoAlgorithms.readReport())});
       }
       if (operation === 'crypto-signal-report') {
         const [signals,config]=await Promise.all([readSignals(),virtualSignals.settings()]);
