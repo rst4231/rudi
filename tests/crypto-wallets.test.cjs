@@ -54,6 +54,7 @@ const dataFetch = async (url, init) => {
   } });
   if (path.includes('ethereum-rpc')) {
     const rpc = JSON.parse(init.body);
+    if (rpc.method === 'eth_chainId') return response({ result: '0x1' });
     if (rpc.method === 'eth_getBalance') return response({ result: '0x0' });
     if (rpc.method === 'eth_call') {
       const address = String(rpc.params[0]?.to || '').toLowerCase();
@@ -121,6 +122,7 @@ test('Ethereum uses existing price feed and switches RPC when primary returns HT
     if (endpoint.includes('ethereum-rpc.publicnode.com')) return { ok: false, status: 429 };
     if (endpoint.includes('public.1rpc.io/eth')) {
       const payload = JSON.parse(init.body);
+      if (payload.method === 'eth_chainId') return response({ result: '0x1' });
       if (payload.method === 'eth_getBalance') return response({ result: '0xde0b6b3a7640000' });
       if (payload.method === 'eth_call') return response({ result: '0x0' });
     }
@@ -133,10 +135,58 @@ test('Ethereum uses existing price feed and switches RPC when primary returns HT
   assert.ok(!visited.some(url => url.includes('api.bybit.com')));
 });
 
+test('Arbitrum RPC only reads chain 42161 and uses Arbitrum ERC20 addresses', async () => {
+  const called=[];
+  const fetchImpl=async (url, init) => {
+    assert.ok(String(url).includes('arbitrum'));
+    const payload=JSON.parse(init.body),tx=payload.params?.[0];
+    if(payload.method==='eth_chainId')return response({result:'0xa4b1'});
+    if(payload.method==='eth_getBalance')return response({result:'0x0'});
+    if(payload.method==='eth_call'){
+      const contract=String(tx.to).toLowerCase();called.push(contract);
+      if(contract==='0x82af49447d8a07e3bd95bd0d56f35241523fbab1')return response({result:'0xde0b6b3a7640000'}); // 1 WETH
+      if(contract==='0xaf88d065e77c8cc2239327c5edb3a432268e5831')return response({result:'0x5f5e100'}); // 100 USDC
+      return response({result:'0x0'});
+    }
+    throw new Error('unexpected RPC');
+  };
+  const result=await cryptoWallets.uniswapSnapshot('0x'+'a'.repeat(40),{
+    chain:'arbitrum',fetchImpl,
+  });
+  assert.equal(result.balanceUsd,3100);
+  assert.equal(result.positions.length,0);
+  assert.match(result.scope,/Arbitrum One/);
+  assert.ok(called.includes('0x82af49447d8a07e3bd95bd0d56f35241523fbab1'));
+  assert.ok(called.includes('0xaf88d065e77c8cc2239327c5edb3a432268e5831'));
+  assert.ok(!called.includes('0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2'));
+});
+
+test('Arbitrum RPC wrong chain is rejected before any finance overwrite', async()=>{
+  const fetchImpl=async()=>response({result:'0x1'});
+  await assert.rejects(()=>cryptoWallets.uniswapSnapshot('0x'+'b'.repeat(40),{
+    chain:'arbitrum',fetchImpl,
+  }),/crypto-network-rpc-mismatch/);
+});
+
 test('requires explicit consent before replacing any Ethereum wallet value', async () => {
   await assert.rejects(() => cryptoWallets.connect('Рустам', {
     walletId: 'uniswap-wallet', provider: 'uniswap', address: '0x' + 'a'.repeat(40),
   }, { client }), /crypto-uniswap-scope-confirm-required/);
+});
+
+test('switching an existing Uniswap wallet to Arbitrum preserves its address and manual finance amount',async()=>{
+  const previous=await cryptoWallets.list('Рустам',{client});
+  const link=previous.find(x=>x.walletId==='uniswap-wallet');
+  assert.ok(link?.address?.startsWith('0x'));
+  const oldBalance=wallets[1].balance;
+  const changed=await cryptoWallets.setChain('Рустам','uniswap-wallet','arbitrum',{client});
+  assert.equal(changed.chain,'arbitrum');
+  assert.equal(changed.address,link.address);
+  assert.equal(changed.lastSyncAt,'');
+  assert.equal(changed.balanceUsd,null);
+  assert.equal(wallets[1].balance,oldBalance);
+  await assert.rejects(()=>cryptoWallets.setChain('Диана','uniswap-wallet','ethereum',{client}),/crypto-owner-only/);
+  await assert.rejects(()=>cryptoWallets.setChain('Рустам','uniswap-wallet','unsupported',{client}),/crypto-network-unsupported/);
 });
 
 test('disconnect removes the encrypted key without clearing the finance balance', async () => {

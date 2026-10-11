@@ -11,6 +11,7 @@ const KEY = 'rustam';
 const REFRESH_MS = 10 * 60 * 1000;
 const RPC_URLS = ['https://ethereum-rpc.publicnode.com', 'https://public.1rpc.io/eth'];
 const BYBIT_URL = 'https://api.bybit.com';
+const ARBITRUM_RPC_URLS = ['https://arb1.arbitrum.io/rpc','https://arbitrum-one-rpc.publicnode.com'];
 const ETHEREUM_TOKENS = [
   { symbol: 'USDT', contract: '0xdac17f958d2ee523a2206206994597c13d831ec7', decimals: 6 },
   { symbol: 'USDC', contract: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', decimals: 6 },
@@ -20,6 +21,23 @@ const LP_NFT_CONTRACTS = [
   '0xc36442b4a4522e871399cd717abdd847ab11fe88', // Uniswap V3
   '0xbd216513d74c8cf14cf4747e6aaa6420ff64ee9e', // Uniswap V4 mainnet
 ];
+const NETWORKS = {
+  ethereum: {name:'Ethereum Mainnet', chainId:1n, rpcUrls:RPC_URLS, tokens:ETHEREUM_TOKENS},
+  arbitrum: {
+    name:'Arbitrum One', chainId:42161n, rpcUrls:ARBITRUM_RPC_URLS,
+    tokens:[
+      {symbol:'WETH', contract:'0x82af49447d8a07e3bd95bd0d56f35241523fbab1', decimals:18},
+      {symbol:'USDC', contract:'0xaf88d065e77c8cc2239327c5edb3a432268e5831', decimals:6},
+      {symbol:'USDC.e', contract:'0xff970a61a04b1ca14834a43f5de4533ebddb5cc8', decimals:6},
+      {symbol:'USDT', contract:'0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9', decimals:6},
+    ],
+  },
+};
+function networkOf(chain) {
+  const name=String(chain||'ethereum').toLowerCase();
+  if(!NETWORKS[name])throw new Error('crypto-network-unsupported');
+  return {...NETWORKS[name],name,label:NETWORKS[name].name};
+}
 let mutationTail = Promise.resolve();
 
 function owner(actor) {
@@ -109,7 +127,7 @@ async function marketRates(options = {}) {
   const ethUsd = rows.get('ethusdt');
   const usdtUsd = rows.get('usdtusd');
   if (!(ethUsd > 0) || !(usdtUsd > 0)) throw new Error('crypto-price-unavailable');
-  return { USD: 1, ETH: ethUsd, WETH: ethUsd, USDT: usdtUsd, USDC: 1 };
+  return { USD: 1, ETH: ethUsd, WETH: ethUsd, USDT: usdtUsd, USDC: 1, 'USDC.e':1 };
 }
 async function bybitSnapshot(keys, options = {}) {
   // The UNIFIED account includes spot, derivatives and total equity.
@@ -160,16 +178,21 @@ function unitAmount(raw, decimals) {
   return Number(raw / unit) + Number(raw % unit) / Number(unit);
 }
 async function uniswapSnapshot(address, options = {}) {
-  const call = contract => rpc('eth_call', [{to:contract,data:'0x70a08231'+paddedAddress(address)},'latest'], options);
+  const chain=networkOf(options.chain);
+  const chainOptions={...options,chain:chain.name,rpcUrls:options.rpcUrls||chain.rpcUrls};
+  // Verify RPC network before reading any balances. Never silently switch chain
+  // when a configured gateway points to the wrong network.
+  if(await rpc('eth_chainId',[],chainOptions)!==chain.chainId)throw new Error('crypto-network-rpc-mismatch');
+  const call = contract => rpc('eth_call', [{to:contract,data:'0x70a08231'+paddedAddress(address)},'latest'], chainOptions);
   const [eth,...tokenBalances] = await Promise.all([
-    rpc('eth_getBalance',[address,'latest'],options),
-    ...ETHEREUM_TOKENS.map(token=>call(token.contract)),
+    rpc('eth_getBalance',[address,'latest'],chainOptions),
+    ...chain.tokens.map(token=>call(token.contract)),
   ]);
   const prices = await marketRates(options);
   const assets = [{symbol:'ETH',amount:unitAmount(eth,18)}];
-  for(let i=0;i<ETHEREUM_TOKENS.length;i++)assets.push({
-    symbol:ETHEREUM_TOKENS[i].symbol,
-    amount:unitAmount(tokenBalances[i],ETHEREUM_TOKENS[i].decimals),
+  for(let i=0;i<chain.tokens.length;i++)assets.push({
+    symbol:chain.tokens[i].symbol,
+    amount:unitAmount(tokenBalances[i],chain.tokens[i].decimals),
   });
   let walletUsd=0;
   for(const item of assets){
@@ -179,7 +202,7 @@ async function uniswapSnapshot(address, options = {}) {
   // Do not silently omit v3/v4 NFTs or price unknown LP assets at zero.
   // On ANY incomplete NFT/indexer/fee read the linked wallet's old balance
   // remains intact via refresh() catch and atomic balance mutation.
-  const lp=await readLpPositions(address,prices,{rpc,options});
+  const lp=await readLpPositions(address,prices,{rpc,options:chainOptions});
   const total=walletUsd+lp.liquidityUsd+lp.feesUsd;
   if(!Number.isFinite(total)||total<0||total>1e12)throw new Error('crypto-balance-invalid');
   return {
@@ -187,17 +210,20 @@ async function uniswapSnapshot(address, options = {}) {
     walletUsd:Math.round(walletUsd*1e8)/1e8,
     liquidityUsd:Math.round(lp.liquidityUsd*1e8)/1e8,
     feesUsd:Math.round(lp.feesUsd*1e8)/1e8,
-    positions:lp.positions,
+    positions:lp.positions.map(p=>({...p,chain:chain.name})),
     assets:assets.filter(x=>x.amount>0),
-    scope:'Ethereum mainnet · кошелёк, Uniswap v3/v4 LP и суммы к получению',
-    warning:lp.positions.some(x=>x.claimableIncludesPrincipal)
-      ?'v3: сумма к получению может включать ранее снятую ликвидность; это не обязательно только заработанные комиссии.'
-      :'Комиссии в расчёте — начисленные, но ещё не полученные. Выведенные комиссии уже входят в баланс кошелька.',
+    scope:chain.label+' · кошелёк, Uniswap v3/v4 LP и суммы к получению',
+    warning:total===0
+      ?'На этом адресе в сети '+chain.label+' не найдены токены или LP-позиции. Убедись, что адрес совпадает с кошельком, открытым в Uniswap.'
+      :lp.positions.some(x=>x.claimableIncludesPrincipal)
+        ?'v3: сумма к получению может включать ранее снятую ликвидность; это не обязательно только заработанные комиссии.'
+        :'Комиссии в расчёте — начисленные, но ещё не полученные. Выведенные комиссии уже входят в баланс кошелька.',
   };
 }
 function safeConnection(walletId, conn) {
   return {
     walletId, provider: conn.provider, address: conn.address || '',
+    chain: conn.provider==='uniswap'?(conn.chain||'ethereum'):'',
     connectedAt: conn.connectedAt || '', lastSyncAt: conn.lastSyncAt || '',
     balanceUsd: Number.isFinite(conn.balanceUsd) ? conn.balanceUsd : null,
     assets: Array.isArray(conn.assets) ? conn.assets : [],
@@ -227,7 +253,7 @@ async function connect(actor, input = {}, options = {}) {
   const provider = String(input.provider || '').toLowerCase();
   if (!walletId || walletId.length > 100 || !['bybit', 'uniswap'].includes(provider)) throw new Error('crypto-input-invalid');
   await assertWallet(walletId, options);
-  let secret = '', address = '';
+  let secret = '', address = '', chain = 'ethereum';
   if (provider === 'bybit') {
     const apiKey = String(input.apiKey || '').trim(), apiSecret = String(input.apiSecret || '').trim();
     if (!/^[\w-]{8,150}$/.test(apiKey) || !/^[\w-]{8,200}$/.test(apiSecret)) throw new Error('crypto-credentials-invalid');
@@ -237,7 +263,10 @@ async function connect(actor, input = {}, options = {}) {
     await bybitSnapshot({ apiKey, apiSecret }, options);
     secret = encryptSecret(apiKey, apiSecret);
   } else {
-    if (!['ethereum-mainnet-spot-only','ethereum-mainnet-including-lp'].includes(String(input.scopeConfirm || ''))) throw new Error('crypto-uniswap-scope-confirm-required');
+    if (!['ethereum-mainnet-spot-only','ethereum-mainnet-including-lp','arbitrum-one-including-lp'].includes(String(input.scopeConfirm || ''))) throw new Error('crypto-uniswap-scope-confirm-required');
+    chain=networkOf(input.chain||'ethereum').name;
+    if(chain==='arbitrum'&&input.scopeConfirm!=='arbitrum-one-including-lp')throw new Error('crypto-uniswap-scope-confirm-required');
+    if(chain==='ethereum'&&input.scopeConfirm==='arbitrum-one-including-lp')throw new Error('crypto-uniswap-scope-confirm-required');
     address = String(input.address || '').trim();
     if (!/^0x[a-f0-9]{40}$/i.test(address)) throw new Error('crypto-address-invalid');
     // An address may contain LP positions. Save its public address, but never
@@ -245,7 +274,7 @@ async function connect(actor, input = {}, options = {}) {
   }
   return lock(async () => {
     const connections = await readState(options);
-    connections[walletId] = { provider, address, secret, connectedAt: new Date().toISOString(),
+    connections[walletId] = { provider, address, secret, chain:provider==='uniswap'?chain:'', connectedAt: new Date().toISOString(),
       lastSyncAt: '', balanceUsd: null, lastError: '', assets: [] };
     await writeState(connections, options);
     return safeConnection(walletId, connections[walletId]);
@@ -261,6 +290,25 @@ async function disconnect(actor, walletId, options = {}) {
     return true;
   });
 }
+// Change only the selected blockchain, keeping the wallet ID and public
+// address. Clear last sync data so values from a different chain cannot be
+// mistaken for current holdings.
+async function setChain(actor, walletId, chain, options={}) {
+  owner(actor);
+  const name=networkOf(chain).name;
+  const id=String(walletId||'').trim();
+  await assertWallet(id,options);
+  return lock(async()=>{
+    const links=await readState(options),conn=links[id];
+    if(!conn || conn.provider!=='uniswap')throw new Error('crypto-wallet-not-found');
+    if((conn.chain||'ethereum')===name)return safeConnection(id,conn);
+    Object.assign(conn,{chain:name,lastSyncAt:'',balanceUsd:null,walletUsd:null,
+      liquidityUsd:null,feesUsd:null,assets:[],positions:[],scope:'',warning:'',lastError:''});
+    await writeState(links,options);
+    return safeConnection(id,conn);
+  });
+}
+
 async function usdToWalletCurrency(balanceUsd, currency, options = {}) {
   const code = String(currency || '').toUpperCase();
   if (code === 'USD') return balanceUsd;
@@ -293,7 +341,7 @@ async function refresh(actor, options = {}) {
         const wallet = await assertWallet(id, options);
         const snapshot = connection.provider === 'bybit'
           ? await bybitSnapshot(decryptSecret(connection.secret), options)
-          : await uniswapSnapshot(connection.address, options);
+          : await uniswapSnapshot(connection.address, { ...options, chain:connection.chain||'ethereum' });
         const balanceNative = await usdToWalletCurrency(snapshot.balanceUsd, wallet.currency, options);
         await syncLinkedWalletBalance('Рустам', id, balanceNative, options);
         Object.assign(connection, snapshot, { lastSyncAt: new Date().toISOString(), lastError: '' });
@@ -310,5 +358,5 @@ async function refresh(actor, options = {}) {
     return summary;
   });
 }
-module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, refresh,
+module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, setChain, refresh,
   encryptSecret, decryptSecret, bybitGet, bybitSnapshot, uniswapSnapshot, marketRates, usdToWalletCurrency };
