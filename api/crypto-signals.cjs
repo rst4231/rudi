@@ -175,8 +175,15 @@ async function refreshSignals(options={}){
       const signals=[...posts.values()].map(parseSignal).filter(Boolean).sort((a,b)=>b.at.localeCompare(a.at));
       const oldResults=previous.results&&typeof previous.results==='object'?previous.results:{};
       const results={};
+      // Prioritize never-checked and least-recently-checked positions so a busy
+      // channel cannot starve older open trades indefinitely.
+      const queue=signals.slice().sort((a,b)=>{
+        const ta=Date.parse(oldResults[a.id]?.checkedAt||'1970-01-01T00:00:00Z');
+        const tb=Date.parse(oldResults[b.id]?.checkedAt||'1970-01-01T00:00:00Z');
+        return ta-tb||Date.parse(b.at)-Date.parse(a.at);
+      });
       let attempts=0;
-      for(const s of signals){
+      for(const s of queue){
         if(!s.qualified&&!s.paperEligible)continue;
         const prev=oldResults[s.id];
         if(prev?.status==='won'||prev?.status==='lost'||prev?.status==='breakeven'||prev?.status==='ambiguous'){
@@ -185,8 +192,9 @@ async function refreshSignals(options={}){
         if(attempts>=5){if(prev)results[s.id]=prev;continue;}
         attempts++;
         try{const candles=await candlesForSignal(s,options);
-          results[s.id]=s.qualified?evaluateCandles(s,candles,now):modeledTrade(s,candles,[...posts.values()],now)}
-        catch(e){priceError=String(e?.message||e);results[s.id]=prev||{status:'market-unavailable'};}
+          results[s.id]={...(s.qualified?evaluateCandles(s,candles,now):
+            modeledTrade(s,candles,[...posts.values()],now)),checkedAt:new Date(now).toISOString()};}
+        catch(e){priceError=String(e?.message||e);results[s.id]={...(prev||{status:'market-unavailable'}),checkedAt:new Date(now).toISOString()};}
       }
       const state={messages:[...posts.values()].sort((a,b)=>b.id-a.id).slice(0,1000),
         results,backfillComplete:complete,cursor,updatedAt:new Date(now).toISOString(),
