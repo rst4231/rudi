@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {parseSignal,evaluateCandles,modeledTrade,parsePreview}=require('../api/crypto-signals.cjs');
+const {parseSignal,evaluateCandles,modeledTrade,parsePreview,parseMarginMode,parseTradeAdjustment,buildView}=require('../api/crypto-signals.cjs');
 const {normalizeConfig,simulateVirtual}=require('../api/crypto-virtual.cjs');
 const {compare24h}=require('../api/crypto-pnl.cjs');
 const now=Date.parse('2026-10-11T12:00:00.000Z');
@@ -18,6 +18,34 @@ test('Russian explicit and conditional signals are classified conservatively',()
   const reported=parseSignal({...base,text:'$LUMIA беру в шорт, набираюсь сеткой'});
   assert.equal(reported.paperEligible,true);
   assert.equal(reported.qualified,false);
+});
+test('Author margin requires an explicit mention; topping up alone proves neither mode',()=>{
+  assert.equal(parseMarginMode('Работаю кросс маржа'), 'cross');
+  assert.equal(parseMarginMode('Позиция isolated 3x'), 'isolated');
+  assert.equal(parseMarginMode('Открыл с изолированной маржой'), 'isolated');
+  assert.equal(parseMarginMode('ДОКИДЫВАЮ в позицию ещё'), null);
+  assert.equal(parseTradeAdjustment({...base,id:150,text:'Докидываю по $LUMIA немного обеспечения'}).kind,'margin-change');
+  assert.equal(parseSignal({...base,id:151,text:'$LUMIA докидываю в шорт'}),null);
+});
+test('Updates link only to an unambiguous trade and never create a second trade',()=>{
+  const start={...base,id:101,at:'2026-10-11T08:00:00.000Z',
+    text:'$LUMIA беру в шорт, изолированная маржа'};
+  const topup={...base,id:102,at:'2026-10-11T09:00:00.000Z',
+    references:[101],text:'Докидываю обеспечение, так как цена пошла против меня'};
+  const state={messages:[start,topup],updatedAt:'2026-10-11T09:01:00.000Z',results:{}};
+  const view=buildView(state,Date.parse('2026-10-11T12:00:00.000Z'));
+  assert.equal(view.stats.total,1);
+  assert.equal(view.signals[0].adjustmentCount,1);
+  assert.equal(view.signals[0].marginModeReported,'isolated');
+});
+test('Explicit cross on a linked update is attributed without inferring it from a top-up',()=>{
+  const start={...base,id:110,at:'2026-10-11T08:00:00.000Z',
+    text:'$ETH беру в лонг'};
+  const update={...base,id:111,at:'2026-10-11T09:00:00.000Z',
+    references:[110],text:'Докидываю обеспечение, позиция в cross'};
+  const view=buildView({messages:[start,update]},Date.parse('2026-10-11T12:00:00.000Z'));
+  assert.equal(view.signals[0].marginModeReported,'cross');
+  assert.equal(view.signals[0].marginSource,'linked-update');
 });
 test('Candle containing entry and exit is ambiguous, not an assumed win',()=>{
   const s={...base,qualified:true,direction:'long',entry:100,take:110,stop:90};
