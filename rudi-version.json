@@ -11,7 +11,8 @@
     "Deep sections present evidence, interpretation, practical step, seven-day validation and factual limitations across available life domains.",
     "Existing reports keep their original saved text; legacy detail views explain how new deep analysis becomes available.",
     "Preserve previously authorized report generation and schedules for both actors.",
-    "Single deployment requires explicit approval."
+    "Single deployment requires explicit approval.",
+    "Regression tests now cover the new deep report layout. Updated release notes for the v4.172 publication."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

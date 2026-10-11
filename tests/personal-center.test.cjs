@@ -428,8 +428,8 @@ test('AI personal review prioritizes genuine life domains instead of financial d
  assert.match(source,/Деньги — только один из разделов/);
  assert.match(source,/lifeAreas:\{type:'array',items:/);
  assert.match(source,/availableDomains,data:\{tasks:payload\.data\.tasks/);
- assert.match(front,/Разбор по сферам жизни/);
- assert.match(front,/rudi-center__report-life-grid/);
+ assert.match(front,/Глубокий анализ/);
+ assert.match(front,/rudi-center__deep-list/);
  assert.match(styles,/grid-template-columns:1fr/);
 });
 test('review domain coverage and output validation never invent absent records',()=>{
