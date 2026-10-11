@@ -3,6 +3,7 @@ const $=id=>document.getElementById(id);
 const sum=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';
 const percent=v=>Number(v||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
 const signed=(v,pct=false)=>v===null||v===undefined?'—':(v>0?'+':'')+(pct?percent(v):sum(v));
+const marginName=mode=>mode==='cross'?'Кросс':mode==='isolated'?'Изолированная':'Не указана';
 const statuses={won:'TP · плюс',lost:'SL · минус',open:'Открыта',unpriced:'Открыта, нет цены',
   'not-entered':'Не вошла','insufficient-levels':'Недостаточно уровней',
   conditional:'Условная идея',ambiguous:'Неясный результат',
@@ -74,7 +75,9 @@ function render(data){
   const list=$('cryptoVirtualPositions');if(list){list.replaceChildren();
     for(const x of p.positions||[]){
       const title=x.symbol+' '+(x.direction==='short'?'SHORT':'LONG');
-      const info='Вход '+x.entry+' · Позиция '+sum(x.investedUsd)+' · '+(statuses[x.status]||x.status);
+      const info='Вход '+x.entry+' · Позиция '+sum(x.investedUsd)+' · '+(statuses[x.status]||x.status)+
+        ' · Маржа автора: '+marginName(x.authorMarginMode)+' · Виртуально: изолированная'+
+        (x.adjustmentCount?' · Пополнений/доборов: '+x.adjustmentCount:'');
       const pnl=x.pnlUsd===null?'PNL недоступен':signed(x.pnlUsd);
       list.append(line(title,pnl,{link:x.url,meta:info,color:x.pnlUsd>0?'is-positive':x.pnlUsd<0?'is-negative':''}));
     }
@@ -84,7 +87,9 @@ function render(data){
     for(const x of s.signals||[]){
       const title=x.symbol+' '+(x.direction==='short'?'SHORT':'LONG');
       const entry=x.entry?('Вход '+x.entry):'Точная цена входа отсутствует';
-      const info=entry+' · '+new Date(x.at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const info=entry+' · '+new Date(x.at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+
+        ' · Маржа автора: '+marginName(x.marginModeReported)+
+        (x.adjustmentCount?' · Сообщений о пополнении/доборе: '+x.adjustmentCount:'');
       const status=statuses[x.status]||x.status||'Не подтверждён';
       signals.append(line(title,status,{meta:info,link:x.url,
         color:x.status==='won'?'is-positive':x.status==='lost'?'is-negative':''}));
@@ -104,6 +109,7 @@ function render(data){
     if(s.sourceError)parts.push('Telegram временно недоступен. Показаны последние сохранённые данные.');
     if(s.priceError)parts.push('Некоторые котировки не удалось проверить.');
     if(!p.dataComplete)parts.push('Баланс пока нельзя точно оценить: нет рыночных цен по всем открытым сделкам.');
+    parts.push('По умолчанию виртуальная маржа изолированная. «Докидывает» не означает доказанный кросс: пополнения/доборы не меняют расчёт без точных параметров. Ликвидации пока не моделируются.');
     parts.push('Виртуальный баланс не связан с твоими реальными кошельками. История до запуска симуляции не торгуется задним числом.');
     status.textContent=parts.join('\n');
   }
