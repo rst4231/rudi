@@ -97,7 +97,9 @@
       if(Array.isArray(result.wallets))wallets=result.wallets;
       render();
       setStatus('financeCryptoStatus',connections.some(c=>c.lastError)?'Часть источников не обновилась. Сохранён предыдущий баланс.':'Баланс обновлён.');
-      document.dispatchEvent(new Event('rudi:crypto-wallets-updated'));
+      // The established finance refresh event invokes loadFinances() in app.js.
+      // This updates the existing wallet tiles without touching history or ledger rows.
+      document.dispatchEvent(new Event('rudi-finance-plan-saved'));
     }catch(err){setStatus('financeCryptoStatus',errorLabel(err));}
     finally{pending=false;if(button)button.disabled=false;}
   }
