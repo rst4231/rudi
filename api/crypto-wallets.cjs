@@ -213,9 +213,11 @@ async function uniswapSnapshot(address, options = {}) {
     positions:lp.positions.map(p=>({...p,chain:chain.name})),
     assets:assets.filter(x=>x.amount>0),
     scope:chain.name+' · кошелёк, Uniswap v3/v4 LP и суммы к получению',
-    warning:lp.positions.some(x=>x.claimableIncludesPrincipal)
-      ?'v3: сумма к получению может включать ранее снятую ликвидность; это не обязательно только заработанные комиссии.'
-      :'Комиссии в расчёте — начисленные, но ещё не полученные. Выведенные комиссии уже входят в баланс кошелька.',
+    warning:total===0
+      ?'На этом адресе в сети '+chain.name+' не найдены токены или LP-позиции. Убедись, что адрес совпадает с кошельком, открытым в Uniswap.'
+      :lp.positions.some(x=>x.claimableIncludesPrincipal)
+        ?'v3: сумма к получению может включать ранее снятую ликвидность; это не обязательно только заработанные комиссии.'
+        :'Комиссии в расчёте — начисленные, но ещё не полученные. Выведенные комиссии уже входят в баланс кошелька.',
   };
 }
 function safeConnection(walletId, conn) {
