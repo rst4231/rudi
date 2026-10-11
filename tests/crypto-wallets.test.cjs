@@ -83,8 +83,9 @@ test('encrypts Bybit secrets and does not return them to the UI', async () => {
     const publicList = await cryptoWallets.list('Рустам', { client });
     assert.equal(publicList[0].secret, undefined);
     const result = await cryptoWallets.refresh('Рустам', { client, fetchImpl: dataFetch, force: true });
-    assert.equal(result[0].balanceUsd, 300);
-    assert.equal(wallets[0].balance, 27000);
+    assert.equal(result[0].balanceUsd, 200);
+    assert.match(result[0].warning, /Funding/);
+    assert.equal(wallets[0].balance, 18000);
   } finally {
     if (previous === undefined) delete process.env.RUDI_CRYPTO_ENCRYPTION_KEY;
     else process.env.RUDI_CRYPTO_ENCRYPTION_KEY = previous;
