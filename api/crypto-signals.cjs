@@ -225,7 +225,7 @@ async function refreshSignals(options={}){
       if(!cursor&&!complete)cursor=Math.min(...latest.map(m=>m.id));
       if(cursor&&!complete){
         // A failed old-page fetch must not discard successfully collected new posts.
-        for(let i=0;i<4;i++){
+        for(let i=0;i<Math.min(4,Math.max(1,Number(options.maxBackfillPages||4)));i++){
           let batch;
           try{batch=await fetchChannelPage(cursor,options);}
           catch(e){sourceError='older-page-unavailable';break;}
@@ -250,15 +250,19 @@ async function refreshSignals(options={}){
       for(const s of queue){
         if(!s.qualified&&!s.paperEligible)continue;
         const prev=oldResults[s.id];
-        if(prev?.status==='won'||prev?.status==='lost'||prev?.status==='breakeven'||prev?.status==='ambiguous'){
-          results[s.id]=prev;continue;
+        // Existing results for a different market must never be re-used,
+        // even when its outcome was already marked as closed.
+        if(prev?.market&&prev.market!==s.market)delete oldResults[s.id];
+        const acceptedPrev=prev?.market&&prev.market===s.market?prev:null;
+        if(acceptedPrev&&['won','lost','breakeven','ambiguous'].includes(acceptedPrev.status)){
+          results[s.id]=acceptedPrev;continue;
         }
-        if(attempts>=5){if(prev)results[s.id]=prev;continue;}
+        if(attempts>=Math.min(5,Math.max(1,Number(options.maxChecks||5)))){if(acceptedPrev)results[s.id]=acceptedPrev;continue;}
         attempts++;
         try{const candles=await candlesForSignal(s,options);
           results[s.id]={...(s.qualified?evaluateCandles(s,candles,now):
-            modeledTrade(s,candles,[...posts.values()],now)),checkedAt:new Date(now).toISOString()};}
-        catch(e){priceError=String(e?.message||e);results[s.id]={...(prev||{status:'market-unavailable'}),checkedAt:new Date(now).toISOString()};}
+            modeledTrade(s,candles,[...posts.values()],now)),market:s.market,checkedAt:new Date(now).toISOString()};}
+        catch(e){priceError=String(e?.message||e);results[s.id]={...(acceptedPrev||{status:'market-unavailable'}),market:s.market,checkedAt:new Date(now).toISOString()};}
       }
       const state={messages:[...posts.values()].sort((a,b)=>b.id-a.id).slice(0,1000),
         results,backfillComplete:complete,cursor,updatedAt:new Date(now).toISOString(),
