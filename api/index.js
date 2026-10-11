@@ -166,7 +166,8 @@ async function handler(req, res) {
       const authorSuccess=author.status==='fulfilled';
       const algorithmsSuccess=algorithms.status==='fulfilled';
       const outcome={
-        ok:authorSuccess&&algorithmsSuccess,
+        ok:authorSuccess&&algorithmsSuccess&&
+          !author.value.sourceError&&!author.value.priceError&&!algorithms.value.error,
         author:authorSuccess?{
           updatedAt:author.value.updatedAt,
           total:author.value.stats.total,
@@ -180,7 +181,7 @@ async function handler(req, res) {
           error:algorithms.value.error||null
         }:{error:'algorithm-monitor-failed'}
       };
-      if(!authorSuccess||!algorithmsSuccess)
+      if(!outcome.ok)
         console.warn('RUDI_CRYPTO_MONITOR_WARN',JSON.stringify(outcome));
       return res.status(outcome.ok?200:503).json(outcome);
     }
