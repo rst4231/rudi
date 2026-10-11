@@ -1,6 +1,7 @@
 'use strict';
 const {isGitHubActionsRequestAuthorized}=require('./github-actions-oidc.cjs');
 const {refreshSignals}=require('./crypto-signals.cjs');
+const {settings}=require('./crypto-virtual.cjs');
 module.exports=async function cryptoSignalsCron(req,res){
   res.setHeader?.('Cache-Control','no-store');
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'method-not-allowed'});
@@ -10,6 +11,8 @@ module.exports=async function cryptoSignalsCron(req,res){
   });
   if(!authorized)return res.status(401).json({ok:false,error:'not-authorized'});
   try{
+    // Paper-trading clock starts with the first scheduled scan, not a later page visit.
+    await settings();
     const data=await refreshSignals();
     return res.status(200).json({ok:true,updatedAt:data.updatedAt,total:data.stats.total,
       verified:data.stats.verified,backfillComplete:data.backfillComplete,
