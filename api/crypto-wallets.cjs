@@ -7,6 +7,7 @@ const { readMarketTicker } = require('./market-ticker.cjs');
 const { readLpPositions } = require('./uniswap-lp.cjs');
 const bybitHoldings=require('./bybit-holdings.cjs');
 const balanceHistory=require('./crypto-balance-history.cjs');
+const cryptoOperations=require('./crypto-operations.cjs');
 
 const NS = 'rudi-crypto-wallet-connections-v1';
 const KEY = 'rustam';
@@ -429,5 +430,13 @@ async function history(actor,walletId,days,options={}) {
   }
   return balanceHistory.range(walletId,days,options);
 }
-module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, setChain, refresh, history,
+async function operations(actor,walletId,options={}) {
+  owner(actor);
+  const id=String(walletId||'').trim();
+  await assertWallet(id,options);
+  const links=await readState(options),connection=links[id];
+  if(!connection)throw Error('crypto-wallet-not-found');
+  return cryptoOperations.read(connection,options,{bybitGet,decryptSecret});
+}
+module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, setChain, refresh, history, operations,
   encryptSecret, decryptSecret, bybitGet, bybitSnapshot, uniswapSnapshot, marketRates, usdToWalletCurrency };
