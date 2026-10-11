@@ -174,6 +174,21 @@ test('requires explicit consent before replacing any Ethereum wallet value', asy
   }, { client }), /crypto-uniswap-scope-confirm-required/);
 });
 
+test('switching an existing Uniswap wallet to Arbitrum preserves its address and manual finance amount',async()=>{
+  const previous=await cryptoWallets.list('Рустам',{client});
+  const link=previous.find(x=>x.walletId==='uniswap-wallet');
+  assert.ok(link?.address?.startsWith('0x'));
+  const oldBalance=wallets[1].balance;
+  const changed=await cryptoWallets.setChain('Рустам','uniswap-wallet','arbitrum',{client});
+  assert.equal(changed.chain,'arbitrum');
+  assert.equal(changed.address,link.address);
+  assert.equal(changed.lastSyncAt,'');
+  assert.equal(changed.balanceUsd,null);
+  assert.equal(wallets[1].balance,oldBalance);
+  await assert.rejects(()=>cryptoWallets.setChain('Диана','uniswap-wallet','ethereum',{client}),/crypto-owner-only/);
+  await assert.rejects(()=>cryptoWallets.setChain('Рустам','uniswap-wallet','unsupported',{client}),/crypto-network-unsupported/);
+});
+
 test('disconnect removes the encrypted key without clearing the finance balance', async () => {
   const before = wallets[0].balance;
   await cryptoWallets.disconnect('Рустам', 'bybit-wallet', { client });
