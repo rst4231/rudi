@@ -82,6 +82,34 @@ test('v4 NFT derives pool key, reads fee growth and counts unclaimed amounts',as
   assert.equal(p.claimableIncludesPrincipal,false);
 });
 
+test('Arbitrum owner has three v3 WETH/USDC pools with claimable fees',async()=>{
+  const ids=[5212362n,5212363n,5212364n];
+  const positionsAsked=[];
+  const rpc=async(method,[tx])=>{
+    assert.equal(method,'eth_call');
+    const sig=callSelector(tx.data),to=tx.to.toLowerCase();
+    if(sig===lp.selector('balanceOf(address)'))return BigInt(to===lp.V3?3:0);
+    if(sig===lp.selector('tokenOfOwnerByIndex(address,uint256)'))return ids[Number(BigInt('0x'+tx.data.slice(-64)))];
+    if(sig===lp.selector('ownerOf(uint256)'))return ownerAsInt;
+    if(sig===lp.selector('positions(uint256)')){
+      const id=BigInt('0x'+tx.data.slice(-64));positionsAsked.push(id);
+      return encode(0,0,BigInt(WETH),0xaf88d065e77c8cc2239327c5edb3a432268e5831n,500,-600,600,100000000,0,0,0,0);
+    }
+    if(sig===lp.selector('getPool(address,address,uint24)'))return BigInt(POOL);
+    if(sig===lp.selector('slot0()'))return encode(Q96,0,0,0,0,0,0);
+    if(sig===lp.selector('feeGrowthGlobal0X128()'))return Q128*1000000000000n/100000000n;
+    if(sig===lp.selector('feeGrowthGlobal1X128()'))return Q128*2000000n/100000000n;
+    if(sig===lp.selector('ticks(int24)'))return encode(0,0,0,0,0,0,0,0);
+    throw new Error('unexpected '+sig+' '+to);
+  };
+  const result=await lp.readLpPositions(OWNER,prices,{rpc,options:{chain:'arbitrum'}});
+  assert.deepEqual(positionsAsked,ids);
+  assert.equal(result.positions.length,3);
+  assert.ok(result.positions.every(p=>p.pair==='WETH/USDC'&&p.inRange));
+  assert.ok(result.positions.every(p=>p.feesUsd>2));
+  assert.ok(result.liquidityUsd>0&&result.feesUsd>6);
+});
+
 test('unknown LP token fails closed instead of valuing missing capital at zero',async()=>{
   const badToken='0x'+'f'.repeat(40);
   const rpc=async(method,[tx])=>{
