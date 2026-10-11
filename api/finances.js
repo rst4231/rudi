@@ -145,6 +145,10 @@ async function handler(req, res) {
         const connection = await cryptoWallets.connect(actor, body);
         return res.status(200).json({ ok: true, actor, connection });
       }
+      if (operation === 'crypto-set-chain') {
+        const connection=await cryptoWallets.setChain(actor,body.walletId,body.chain);
+        return res.status(200).json({ok:true,actor,connection});
+      }
       if (operation === 'crypto-disconnect') {
         await cryptoWallets.disconnect(actor, body.walletId);
         return res.status(200).json({ ok: true, actor });
