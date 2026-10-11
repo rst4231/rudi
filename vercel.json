@@ -188,6 +188,10 @@
       "destination": "/api/index?route=crypto-algorithms-cron"
     },
     {
+      "source": "/api/crypto-monitor-cron",
+      "destination": "/api/index?route=crypto-monitor-cron"
+    },
+    {
       "source": "/api/personal-center",
       "destination": "/api/index?route=personal-center"
     },
