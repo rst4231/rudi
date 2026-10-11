@@ -8,7 +8,7 @@ const { readMarketTicker } = require('./market-ticker.cjs');
 const NS = 'rudi-crypto-wallet-connections-v1';
 const KEY = 'rustam';
 const REFRESH_MS = 10 * 60 * 1000;
-const RPC_URL = 'https://ethereum-rpc.publicnode.com';
+const RPC_URLS = ['https://ethereum-rpc.publicnode.com', 'https://public.1rpc.io/eth'];
 const BYBIT_URL = 'https://api.bybit.com';
 const ETHEREUM_TOKENS = [
   { symbol: 'USDT', contract: '0xdac17f958d2ee523a2206206994597c13d831ec7', decimals: 6 },
@@ -98,17 +98,17 @@ async function bybitGet(path, query, keys, options = {}) {
   return data.result || {};
 }
 async function marketRates(options = {}) {
-  const payload = await jsonResponse(BYBIT_URL + '/v5/market/tickers?category=spot', {}, options);
-  if (Number(payload.retCode) !== 0 || !Array.isArray(payload.result?.list)) throw new Error('crypto-price-unavailable');
-  const prices = { USDT: 1, USD: 1, USDC: 1 };
-  for (const row of payload.result.list) {
-    const pair = String(row.symbol || '');
-    const price = Number(row.lastPrice);
-    if (pair.endsWith('USDT') && price > 0 && Number.isFinite(price)) prices[pair.slice(0, -4)] = price;
-  }
-  if (!(prices.ETH > 0)) throw new Error('crypto-price-unavailable');
-  prices.WETH = prices.ETH;
-  return prices;
+  // Use the same cached Kraken-backed prices as the rest of RUDI.
+  // Bybit rejects requests originating from US IPs (Vercel iad1), so
+  // an Ethereum wallet must never depend on the Bybit market API.
+  let ticker;
+  try { ticker = await readMarketTicker(options); }
+  catch (_) { throw new Error('crypto-price-unavailable'); }
+  const rows = new Map((ticker.items || []).map(item => [String(item.id || ''), Number(item.value)]));
+  const ethUsd = rows.get('ethusdt');
+  const usdtUsd = rows.get('usdtusd');
+  if (!(ethUsd > 0) || !(usdtUsd > 0)) throw new Error('crypto-price-unavailable');
+  return { USD: 1, ETH: ethUsd, WETH: ethUsd, USDT: usdtUsd, USDC: 1 };
 }
 async function bybitSnapshot(keys, options = {}) {
   // The UNIFIED account includes spot, derivatives and total equity.
@@ -135,14 +135,24 @@ async function bybitSnapshot(keys, options = {}) {
 
 function paddedAddress(address) { return address.slice(2).toLowerCase().padStart(64, '0'); }
 async function rpc(method, params, options = {}) {
-  const payload = await jsonResponse(RPC_URL, {
+  const request = {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  }, options);
-  if (payload.error || typeof payload.result !== 'string' || !/^0x[0-9a-f]*$/i.test(payload.result)) {
-    throw new Error('crypto-rpc-unavailable');
+  };
+  const endpoints = options.rpcUrls || RPC_URLS;
+  for (const endpoint of endpoints) {
+    try {
+      const payload = await jsonResponse(endpoint, request, options);
+      if (payload.error || typeof payload.result !== 'string' || !/^0x[0-9a-f]*$/i.test(payload.result)) {
+        throw new Error('crypto-rpc-invalid-response');
+      }
+      return BigInt(payload.result === '0x' ? '0x0' : payload.result);
+    } catch (_) {
+      // Fail over to a different Ethereum RPC. Never print addresses,
+      // credentials or upstream responses in runtime logs.
+    }
   }
-  return BigInt(payload.result || '0x0');
+  throw new Error('crypto-rpc-unavailable');
 }
 function unitAmount(raw, decimals) {
   const unit = 10n ** BigInt(decimals);
