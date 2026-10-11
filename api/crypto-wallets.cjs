@@ -5,6 +5,8 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readFinanceState, syncLinkedWalletBalance } = require('./finance-store.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 const { readLpPositions } = require('./uniswap-lp.cjs');
+const bybitHoldings=require('./bybit-holdings.cjs');
+const balanceHistory=require('./crypto-balance-history.cjs');
 
 const NS = 'rudi-crypto-wallet-connections-v1';
 const KEY = 'rustam';
@@ -156,29 +158,11 @@ async function marketRates(options = {}) {
   const ethUsd = rows.get('ethusdt');
   const usdtUsd = rows.get('usdtusd');
   if (!(ethUsd > 0) || !(usdtUsd > 0)) throw new Error('crypto-price-unavailable');
-  return { USD: 1, ETH: ethUsd, WETH: ethUsd, USDT: usdtUsd, USDC: 1, 'USDC.e':1 };
+  const btcUsd=rows.get('btcusdt');
+  return {USD:1,ETH:ethUsd,WETH:ethUsd,BTC:btcUsd||null,WBTC:btcUsd||null,USDT:usdtUsd,USDC:1,'USDC.e':1};
 }
-async function bybitSnapshot(keys, options = {}) {
-  // The UNIFIED account includes spot, derivatives and total equity.
-  // Funding balances require explicit coin filters in newer Bybit API
-  // versions; do not represent an unenumerated partial result as all assets.
-  const unified = await bybitGet('/v5/account/wallet-balance', { accountType: 'UNIFIED' }, keys, options);
-  const account = Array.isArray(unified.list) ? unified.list.find(row => row.accountType === 'UNIFIED') : null;
-  if (!account || account.totalEquity === undefined || account.totalEquity === null || account.totalEquity === '') {
-    throw new Error('crypto-bybit-balance-unavailable');
-  }
-  const value = Number(account.totalEquity);
-  if (!Number.isFinite(value) || value < 0 || value > 1e12) throw new Error('crypto-balance-invalid');
-  const assets = [];
-  for (const row of account.coin || []) {
-    const amount = Number(row.walletBalance);
-    if (!row.coin || !Number.isFinite(amount) || amount === 0) continue;
-    assets.push({ symbol: String(row.coin), amount, source: 'Unified' });
-  }
-  return { balanceUsd: Math.round(value * 1e8) / 1e8,
-    assets: assets.slice(0, 100),
-    scope: 'Bybit Unified',
-    warning: 'Funding и отдельные субаккаунты не включены в баланс' };
+async function bybitSnapshot(keys,options={}) {
+  return bybitHoldings.snapshot(keys,{bybitGet,marketRates,options});
 }
 
 function paddedAddress(address) { return address.slice(2).toLowerCase().padStart(64, '0'); }
@@ -231,7 +215,7 @@ async function uniswapSnapshot(address, options = {}) {
   // Do not silently omit v3/v4 NFTs or price unknown LP assets at zero.
   // On ANY incomplete NFT/indexer/fee read the linked wallet's old balance
   // remains intact via refresh() catch and atomic balance mutation.
-  const lp=await readLpPositions(address,prices,{rpc,options:chainOptions});
+  const lp=options.spotOnly ? {positions:[],liquidityUsd:0,feesUsd:0,incomplete:false} : await readLpPositions(address,prices,{rpc,options:chainOptions});
   const total=walletUsd+lp.liquidityUsd+lp.feesUsd;
   if(!Number.isFinite(total)||total<0||total>1e12)throw new Error('crypto-balance-invalid');
   return {
@@ -243,7 +227,7 @@ async function uniswapSnapshot(address, options = {}) {
     feesUsd:Math.round(lp.feesUsd*1e8)/1e8,
     positions:lp.positions.map(p=>({...p,chain:chain.name})),
     assets:assets.filter(x=>x.amount>0),
-    scope:chain.label+' · кошелёк, Uniswap v3/v4 LP и суммы к получению',
+    scope:options.spotOnly?chain.label+' · токены без DeFi':chain.label+' · Uniswap v3/v4',
     warning:lp.incomplete
       ?'Позиции v3 доступны, но индексатор v4 недоступен. Сумма частичная, общий баланс не менялся.'
       :total===0
@@ -256,13 +240,14 @@ async function uniswapSnapshot(address, options = {}) {
 function safeConnection(walletId, conn) {
   return {
     walletId, provider: conn.provider, address: conn.address || '',
-    chain: conn.provider==='uniswap'?(conn.chain||'ethereum'):'',
+    chain: ['uniswap','trust'].includes(conn.provider)?(conn.chain||'ethereum'):'',
     connectedAt: conn.connectedAt || '', lastSyncAt: conn.lastSyncAt || '',
     balanceUsd: Number.isFinite(conn.balanceUsd) ? conn.balanceUsd : null,
     incomplete: conn.incomplete === true,
     partialUsd: Number.isFinite(conn.partialUsd) ? conn.partialUsd : null,
     partialSyncAt: conn.partialSyncAt || '',
     assets: Array.isArray(conn.assets) ? conn.assets : [],
+    sections: Array.isArray(conn.sections)?conn.sections:[],
     positions: Array.isArray(conn.positions) ? conn.positions : [],
     walletUsd: Number.isFinite(conn.walletUsd) ? conn.walletUsd : null,
     liquidityUsd: Number.isFinite(conn.liquidityUsd) ? conn.liquidityUsd : null,
@@ -287,7 +272,7 @@ async function connect(actor, input = {}, options = {}) {
   owner(actor);
   const walletId = String(input.walletId || '').trim();
   const provider = String(input.provider || '').toLowerCase();
-  if (!walletId || walletId.length > 100 || !['bybit', 'uniswap'].includes(provider)) throw new Error('crypto-input-invalid');
+  if (!walletId || walletId.length > 100 || !['bybit', 'uniswap', 'trust'].includes(provider)) throw new Error('crypto-input-invalid');
   await assertWallet(walletId, options);
   let secret = '', address = '', chain = 'ethereum';
   if (provider === 'bybit') {
@@ -299,6 +284,12 @@ async function connect(actor, input = {}, options = {}) {
     await bybitSnapshot({ apiKey, apiSecret }, options);
     secret = encryptSecret(apiKey, apiSecret);
   } else {
+    if(provider==='trust'){
+      if(input.scopeConfirm!=='evm-spot-readonly')throw new Error('crypto-trust-scope-confirm-required');
+      chain=networkOf(input.chain||'ethereum').name;
+      address=String(input.address||'').trim();
+      if(!/^0x[a-f0-9]{40}$/i.test(address))throw new Error('crypto-address-invalid');
+    }else{
     if (!['ethereum-mainnet-spot-only','ethereum-mainnet-including-lp','arbitrum-one-including-lp'].includes(String(input.scopeConfirm || ''))) throw new Error('crypto-uniswap-scope-confirm-required');
     chain=networkOf(input.chain||'ethereum').name;
     if(chain==='arbitrum'&&input.scopeConfirm!=='arbitrum-one-including-lp')throw new Error('crypto-uniswap-scope-confirm-required');
@@ -307,10 +298,15 @@ async function connect(actor, input = {}, options = {}) {
     if (!/^0x[a-f0-9]{40}$/i.test(address)) throw new Error('crypto-address-invalid');
     // An address may contain LP positions. Save its public address, but never
     // overwrite the manually entered balance if the portfolio cannot be valued.
+    }
   }
   return lock(async () => {
     const connections = await readState(options);
-    connections[walletId] = { provider, address, secret, chain:provider==='uniswap'?chain:'', connectedAt: new Date().toISOString(),
+    if(address&&Object.entries(connections).some(([id,row])=>id!==walletId
+      &&['trust','uniswap'].includes(row.provider)
+      &&String(row.address).toLowerCase()===address.toLowerCase()
+      &&(row.chain||'ethereum')===chain))throw Error('crypto-duplicate-address-network');
+    connections[walletId] = { provider, address, secret, chain:['uniswap','trust'].includes(provider)?chain:'', connectedAt: new Date().toISOString(),
       lastSyncAt: '', balanceUsd: null, lastError: '', assets: [] };
     await writeState(connections, options);
     return safeConnection(walletId, connections[walletId]);
@@ -377,7 +373,8 @@ async function refresh(actor, options = {}) {
         const wallet = await assertWallet(id, options);
         const snapshot = connection.provider === 'bybit'
           ? await bybitSnapshot(decryptSecret(connection.secret), options)
-          : await uniswapSnapshot(connection.address, { ...options, chain:connection.chain||'ethereum' });
+          : await uniswapSnapshot(connection.address, { ...options,
+            spotOnly:connection.provider==='trust',chain:connection.chain||'ethereum' });
         if (snapshot.incomplete) {
           // Show verified LPs and update only the known, labeled partial wallet
           // estimate. A missing v4 indexer can never assert a complete total.
@@ -389,7 +386,7 @@ async function refresh(actor, options = {}) {
             balanceUsd: null,
             lastSyncAt: '',
             partialSyncAt: new Date().toISOString(),
-            lastError: 'crypto-lp-discovery-unavailable',
+            lastError: connection.provider==='bybit'?'crypto-bybit-coverage-incomplete':'crypto-lp-discovery-unavailable',
           });
         } else {
           const balanceNative = await usdToWalletCurrency(snapshot.balanceUsd, wallet.currency, options);
@@ -398,6 +395,11 @@ async function refresh(actor, options = {}) {
             lastSyncAt: new Date().toISOString(), partialSyncAt: '', lastError: '',
           });
         }
+        try {
+          const amount=snapshot.incomplete?snapshot.partialUsd:snapshot.balanceUsd;
+          if(typeof amount==='number'&&Number.isFinite(amount))
+            await balanceHistory.capture(id,amount,{...options,partial:Boolean(snapshot.incomplete)});
+        }catch(_) {console.warn('RUDI_CRYPTO_HISTORY_SAVE_WARN');}
         changed = true;
       } catch (error) {
         const code = String(error?.message || '');
@@ -407,9 +409,25 @@ async function refresh(actor, options = {}) {
       }
       summary.push(safeConnection(id, connection));
     }
-    if (changed) await writeState(connections, options);
+    if(changed)await writeState(connections,options);
+    const known=summary.map(c=>typeof c.balanceUsd==='number'?c.balanceUsd:
+      c.incomplete&&typeof c.partialUsd==='number'?c.partialUsd:null);
+    if(known.some(n=>n!==null)){
+      try{
+        await balanceHistory.capture('__portfolio__',known.filter(n=>n!==null).reduce((a,b)=>a+b,0),
+          {...options,partial:known.some(n=>n===null)||summary.some(c=>c.incomplete||c.lastError)});
+      }catch(_){console.warn('RUDI_CRYPTO_PORTFOLIO_HISTORY_WARN');}
+    }
     return summary;
   });
 }
-module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, setChain, refresh,
+async function history(actor,walletId,days,options={}) {
+  owner(actor);
+  if(walletId!=='__portfolio__'){
+    const links=await readState(options);
+    if(!Object.prototype.hasOwnProperty.call(links,String(walletId||'')))throw Error('crypto-wallet-not-found');
+  }
+  return balanceHistory.range(walletId,days,options);
+}
+module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, setChain, refresh, history,
   encryptSecret, decryptSecret, bybitGet, bybitSnapshot, uniswapSnapshot, marketRates, usdToWalletCurrency };
