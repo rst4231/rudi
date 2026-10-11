@@ -60,3 +60,32 @@
 
 .finance-crypto-switch-chain{display:block;align-self:flex-start;margin-top:3px;padding:9px 12px;border:1px solid rgba(130,112,217,.35);border-radius:11px;background:rgba(130,112,217,.08);color:inherit;font-size:12px;font-weight:700;text-align:left}
 .finance-crypto-switch-chain:disabled{opacity:.5}
+
+/* v4.168: mobile history & source details */
+#financeCryptoHistory[hidden],#financeCryptoMain[hidden],.finance-crypto-overview[hidden]{display:none!important}
+#financeCryptoTotal{cursor:pointer;touch-action:manipulation}
+#financeCryptoTotal:focus-visible{outline:2px solid #bba7ff;outline-offset:5px;border-radius:5px}
+.finance-crypto-partial-badge{display:inline-flex;width:max-content;border:1px solid rgba(255,181,103,.35);border-radius:20px;padding:3px 9px;font-size:11px;font-weight:750;color:#d8a76d}
+.finance-crypto-sections{display:grid;gap:5px;margin-top:6px}
+.finance-crypto-section{border-top:1px solid rgba(160,160,180,.14);padding:10px 0 4px}
+.finance-crypto-section summary{font-size:13px;font-weight:700;cursor:pointer}
+.finance-crypto-asset{display:flex;gap:12px;justify-content:space-between;align-items:baseline;padding:8px 2px;border-bottom:1px solid rgba(160,160,180,.12);font-size:12px;line-height:1.45}
+.finance-crypto-asset>span{min-width:0;overflow-wrap:anywhere;color:var(--muted,#9297a1)}
+.finance-crypto-asset>strong{white-space:nowrap;font-variant-numeric:tabular-nums;font-size:12px}
+.finance-crypto-operations-button,.finance-crypto-back{border:1px solid rgba(140,140,165,.2);border-radius:13px;background:rgba(120,120,170,.09);padding:10px 12px;color:inherit;font-weight:700;text-align:left;cursor:pointer}
+.finance-crypto-operations{max-height:300px;overflow:auto;display:grid;gap:2px}
+.finance-crypto-history{background:var(--surface,rgba(255,255,255,.04));border:1px solid rgba(170,160,210,.2);border-radius:20px;padding:17px 13px 22px;margin:12px 0}
+.finance-crypto-history-title{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:14px 0}
+.finance-crypto-history-title h3{font-size:21px;letter-spacing:-.03em;margin:0}
+.finance-crypto-history-title small{font-size:10px;color:var(--muted,#9297a1)}
+.finance-crypto-periods{display:flex;gap:6px;overflow-x:auto;padding:3px 0 12px;scrollbar-width:none}
+.finance-crypto-periods button{flex:1 0 auto;min-width:48px;border:1px solid rgba(120,120,180,.2);border-radius:12px;padding:9px 7px;background:rgba(130,115,190,.06);font-size:11px;color:inherit;font-weight:750}
+.finance-crypto-periods button.active{color:#fff;border-color:#675ab3;background:#6354a6}
+.finance-crypto-chart-wrap{border-radius:16px;background:linear-gradient(130deg,rgba(97,79,175,.12),rgba(28,36,80,.03));padding:10px;min-height:190px;overflow:hidden}
+#financeCryptoChart{display:block;width:100%;height:172px}
+#financeCryptoChart circle{cursor:pointer;outline:none}
+#financeCryptoChart circle:focus{stroke:#fff;stroke-width:2}
+.finance-crypto-chart-tooltip{text-align:center;font-size:12px;font-weight:700;min-height:20px}
+.finance-crypto-history-stats{margin:15px 2px;font-size:13px;line-height:1.7;font-variant-numeric:tabular-nums}
+.finance-crypto-history-points{max-height:265px;overflow:auto}
+@media(max-width:390px){.finance-crypto-history{padding-inline:10px}.finance-crypto-periods{gap:4px}.finance-crypto-periods button{padding:8px 5px;font-size:10px}}
