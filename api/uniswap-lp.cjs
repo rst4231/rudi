@@ -7,12 +7,36 @@ const STATE_VIEW = '0x7ffe42c4a5deea5b0fec41c94c136cf115597227';
 const ZERO = '0x0000000000000000000000000000000000000000';
 const Q96 = 1n << 96n, Q128 = 1n << 128n, MASK_256 = (1n << 256n) - 1n;
 const LIMIT = 30;
-const SUPPORTED = new Map([
-  [ZERO, { symbol:'ETH', decimals:18 }],
-  ['0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',{symbol:'WETH',decimals:18}],
-  ['0xdac17f958d2ee523a2206206994597c13d831ec7',{symbol:'USDT',decimals:6}],
-  ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',{symbol:'USDC',decimals:6}],
-]);
+// Per-chain contracts and tokens are intentionally explicit: an address from
+// Ethereum must never be used to value Arbitrum assets (or vice versa).
+const NETWORKS = {
+  ethereum: {
+    v3: V3, v4: V4, stateView: STATE_VIEW, indexer: 'https://eth.blockscout.com',
+    tokenAddresses: [
+      [ZERO,{symbol:'ETH',decimals:18}],
+      ['0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',{symbol:'WETH',decimals:18}],
+      ['0xdac17f958d2ee523a2206206994597c13d831ec7',{symbol:'USDT',decimals:6}],
+      ['0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',{symbol:'USDC',decimals:6}],
+    ],
+  },
+  arbitrum: {
+    v3: V3, v4: '0xd88f38f930b7952f2db2432cb002e7abbf3dd869',
+    stateView: '0x76fd297e2d437cd7f76d50f01afe6160f86e9990',
+    indexer: 'https://arbitrum.blockscout.com',
+    tokenAddresses: [
+      [ZERO,{symbol:'ETH',decimals:18}],
+      ['0x82af49447d8a07e3bd95bd0d56f35241523fbab1',{symbol:'WETH',decimals:18}],
+      ['0xaf88d065e77c8cc2239327c5edb3a432268e5831',{symbol:'USDC',decimals:6}],
+      ['0xff970a61a04b1ca14834a43f5de4533ebddb5cc8',{symbol:'USDC.e',decimals:6}],
+      ['0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9',{symbol:'USDT',decimals:6}],
+    ],
+  },
+};
+function network(chain) {
+  const conf=NETWORKS[chain || 'ethereum'];
+  if(!conf)throw new Error('crypto-network-unsupported');
+  return conf;
+}
 const RC = [
   '0000000000000001','0000000000008082','800000000000808a','8000000080008000',
   '000000000000808b','0000000080000001','8000000080008081','8000000000008009',
@@ -84,7 +108,7 @@ function val(raw,tok,prices) {
   if(!Number.isFinite(n)||n<0||n>1e12)throw new Error('crypto-lp-amount-invalid');
   return n*price;
 }
-function tokenMeta(address){const t=SUPPORTED.get(address.toLowerCase());if(!t)throw new Error('crypto-lp-unsupported-token');return t;}
+function tokenMeta(address,ctx){const t=new Map(ctx.network.tokenAddresses).get(address.toLowerCase());if(!t)throw new Error('crypto-lp-unsupported-token');return t;}
 function checkLimit(n){if(n>LIMIT)throw new Error('crypto-lp-too-many');return n;}
 async function call(to,signature,values,ctx,extra={}) {
   const data=selector(signature)+values.map(word).join('');
@@ -95,16 +119,16 @@ async function ownedCount(contract,owner,ctx) {
   return checkLimit(Number(n));
 }
 async function listV3(owner,ctx) {
-  const count=await ownedCount(V3,owner,ctx),ids=[];
-  for(let i=0;i<count;i++)ids.push((await call(V3,'tokenOfOwnerByIndex(address,uint256)',[BigInt(owner),BigInt(i)],ctx)).toString());
+  const count=await ownedCount(ctx.network.v3,owner,ctx),ids=[];
+  for(let i=0;i<count;i++)ids.push((await call(ctx.network.v3,'tokenOfOwnerByIndex(address,uint256)',[BigInt(owner),BigInt(i)],ctx)).toString());
   return ids;
 }
 async function listV4(owner,ctx) {
-  const count=await ownedCount(V4,owner,ctx);if(!count)return [];
+  const count=await ownedCount(ctx.network.v4,owner,ctx);if(!count)return [];
   if(ctx.options.v4IdsForTests) return ctx.options.v4IdsForTests.map(String);
   // v4 ERC-721 is NOT enumerable. Blockscout supplies token IDs; validate
   // ownerOf onchain before accepting any position from an indexer.
-  const endpoint='https://eth.blockscout.com/api/v2/addresses/'+owner+'/nft?type=ERC-721';
+  const endpoint=ctx.network.indexer+'/api/v2/addresses/'+owner+'/nft?type=ERC-721';
   const ids=new Set();let next=null;
   for(let page=0;page<12;page++) {
     const url=new URL(endpoint);
@@ -117,7 +141,7 @@ async function listV4(owner,ctx) {
     if(!Array.isArray(data?.items))throw new Error('crypto-lp-discovery-unavailable');
     for(const item of data.items) {
       const contract=String(item.token?.address_hash||item.token?.address||'').toLowerCase();
-      if(contract!==V4)continue;
+      if(contract!==ctx.network.v4)continue;
       const id=String(item.id||item.token_id||'');
       if(!/^\d+$/.test(id))throw new Error('crypto-lp-discovery-unavailable');
       ids.add(id);
@@ -145,12 +169,12 @@ function feeGrowthInside(global,lowerOutside,upperOutside,currentTick,lower,uppe
   return BigInt.asUintN(256,global-below-above);
 }
 async function snapshotV3(owner,id,prices,ctx) {
-  await verifyOwner(V3,id,owner,ctx);
-  const pos=hexWords(await call(V3,'positions(uint256)',[BigInt(id)],ctx),12);
+  await verifyOwner(ctx.network.v3,id,owner,ctx);
+  const pos=hexWords(await call(ctx.network.v3,'positions(uint256)',[BigInt(id)],ctx),12);
   const token0=hexAddress(pos[2]),token1=hexAddress(pos[3]);
   const fee=Number(pos[4]),low=Number(signed(pos[5],24)),high=Number(signed(pos[6],24));
   const L=pos[7],owed0=pos[10],owed1=pos[11];
-  const t0=tokenMeta(token0),t1=tokenMeta(token1);
+  const t0=tokenMeta(token0,ctx),t1=tokenMeta(token1,ctx);
   const poolAddress=hexAddress(await call(V3_FACTORY,'getPool(address,address,uint24)',[BigInt(token0),BigInt(token1),BigInt(fee)],ctx));
   if(poolAddress===ZERO)throw new Error('crypto-lp-pool-invalid');
   const slot=await poolSlot0(poolAddress,ctx);
@@ -179,18 +203,18 @@ async function snapshotV3(owner,id,prices,ctx) {
     fees:[{symbol:t0.symbol,amount:decimal(claim0,t0.decimals)},{symbol:t1.symbol,amount:decimal(claim1,t1.decimals)}]};
 }
 async function snapshotV4(owner,id,prices,ctx) {
-  await verifyOwner(V4,id,owner,ctx);
-  const key=hexWords(await call(V4,'getPoolAndPositionInfo(uint256)',[BigInt(id)],ctx),6);
+  await verifyOwner(ctx.network.v4,id,owner,ctx);
+  const key=hexWords(await call(ctx.network.v4,'getPoolAndPositionInfo(uint256)',[BigInt(id)],ctx),6);
   const [token0,token1,fee,tickSpacing,hooks,info]=key;
-  const t0=tokenMeta(hexAddress(token0)),t1=tokenMeta(hexAddress(token1));
+  const t0=tokenMeta(hexAddress(token0),ctx),t1=tokenMeta(hexAddress(token1),ctx);
   const lower=Number(signed((info>>8n)&0xffffffn,24)),upper=Number(signed((info>>32n)&0xffffffn,24));
   const poolId=keccak256('0x'+[token0,token1,fee,tickSpacing,hooks].map(word).join(''));
-  const slot=hexWords(await call(STATE_VIEW,'getSlot0(bytes32)',[BigInt(poolId)],ctx),4);
-  const L=await call(V4,'getPositionLiquidity(uint256)',[BigInt(id)],ctx);
+  const slot=hexWords(await call(ctx.network.stateView,'getSlot0(bytes32)',[BigInt(poolId)],ctx),4);
+  const L=await call(ctx.network.v4,'getPositionLiquidity(uint256)',[BigInt(id)],ctx);
   const [amount0,amount1]=liquidityAmounts(L,slot[0],lower,upper);
-  const saved=hexWords(await call(STATE_VIEW,'getPositionInfo(bytes32,address,int24,int24,bytes32)',
-    [BigInt(poolId),BigInt(V4),BigInt(lower),BigInt(upper),BigInt(id)],ctx),3);
-  const current=hexWords(await call(STATE_VIEW,'getFeeGrowthInside(bytes32,int24,int24)',
+  const saved=hexWords(await call(ctx.network.stateView,'getPositionInfo(bytes32,address,int24,int24,bytes32)',
+    [BigInt(poolId),BigInt(ctx.network.v4),BigInt(lower),BigInt(upper),BigInt(id)],ctx),3);
+  const current=hexWords(await call(ctx.network.stateView,'getFeeGrowthInside(bytes32,int24,int24)',
     [BigInt(poolId),BigInt(lower),BigInt(upper)],ctx),2);
   if(saved[0]!==L)throw new Error('crypto-lp-position-inconsistent');
   const owed0=((current[0]-saved[1]+(1n<<256n))&MASK_256)*L/Q128;
@@ -204,7 +228,7 @@ async function snapshotV4(owner,id,prices,ctx) {
     fees:[{symbol:t0.symbol,amount:decimal(owed0,t0.decimals)},{symbol:t1.symbol,amount:decimal(owed1,t1.decimals)}]};
 }
 async function readLpPositions(owner,prices,{rpc,options={}}) {
-  const ctx={rpc,options};const safe=addr(owner);
+  const ctx={rpc,options,network:network(options.chain)};const safe=addr(owner);
   const [idsV3,idsV4]=await Promise.all([listV3(safe,ctx),listV4(safe,ctx)]);
   if(idsV3.length+idsV4.length>LIMIT)throw new Error('crypto-lp-too-many');
   const positions=[];
@@ -214,4 +238,4 @@ async function readLpPositions(owner,prices,{rpc,options={}}) {
   if(!Number.isFinite(liquidityUsd+feesUsd)||liquidityUsd+feesUsd>1e12)throw new Error('crypto-lp-amount-invalid');
   return { positions,liquidityUsd,feesUsd };
 }
-module.exports={V3,V4,STATE_VIEW,selector,keccak256,sqrtTick,liquidityAmounts,readLpPositions,snapshotV3,snapshotV4};
+module.exports={V3,V4,STATE_VIEW,NETWORKS,selector,keccak256,sqrtTick,liquidityAmounts,readLpPositions,snapshotV3,snapshotV4};
