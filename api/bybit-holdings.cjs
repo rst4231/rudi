@@ -46,32 +46,7 @@ function holdingsFor(section,data){
   }
   return {unknown,items};
 }
-// Funding's unfiltered query is deprecated. Query known coins in chunks.
-// Not querying an unknown coin is never proof that its balance is zero.
-const FUNDING_COINS=['USDT','USDC','BTC','ETH','SOL','XRP','BNB','TON','DOGE','TRX',
-  'LTC','DOT','NEAR','DAI','USDE','FDUSD','ADA','AVAX','LINK','SHIB',
-  'SUI','PEPE','XLM','ARB','OP','APT','1INCH','SAND','GALA','SUSHI','CVX','STORJ','ENJ'];
-async function fetchSection(section,keys,{bybitGet,options,fundingCoins=[]}){
-  if(section.id==='funding'){
-    const coins=[...new Set([...FUNDING_COINS,...fundingCoins].filter(coin=>/^[A-Z0-9]{2,15}$/.test(coin)))];
-    const chunks=[];
-    for(let i=0;i<coins.length;i+=10)chunks.push(coins.slice(i,i+10));
-    const results=await Promise.allSettled(chunks.map(chunk=>bybitGet(
-      section.path,{...section.query,coin:chunk.join(',')},keys,options
-    )));
-    const items=[],seen=new Set();let failed=false;
-    for(const result of results){
-      if(result.status!=='fulfilled'){failed=true;continue;}
-      const normalized=holdingsFor(section,result.value);
-      for(const item of normalized.items){
-        if(seen.has(item.coin)){failed=true;continue;}
-        seen.add(item.coin);items.push(item);
-      }
-      failed ||= normalized.unknown;
-    }
-    // Even successful baskets omit unsupported or unlisted assets.
-    return {items,unknown:true,fundingScanError:failed};
-  }
+async function fetchSection(section,keys,{bybitGet,options}){
   let all=[],next='',unknown=false;
   for(let page=0;page<15;page++){
     const query={...section.query};
@@ -116,8 +91,7 @@ async function snapshot(keys,{bybitGet,marketRates,options={}}){
   // Limit outstanding provider requests; Earn APIs require a distinct Read-only permission.
   for(let i=0;i<SECTION_REQUESTS.length;i+=3){
     const batch=SECTION_REQUESTS.slice(i,i+3);
-    const responses=await Promise.allSettled(batch.map(section=>
-      fetchSection(section,keys,{bybitGet,options,fundingCoins:assets.map(asset=>asset.symbol)})));
+    const responses=await Promise.allSettled(batch.map(section=>fetchSection(section,keys,{bybitGet,options})));
     for(let j=0;j<batch.length;j++){
       const section=batch[j],out=responses[j];
       if(out.status==='rejected'){
