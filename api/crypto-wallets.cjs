@@ -375,10 +375,13 @@ async function refresh(actor, options = {}) {
     const deadlineAt=Date.now()+42000;
     const limited={...options,deadlineAt};
     const connections = await readState(limited);
+    const targetId=String(options.walletId||'').trim();
+    if(targetId&&!Object.prototype.hasOwnProperty.call(connections,targetId))throw Error('crypto-wallet-not-found');
     const now = Date.now();
     const summary = [];
     let changed = false;
     for (const [id, connection] of Object.entries(connections)) {
+      if(targetId&&id!==targetId){summary.push(safeConnection(id,connection));continue;}
       if(Date.now()>=deadlineAt){
         connection.lastError='crypto-refresh-deferred';
         summary.push(safeConnection(id,connection));changed=true;

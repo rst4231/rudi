@@ -30,6 +30,7 @@ const handlePersonalCenter = require('./personal-center-handler.cjs');
 const handlePersonalCenterCron = require('./personal-center-cron-handler.cjs');
 const {refreshSignals}=require('./crypto-signals.cjs');
 const {settings:virtualSignalSettings}=require('./crypto-virtual.cjs');
+const {scan:scanCryptoAlgorithms}=require('./crypto-algorithms.cjs');
 const { migrateD1ToVercel, storageMigrationStatus, rollbackStorageToD1, isMigrationAuthorized } = require('./d1-to-vercel-migration.cjs');
 const { scheduleCarNoteTelegram } = require('./car-notes-telegram.cjs');
 const { scheduleSmartSaveTelegram } = require('./smart-saves-telegram.cjs');
@@ -167,6 +168,22 @@ async function handler(req, res) {
       }
     }
 
+    if (req.query?.route === 'crypto-algorithms-cron') {
+      const authorized=await isGitHubActionsRequestAuthorized(req,{
+        audience:'rudi-crypto-signals',
+        workflowRef:'rst4231/rudi/.github/workflows/crypto-signals.yml@refs/heads/main'
+      });
+      if(!authorized)return res.status(401).json({ok:false,error:'not-authorized'});
+      if(req.method!=='GET')return res.status(405).json({ok:false,error:'method-not-allowed'});
+      try{
+        const result=await scanCryptoAlgorithms();
+        return res.status(200).json({ok:true,updatedAt:result.updatedAt,
+          marketCount:result.marketCount,error:result.error});
+      }catch(e){
+        console.warn('RUDI_CRYPTO_ALGO_CRON_FAILED',String(e?.message||e));
+        return res.status(503).json({ok:false,error:'crypto-algorithms-unavailable'});
+      }
+    }
     if (req.query?.route === 'wallet-logo') return handleWalletLogo(req, res);
     if (req.query?.route === 'calendar-day-summary') return handleCalendarDaySummary(req, res);
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);

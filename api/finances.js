@@ -11,6 +11,7 @@ const cryptoWallets = require('./crypto-wallets.cjs');
 const {calculatePnl24h}=require('./crypto-pnl.cjs');
 const {readSignals,refreshSignals}=require('./crypto-signals.cjs');
 const virtualSignals=require('./crypto-virtual.cjs');
+const cryptoAlgorithms=require('./crypto-algorithms.cjs');
 const { createHash } = require('node:crypto');
 function cryptoAssignmentKey(walletId,row){
   if(row?.paired&&row?.peerWalletId&&row?.peerOperationId){
@@ -171,6 +172,10 @@ async function handler(req, res) {
         const links=await cryptoWallets.list(actor);
         return res.status(200).json({ok:true,actor,...await calculatePnl24h(links)});
       }
+      if (operation === 'crypto-algo-report') {
+        return res.status(200).json({ok:true,actor,
+          ...(await cryptoAlgorithms.readReport())});
+      }
       if (operation === 'crypto-signal-report') {
         const [signals,config]=await Promise.all([readSignals(),virtualSignals.settings()]);
         const paper=virtualSignals.simulateVirtual(signals.signals,config);
@@ -232,7 +237,8 @@ async function handler(req, res) {
           ...viewState(saved.state,actor)});
       }
       if (operation === 'crypto-refresh') {
-        const connections = await cryptoWallets.refresh(actor, { force: body.force === true });
+        const connections = await cryptoWallets.refresh(actor, { force: body.force === true,
+          ...(body.walletId?{walletId:String(body.walletId)}:{}) });
         const state = await readFinanceState();
         return res.status(200).json({ ok: true, actor, connections, wallets: viewState(state, actor).wallets });
       }

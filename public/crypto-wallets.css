@@ -140,3 +140,22 @@
 .finance-crypto-periods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;overflow:visible}
 .finance-crypto-periods button{min-width:0;flex:none;white-space:nowrap;padding:9px 3px}
 @media(max-width:360px){.finance-crypto-periods{gap:4px}.finance-crypto-periods button{font-size:10px;padding:9px 1px}}
+
+/* v4.177: fee report labels are explanatory, never silently treat LP principal as income. */
+.finance-crypto-fee-hint{display:block;margin-top:2px;font-size:11px;line-height:1.5;color:var(--muted,#9a9baa);overflow-wrap:anywhere}
+.finance-crypto-breakdown-row{min-width:0;align-items:baseline}
+.finance-crypto-breakdown-row>span{min-width:0;flex:1;line-height:1.4;overflow-wrap:anywhere}
+.finance-crypto-breakdown-row>strong{flex-shrink:0;text-align:right}
+.finance-crypto-source-actions{display:flex;align-items:center;justify-content:flex-end;gap:9px;min-width:0}
+.finance-crypto-source-actions>span{min-width:0}
+.finance-crypto-source-refresh{border:1px solid rgba(156,155,191,.28);background:rgba(135,135,155,.12);color:inherit;border-radius:10px;padding:8px 10px;cursor:pointer;font-weight:700;font-size:12px;white-space:nowrap;flex-shrink:0}
+.finance-crypto-source-refresh:disabled{opacity:.48;cursor:default}
+@media(max-width:410px){.finance-crypto-source-head{align-items:flex-start;gap:8px}.finance-crypto-source-actions{flex-wrap:wrap;max-width:65%}.finance-crypto-source-refresh{padding:6px 9px;font-size:11px}}
+
+/* v4.177: compact day/month portfolio valuation indicators */
+.finance-crypto-period-pnl{display:grid;align-items:start;gap:5px;margin:5px 0 2px;min-width:0}
+.finance-crypto-period-pnl .finance-crypto-pnl{display:block;margin:0;font-size:12px;font-weight:650;line-height:1.45;overflow-wrap:anywhere}
+.finance-crypto-overview .finance-crypto-period-pnl{gap:5px}
+.finance-crypto-overview .finance-crypto-period-pnl .finance-crypto-pnl{font-size:13px;color:#c2c1db}
+.finance-crypto-overview .finance-crypto-period-pnl .finance-crypto-pnl.is-positive{color:#56d69a}
+.finance-crypto-overview .finance-crypto-period-pnl .finance-crypto-pnl.is-negative{color:#f77a88}

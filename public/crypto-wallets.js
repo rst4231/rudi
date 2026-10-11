@@ -1,6 +1,6 @@
 (()=>{'use strict';
   let actor='',wallets=[],connections=[],editingWalletId='',pending=false,loaded=false,lastAttempt=0;
-  let pnl24h=null,pnlFlight=null;
+  let pnl24h=null,pnlFlight=null,sourceSyncId='';
   const $=id=>document.getElementById(id);
   const request=async(operation,payload={})=>{
     try{await Promise.resolve(window.__rudiTelegramSdkReady)}catch(_){}
@@ -60,17 +60,28 @@
   const dateLabel=iso=>iso?new Date(iso).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Пока не обновлялся';
   const setStatus=(id,message)=>{const e=$(id);if(e)e.textContent=message||'';};
   function clearKeys(){for(const id of ['financeCryptoApiKey','financeCryptoApiSecret'])if($(id))$(id).value='';}
-  const pnlText=p=>!p?.available?'PNL за сутки: недостаточно данных':
-    'Изменение за 24 ч: '+(p.deltaUsd>0?'+':'')+cash(p.deltaUsd)+
-    ' ('+(p.percent>0?'+':'')+p.percent.toFixed(2)+'%)';
-  const pnlBadge=p=>{
+  const pnlText=(p,period='day')=>{
+    const label=period==='month'?'За месяц':'За 24 ч';
+    if(!p?.available)return label+': недостаточно данных';
+    return label+': '+(p.deltaUsd>0?'+':'')+cash(p.deltaUsd)+
+      ' ('+(p.percent>0?'+':'')+p.percent.toFixed(2)+'%)';
+  };
+  const pnlBadge=(p,period='day')=>{
     const el=document.createElement('small');el.className='finance-crypto-pnl';
-    el.textContent=pnlText(p);
+    el.textContent=pnlText(p,period);
     if(p?.available){
       el.classList.add(p.deltaUsd>0?'is-positive':p.deltaUsd<0?'is-negative':'is-neutral');
-      el.title='Изменение стоимости без корректировки на вводы/выводы. Это не чистый PNL.';
-    }else el.title='Для честного PNL нужны два полных снимка и учёт денежных потоков.';
+      el.title=p.note||'Изменение стоимости без корректировки на вводы/выводы. Это не чистый PNL.';
+    }else el.title=period==='month'
+      ?'Для оценки нужен полный баланс за первое число месяца и свежая синхронизация. Переводы и выводы не вычтены.'
+      :'Для оценки нужны два полных снимка за 24 часа. Переводы и выводы не вычтены.';
     return el;
+  };
+  const periodBadges=(day,month)=>{
+    const host=document.createElement('div');host.className='finance-crypto-period-pnl';
+    host.append(pnlBadge(day,'day'),pnlBadge(month,'month'));
+    host.title='Оценка изменения стоимости активов, не проверенный торговый PNL.';
+    return host;
   };
   async function loadPnl24h(){
     if(actor!=='Рустам'||!connections.length||pnlFlight)return pnlFlight;
@@ -91,7 +102,14 @@
       const head=document.createElement('div');head.className='finance-crypto-source-head';
       const title=document.createElement('strong');title.textContent=providerName(link.provider);
       const note=document.createElement('span');note.textContent=wallet.name+(link.provider==='bybit'?'':' · '+(link.chain||'ethereum'));
-      head.append(title,note);
+      const actions=document.createElement('div');actions.className='finance-crypto-source-actions';
+      const sourceRefresh=document.createElement('button');
+      sourceRefresh.type='button';sourceRefresh.className='finance-crypto-source-refresh';
+      sourceRefresh.textContent=sourceSyncId===link.walletId?'Обновляю…':'Обновить';
+      sourceRefresh.disabled=Boolean(pending);
+      sourceRefresh.setAttribute('aria-label','Обновить только '+providerName(link.provider));
+      sourceRefresh.addEventListener('click',()=>void refreshSource(link.walletId));
+      actions.append(note,sourceRefresh);head.append(title,actions);
       const amount=document.createElement('div');amount.className='finance-crypto-source-amount';
       if(typeof link.balanceUsd==='number'&&Number.isFinite(link.balanceUsd)){amount.textContent=cash(link.balanceUsd);total+=link.balanceUsd;knownTotal+=link.balanceUsd;hasKnown=true;}
       else if(link.incomplete&&typeof link.partialUsd==='number'&&Number.isFinite(link.partialUsd)){knownTotal+=link.partialUsd;hasKnown=true;
@@ -104,17 +122,36 @@
         complete=false;
       }
       const detail=document.createElement('small');detail.textContent='Обновлено: '+dateLabel(link.incomplete?link.partialSyncAt:link.lastSyncAt);
-      card.append(head,amount,pnlBadge(pnl24h?.items?.find(p=>p.id===link.walletId)),detail);
+      const dailyChange=pnl24h?.items?.find(p=>p.id===link.walletId);
+      const monthlyChange=pnl24h?.month?.items?.find(p=>p.id===link.walletId);
+      card.append(head,amount,periodBadges(dailyChange,monthlyChange),detail);
       // Keep partial state in calculations and error reporting without the
       // repetitive "Частичный баланс" badge on every connected source card.
       if(link.provider==='uniswap'&&typeof link.walletUsd==='number'){
         const summary=document.createElement('div');summary.className='finance-crypto-breakdown';
-        for(const [label,value] of [['На адресе',link.walletUsd],['В пулах',link.liquidityUsd],['К получению',link.feesUsd]]){
+        const unsureFees=(link.positions||[]).some(pos=>pos.claimableIncludesPrincipal===true);
+        // LP snapshots expose uncollected fees, not a full history of accruals,
+        // collected payouts and removed principal since the first of the month.
+        // Never confuse an uncollected balance with monthly or lifetime income.
+        const rows=[
+          ['На адресе',link.walletUsd],
+          ['В пулах',link.liquidityUsd],
+          ['Комиссии в этом месяце',null],
+          ['Всего комиссии',unsureFees?null:link.feesUsd],
+        ];
+        if(unsureFees)rows.push(['К получению (включая возможную ликвидность)',link.feesUsd]);
+        for(const [label,value] of rows){
           const row=document.createElement('div');row.className='finance-crypto-breakdown-row';
           const name=document.createElement('span');name.textContent=label;
-          const sum=document.createElement('strong');sum.textContent=typeof value==='number'?cash(value):'—';
+          const sum=document.createElement('strong');sum.textContent=typeof value==='number'&&Number.isFinite(value)?cash(value):'—';
           row.append(name,sum);summary.append(row);
         }
+        const feeNote=document.createElement('small');
+        feeNote.className='finance-crypto-fee-hint';
+        feeNote.textContent=unsureFees
+          ?'Часть суммы к получению может включать снятую ликвидность. Её нельзя считать комиссиями. За текущий месяц нет полной истории начислений и выплат.'
+          :'«Всего комиссии» — начисленные, ещё не полученные комиссии, а не доход за всё время. За текущий месяц нет полной истории начислений и выплат.';
+        summary.append(feeNote);
         card.append(summary);
         for(const pos of (Array.isArray(link.positions)?link.positions:[]).filter(pos=>Number(pos.liquidityUsd||0)+Number(pos.feesUsd||0)>0.005)){
           const box=document.createElement('div');
@@ -124,7 +161,7 @@
           const name=document.createElement('strong');name.textContent='Uniswap '+pos.version+' · '+pos.pair+' · #'+pos.tokenId;
           const state=document.createElement('small');state.textContent=rangeState==='in-range'?'В диапазоне':rangeState==='out-of-range'?'Вне диапазона':'Диапазон не определён';
           title.append(name,state);box.append(title);
-          for(const [label,value] of [['Ликвидность',pos.liquidityUsd],['К получению',pos.feesUsd]]){
+          for(const [label,value] of [['Ликвидность',pos.liquidityUsd],[pos.claimableIncludesPrincipal?'К получению (возможна ликвидность)':'Всего комиссии',pos.feesUsd]]){
             const row=document.createElement('div');row.className='finance-crypto-lp-row';
             const name=document.createElement('span');name.textContent=label;
             const sum=document.createElement('b');sum.textContent=cash(value);
@@ -140,7 +177,14 @@
       if(link.lastError&&!link.incomplete){const err=document.createElement('p');err.className='finance-crypto-error';err.textContent=errorLabel({message:link.lastError});card.append(err);}
       if(link.provider==='bybit'&&Array.isArray(link.sections)){
         const groups=document.createElement('div');groups.className='finance-crypto-sections';
+        const hideEmptyBybitSections=new Set([
+          'earn-advanced-smart','earn-advanced-discount','earn-advanced-double',
+          'earn-liquidity','earn-rwa','earn-token','subaccounts'
+        ]);
         for(const section of link.sections){
+          if(hideEmptyBybitSections.has(section.id)&&
+            !(Number.isFinite(section.usd)&&section.usd>0.005)&&
+            !(section.assets||[]).some(asset=>Number(asset.usd)>0.005||Number(asset.amount)>0))continue;
           const entry=document.createElement('details');entry.className='finance-crypto-section';
           const label=document.createElement('summary');label.textContent=section.name+(typeof section.usd==='number'?' · '+cash(section.usd):' · недоступно');entry.append(label);
           for(const asset of section.assets||[]){
@@ -172,7 +216,7 @@
     const pnlHost=$('financeCryptoPnl24h');
     if(pnlHost){
       pnlHost.replaceChildren();
-      pnlHost.append(pnlBadge(pnl24h?.total));
+      pnlHost.append(periodBadges(pnl24h?.total,pnl24h?.month?.total));
     }
     if(label){
       const partial=connections.length>0&&!complete&&hasKnown;
@@ -206,6 +250,24 @@
     if(connections.some(c=>c.walletId===editingWalletId)&&$('financeWalletComposer')&&!$('financeWalletComposer').hidden)
       void loadApiWalletHistory(editingWalletId);
     return data;
+  }
+  async function refreshSource(walletId){
+    if(actor!=='Рустам'||pending||!connections.some(c=>c.walletId===walletId))return;
+    pending=true;sourceSyncId=walletId;render();
+    const name=providerName(connections.find(c=>c.walletId===walletId)?.provider);
+    setStatus('financeCryptoStatus','Обновляю только '+name+'…');
+    try{
+      const result=await request('crypto-refresh',{force:true,walletId});
+      connections=Array.isArray(result.connections)?result.connections:connections;
+      if(Array.isArray(result.wallets))wallets=result.wallets;
+      const refreshed=connections.find(c=>c.walletId===walletId);
+      setStatus('financeCryptoStatus',refreshed?.lastError
+        ?'Не удалось обновить '+name+'. Последний баланс сохранён.'
+        :name+' обновлён.');
+      void loadPnl24h();
+      document.dispatchEvent(new Event('rudi-finance-plan-saved'));
+    }catch(err){setStatus('financeCryptoStatus',errorLabel(err));}
+    finally{pending=false;sourceSyncId='';render();}
   }
   async function refresh(force=false){
     if(actor!=='Рустам'||pending||!connections.length)return;

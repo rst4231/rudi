@@ -35,3 +35,35 @@
 .crypto-signals-status{font-size:12px;line-height:1.55;color:var(--muted,#aeb0bb);margin:12px 3px;white-space:pre-line}
 @media(min-width:620px){.crypto-signals-stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:359px){.crypto-signals-stats article strong{font-size:17px}.crypto-signals-intro h3{font-size:21px}}
+
+/* v4.177: mobile-safe author signal report and matching launch cards */
+.crypto-signals-panel{width:100%;max-width:100%;overflow-x:hidden}
+.crypto-signals-launch{min-width:0;overflow:hidden;border-radius:18px;padding:16px 15px;margin:10px 0;gap:9px;min-height:76px}
+.crypto-signals-launch>span:first-child{min-width:0;flex:1}
+.crypto-signals-launch b{font-size:clamp(14px,3.7vw,17px);line-height:1.34;overflow-wrap:anywhere}
+.crypto-signals-launch small{line-height:1.45;font-size:12px;overflow-wrap:anywhere}
+.crypto-signals-launch>span:last-child{flex-shrink:0}
+.crypto-algo-launch{background:linear-gradient(120deg,rgba(49,143,143,.16),rgba(70,93,156,.11));border-color:rgba(111,171,179,.29)}
+.crypto-signals-row{flex-wrap:wrap;align-items:baseline}
+.crypto-signals-row h4{min-width:0;overflow-wrap:anywhere}
+.crypto-signals-section{max-width:100%;overflow:hidden}
+.crypto-signals-stats{max-width:100%;min-width:0}
+.crypto-signals-stats article{min-width:0}
+.crypto-signals-riskgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:11px}
+.crypto-signals-riskgrid article{display:grid;align-content:start;gap:5px;padding:12px;min-width:0;border-radius:13px;background:rgba(130,130,155,.07);border:1px solid rgba(145,145,172,.16)}
+.crypto-signals-riskgrid small{font-size:11px;line-height:1.35;color:var(--muted,#aeb0bb)}
+.crypto-signals-riskgrid strong{font-size:16px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.crypto-signals-compare{display:grid;gap:9px}
+.crypto-signals-compare p{margin:0;font-size:12px;line-height:1.5;overflow-wrap:anywhere;color:var(--muted,#aeb0bb)}
+.crypto-signals-calendar{display:grid;gap:8px}
+.crypto-signals-item{min-width:0;max-width:100%;align-items:start;overflow:hidden}
+.crypto-signals-item main{flex:1;min-width:0}
+.crypto-signals-item aside{min-width:0;max-width:45%;overflow-wrap:anywhere}
+.crypto-signals-item aside strong{overflow-wrap:anywhere;text-align:right}
+.crypto-signals-item:has(> .crypto-trade-details){display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.crypto-signals-item .crypto-trade-details{grid-column:1/-1;min-width:0;max-width:100%;font-size:11px;line-height:1.55}
+.crypto-trade-details summary{cursor:pointer;color:#bcaaff;overflow-wrap:anywhere}
+.crypto-trade-details p{font-size:11px;overflow-wrap:anywhere;line-height:1.55}
+.crypto-signals-help{overflow-wrap:anywhere}
+@media(min-width:620px){.crypto-signals-riskgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:359px){.crypto-signals-item{font-size:11px;padding:9px}.crypto-signals-riskgrid strong{font-size:14px}}
