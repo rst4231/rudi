@@ -215,7 +215,9 @@ async function uniswapSnapshot(address, options = {}) {
     positions:lp.positions.map(p=>({...p,chain:chain.name})),
     assets:assets.filter(x=>x.amount>0),
     scope:chain.label+' · кошелёк, Uniswap v3/v4 LP и суммы к получению',
-    warning:total===0
+    warning:lp.incomplete
+      ?'Позиции v3 доступны, но индексатор v4 недоступен. Сумма частичная, общий баланс не менялся.'
+      :total===0
       ?'На этом адресе в сети '+chain.label+' не найдены токены или LP-позиции. Убедись, что адрес совпадает с кошельком, открытым в Uniswap.'
       :lp.positions.some(x=>x.claimableIncludesPrincipal)
         ?'v3: сумма к получению может включать ранее снятую ликвидность; это не обязательно только заработанные комиссии.'
