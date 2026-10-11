@@ -8,12 +8,12 @@
   "basedOnProduction": "v4.161",
   "notes": [
     "Owner-only Crypto tab next to Financial Literacy within Finance, hidden from Diana.",
-    "Read-only Bybit API key/secret connection encrypted at rest; rejects keys with write permission.",
+    "Read-only Bybit API key/secret connection encrypted at rest; rejects keys with write permission. Shows Unified account equity only; Funding and subaccounts are explicitly excluded.",
     "Public-address Ethereum integration for native ETH, USDT, USDC and WETH spot balances; blocks erroneous balance overwrite if onchain Uniswap v3/v4 LP NFTs are found.",
     "Connect or disconnect previously created finance wallets; auto-sync every 10 minutes while the finance page is open and refresh manually.",
     "Convert remote USD equity to each existing wallet's native RUDI currency without creating income or expense transactions; preserve old balances on provider errors.",
     "Separate server-side connection storage, no API credentials in client responses, no new cron or functions.",
-    "Pending production release: prepared on feature branch only. Deployment requires explicit user confirmation."
+    "Release approved by owner on 2026-10-11; deploy exactly once after merge and verification."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }
