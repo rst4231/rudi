@@ -12,6 +12,10 @@
     "Sync a verified partial estimate into the existing finance wallet in its original currency, tagging the wallet cryptoPartial and remembering last synced amount; protect manual balances higher than the estimate.",
     "No fake income or expense events and no double counting of already withdrawn fees.",
     "Tests for partial balance flags, wallet synchronization, protection of manual overrides, and no extra finance ledger entries.",
+    "Bybit.com integration: configure only the /api/finances.js function to use Vercel Frankfurt region rather than default US API egress.",
+    "Bybit failures now expose safe, actionable diagnostics for HTTP403 regional restrictions, invalid keys, signatures, read-only permissions, API IP allowlists and rate limits.",
+    "Mask the Bybit API Key input on screen; never log upstream error bodies or save rejected credentials.",
+    "Additional tests cover masked credentials, HTTP status diagnostics, Bybit V5 retCodes, and route-specific region configuration.",
     "Deployment pending owner confirmation."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
