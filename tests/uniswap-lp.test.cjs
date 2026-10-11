@@ -110,6 +110,36 @@ test('Arbitrum owner has three v3 WETH/USDC pools with claimable fees',async()=>
   assert.ok(result.liquidityUsd>0&&result.feesUsd>6);
 });
 
+test('v4 indexer HTTP 503 still exposes all three verified Arbitrum v3 positions',async()=>{
+  const ids=[5212362n,5212363n,5212364n],asked=[];
+  const rpc=async(method,[tx])=>{
+    assert.equal(method,'eth_call');
+    const sig=callSelector(tx.data),to=tx.to.toLowerCase();
+    if(sig===lp.selector('balanceOf(address)'))return BigInt(to===lp.V3?3:1);
+    if(sig===lp.selector('tokenOfOwnerByIndex(address,uint256)'))return ids[Number(BigInt('0x'+tx.data.slice(-64)))];
+    if(sig===lp.selector('ownerOf(uint256)'))return ownerAsInt;
+    if(sig===lp.selector('positions(uint256)')){
+      const id=BigInt('0x'+tx.data.slice(-64));asked.push(id);
+      return encode(0,0,0x82af49447d8a07e3bd95bd0d56f35241523fbab1n,0xaf88d065e77c8cc2239327c5edb3a432268e5831n,500,-600,600,100000000,0,0,0,0);
+    }
+    if(sig===lp.selector('getPool(address,address,uint24)'))return BigInt(POOL);
+    if(sig===lp.selector('slot0()'))return encode(Q96,0,0,0,0,0,0);
+    if(sig===lp.selector('feeGrowthGlobal0X128()'))return Q128*1000000000000n/100000000n;
+    if(sig===lp.selector('feeGrowthGlobal1X128()'))return Q128*2000000n/100000000n;
+    if(sig===lp.selector('ticks(int24)'))return encode(0,0,0,0,0,0,0,0);
+    throw Error('unexpected selector '+sig);
+  };
+  const fetchImpl=async()=>({ok:false,status:503});
+  const result=await lp.readLpPositions(OWNER,prices,{rpc,options:{chain:'arbitrum',fetchImpl}});
+  assert.equal(result.incomplete,true);
+  assert.equal(result.v4Error,'crypto-lp-discovery-unavailable');
+  assert.deepEqual(asked,ids);
+  assert.equal(result.positions.length,3);
+  assert.ok(result.positions.every(p=>p.version==='v3'&&p.liquidityUsd>0));
+  assert.ok(result.liquidityUsd>0);
+  assert.ok(result.feesUsd>0);
+});
+
 test('unknown LP token fails closed instead of valuing missing capital at zero',async()=>{
   const badToken='0x'+'f'.repeat(40);
   const rpc=async(method,[tx])=>{
@@ -130,5 +160,9 @@ test('v4 requires complete indexer discovery and never assumes zero NFTs',async(
     throw new Error('unexpected '+sig);
   };
   const fetchImpl=async()=>({ok:true,json:async()=>({items:[],next_page_params:null})});
-  await assert.rejects(()=>lp.readLpPositions(OWNER,prices,{rpc,options:{fetchImpl}}),/crypto-lp-discovery-incomplete/);
+  const result=await lp.readLpPositions(OWNER,prices,{rpc,options:{fetchImpl}});
+  assert.equal(result.incomplete,true);
+  assert.equal(result.v4Error,'crypto-lp-discovery-incomplete');
+  assert.deepEqual(result.positions,[]);
+  assert.equal(result.liquidityUsd,0);
 });

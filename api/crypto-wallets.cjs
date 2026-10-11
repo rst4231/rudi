@@ -206,14 +206,18 @@ async function uniswapSnapshot(address, options = {}) {
   const total=walletUsd+lp.liquidityUsd+lp.feesUsd;
   if(!Number.isFinite(total)||total<0||total>1e12)throw new Error('crypto-balance-invalid');
   return {
-    balanceUsd:Math.round(total*1e8)/1e8,
+    balanceUsd:lp.incomplete?null:Math.round(total*1e8)/1e8,
+    incomplete:lp.incomplete,
+    partialUsd:lp.incomplete?Math.round(total*1e8)/1e8:null,
     walletUsd:Math.round(walletUsd*1e8)/1e8,
     liquidityUsd:Math.round(lp.liquidityUsd*1e8)/1e8,
     feesUsd:Math.round(lp.feesUsd*1e8)/1e8,
     positions:lp.positions.map(p=>({...p,chain:chain.name})),
     assets:assets.filter(x=>x.amount>0),
     scope:chain.label+' · кошелёк, Uniswap v3/v4 LP и суммы к получению',
-    warning:total===0
+    warning:lp.incomplete
+      ?'Позиции v3 доступны, но индексатор v4 недоступен. Сумма частичная, общий баланс не менялся.'
+      :total===0
       ?'На этом адресе в сети '+chain.label+' не найдены токены или LP-позиции. Убедись, что адрес совпадает с кошельком, открытым в Uniswap.'
       :lp.positions.some(x=>x.claimableIncludesPrincipal)
         ?'v3: сумма к получению может включать ранее снятую ликвидность; это не обязательно только заработанные комиссии.'
@@ -226,6 +230,9 @@ function safeConnection(walletId, conn) {
     chain: conn.provider==='uniswap'?(conn.chain||'ethereum'):'',
     connectedAt: conn.connectedAt || '', lastSyncAt: conn.lastSyncAt || '',
     balanceUsd: Number.isFinite(conn.balanceUsd) ? conn.balanceUsd : null,
+    incomplete: conn.incomplete === true,
+    partialUsd: Number.isFinite(conn.partialUsd) ? conn.partialUsd : null,
+    partialSyncAt: conn.partialSyncAt || '',
     assets: Array.isArray(conn.assets) ? conn.assets : [],
     positions: Array.isArray(conn.positions) ? conn.positions : [],
     walletUsd: Number.isFinite(conn.walletUsd) ? conn.walletUsd : null,
@@ -342,9 +349,23 @@ async function refresh(actor, options = {}) {
         const snapshot = connection.provider === 'bybit'
           ? await bybitSnapshot(decryptSecret(connection.secret), options)
           : await uniswapSnapshot(connection.address, { ...options, chain:connection.chain||'ethereum' });
-        const balanceNative = await usdToWalletCurrency(snapshot.balanceUsd, wallet.currency, options);
-        await syncLinkedWalletBalance('Рустам', id, balanceNative, options);
-        Object.assign(connection, snapshot, { lastSyncAt: new Date().toISOString(), lastError: '' });
+        if (snapshot.incomplete) {
+          // Persist verified v3 positions for display without writing an incomplete
+          // total into the user's finance ledger. Keep lastSyncAt empty so the
+          // cached value cannot be misinterpreted as a complete valuation.
+          Object.assign(connection, snapshot, {
+            balanceUsd: null,
+            lastSyncAt: '',
+            partialSyncAt: new Date().toISOString(),
+            lastError: 'crypto-lp-discovery-unavailable',
+          });
+        } else {
+          const balanceNative = await usdToWalletCurrency(snapshot.balanceUsd, wallet.currency, options);
+          await syncLinkedWalletBalance('Рустам', id, balanceNative, options);
+          Object.assign(connection, snapshot, {
+            lastSyncAt: new Date().toISOString(), partialSyncAt: '', lastError: '',
+          });
+        }
         changed = true;
       } catch (error) {
         const code = String(error?.message || '');

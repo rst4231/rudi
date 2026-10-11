@@ -1,19 +1,19 @@
 {
-  "current": "v4.165",
-  "versionBranch": "fix/rudi-uniswap-arbitrum-position-valuation",
+  "current": "v4.166",
+  "versionBranch": "fix/rudi-uniswap-v3-partial-visibility",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.164",
+  "basedOnProduction": "v4.165",
   "notes": [
-    "Correct Uniswap LP and fees portfolio network: support Arbitrum One (chainId 42161) as well as Ethereum Mainnet.",
-    "Uniswap v3/v4 LP read-only onchain valuation with Arbitrum-specific position manager/state view, ERC20 WETH, native USDC, USDC.e, and USDT addresses and chain-specific RPCs.",
-    "Authenticate Ethereum/Arbitrum RPC responses by eth_chainId to prevent attributing wrong-chain balances.",
-    "Add network selector and one-tap switch for previously connected wallets; retain public address and existing RUDI wallet ID and avoid stale value carryover.",
-    "Show warning when wallet and LP count are zero, including the selected network and address-verification guidance.",
-    "Add tests for correct Arbitrum ERC20 addresses, triple WETH/USDC pools, chain mismatch and safe owner-only network switching.",
-    "Prepare as one batched change; no production deployment until explicit confirmation."
+    "During an Arbitrum v4 NFT indexer outage, enumerate and value existing Uniswap v3 pools without hiding them.",
+    "Mark detected v3 liquidity and accrued fees as partial, while keeping the complete cryptocurrency balance explicitly unknown.",
+    "Never mutate the saved personal-finance wallet balance using an incomplete LP valuation.",
+    "Display partial data and clear warning in Crypto tab, including the timestamp of its last partial scan.",
+    "Move the Crypto tab between Personal and Debts; remains accessible only to owner.",
+    "Regression test for three Arbitrum v3 WETH/USDC positions when v4 NFT discovery returns HTTP 503.",
+    "One production deployment only after final explicit approval."
   ],
   "versionPolicy": "Крупное обновление: следующий целый номер. Мелкое обновление: следующий десятичный номер. Один пакет изменений = один production deploy."
 }

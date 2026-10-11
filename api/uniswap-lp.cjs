@@ -229,7 +229,16 @@ async function snapshotV4(owner,id,prices,ctx) {
 }
 async function readLpPositions(owner,prices,{rpc,options={}}) {
   const ctx={rpc,options,network:network(options.chain)};const safe=addr(owner);
-  const [idsV3,idsV4]=await Promise.all([listV3(safe,ctx),listV4(safe,ctx)]);
+  // Always discover v3 independently of the v4 indexer. v4 discovery may be
+  // rate-limited or temporarily down; it must not suppress known v3 pools.
+  const idsV3=await listV3(safe,ctx);
+  let idsV4=[],v4Error='';
+  try { idsV4=await listV4(safe,ctx); }
+  catch(error){
+    const code=String(error?.message||'');
+    if(!code.startsWith('crypto-lp-discovery-'))throw error;
+    v4Error=code;
+  }
   if(idsV3.length+idsV4.length>LIMIT)throw new Error('crypto-lp-too-many');
   const positions=[];
   const tasks=[
@@ -244,6 +253,6 @@ async function readLpPositions(owner,prices,{rpc,options={}}) {
   }
   const liquidityUsd=positions.reduce((s,p)=>s+p.liquidityUsd,0),feesUsd=positions.reduce((s,p)=>s+p.feesUsd,0);
   if(!Number.isFinite(liquidityUsd+feesUsd)||liquidityUsd+feesUsd>1e12)throw new Error('crypto-lp-amount-invalid');
-  return { positions,liquidityUsd,feesUsd };
+  return {positions,liquidityUsd,feesUsd,incomplete:Boolean(v4Error),v4Error};
 }
 module.exports={V3,V4,STATE_VIEW,NETWORKS,selector,keccak256,sqrtTick,liquidityAmounts,readLpPositions,snapshotV3,snapshotV4};

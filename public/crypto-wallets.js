@@ -21,7 +21,7 @@
       'crypto-network-unsupported':'Выбери Ethereum Mainnet или Arbitrum One.',
       'crypto-network-rpc-mismatch':'RPC ответил из другой сети. Баланс не изменён.',
       'crypto-uniswap-scope-confirm-required':'Подтверди выбранную сеть и активы для автоматического учёта.',
-      'crypto-lp-discovery-unavailable':'Индексатор Uniswap v4 сейчас недоступен. Старый баланс сохранён: нельзя пропускать пулы.',
+      'crypto-lp-discovery-unavailable':'Индексатор Uniswap v4 недоступен. Данные найденных пулов v3 показаны отдельно, общий баланс сохранён.',
       'crypto-lp-discovery-incomplete':'Не удалось найти все позиции Uniswap v4. Старый баланс сохранён.',
       'crypto-lp-unsupported-token':'В одном из пулов есть неподдерживаемый токен. Общий баланс не обновлялся.',
       'crypto-lp-too-many':'Слишком много LP-позиций для одного обновления. Баланс сохранён.',
@@ -63,9 +63,22 @@
       head.append(title,note);
       const amount=document.createElement('div');amount.className='finance-crypto-source-amount';
       if(typeof link.balanceUsd==='number'&&Number.isFinite(link.balanceUsd)){amount.textContent=cash(link.balanceUsd);total+=link.balanceUsd;}
-      else{amount.textContent='Баланс не получен';complete=false;}
-      const detail=document.createElement('small');detail.textContent='Последняя синхронизация: '+dateLabel(link.lastSyncAt);
+      else{
+        amount.textContent=link.incomplete&&typeof link.partialUsd==='number'
+          ?'Найдено в v3: '+cash(link.partialUsd)
+          :'Баланс не получен';
+        complete=false;
+      }
+      const detail=document.createElement('small');detail.textContent=link.incomplete
+  ?'Проверка позиций v3: '+dateLabel(link.partialSyncAt)
+  :'Последняя синхронизация: '+dateLabel(link.lastSyncAt);
       card.append(head,amount,detail);
+      if(link.incomplete){
+        const warning=document.createElement('p');
+        warning.className='finance-crypto-warning';
+        warning.textContent='Показаны проверенные пулы v3. Проверить позиции v4 пока не удалось, поэтому итог неполный и баланс в финансах не изменён.';
+        card.append(warning);
+      }
       if(link.provider==='uniswap'&&typeof link.walletUsd==='number'){
         const summary=document.createElement('div');summary.className='finance-crypto-breakdown';
         for(const [label,value] of [['На адресе',link.walletUsd],['В пулах',link.liquidityUsd],['К получению',link.feesUsd]]){
