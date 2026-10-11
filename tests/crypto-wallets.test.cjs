@@ -112,6 +112,27 @@ test('protects a Uniswap LP wallet from being overwritten by its spot balance', 
   assert.equal(result.find(row => row.walletId === 'uniswap-wallet').lastError, 'crypto-uniswap-lp-not-covered');
 });
 
+test('Ethereum uses existing price feed and switches RPC when primary returns HTTP 429', async () => {
+  const visited = [];
+  const resilientFetch = async (url, init) => {
+    const endpoint = String(url);
+    visited.push(endpoint);
+    if (endpoint.includes('api.bybit.com')) throw new Error('Bybit not reachable from US');
+    if (endpoint.includes('ethereum-rpc.publicnode.com')) return { ok: false, status: 429 };
+    if (endpoint.includes('public.1rpc.io/eth')) {
+      const payload = JSON.parse(init.body);
+      if (payload.method === 'eth_getBalance') return response({ result: '0xde0b6b3a7640000' });
+      if (payload.method === 'eth_call') return response({ result: '0x0' });
+    }
+    throw new Error('unexpected-url');
+  };
+  const snapshot = await cryptoWallets.uniswapSnapshot('0x' + 'b'.repeat(40), { fetchImpl: resilientFetch });
+  assert.equal(snapshot.balanceUsd, 3000);
+  assert.ok(visited.some(url => url.includes('ethereum-rpc.publicnode.com')));
+  assert.ok(visited.some(url => url.includes('public.1rpc.io/eth')));
+  assert.ok(!visited.some(url => url.includes('api.bybit.com')));
+});
+
 test('requires explicit consent before replacing any Ethereum wallet value', async () => {
   await assert.rejects(() => cryptoWallets.connect('Рустам', {
     walletId: 'uniswap-wallet', provider: 'uniswap', address: '0x' + 'a'.repeat(40),
