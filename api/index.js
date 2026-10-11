@@ -28,6 +28,8 @@ const { buildHealthPayload } = require('./control-plane-health.cjs');
 const { createRudiStateClient } = require('./rudi-state-client.cjs');
 const handlePersonalCenter = require('./personal-center-handler.cjs');
 const handlePersonalCenterCron = require('./personal-center-cron-handler.cjs');
+const {refreshSignals}=require('./crypto-signals.cjs');
+const {settings:virtualSignalSettings}=require('./crypto-virtual.cjs');
 const { migrateD1ToVercel, storageMigrationStatus, rollbackStorageToD1, isMigrationAuthorized } = require('./d1-to-vercel-migration.cjs');
 const { scheduleCarNoteTelegram } = require('./car-notes-telegram.cjs');
 const { scheduleSmartSaveTelegram } = require('./smart-saves-telegram.cjs');
@@ -145,6 +147,26 @@ async function handler(req, res) {
   try {
     if (req.query?.route === 'personal-center') return handlePersonalCenter(req, res);
     if (req.query?.route === 'personal-center-cron') return handlePersonalCenterCron(req, res);
+    if (req.query?.route === 'crypto-signals-cron') {
+      const authorized=await isGitHubActionsRequestAuthorized(req,{
+        audience:'rudi-crypto-signals',
+        workflowRef:'rst4231/rudi/.github/workflows/crypto-signals.yml@refs/heads/main'
+      });
+      if(!authorized)return res.status(401).json({ok:false,error:'not-authorized'});
+      if(req.method!=='GET')return res.status(405).json({ok:false,error:'method-not-allowed'});
+      try{
+        await virtualSignalSettings();
+        const result=await refreshSignals();
+        return res.status(200).json({ok:true,updatedAt:result.updatedAt,
+          total:result.stats.total,verified:result.stats.verified,
+          backfillComplete:result.backfillComplete,
+          sourceError:result.sourceError,priceError:result.priceError});
+      }catch(error){
+        console.warn('RUDI_CRYPTO_SIGNALS_CRON_FAILED',String(error?.message||error));
+        return res.status(503).json({ok:false,error:'source-unavailable'});
+      }
+    }
+
     if (req.query?.route === 'wallet-logo') return handleWalletLogo(req, res);
     if (req.query?.route === 'calendar-day-summary') return handleCalendarDaySummary(req, res);
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
