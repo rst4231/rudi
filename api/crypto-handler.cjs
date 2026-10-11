@@ -232,7 +232,8 @@ async function handleCrypto(req,res) {
     }else if(op!=='read'&&op!=='sync')throw new Error('crypto-operation-invalid');
     if(op==='sync'||op==='read'){
       const last=Date.parse(state.portfolio.lastSyncAt||'');
-      if((state.config.addresses.length||state.config.bybit)&&(!Number.isFinite(last)||Date.now()-last>=MIN_SYNC_MS)){
+      const interval=op==='sync'?60*1000:MIN_SYNC_MS;
+      if((state.config.addresses.length||state.config.bybit)&&(!Number.isFinite(last)||Date.now()-last>=interval)){
         state=await syncPortfolio(state);
       }
     }
