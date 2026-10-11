@@ -60,7 +60,7 @@ test('new monitor never executes live orders and preserves the source-only Bybit
   const index=src('api/index.js'),wallets=src('api/crypto-wallets.cjs');
   const ui=src('public/crypto-wallets.js'),algo=src('api/crypto-algorithms.cjs');
   assert.doesNotMatch(algo,/\/v5\/order\/create/);
-  assert.match(index,/crypto-bybit-history-check/===true ? /noop/ : /crypto-monitor-cron/);
+  assert.match(index,/crypto-monitor-cron/);
   assert.match(wallets,/checkBybitTradeHistory/);
   assert.match(ui,/Проверить доступ к сделкам/);
   assert.doesNotMatch(ui,/feeNote\.textContent/);
