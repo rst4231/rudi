@@ -10,7 +10,11 @@
     "Removed the explanatory paragraph below the Uniswap commissions block.",
     "Removed duplicate Bybit wallet name beside the refresh button while keeping the source header and refresh action.",
     "Added owner-protected read-only Bybit spot execution-history API probe; returns no trade details or secrets.",
-    "Added a manual access-check control on the Bybit card to verify current key permissions without orders, balance mutation, or deployment after each check."
+    "Added a manual access-check control on the Bybit card to verify current key permissions without orders, balance mutation, or deployment after each check.",
+    "Both Telegram @ne_investor and RUDI virtual short algorithms are scheduled via a proven 15-minute GitHub Actions workflow without adding another scheduled job.",
+    "Bounded public Bybit scanning to 15 ranked symbols plus live paper positions; author backfills at most one page and checks two signals per run.",
+    "Failed provider requests persist a visible diagnostic without inventing profit, trades, or successful sync dates.",
+    "No live exchange orders; existing Read-only Bybit history permission probe and finance UI cleanups included in the same release."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
