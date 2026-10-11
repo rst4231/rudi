@@ -96,3 +96,29 @@
 #financeApiBalancesRefresh:disabled{opacity:.65;cursor:wait}
 @keyframes rudi-crypto-refresh-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){#financeApiBalancesRefresh.is-syncing svg{animation:none}}
+
+/* API transaction classification - presented in both crypto tab and wallet history */
+.finance-crypto-operations{display:grid;gap:5px;max-height:370px;overflow:auto}
+.finance-crypto-operation-item{display:grid;gap:5px;width:100%;text-align:left;background:rgba(145,139,178,.065);border:1px solid rgba(145,139,178,.17);border-radius:13px;padding:10px 12px;cursor:pointer;color:inherit;min-width:0}
+.finance-crypto-operation-item:active{background:rgba(145,139,178,.14)}
+.finance-crypto-operation-item:focus-visible{outline:2px solid #9f89e8;outline-offset:1px}
+.finance-crypto-operation-main{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.finance-crypto-operation-main strong{font-size:12px;overflow-wrap:anywhere}
+.finance-crypto-operation-main small{font-size:11px;color:var(--muted,#9095a1);flex:0 0 auto}
+.finance-crypto-operation-link{font-size:11px;color:#9e86e7}
+.finance-crypto-embedded-history{display:grid;gap:5px;margin:16px 0 8px;padding:12px 0 0;border-top:1px solid rgba(160,160,180,.18)}
+.finance-crypto-embedded-history h4{font-size:13px;font-weight:800;color:inherit;margin:0 0 6px}
+.finance-crypto-allocation-backdrop{position:fixed;inset:0;z-index:2147483300;display:flex;align-items:flex-end;justify-content:center;background:rgba(10,11,20,.67);padding:12px;padding-bottom:max(16px,env(safe-area-inset-bottom,0px));overscroll-behavior:contain}
+.finance-crypto-allocation-sheet{box-sizing:border-box;width:min(100%,480px);max-height:calc(100dvh - 36px);overflow-y:auto;background:var(--surface,#f9f9fc);color:var(--text,#1b1b25);box-shadow:0 12px 52px rgba(0,0,0,.26);border:1px solid rgba(160,160,190,.16);border-radius:24px;padding:18px 16px 20px;display:grid;gap:12px}
+.finance-crypto-allocation-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.finance-crypto-allocation-heading strong{font-size:18px;letter-spacing:-.02em}
+.finance-crypto-allocation-close{border:0;background:transparent;color:inherit;font-size:27px;width:35px;height:35px;cursor:pointer}
+.finance-crypto-allocation-sheet p{margin:0;font-size:12px;line-height:1.5;color:var(--muted,#818799)}
+.finance-crypto-allocation-field{display:grid;gap:6px;font-size:12px;font-weight:750}
+.finance-crypto-allocation-field input,.finance-crypto-allocation-field select{box-sizing:border-box;width:100%;min-width:0;min-height:43px;border:1px solid rgba(160,160,185,.3);border-radius:11px;background:var(--surface,#fff);color:inherit;font:inherit;font-size:15px;padding:10px 12px}
+.finance-crypto-allocation-help{line-height:1.6!important}
+.finance-crypto-allocation-status{font-size:12px;color:#db655b}
+.finance-crypto-allocation-save{border:0;border-radius:13px;min-height:47px;background:#219b74;color:white;font-size:14px;font-weight:800;cursor:pointer}
+.finance-crypto-allocation-save:disabled{opacity:.6;cursor:wait}
+@media(min-width:640px){.finance-crypto-allocation-backdrop{align-items:center}}
+@media(max-width:375px){.finance-crypto-allocation-sheet{padding:14px 12px;gap:9px}.finance-crypto-operation-main{flex-wrap:wrap;gap:4px}}
