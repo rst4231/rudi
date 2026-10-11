@@ -3,6 +3,7 @@ const crypto = require('node:crypto');
 const { createRudiStateClient } = require('./rudi-state-client.cjs');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const { readFinanceState, syncLinkedWalletBalance } = require('./finance-store.cjs');
+const { readMarketTicker } = require('./market-ticker.cjs');
 
 const NS = 'rudi-crypto-wallet-connections-v1';
 const KEY = 'rustam';
@@ -198,7 +199,7 @@ async function assertWallet(walletId, options = {}) {
   const wallet = (state.wallets['Рустам'] || []).find(w => w.id === walletId && !w.archived);
   if (!wallet) throw new Error('crypto-wallet-not-found');
   if (wallet.type === 'credit') throw new Error('crypto-wallet-credit-unsupported');
-  if (!['USD','USDT'].includes(wallet.currency)) throw new Error('crypto-wallet-usd-required');
+  if (!['RUB','USD','EUR','USDT','BTC','ETH'].includes(wallet.currency)) throw new Error('crypto-wallet-currency-unsupported');
   return wallet;
 }
 async function connect(actor, input = {}, options = {}) {
@@ -240,6 +241,24 @@ async function disconnect(actor, walletId, options = {}) {
     return true;
   });
 }
+async function usdToWalletCurrency(balanceUsd, currency, options = {}) {
+  const code = String(currency || '').toUpperCase();
+  if (code === 'USD') return balanceUsd;
+  const ticker = await readMarketTicker(options);
+  const rates = new Map((ticker.items || []).map(item => [String(item.id || ''), Number(item.value)]));
+  const usdRub = rates.get('usd-rub'), eurRub = rates.get('eur-rub');
+  const btcUsd = rates.get('btcusdt'), ethUsd = rates.get('ethusdt');
+  const usdtUsd = rates.get('usdtusd');
+  let converted = NaN;
+  if (code === 'USDT' && usdtUsd > 0) converted = balanceUsd / usdtUsd;
+  if (code === 'RUB' && usdRub > 0) converted = balanceUsd * usdRub;
+  if (code === 'EUR' && usdRub > 0 && eurRub > 0) converted = balanceUsd * usdRub / eurRub;
+  if (code === 'BTC' && btcUsd > 0) converted = balanceUsd / btcUsd;
+  if (code === 'ETH' && ethUsd > 0) converted = balanceUsd / ethUsd;
+  if (!Number.isFinite(converted) || converted < 0 || converted > 1e12) throw new Error('crypto-conversion-unavailable');
+  return Math.round(converted * 1e8) / 1e8;
+}
+
 async function refresh(actor, options = {}) {
   owner(actor);
   return lock(async () => {
@@ -251,11 +270,12 @@ async function refresh(actor, options = {}) {
       const last = Date.parse(connection.lastSyncAt || '') || 0;
       if (!options.force && now - last < REFRESH_MS) { summary.push(safeConnection(id, connection)); continue; }
       try {
-        await assertWallet(id, options);
+        const wallet = await assertWallet(id, options);
         const snapshot = connection.provider === 'bybit'
           ? await bybitSnapshot(decryptSecret(connection.secret), options)
           : await uniswapSnapshot(connection.address, options);
-        await syncLinkedWalletBalance('Рустам', id, snapshot.balanceUsd, options);
+        const balanceNative = await usdToWalletCurrency(snapshot.balanceUsd, wallet.currency, options);
+        await syncLinkedWalletBalance('Рустам', id, balanceNative, options);
         Object.assign(connection, snapshot, { lastSyncAt: new Date().toISOString(), lastError: '' });
         changed = true;
       } catch (error) {
@@ -271,4 +291,4 @@ async function refresh(actor, options = {}) {
   });
 }
 module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, refresh,
-  encryptSecret, decryptSecret, bybitGet, bybitSnapshot, uniswapSnapshot, marketRates };
+  encryptSecret, decryptSecret, bybitGet, bybitSnapshot, uniswapSnapshot, marketRates, usdToWalletCurrency };
