@@ -1,5 +1,5 @@
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, createHash } = require('node:crypto');
 
 const NAMESPACE = 'rudi-household-finances-v1';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
@@ -417,6 +417,9 @@ function normalizeState(value) {
         targetRate: Math.max(0, Number(raw?.targetRate || 1)) || 1,
         rubAmount,
         note: cleanText(raw?.note, 120),
+        importKey: cleanText(raw?.importKey, 220),
+        balanceAdjustedSource: raw?.balanceAdjustedSource!==false,
+        balanceAdjustedTarget: raw?.balanceAdjustedTarget!==false,
         occurredAt,
         createdAt: Number.isNaN(createdAt.getTime()) ? new Date().toISOString() : createdAt.toISOString(),
       });
@@ -855,8 +858,8 @@ async function deleteWalletTransfer(actor, id, options = {}) {
     const rows = current.wallets[safeActor] || [];
     if (!rows.some((row) => row.id === found.fromWalletId) || !rows.some((row) => row.id === found.toWalletId)) throw new Error('finance-wallet-not-found');
     const nextWallets = rows.map((row) => {
-      if (row.id === found.fromWalletId) return { ...row, balance: cleanWalletBalance(Number(row.balance || 0) + Number(found.sourceAmount || 0)) };
-      if (row.id === found.toWalletId) return { ...row, balance: cleanWalletBalance(Number(row.balance || 0) - Number(found.targetAmount || 0)) };
+      if (row.id === found.fromWalletId && found.balanceAdjustedSource!==false) return { ...row, balance: cleanWalletBalance(Number(row.balance || 0) + Number(found.sourceAmount || 0)) };
+      if (row.id === found.toWalletId && found.balanceAdjustedTarget!==false) return { ...row, balance: cleanWalletBalance(Number(row.balance || 0) - Number(found.targetAmount || 0)) };
       return row;
     });
     const next = normalizeState({
@@ -1120,7 +1123,7 @@ async function savePersonalExpense(actor, payload = {}, options = {}) {
     const now = new Date(options.now || Date.now()).toISOString();
     let walletRows = [...(current.wallets[safeActor] || [])];
 
-    const externalBalanceExpense = Boolean(existing?.importKey && String(existing.importKey).startsWith('ozon:'));
+    const externalBalanceExpense = Boolean(existing?.importKey && /^(ozon|crypto):/.test(String(existing.importKey)));
     if (!externalBalanceExpense && existing?.walletId && Number(existing.sourceAmount || 0) > 0) {
       const oldWallet = walletRows.find((row) => row.id === existing.walletId);
       if (oldWallet) {
@@ -1326,7 +1329,7 @@ async function deletePersonalExpense(actor, id, options = {}) {
     if (!found) throw new Error('finance-expense-not-found');
     const now = new Date(options.now || Date.now()).toISOString();
     let wallets = current.wallets;
-    const externalBalanceExpense = Boolean(found.importKey && String(found.importKey).startsWith('ozon:'));
+    const externalBalanceExpense = Boolean(found.importKey && /^(ozon|crypto):/.test(String(found.importKey)));
     if (!externalBalanceExpense && found.walletId && Number(found.sourceAmount || 0) > 0) {
       const rows = current.wallets[safeActor] || [];
       if (rows.some((row) => row.id === found.walletId)) {
