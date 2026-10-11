@@ -26,8 +26,8 @@ test('pump fade requires actual bearish wick, high volume and prior impulse',()=
 test('candle parser removes incomplete candles and sorts reverse exchange order',()=>{
   const json={result:{list:[
     [String(NOW-60000),'1','2','.8','1.5','10'],
-    [String(NOW-300000),'1','2','.8','1.5','10'],
-    [String(NOW-600000),'1','2','.8','1.5','10']]}};
+    [String(NOW-600000),'1','2','.8','1.5','10'],
+    [String(NOW-900000),'1','2','.8','1.5','10']]}};
   const result=a.parseBars(json,NOW);
   assert.equal(result.length,2);
   assert.ok(result[0].at<result[1].at);
@@ -73,7 +73,7 @@ test('scanner persists on client and repeated scans inside interval do not doubl
     if(url.includes('/tickers'))return{ok:true,json:async()=>({
       retCode:0,result:{list:[{symbol:'TESTUSDT',turnover24h:'10000000',
         price24hPcnt:'0.12',lastPrice:'110'}]}})};
-    const b=bars();
+    const b=bars().map(x=>({...x,at:x.at-300000}));
     return{ok:true,json:async()=>({retCode:0,result:{list:b.slice().reverse().map(x=>
       [String(x.at),x.open,x.high,x.low,x.close,x.volume].map(String))}})};
   };
