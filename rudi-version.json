@@ -1,9 +1,9 @@
 {
   "current": "v4.170",
-  "versionBranch": "",
+  "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
-  "deploymentRequestedAt": null,
+  "deploymentRequestedAt": "2026-10-11T09:01:40.021Z",
   "createdAt": "2026-10-11",
   "basedOnProduction": "v4.169",
   "notes": [
@@ -16,7 +16,8 @@
     "Release requires explicit user confirmation before any production deployment.",
     "Rustam alone can manually regenerate personal AI reports unlimited times per day; no app retry counter or cooldown, while previous report remains if provider fails.",
     "Diana's AI generation button is hidden, manual endpoint is denied server-side and her daily 07:00 Moscow report is saved on her profile.",
-    "AI reports are not sent to Telegram; existing 04:00 UTC GitHub Actions schedule stays in place."
+    "AI reports are not sent to Telegram; existing 04:00 UTC GitHub Actions schedule stays in place.",
+    "Final production release v4.170: both GitHub quality gates passed; manual Git deployment authorized. This metadata change keeps the Vercel ignored-build-step from discarding the approved release after a test-only correction."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
