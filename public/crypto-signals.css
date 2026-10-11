@@ -1,0 +1,37 @@
+#financeCryptoPnl24h{margin-top:5px;font-size:12px}
+.finance-crypto-pnl{display:block;margin:3px 0 5px;font-size:12px;font-weight:600}
+.finance-crypto-pnl.is-positive{color:#56d69a}.finance-crypto-pnl.is-negative{color:#f77a88}
+.finance-crypto-pnl.is-neutral{color:var(--muted,#a6a7b1)}
+.crypto-signals-launch{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;padding:17px 16px;background:linear-gradient(120deg,rgba(93,76,171,.2),rgba(75,117,178,.12));border:1px solid rgba(148,147,245,.3);border-radius:16px;margin:13px 0;color:inherit;cursor:pointer}
+.crypto-signals-launch span:first-child{display:grid;gap:4px}.crypto-signals-launch b{font-size:16px}
+.crypto-signals-launch small{color:var(--muted,#adb0bd);font-size:12px}.crypto-signals-launch span:last-child{font-size:23px;opacity:.8}
+.crypto-signals-panel{padding:3px 0 20px;min-width:0}
+.crypto-signals-header,.crypto-signals-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.crypto-signals-header a{font-size:12px;color:#a99bff;text-decoration:none}
+.crypto-signals-back,.crypto-signals-inline{border:1px solid rgba(180,180,210,.18);background:rgba(145,144,178,.12);color:inherit;padding:9px 12px;border-radius:10px;font-size:12px;cursor:pointer}
+.crypto-signals-intro{padding:18px 2px 12px}.crypto-signals-intro h3{margin:0 0 5px;font-size:24px}
+.crypto-signals-intro p,.crypto-signals-help,.crypto-signals-section small{font-size:12px;color:var(--muted,#aeb0bb)}
+.crypto-signals-intro p,.crypto-signals-help{line-height:1.5;margin:5px 0 0}
+.crypto-signals-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.crypto-signals-stats article,.crypto-signals-section{background:rgba(130,130,155,.07);border:1px solid rgba(145,145,172,.16);border-radius:15px}
+.crypto-signals-stats article{display:grid;align-content:start;gap:5px;padding:14px 12px;min-height:96px}
+.crypto-signals-stats article small{font-size:11px;color:var(--muted,#aeb0bb)}
+.crypto-signals-stats article strong{font-size:20px;letter-spacing:-.4px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.crypto-signals-section{padding:14px;margin-top:13px;min-width:0}
+.crypto-signals-row{margin-bottom:12px}.crypto-signals-row h4{margin:0;font-size:15px}
+.crypto-signals-ratio{margin:4px 0}.crypto-signals-ratio #cryptoSignalsRatioBar{display:flex;overflow:hidden;height:8px;border-radius:6px;background:rgba(120,120,150,.17)}
+.crypto-signals-ratio #cryptoSignalsRatioBar span:first-child{background:#48ce8c}.crypto-signals-ratio #cryptoSignalsRatioBar span:last-child{background:#f47c8c}
+.crypto-signals-ratio p{font-size:12px;color:var(--muted,#afb0c0);margin:9px 0}
+.crypto-virtual-chart{width:100%;height:auto;min-height:110px;overflow:visible}
+.crypto-signals-settings{display:flex;align-items:end;gap:8px;flex-wrap:wrap}
+.crypto-signals-settings label{display:grid;gap:5px;font-size:11px;color:var(--muted,#aeb0bb)}
+.crypto-signals-settings select{font:inherit;font-size:13px;background:var(--card,#1c1d28);color:inherit;border:1px solid rgba(170,170,200,.23);border-radius:10px;padding:9px 10px}
+.crypto-signals-list{display:grid;gap:8px}
+.crypto-signals-item{display:flex;justify-content:space-between;gap:9px;padding:11px;background:rgba(130,130,155,.08);border-radius:11px;font-size:12px;min-width:0}
+.crypto-signals-item main{min-width:0}.crypto-signals-item strong{font-size:13px}
+.crypto-signals-item p{margin:5px 0 0;font-size:11px;color:var(--muted,#aeb0bb);overflow-wrap:anywhere;line-height:1.35}
+.crypto-signals-item aside{text-align:right;flex-shrink:0;display:grid;gap:4px;justify-items:end}
+.crypto-signals-item a{color:#bcaaff;text-decoration:none}.crypto-signals-item .is-positive{color:#56d69a}.crypto-signals-item .is-negative{color:#f77a88}
+.crypto-signals-status{font-size:12px;line-height:1.55;color:var(--muted,#aeb0bb);margin:12px 3px;white-space:pre-line}
+@media(min-width:620px){.crypto-signals-stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:359px){.crypto-signals-stats article strong{font-size:17px}.crypto-signals-intro h3{font-size:21px}}

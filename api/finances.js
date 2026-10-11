@@ -8,6 +8,9 @@ const {
 const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport, moscowDateKey } = require('./finance-ai.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 const cryptoWallets = require('./crypto-wallets.cjs');
+const {calculatePnl24h}=require('./crypto-pnl.cjs');
+const {readSignals}=require('./crypto-signals.cjs');
+const virtualSignals=require('./crypto-virtual.cjs');
 const { createHash } = require('node:crypto');
 function cryptoAssignmentKey(walletId,row){
   if(row?.paired&&row?.peerWalletId&&row?.peerOperationId){
@@ -163,6 +166,21 @@ async function handler(req, res) {
       if (operation === 'crypto-disconnect') {
         await cryptoWallets.disconnect(actor, body.walletId);
         return res.status(200).json({ ok: true, actor });
+      }
+      if (operation === 'crypto-pnl-24h') {
+        const links=await cryptoWallets.list(actor);
+        return res.status(200).json({ok:true,actor,...await calculatePnl24h(links)});
+      }
+      if (operation === 'crypto-signal-report') {
+        const [signals,config]=await Promise.all([readSignals(),virtualSignals.settings()]);
+        const paper=virtualSignals.simulateVirtual(signals.signals,config);
+        return res.status(200).json({ok:true,actor,signals,paper});
+      }
+      if (operation === 'crypto-signal-settings') {
+        const config=await virtualSignals.updateSettings(body);
+        const signals=await readSignals();
+        return res.status(200).json({ok:true,actor,config,
+          paper:virtualSignals.simulateVirtual(signals.signals,config)});
       }
       if (operation === 'crypto-history') {
         const result=await cryptoWallets.history(actor,

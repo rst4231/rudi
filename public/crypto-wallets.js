@@ -1,5 +1,6 @@
 (()=>{'use strict';
   let actor='',wallets=[],connections=[],editingWalletId='',pending=false,loaded=false,lastAttempt=0;
+  let pnl24h=null,pnlFlight=null;
   const $=id=>document.getElementById(id);
   const request=async(operation,payload={})=>{
     try{await Promise.resolve(window.__rudiTelegramSdkReady)}catch(_){}
@@ -59,6 +60,25 @@
   const dateLabel=iso=>iso?new Date(iso).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Пока не обновлялся';
   const setStatus=(id,message)=>{const e=$(id);if(e)e.textContent=message||'';};
   function clearKeys(){for(const id of ['financeCryptoApiKey','financeCryptoApiSecret'])if($(id))$(id).value='';}
+  const pnlText=p=>!p?.available?'PNL за сутки: недостаточно данных':
+    'Изменение за 24 ч: '+(p.deltaUsd>0?'+':'')+cash(p.deltaUsd)+
+    ' ('+(p.percent>0?'+':'')+p.percent.toFixed(2)+'%)';
+  const pnlBadge=p=>{
+    const el=document.createElement('small');el.className='finance-crypto-pnl';
+    el.textContent=pnlText(p);
+    if(p?.available){
+      el.classList.add(p.deltaUsd>0?'is-positive':p.deltaUsd<0?'is-negative':'is-neutral');
+      el.title='Изменение стоимости без корректировки на вводы/выводы. Это не чистый PNL.';
+    }else el.title='Для честного PNL нужны два полных снимка и учёт денежных потоков.';
+    return el;
+  };
+  async function loadPnl24h(){
+    if(actor!=='Рустам'||!connections.length||pnlFlight)return pnlFlight;
+    pnlFlight=request('crypto-pnl-24h').then(data=>{
+      pnl24h=data;render();
+    }).catch(()=>{pnl24h=null;render();}).finally(()=>{pnlFlight=null;});
+    return pnlFlight;
+  }
   function render(){
     const cards=$('financeCryptoCards');if(!cards)return;
     cards.replaceChildren();
@@ -84,7 +104,7 @@
         complete=false;
       }
       const detail=document.createElement('small');detail.textContent='Обновлено: '+dateLabel(link.incomplete?link.partialSyncAt:link.lastSyncAt);
-      card.append(head,amount,detail);
+      card.append(head,amount,pnlBadge(pnl24h?.items?.find(p=>p.id===link.walletId)),detail);
       if(link.incomplete){
         const badge=document.createElement('span');badge.className='finance-crypto-partial-badge';badge.textContent='Частичный баланс';card.append(badge);
       }
@@ -148,6 +168,11 @@
     if(!connections.length){const empty=document.createElement('p');empty.className='finance-crypto-empty';empty.textContent='Кошельки пока не подключены. Добавь API через редактор существующего кошелька.';cards.append(empty);}
     const amount=$('financeCryptoTotal'),label=$('financeCryptoUpdated');
     if(amount)amount.textContent=complete?cash(total):hasKnown?cash(knownTotal):'—';
+    const pnlHost=$('financeCryptoPnl24h');
+    if(pnlHost){
+      pnlHost.replaceChildren();
+      pnlHost.append(pnlBadge(pnl24h?.total));
+    }
     if(label){
       const partial=connections.length>0&&!complete&&hasKnown;
       label.hidden=partial;
@@ -176,7 +201,7 @@
   async function load(){
     if(actor!=='Рустам'||pending)return;
     const data=await request('crypto-list');
-    connections=Array.isArray(data.connections)?data.connections:[];loaded=true;render();
+    connections=Array.isArray(data.connections)?data.connections:[];loaded=true;render();void loadPnl24h();
     if(connections.some(c=>c.walletId===editingWalletId)&&$('financeWalletComposer')&&!$('financeWalletComposer').hidden)
       void loadApiWalletHistory(editingWalletId);
     return data;
@@ -194,7 +219,7 @@
       const result=await request('crypto-refresh',{force});
       connections=Array.isArray(result.connections)?result.connections:connections;
       if(Array.isArray(result.wallets))wallets=result.wallets;
-      render();
+      render();void loadPnl24h();
       setStatus('financeCryptoStatus',connections.some(c=>c.lastError)?'Часть источников не обновилась. Сохранён предыдущий баланс.':'Баланс обновлён.');
       // The established finance refresh event invokes loadFinances() in app.js.
       // This updates the existing wallet tiles without touching history or ledger rows.
