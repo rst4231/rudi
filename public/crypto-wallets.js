@@ -197,7 +197,9 @@
     const now=Date.now();
     if(!force&&now-lastAttempt<3*60*1000)return;
     pending=true;lastAttempt=now;const button=$('financeCryptoRefresh');
+    const quick=$('financeApiBalancesRefresh');
     if(button)button.disabled=true;
+    if(quick){quick.disabled=true;quick.classList.add('is-syncing');quick.setAttribute('aria-busy','true');}
     setStatus('financeCryptoStatus','Обновляю баланс…');
     try{
       const result=await request('crypto-refresh',{force});
@@ -209,7 +211,11 @@
       // This updates the existing wallet tiles without touching history or ledger rows.
       document.dispatchEvent(new Event('rudi-finance-plan-saved'));
     }catch(err){setStatus('financeCryptoStatus',errorLabel(err));}
-    finally{pending=false;if(button)button.disabled=false;}
+    finally{
+      pending=false;
+      if(button)button.disabled=false;
+      if(quick){quick.disabled=false;quick.classList.remove('is-syncing');quick.removeAttribute('aria-busy');}
+    }
   }
   function switchChain(){
     const arbitrum=$('financeCryptoChain')?.value==='arbitrum';
@@ -314,6 +320,14 @@
       if(!form.hidden)$('financeCryptoProvider')?.focus();
     });
     $('financeCryptoRefresh')?.addEventListener('click',()=>void refresh(true));
+    $('financeApiBalancesRefresh')?.addEventListener('click',async()=>{
+      if(actor!=='Рустам'||pending)return;
+      try{
+        if(!loaded)await load();
+        if(!connections.length){setStatus('financeCryptoStatus','Нет подключённых кошельков для обновления.');return;}
+        await refresh(true);
+      }catch(err){setStatus('financeCryptoStatus',errorLabel(err));}
+    });
     const summary=$('financeCryptoTotal');
     summary?.addEventListener('click',()=>toggleHistory(true));
     summary?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleHistory(true);}});
@@ -386,6 +400,8 @@
       wallets=Array.isArray(ev.detail?.wallets)?ev.detail.wallets:[];
       const tab=document.querySelector('[data-finance-tab="crypto"]');
       if(tab)tab.hidden=actor!=='Рустам';
+      const quick=$('financeApiBalancesRefresh');
+      if(quick)quick.hidden=actor!=='Рустам';
       if(actor!=='Рустам'){connections=[];loaded=false;render();return;}
       try{if(!loaded)await load();render();if(connections.length&&document.visibilityState==='visible'&&!$('financePage')?.hidden)await refresh(false);}
       catch(err){setStatus('financeCryptoStatus',errorLabel(err));}
