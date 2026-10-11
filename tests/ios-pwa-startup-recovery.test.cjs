@@ -73,7 +73,7 @@ test('app shell exposes a non-destructive startup retry when bootstrap stalls',(
   const html=fs.readFileSync('public/index.html','utf8');
   assert.match(html,/rudiStartupRetry/);
   assert.match(html,/auth-pending/);
-  assert.match(html,/RUDI долго загружается/);
+  assert.match(html,/(?:RUDI|РуДи) долго загружается/);
   assert.match(html,/rudi-retry/);
   assert.doesNotMatch(html,/caches\.delete\(|indexedDB\.deleteDatabase\(/);
 });
