@@ -148,6 +148,42 @@ async function handler(req, res) {
   try {
     if (req.query?.route === 'personal-center') return handlePersonalCenter(req, res);
     if (req.query?.route === 'personal-center-cron') return handlePersonalCenterCron(req, res);
+    if (req.query?.route === 'crypto-monitor-cron') {
+      // Reuse the already active quarter-hourly GitHub Actions schedule.
+      // Authentication is scoped to its exact workflow (not arbitrary callers).
+      const authorized=await isGitHubActionsRequestAuthorized(req,{
+        audience:'rudi-crypto-signals',
+        workflowRef:'rst4231/rudi/.github/workflows/lulu-toilet-alert.yml@refs/heads/main'
+      });
+      if(!authorized)return res.status(401).json({ok:false,error:'not-authorized'});
+      if(req.method!=='GET')return res.status(405).json({ok:false,error:'method-not-allowed'});
+      // Run independently: an inaccessible Telegram/Bybit source cannot block
+      // the other monitor. Both portfolios remain paper only.
+      const [author,algorithms]=await Promise.allSettled([
+        refreshSignals({maxBackfillPages:1,maxChecks:2}),
+        scanCryptoAlgorithms(),
+      ]);
+      const authorSuccess=author.status==='fulfilled';
+      const algorithmsSuccess=algorithms.status==='fulfilled';
+      const outcome={
+        ok:authorSuccess&&algorithmsSuccess,
+        author:authorSuccess?{
+          updatedAt:author.value.updatedAt,
+          total:author.value.stats.total,
+          sourceError:author.value.sourceError||null,
+          priceError:author.value.priceError||null
+        }:{error:'author-monitor-failed'},
+        algorithms:algorithmsSuccess?{
+          updatedAt:algorithms.value.updatedAt,
+          lastScanAt:algorithms.value.lastScanAt,
+          marketCount:algorithms.value.marketCount,
+          error:algorithms.value.error||null
+        }:{error:'algorithm-monitor-failed'}
+      };
+      if(!authorSuccess||!algorithmsSuccess)
+        console.warn('RUDI_CRYPTO_MONITOR_WARN',JSON.stringify(outcome));
+      return res.status(outcome.ok?200:503).json(outcome);
+    }
     if (req.query?.route === 'crypto-signals-cron') {
       const authorized=await isGitHubActionsRequestAuthorized(req,{
         audience:'rudi-crypto-signals',
