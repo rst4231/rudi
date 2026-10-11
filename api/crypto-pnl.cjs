@@ -14,8 +14,8 @@ function compare24h(points,now=Date.now()){
     Number.isFinite(p.usd)&&p.usd>=0&&Date.parse(p.at)<=now
   ).sort((a,b)=>a.at.localeCompare(b.at));
   const target=now-24*HOUR;
-  const base=valid.reduce((best,p)=>Math.abs(Date.parse(p.at)-target)<
-    Math.abs(Date.parse(best?.at||0)-target)?p:best,null);
+  const base=valid.reduce((best,p)=>!best||Math.abs(Date.parse(p.at)-target)<
+    Math.abs(Date.parse(best.at)-target)?p:best,null);
   const last=valid[valid.length-1];
   if(!base||!last)return {available:false,reason:'no-history'};
   if(Math.abs(Date.parse(base.at)-target)>20*60000)return {available:false,reason:'baseline-missing'};
