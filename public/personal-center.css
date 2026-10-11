@@ -271,3 +271,23 @@ body.rudi-center-open{overflow:hidden!important}
 .rudi-center__report-life-item p{font-size:13px;line-height:1.6;margin:0;overflow-wrap:anywhere}
 .rudi-center__report-life-item small{display:block;font-size:12px;line-height:1.55;color:var(--pc-muted);margin-top:10px;overflow-wrap:anywhere}
 @media(max-width:520px){.rudi-center__report-life-grid{grid-template-columns:1fr}}
+
+/* v4.172: distinct detailed AI analysis cards */
+.rudi-center__deep-intro{padding:14px 15px;margin-bottom:14px;border-radius:15px;border:1px solid var(--pc-border);background:var(--pc-panel)}
+.rudi-center__deep-intro strong{display:block;font-size:13px;color:var(--pc-accent);font-weight:800}
+.rudi-center__deep-intro p{font-size:12px;line-height:1.55;color:var(--pc-muted);margin:6px 0 0}
+.rudi-center__deep-list{display:flex;flex-direction:column;gap:16px}
+.rudi-center__deep-card{border:1px solid var(--pc-border);background:var(--pc-panel);border-radius:19px;padding:18px;overflow-wrap:anywhere}
+.rudi-center__deep-card-head{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.rudi-center__deep-card-head h3{font-size:17px;font-weight:800;letter-spacing:-.02em;margin:0}
+.rudi-center__deep-number{display:flex;align-items:center;justify-content:center;flex:none;width:29px;height:29px;border-radius:10px;background:color-mix(in srgb,var(--pc-accent) 13%,var(--pc-panel));color:var(--pc-accent);font-size:12px;font-weight:800}
+.rudi-center__deep-card small{display:block;font-size:10px;letter-spacing:.07em;font-weight:800;color:var(--pc-muted);margin-bottom:7px}
+.rudi-center__deep-card p{margin:0;font-size:14px;line-height:1.72;white-space:pre-wrap}
+.rudi-center__deep-evidence,.rudi-center__deep-interpret,.rudi-center__deep-next,.rudi-center__deep-verify{margin:0 0 15px}
+.rudi-center__deep-evidence{padding:12px 13px;border-radius:12px;background:color-mix(in srgb,var(--pc-accent) 5%,var(--pc-panel))}
+.rudi-center__deep-evidence p{font-size:13px}
+.rudi-center__deep-interpret p{font-size:15px;line-height:1.77}
+.rudi-center__deep-next,.rudi-center__deep-verify{border-left:3px solid var(--pc-accent);padding-left:12px}
+.rudi-center__deep-verify{border-left-color:var(--pc-blue)}
+.rudi-center__deep-caveat{margin:0!important;padding-top:9px;border-top:1px solid var(--pc-border);color:var(--pc-muted);font-size:12px!important;line-height:1.6!important}
+@media(max-width:520px){.rudi-center__deep-card{padding:16px}.rudi-center__deep-interpret p{font-size:14px}}

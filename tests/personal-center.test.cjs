@@ -342,10 +342,13 @@ test('positive mood charts and detailed AI insights are shown before evidence',(
  assert.ok(app.includes("positiveShare(x)"));
  assert.ok(app.includes("v.positive+' из '+v.total+' позитивных"));
  assert.ok(app.includes("report?.date===dayKey()&&report?.slot==='morning'"));
- assert.ok(app.includes("section('Что сделать сегодня',n.mainAction,'action')"));
- assert.ok(app.includes("section('На что обратить внимание',n.mainObservation)"));
+ assert.ok(app.includes('rudi-center__deep-list'));
+ assert.ok(app.includes('КАК ПРОВЕРИТЬ РЕЗУЛЬТАТ'));
+ assert.ok(app.includes('ЧТО ЭТО ЗНАЧИТ'));
+ assert.ok(!app.slice(app.indexOf("} else if(name==='report')"),app.indexOf('const evidence=[]')).includes("section('Главный вывод',n.overview"));
+ assert.ok(app.includes('Эта сводка создана в прежнем формате'));
  assert.ok(app.includes('<details class="rudi-center__report-evidence">'));
- assert.ok(app.indexOf("section('Что сделать сегодня',n.mainAction,'action')")<app.indexOf("const evidence=[]"));
+ assert.ok(app.indexOf('rudi-center__deep-list')<app.indexOf('const evidence=[]'));
  assert.ok(generator.includes('Составь содержательный персональный разбор, а не каталог показателей'));
  assert.doesNotMatch(app,/Динамика негативных эмоций|Негативные отметки|Доля негативных отметок/);
 });
@@ -489,4 +492,31 @@ test('mood spending rejects sparse or mixed emotion comparisons',()=>{
  const ui=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
  assert.match(ui,/Настроение и траты/);
  assert.match(ui,/kind\|\|''\)\.startsWith\('mood-spending'\)/);
+});
+
+test('deep analysis is generated separately and only for observed life domains',()=>{
+ const src=fs.readFileSync(path.join(__dirname,'..','api','personal-center-ai.cjs'),'utf8');
+ const front=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ const style=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
+ assert.ok(src.includes("deepAnalysis:{type:'array',items:"));
+ assert.ok(src.includes("'lifeAreas','deepAnalysis','confidence'"));
+ assert.ok(src.includes('max_completion_tokens:4000'));
+ assert.ok(src.includes('ДВА РАЗНЫХ УРОВНЯ АНАЛИЗА'));
+ assert.ok(front.includes('Что стоит за выводами'));
+ assert.ok(front.includes('КАК ПРОВЕРИТЬ РЕЗУЛЬТАТ'));
+ assert.ok(style.includes('.rudi-center__deep-card'));
+ const payload={data:{profile:{slot:'morning'},moodHistory:{entries:3},habits:{items:[{name:'Прогулки'}]},
+   finances:{expenseEntries:9,incomeEntries:0},connections:{findings:[]}}};
+ const narrative=ai.sanitize({overview:'Краткое резюме',
+  deepAnalysis:[
+    {domain:'mood',evidence:'Три даты в дневнике',analysis:'Есть три наблюдения, для тренда нужны другие даты.',nextStep:'Продолжить журнал.',verify:'Через неделю сверить записи.',caveat:'Мало записей.'},
+    {domain:'mood',evidence:'Повтор',analysis:'Дублированное наблюдение.',nextStep:'',verify:'',caveat:''},
+    {domain:'finances',evidence:'Доходы выросли',analysis:'Доход значительно вырос.',nextStep:'',verify:'',caveat:''},
+    {domain:'health',evidence:'Нет записей здоровья',analysis:'Тренд неизвестен.',nextStep:'',verify:'',caveat:''},
+    {domain:'habits',evidence:'Привычка в списке',analysis:'Краткое резюме',nextStep:'',verify:'',caveat:''},
+    {domain:'habits',evidence:'Есть привычка прогулок',analysis:'Привычка внесена в список, но завершения не подтверждены.',nextStep:'Отмечать фактическое выполнение.',verify:'Проверить через 7 дней.',caveat:'Нет истории выполнения.'}
+  ]},payload);
+ assert.deepEqual(narrative.deepAnalysis.map(x=>x.domain),['mood','habits']);
+ assert.equal(narrative.deepAnalysis[1].verify,'Проверить через 7 дней.');
+ assert.deepEqual(ai.sanitize({deepAnalysis:[]},payload).deepAnalysis,[]);
 });

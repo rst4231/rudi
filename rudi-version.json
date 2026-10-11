@@ -1,18 +1,17 @@
 {
-  "current": "v4.171",
+  "current": "v4.172",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.170",
+  "basedOnProduction": "v4.171",
   "notes": [
-    "AI daily reports analyze multiple available domains: plans, habits, mood, health, supplements, cycle and finances.",
-    "Finance transaction count no longer determines report priority; review can cover up to four evidence-backed life domains.",
-    "New report cards present cross-domain observations and measured next steps before technical evidence.",
-    "Keep previous reports intact and explicitly omit unsupported domains; new analysis takes effect on regeneration or next scheduled report.",
-    "Revisions require user confirmation before production deploy.",
-    "Verified mood-spending patterns compare positive/negative mood days, recorded-spending frequency, daily spending median, and recorded categories. Missing transactions are never assumed zero."
+    "Detailed AI report uses a distinct deepAnalysis response rather than repeating the short daily overview.",
+    "Deep sections present evidence, interpretation, practical step, seven-day validation and factual limitations across available life domains.",
+    "Existing reports keep their original saved text; legacy detail views explain how new deep analysis becomes available.",
+    "Preserve previously authorized report generation and schedules for both actors.",
+    "Single deployment requires explicit approval."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

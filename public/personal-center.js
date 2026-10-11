@@ -392,26 +392,32 @@ function sheet(name){
   else {
     const n=safeNarrative(report),ctx=report.observations||{},source=ctx.moodHistory;
     const section=(head,value,kind='')=>reportHasText(value)?'<section class="rudi-center__report-section'+(kind?' rudi-center__report-section--'+kind:'')+'"><h3>'+esc(head)+'</h3><p>'+esc(value)+'</p></section>':'';
-    html='<div class="rudi-center__report-cover"><small>✦ ЛИЧНЫЙ АНАЛИЗ</small><strong>Что важно сегодня</strong><span>'+esc(asDate(report.createdAt))+' · '+(report.slot==='morning'?'Утро':'Вечер')+'</span></div>';
+    html='<div class="rudi-center__report-cover"><small>✦ РАСШИРЕННЫЙ АНАЛИЗ</small><strong>Что стоит за выводами</strong><span>'+esc(asDate(report.createdAt))+' · '+(report.slot==='morning'?'Утро':'Вечер')+'</span></div>';
     if(report.model==='deterministic'){
       html+=section('Анализ пока недоступен','AI-модель не ответила. Факты сохранены, но персональные выводы и рекомендации пока не сформированы.');
     }else{
-      // Show meaningful analysis first, not a long digest of unrelated records.
-      html+=section('Главный вывод',n.overview,'priority');
-      html+=section('Что изменилось',n.mainChange);
-      html+=section('На что обратить внимание',n.mainObservation);
-      html+=section('Что сделать сегодня',n.mainAction,'action');
+      // The short AI overview already appears on the personal page. Do not repeat it here.
       const domains={mood:'Настроение',habits:'Привычки',tasks:'Дела и планы',health:'Самочувствие',supplements:'Добавки',cycle:'Цикл',finances:'Финансы'};
-      const lifeAreas=(Array.isArray(n.lifeAreas)?n.lifeAreas:[]).filter(x=>domains[x?.domain]&&reportHasText(x.observation)).slice(0,4);
-      if(lifeAreas.length){
-        html+='<section class="rudi-center__report-section rudi-center__report-section--life"><h3>Разбор по сферам жизни</h3><div class="rudi-center__report-life-grid">'+lifeAreas.map(x=>
-          '<div class="rudi-center__report-life-item"><strong>'+esc(domains[x.domain])+'</strong><p>'+esc(x.observation)+'</p>'+
-          (reportHasText(x.nextStep)?'<small>'+esc(x.nextStep)+'</small>':'')+'</div>').join('')+'</div></section>';
+      const deep=(Array.isArray(n.deepAnalysis)?n.deepAnalysis:[]).filter(x=>domains[x?.domain]&&reportHasText(x.analysis)&&reportHasText(x.evidence)).slice(0,4);
+      if(deep.length){
+        html+='<div class="rudi-center__deep-intro"><strong>Глубокий анализ</strong><p>Подтверждённые наблюдения, интерпретации и способы проверить выводы.</p></div>';
+        html+='<div class="rudi-center__deep-list">'+deep.map((item,i)=>
+          '<article class="rudi-center__deep-card"><div class="rudi-center__deep-card-head"><span class="rudi-center__deep-number">'+(i+1)+'</span><h3>'+esc(domains[item.domain])+'</h3></div>'+
+          '<div class="rudi-center__deep-evidence"><small>НА ЧЁМ ОСНОВАН ВЫВОД</small><p>'+esc(item.evidence)+'</p></div>'+
+          '<div class="rudi-center__deep-interpret"><small>ЧТО ЭТО ЗНАЧИТ</small><p>'+esc(item.analysis)+'</p></div>'+
+          (reportHasText(item.nextStep)?'<div class="rudi-center__deep-next"><small>ЧТО ПОПРОБОВАТЬ</small><p>'+esc(item.nextStep)+'</p></div>':'')+
+          (reportHasText(item.verify)?'<div class="rudi-center__deep-verify"><small>КАК ПРОВЕРИТЬ РЕЗУЛЬТАТ</small><p>'+esc(item.verify)+'</p></div>':'')+
+          (reportHasText(item.caveat)?'<p class="rudi-center__deep-caveat">'+esc(item.caveat)+'</p>':'')+
+          '</article>').join('')+'</div>';
+        const moodSpending=(ctx.connections?.findings||[]).filter(x=>String(x.kind||'').startsWith('mood-spending'));
+        if(moodSpending.length&&!deep.some(x=>x.domain==='finances')){
+          html+=section('Настроение и траты: подтверждённые сравнения',moodSpending.slice(0,3).map(x=>x.text).join('\\n\\n'));
+        }
+      }else{
+        html+=section('Эта сводка создана в прежнем формате',who==='Рустам'
+          ?'Новый глубокий анализ пока не сохранён. Вернись на личную страницу и нажми «Обновить AI-анализ».'
+          :'Новый глубокий анализ появится после следующего автоматического формирования сводки.');
       }
-      html+=section('Что проверить дальше',n.forecast);
-      const moodSpending=(ctx.connections?.findings||[]).filter(x=>String(x.kind||'').startsWith('mood-spending'));
-      if(moodSpending.length)html+=section('Настроение и траты',moodSpending.slice(0,3).map(x=>x.text).join('\n\n'));
-      if((ctx.connections?.findings||[]).some(x=>!String(x.kind||'').startsWith('mood-spending')))html+=section('Связи между разделами',n.connectionsText);
     }
     const evidence=[];
     if(Array.isArray(n.focus)&&n.focus.length){
