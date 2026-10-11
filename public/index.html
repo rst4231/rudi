@@ -41,6 +41,7 @@
   <link rel="stylesheet" href="/supplement-advanced.css?v=4.149">
   <link rel="stylesheet" href="/rudi-design-system.css?v=4.149">
   <link rel="stylesheet" href="/finance-cards.css?v=4.119">
+  <link rel="stylesheet" href="/crypto-signals.css?v=4.175">
   <link rel="stylesheet" href="/recommendations.css?v=4.119">
   <script>
     (() => {
@@ -127,7 +128,8 @@
   <link rel="stylesheet" href="/personal-center.css?v=4.157">
   <script defer src="/personal-center.js?v=4.157"></script>
   <link rel="stylesheet" href="/crypto-wallets.css?v=4.165">
-  <script defer src="/crypto-wallets.js?v=4.167"></script>
+  <script defer src="/crypto-wallets.js?v=4.175"></script>
+  <script defer src="/crypto-signals.js?v=4.175"></script>
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -1073,6 +1075,7 @@
         <div class="finance-crypto-overview">
           <span>Подключённые активы</span>
           <strong id="financeCryptoTotal" role="button" tabindex="0" aria-label="Открыть историю баланса">—</strong>
+          <div id="financeCryptoPnl24h" aria-label="PNL за последние 24 часа">PNL за сутки: недостаточно данных</div>
           <small id="financeCryptoUpdated">Подключи кошелёк, чтобы получать баланс автоматически</small>
         </div>
         <section id="financeCryptoHistory" class="finance-crypto-history" hidden aria-label="История баланса">
@@ -1090,9 +1093,55 @@
           <div id="financeCryptoHistoryStatus" class="finance-crypto-status"></div>
         </section>
         <section id="financeCryptoMain">
+        <button type="button" class="crypto-signals-launch" id="financeCryptoSignalsOpen">
+          <span><b>Анализ сигналов</b><small>@ne_investor · виртуальный портфель 10 000 $</small></span>
+          <span aria-hidden="true">↗</span>
+        </button>
         <div id="financeCryptoCards" class="finance-crypto-cards" aria-live="polite"></div>
         <div class="finance-crypto-guide">Чтобы подключить кошелёк, открой «Личные» и выбери «Подключить API». Trust Wallet подключается только через публичный адрес отдельной сети. Источники с неполным учётом обозначены индикатором.</div>
         <div id="financeCryptoStatus" class="finance-crypto-status" role="status" aria-live="polite"></div>
+        </section>
+        <section id="financeCryptoSignalsPanel" class="crypto-signals-panel" hidden aria-label="Виртуальный портфель и анализ торговых сигналов">
+          <header class="crypto-signals-header">
+            <button type="button" id="financeCryptoSignalsBack" class="crypto-signals-back">← К криптопортфелю</button>
+            <a href="https://t.me/ne_investor" target="_blank" rel="noopener noreferrer">@ne_investor ↗</a>
+          </header>
+          <div class="crypto-signals-intro">
+            <h3>Виртуальные сделки</h3>
+            <p>Старт 10 000 $ · 30 дней сигналов · обновление до 5 минут</p>
+          </div>
+          <div class="crypto-signals-stats">
+            <article><small>Виртуальный баланс</small><strong id="cryptoVirtualEquity">—</strong><small id="cryptoVirtualStart">Начальный капитал 10 000 $</small></article>
+            <article><small>Итоговый PNL</small><strong id="cryptoVirtualPnl">—</strong><small id="cryptoVirtualPnlPct">С учётом открытых позиций</small></article>
+            <article><small>Свободные средства</small><strong id="cryptoVirtualCash">—</strong><small id="cryptoVirtualInvested">В сделках —</small></article>
+            <article><small>Закрытые сделки</small><strong id="cryptoVirtualClosed">—</strong><small id="cryptoVirtualWinrate">Winrate —</small></article>
+          </div>
+          <div class="crypto-signals-section">
+            <div class="crypto-signals-row"><h4>Результаты сделок</h4><small id="cryptoSignalsUpdated">Ожидаем данные</small></div>
+            <div class="crypto-signals-ratio">
+              <div id="cryptoSignalsRatioBar" aria-hidden="true"></div>
+              <p id="cryptoSignalsRatioText">Нет подтверждённых закрытых сделок</p>
+            </div>
+            <svg id="cryptoVirtualChart" class="crypto-virtual-chart" viewBox="0 0 320 118" role="img" aria-label="График виртуального капитала"></svg>
+          </div>
+          <div class="crypto-signals-section">
+            <div class="crypto-signals-row"><h4>Симуляция</h4><button type="button" id="cryptoSignalsRefresh" class="crypto-signals-inline">Обновить</button></div>
+            <div class="crypto-signals-settings">
+              <label>Доля от свободного баланса <select id="cryptoSignalsAllocation"><option value="5">5%</option><option value="10">10%</option><option value="20">20%</option><option value="25">25%</option><option value="50">50%</option></select></label>
+              <label>Плечо <select id="cryptoSignalsLeverage"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="5">5×</option></select></label>
+              <button type="button" id="cryptoSignalsSettingsSave" class="crypto-signals-inline">Сохранить</button>
+            </div>
+            <p class="crypto-signals-help">Только виртуальные сделки после запуска отслеживания, без реальных ордеров. Входы без подтверждённой цены не исполняются. Итог не включает комиссии, funding и проскальзывание.</p>
+          </div>
+          <div class="crypto-signals-section">
+            <div class="crypto-signals-row"><h4>Виртуальные позиции</h4><small id="cryptoVirtualPositionsCount">0 сделок</small></div>
+            <div id="cryptoVirtualPositions" class="crypto-signals-list"></div>
+          </div>
+          <div class="crypto-signals-section">
+            <div class="crypto-signals-row"><h4>Сигналы за 30 дней</h4><small id="cryptoSignalSummary">—</small></div>
+            <div id="cryptoSignalsList" class="crypto-signals-list"></div>
+          </div>
+          <p class="crypto-signals-status" id="cryptoSignalsStatus" role="status" aria-live="polite"></p>
         </section>
       </div>
     </section>
