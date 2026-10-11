@@ -43,7 +43,8 @@ async function updateSettings(changes,options={}){
 function simulateVirtual(signals,config,now=Date.now()){
   const start=Date.parse(config.startedAt),rows=(Array.isArray(signals)?signals:[])
     .filter(s=>Date.parse(s.at)>=start&&Date.parse(s.at)<=now)
-    .filter(s=>(s.qualified||s.paperEligible)&&s.entry&&s.entryAt&&Number.isFinite(Date.parse(s.entryAt)))
+    .filter(s=>(s.qualified||s.paperEligible)&&['linear','spot'].includes(s.market)&&s.entry&&s.entryAt&&Number.isFinite(Date.parse(s.entryAt)))
+    .filter(s=>s.market!=='spot'||s.direction==='long')
     .filter(s=>['won','lost','breakeven','open'].includes(s.status))
     .map(s=>({...s,openedMs:Date.parse(s.entryAt),
       closedMs:s.exitAt&&Number.isFinite(Date.parse(s.exitAt))?Date.parse(s.exitAt):null}))
@@ -63,10 +64,11 @@ function simulateVirtual(signals,config,now=Date.now()){
       const amount=money(cash*config.allocationPct/100);
       if(amount<=0)continue;
       cash=money(cash-amount);
-      const position={id:row.id,symbol:row.symbol,direction:row.direction,url:row.url,
+      const leverage=row.market==='spot'?1:config.leverage;
+      const position={id:row.id,symbol:row.symbol,direction:row.direction,market:row.market,url:row.url,
         entry:row.entry,entryAt:row.entryAt,
-        investedUsd:amount,leverage:config.leverage,execution:row.execution||'explicit-level',
-        authorMarginMode:row.marginModeReported||null,virtualMarginMode:'isolated',
+        investedUsd:amount,leverage,execution:row.execution||'explicit-level',
+        authorMarginMode:row.marginModeReported||null,virtualMarginMode:row.market==='spot'?'cash':'isolated',
         adjustmentCount:Number(row.adjustmentCount||0),
         status:'open',pnlUsd:0};
       active.set(row.id,position);all.push(position);
@@ -75,9 +77,9 @@ function simulateVirtual(signals,config,now=Date.now()){
       if(!position)continue;
       const rate=Number(row.priceChangePct);
       if(!Number.isFinite(rate))continue;
-      const pnl=Math.max(-position.investedUsd,money(position.investedUsd*config.leverage*rate/100));
+      const pnl=Math.max(-position.investedUsd,money(position.investedUsd*position.leverage*rate/100));
       position.pnlUsd=pnl;
-      position.returnPct=money(rate*config.leverage);
+      position.returnPct=money(rate*position.leverage);
       position.status=row.status;
       position.exitAt=row.exitAt;
       cash=money(cash+position.investedUsd+pnl);
@@ -92,7 +94,7 @@ function simulateVirtual(signals,config,now=Date.now()){
       p.status='unpriced';p.pnlUsd=null;continue;
     }
     const factor=p.direction==='short'?-1:1;
-    p.pnlUsd=Math.max(-p.investedUsd,money(p.investedUsd*config.leverage*factor*(current-p.entry)/p.entry));
+    p.pnlUsd=Math.max(-p.investedUsd,money(p.investedUsd*p.leverage*factor*(current-p.entry)/p.entry));
     p.returnPct=money(p.pnlUsd/p.investedUsd*100);
     p.marketPrice=current;floating+=p.pnlUsd;marked++;
   }
@@ -113,7 +115,7 @@ function simulateVirtual(signals,config,now=Date.now()){
       winratePct:decided?money(wins/decided*100):null,
       lossratePct:decided?money(losses/decided*100):null},
     positions:all.slice().sort((a,b)=>Date.parse(b.entryAt)-Date.parse(a.entryAt)).slice(0,150),
-    note:'Виртуальные позиции рассчитываются с изолированным залогом независимо от неизвестного или явно указанного кросс-режима автора. Пополнения и доборы из Telegram фиксируются, но не увеличивают виртуальную позицию без проверенного объёма и цены. Ликвидации, комиссии, funding и проскальзывание пока не моделируются. Исторические сигналы до запуска исключены.',
+    note:'Спот Bybit моделируется без плеча. Фьючерсы Bybit — с изолированным залогом и плечом симуляции. Неподтверждённые рынки не исполняются. Реальный размер позиции автора, пополнения, ликвидации, комиссии, funding и проскальзывание не подтверждены; результат оценочный.',
     dataComplete:completeMarks};
 }
 module.exports={NS,normalizeConfig,settings,updateSettings,simulateVirtual};
