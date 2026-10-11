@@ -74,7 +74,7 @@ async function evm(address,chain,options={},deps={}){
   const config=deps.networkOf(chain);
   const rpcOptions={...options,rpcUrls:options.rpcUrls||config.rpcUrls};
   if(await deps.rpc('eth_chainId',[],rpcOptions)!==config.chainId)throw Error('crypto-network-rpc-mismatch');
-  const holdings=[{symbol:'ETH',amount:deps.unitAmount(await deps.rpc('eth_getBalance',[address,'latest'],rpcOptions),18),network:chain,priceId:key(chain,'0x0000000000000000000000000000000000000000')}];
+  const holdings=[{symbol:'ETH',amount:deps.unitAmount(await deps.rpc('eth_getBalance',[address,'latest'],rpcOptions),18),network:chain,priceId:'coingecko:ethereum'}];
   for(const [symbol,contract,decimals] of EVM_TOKENS[chain]){
     const raw=await deps.rpc('eth_call',[{to:contract,data:'0x70a08231'+address.slice(2).toLowerCase().padStart(64,'0')},'latest'],rpcOptions);
     holdings.push({symbol,amount:deps.unitAmount(raw,decimals),network:chain,contract,priceId:key(chain,contract)});
@@ -96,7 +96,15 @@ async function ton(address,options={}){
   if(!addressValid('ton',address))throw Error('crypto-address-invalid');
   const list=await json('https://tonapi.io/v2/accounts/'+encodeURIComponent(address)+'/jettons',options);
   if(!Array.isArray(list.balances))throw Error('crypto-trust-provider-invalid');
-  const item=list.balances.find(row=>row.jetton?.address===USDT_TON);
+  const canonical=value=>{
+    const a=String(value||'');
+    if(/^0:[a-f0-9]{64}$/i.test(a))return a.toLowerCase();
+    try{const b=Buffer.from(a.replace(/-/g,'+').replace(/_/g,'/'),'base64');
+      if(b.length===36&&b[1]===0)return '0:'+b.subarray(2,34).toString('hex');
+    }catch(_){}
+    return '';
+  };
+  const item=list.balances.find(row=>canonical(row.jetton?.address)===canonical(USDT_TON));
   const balance=item?amountFromRaw(item.balance,6):0;
   const result=summarize([{symbol:'USDT',amount:balance,network:'ton',usd:balance,priceUsd:1}],[],'ton');
   return {...result,incomplete:true,balanceUsd:null,partialUsd:result.balanceUsd,
@@ -116,21 +124,24 @@ async function near(address,options={}){
 }
 async function polkadot(address,options={}){
   if(!addressValid('polkadot',address))throw Error('crypto-address-invalid');
-  // Subscan search does not certify all locked/asset-hub balances. Fail closed.
-  const obj=await json('https://polkadot.api.subscan.io/api/v2/scan/search',options,{key:address});
-  const raw=obj?.data?.account?.balance??obj?.data?.balance;
-  const number=raw==null?NaN:Number(raw);
-  const decimals=Number(obj?.data?.token?.decimals??10);
-  if(obj.code!==0||!Number.isFinite(number)||number<0||!Number.isInteger(decimals)||decimals<0||decimals>18)
-    throw Error('crypto-trust-polkadot-unavailable');
-  // The returned account balance format varies between Subscan versions.
-  // Require an explicit unit and never assume raw plancks represent DOT.
-  if(!['planck','DOT'].includes(obj?.data?.balance_unit))throw Error('crypto-trust-polkadot-unavailable');
-  const amount=obj.data.balance_unit==='DOT'?number:amountFromRaw(String(raw),decimals);
+  const paths=['https://polkadot-asset-hub-public-sidecar.parity-chains.parity.io',
+    'https://polkadot-public-sidecar.parity-chains.parity.io'];
+  const balances=await Promise.allSettled(paths.map(base=>
+    json(base+'/accounts/'+encodeURIComponent(address)+'/balance-info',options)));
+  const active=[];
+  for(const result of balances){
+    if(result.status!=='fulfilled'||result.value.tokenSymbol!=='DOT')continue;
+    const row=result.value;
+    if(!/^\\d+$/.test(String(row.free))||!/^\\d+$/.test(String(row.reserved)))continue;
+    active.push(amountFromRaw((BigInt(row.free)+BigInt(row.reserved)).toString(),10));
+  }
+  if(!active.length)throw Error('crypto-trust-polkadot-unavailable');
+  const amount=active.reduce((a,b)=>a+b,0);
   const rate=(await prices(['coingecko:polkadot'],options))['coingecko:polkadot']?.price;
   if(!(Number(rate)>0))throw Error('crypto-price-unavailable');
   const result=summarize([{symbol:'DOT',amount,network:'polkadot',usd:amount*rate,priceUsd:rate}],[],'polkadot');
-  return {...result,incomplete:true,balanceUsd:null,partialUsd:result.balanceUsd,warning:'DOT: другие активы и заблокированные суммы могут отсутствовать.'};
+  return {...result,incomplete:true,balanceUsd:null,partialUsd:result.balanceUsd,
+    warning:'Учитывается нативный DOT. Стейкинг, другие активы и токены могут отсутствовать.'};
 }
 async function snapshot(address,chain,options={},deps={}){
   if(!CHAIN_LABELS[chain])throw Error('crypto-network-unsupported');
