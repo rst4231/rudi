@@ -136,7 +136,13 @@ async function verifyOwner(manager,id,owner,ctx) {
 }
 async function poolSlot0(pool,ctx){
   const raw=await call(pool,'slot0()',[],ctx);
-  return hexWords(raw,7)[0];
+  const slot=hexWords(raw,7);
+  return {sqrt:slot[0],tick:Number(signed(slot[1],24))};
+}
+function feeGrowthInside(global,lowerOutside,upperOutside,currentTick,lower,upper){
+  const below=currentTick>=lower?lowerOutside:BigInt.asUintN(256,global-lowerOutside);
+  const above=currentTick<upper?upperOutside:BigInt.asUintN(256,global-upperOutside);
+  return BigInt.asUintN(256,global-below-above);
 }
 async function snapshotV3(owner,id,prices,ctx) {
   await verifyOwner(V3,id,owner,ctx);
@@ -147,20 +153,27 @@ async function snapshotV3(owner,id,prices,ctx) {
   const t0=tokenMeta(token0),t1=tokenMeta(token1);
   const poolAddress=hexAddress(await call(V3_FACTORY,'getPool(address,address,uint24)',[BigInt(token0),BigInt(token1),BigInt(fee)],ctx));
   if(poolAddress===ZERO)throw new Error('crypto-lp-pool-invalid');
-  const sqrt=await poolSlot0(poolAddress,ctx);
-  const [amount0,amount1]=liquidityAmounts(L,sqrt,low,high);
-  // A simulated eth_call of collect calculates outstanding fees including
-  // growth since last touch; this transaction is NEVER broadcast.
-  // tokensOwed may also contain previously withdrawn principal, so label
-  // returned amounts "claimable" rather than guaranteed pure trading fees.
-  const claim=await call(V3,'collect((uint256,address,uint128,uint128))',
-    [BigInt(id),BigInt(owner),(1n<<128n)-1n,(1n<<128n)-1n],ctx,{from:owner,gas:'0x989680'});
-  const [claim0,claim1]=hexWords(claim,2);
-  if(claim0<owed0||claim1<owed1)throw new Error('crypto-lp-fee-incomplete');
+  const slot=await poolSlot0(poolAddress,ctx);
+  const [amount0,amount1]=liquidityAmounts(L,slot.sqrt,low,high);
+  // The NFT's tokensOwed values alone are stale until the position is touched.
+  // Uniswap v3's feeGrowthInside formula includes live, uncollected swap fees.
+  // All calls here are read-only and no collect transaction is sent.
+  const [global0,global1,lowerTick,upperTick]=await Promise.all([
+    call(poolAddress,'feeGrowthGlobal0X128()',[],ctx),
+    call(poolAddress,'feeGrowthGlobal1X128()',[],ctx),
+    call(poolAddress,'ticks(int24)',[BigInt(low)],ctx),
+    call(poolAddress,'ticks(int24)',[BigInt(high)],ctx),
+  ]);
+  const lowerWords=hexWords(lowerTick,8),upperWords=hexWords(upperTick,8);
+  const inside0=feeGrowthInside(global0,lowerWords[2],upperWords[2],slot.tick,low,high);
+  const inside1=feeGrowthInside(global1,lowerWords[3],upperWords[3],slot.tick,low,high);
+  const newlyAccrued0=BigInt.asUintN(256,inside0-pos[8])*L/Q128;
+  const newlyAccrued1=BigInt.asUintN(256,inside1-pos[9])*L/Q128;
+  const claim0=owed0+newlyAccrued0,claim1=owed1+newlyAccrued1;
   const liquidityUsd=val(amount0,t0,prices)+val(amount1,t1,prices);
   const feesUsd=val(claim0,t0,prices)+val(claim1,t1,prices);
   return {version:'v3',tokenId:id,pair:t0.symbol+'/'+t1.symbol,feeTier:fee/1e4,
-    range:[low,high],inRange:sqrt>sqrtTick(low)&&sqrt<sqrtTick(high),
+    range:[low,high],inRange:slot.tick>=low&&slot.tick<high,
     liquidityUsd,feesUsd,claimableIncludesPrincipal:owed0>0n||owed1>0n,
     liquidity:[{symbol:t0.symbol,amount:decimal(amount0,t0.decimals)},{symbol:t1.symbol,amount:decimal(amount1,t1.decimals)}],
     fees:[{symbol:t0.symbol,amount:decimal(claim0,t0.decimals)},{symbol:t1.symbol,amount:decimal(claim1,t1.decimals)}]};
