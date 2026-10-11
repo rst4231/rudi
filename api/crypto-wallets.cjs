@@ -473,5 +473,28 @@ async function operations(actor,walletId,options={}) {
   });
   return cryptoOperations.linkTransfers({...report.value,walletId:id},peers);
 }
-module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, setChain, refresh, history, operations,
+// Explicit on-demand read-only permission probe: no orders, no execution
+// history stored or returned, no secrets logged or exposed to the browser.
+// A successful response proves API access, NOT historical completeness.
+async function checkBybitTradeHistory(actor,walletId,options={}){
+  owner(actor);
+  const id=String(walletId||'').trim();
+  if(!/^[\\w-]{1,100}$/.test(id))throw Error('crypto-wallet-not-found');
+  const links=await readState(options),connection=links[id];
+  if(!connection||connection.provider!=='bybit')throw Error('crypto-wallet-not-found');
+  const keys=(options.decryptSecret||decryptSecret)(connection.secret);
+  const request=options.bybitGet||bybitGet;
+  const info=await request('/v5/user/query-api',{},keys,options);
+  if(Number(info.readOnly)!==1)throw Error('crypto-bybit-readonly-required');
+  const history=await request('/v5/execution/list',{category:'spot',limit:1},keys,options);
+  if(!Array.isArray(history?.list))throw Error('crypto-bybit-response-invalid');
+  return {
+    accessible:true,readOnly:true,
+    hasRecentExecutions:history.list.length>0,
+    checkedPeriodDays:7,completeHistoryVerified:false,
+    checkedAt:new Date().toISOString(),
+    note:'Доступ к истории Spot подтверждён. Отсутствие сделок за 7 дней не означает отсутствие старых покупок.'
+  };
+}
+module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, setChain, refresh, history, operations, checkBybitTradeHistory,
   encryptSecret, decryptSecret, bybitGet, bybitSnapshot, uniswapSnapshot, marketRates, usdToWalletCurrency };
