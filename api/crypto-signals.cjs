@@ -72,7 +72,10 @@ function evaluateCandles(signal,candles,now=Date.now()){
     if(!entered){
       if(c.low<=signal.entry&&c.high>=signal.entry){entered=true;entryAt=c.at;}
       else continue;
-      // The entry candle is ambiguous about target/stop sequence, skip it.
+      // Candles do not tell us whether a take/stop happened before or after fill.
+      const touchTake=signal.take!==null&&(side===1?c.high>=signal.take:c.low<=signal.take);
+      const touchStop=signal.stop!==null&&(side===1?c.low<=signal.stop:c.high>=signal.stop);
+      if(touchTake||touchStop){outcome='ambiguous';ended=true;exitAt=c.at;break;}
       continue;
     }
     const tp=signal.take!==null&&(side===1?c.high>=signal.take:c.low<=signal.take);
@@ -83,7 +86,7 @@ function evaluateCandles(signal,candles,now=Date.now()){
   if(!entered)return {status:'not-entered'};
   const last=candlesAsc[candlesAsc.length-1];
   if(!ended)return {status:'open',entryAt:new Date(entryAt).toISOString(),
-    lastPrice:Number.isFinite(last?.close)?last.close:null,lastPriceAt:last?new Date(last.at).toISOString():null};
+    marketPrice:Number.isFinite(last?.close)?last.close:null,lastPriceAt:last?new Date(last.at).toISOString():null};
   if(outcome==='ambiguous')return {status:'ambiguous',entryAt:new Date(entryAt).toISOString(),
     exitAt:exitAt?new Date(exitAt).toISOString():null};
   const percent=Math.round(side*(exitPrice-signal.entry)/signal.entry*10000)/100;
@@ -145,16 +148,18 @@ async function refreshSignals(options={}){
           if(batch.some(m=>Date.parse(m.at)<cutoff)){complete=true;break;}
         }
       }
-      const signals=[...posts.values()].map(parseSignal).filter(Boolean);
+      const signals=[...posts.values()].map(parseSignal).filter(Boolean).sort((a,b)=>b.at.localeCompare(a.at));
       const oldResults=previous.results&&typeof previous.results==='object'?previous.results:{};
       const results={};
+      let attempts=0;
       for(const s of signals){
         if(!s.qualified)continue;
         const prev=oldResults[s.id];
         if(prev?.status==='won'||prev?.status==='lost'||prev?.status==='ambiguous'){
           results[s.id]=prev;continue;
         }
-        if(Object.keys(results).length>=5){if(prev)results[s.id]=prev;continue;}
+        if(attempts>=5){if(prev)results[s.id]=prev;continue;}
+        attempts++;
         try{results[s.id]=evaluateCandles(s,await candlesForSignal(s,options),now)}
         catch(e){priceError=String(e?.message||e);results[s.id]=prev||{status:'market-unavailable'};}
       }
@@ -192,5 +197,11 @@ function buildView(state,now=Date.now()){
       avgChangePct:avgChange},
     signals:signals.slice(0,160)};
 }
-module.exports={parsePreview,parseSignal,evaluateCandles,compareSignal:parseSignal,
-  buildView,refreshSignals,candlesForSignal};
+async function readSignals(options={}){
+  const client=options.client||createRudiStateClient(options);
+  const row=await client.getRecord(NS,KEY);
+  const state=row?.value&&typeof row.value==='object'?row.value:{};
+  return buildView(state,options.now??Date.now());
+}
+module.exports={NS,parsePreview,parseSignal,evaluateCandles,compareSignal:parseSignal,
+  buildView,readSignals,refreshSignals,candlesForSignal};
