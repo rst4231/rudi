@@ -438,7 +438,7 @@ async function history(actor,walletId,days,options={}) {
 async function operations(actor,walletId,options={}) {
   owner(actor);
   const id=String(walletId||'').trim();
-  if(!/^[\\w-]{1,100}$/.test(id))throw Error('crypto-wallet-not-found');
+  if(!/^[\w-]{1,100}$/.test(id))throw Error('crypto-wallet-not-found');
   const links=await readState(options);
   if(!links[id])throw Error('crypto-wallet-not-found');
   const entries=Object.entries(links);
