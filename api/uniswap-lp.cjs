@@ -45,7 +45,7 @@ function keccak256(data) {
   return '0x'+output.toString('hex');
 }
 function selector(signature){return keccak256(Buffer.from(signature)).slice(0,10);}
-function word(value){return BigInt(value).toString(16).padStart(64,'0');}
+function word(value){return BigInt.asUintN(256,BigInt(value)).toString(16).padStart(64,'0');}
 function addr(address){if(!/^0x[a-fA-F0-9]{40}$/.test(address))throw new Error('crypto-lp-address-invalid');return address.toLowerCase();}
 function addressWord(address){return addr(address).slice(2).padStart(64,'0');}
 function signed(v,bits){const mod=1n<<BigInt(bits),raw=BigInt(v)&(mod-1n);return raw>=mod/2n?raw-mod:raw;}
@@ -141,10 +141,9 @@ async function poolSlot0(pool,ctx){
 async function snapshotV3(owner,id,prices,ctx) {
   await verifyOwner(V3,id,owner,ctx);
   const pos=hexWords(await call(V3,'positions(uint256)',[BigInt(id)],ctx),12);
-  const [token0,token1,fee,low,high,L,,,,,owed0,owed1]=[
-    hexAddress(pos[2]),hexAddress(pos[3]),Number(pos[4]),Number(signed(pos[5],24)),Number(signed(pos[6],24)),pos[7],
-    pos[8],pos[9],pos[10],pos[11]
-  ];
+  const token0=hexAddress(pos[2]),token1=hexAddress(pos[3]);
+  const fee=Number(pos[4]),low=Number(signed(pos[5],24)),high=Number(signed(pos[6],24));
+  const L=pos[7],owed0=pos[10],owed1=pos[11];
   const t0=tokenMeta(token0),t1=tokenMeta(token1);
   const poolAddress=hexAddress(await call(V3_FACTORY,'getPool(address,address,uint24)',[BigInt(token0),BigInt(token1),BigInt(fee)],ctx));
   if(poolAddress===ZERO)throw new Error('crypto-lp-pool-invalid');
