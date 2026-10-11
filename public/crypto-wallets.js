@@ -148,7 +148,11 @@
     if(!connections.length){const empty=document.createElement('p');empty.className='finance-crypto-empty';empty.textContent='Кошельки пока не подключены. Добавь API через редактор существующего кошелька.';cards.append(empty);}
     const amount=$('financeCryptoTotal'),label=$('financeCryptoUpdated');
     if(amount)amount.textContent=complete?cash(total):hasKnown?cash(knownTotal):'—';
-    if(label)label.textContent=connections.length?(complete?'Синхронизировано':hasKnown?'● Частично подтверждено':'Пока нет данных'):'Нет подключений';
+    if(label){
+      const partial=connections.length>0&&!complete&&hasKnown;
+      label.hidden=partial;
+      label.textContent=partial?'':connections.length?(complete?'Синхронизировано':'Пока нет данных'):'Нет подключений';
+    }
     renderEditor();
   }
   function renderEditor(){
