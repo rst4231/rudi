@@ -17,8 +17,10 @@
       'crypto-bybit-readonly-required':'Ключ Bybit должен быть только для чтения. Создай Read-only API Key.',
       'crypto-bybit-api-rejected':'Bybit отклонил API-запрос. Проверь ключ, разрешения и IP-ограничения.',
       'crypto-credentials-invalid':'Проверь формат API Key и API Secret.',
-      'crypto-address-invalid':'Нужен публичный адрес Ethereum: 0x и 40 символов.',
-      'crypto-uniswap-scope-confirm-required':'Подтверди, что в автоматическом балансе нужно учитывать только ETH, WETH, USDT и USDC сети Ethereum.',
+      'crypto-address-invalid':'Нужен публичный EVM-адрес 0x и 40 символов.',
+      'crypto-network-unsupported':'Выбери Ethereum Mainnet или Arbitrum One.',
+      'crypto-network-rpc-mismatch':'RPC ответил из другой сети. Баланс не изменён.',
+      'crypto-uniswap-scope-confirm-required':'Подтверди выбранную сеть и активы для автоматического учёта.',
       'crypto-lp-discovery-unavailable':'Индексатор Uniswap v4 сейчас недоступен. Старый баланс сохранён: нельзя пропускать пулы.',
       'crypto-lp-discovery-incomplete':'Не удалось найти все позиции Uniswap v4. Старый баланс сохранён.',
       'crypto-lp-unsupported-token':'В одном из пулов есть неподдерживаемый токен. Общий баланс не обновлялся.',
@@ -57,7 +59,7 @@
       const card=document.createElement('article');card.className='finance-crypto-source-card';
       const head=document.createElement('div');head.className='finance-crypto-source-head';
       const title=document.createElement('strong');title.textContent=providerName(link.provider);
-      const note=document.createElement('span');note.textContent=wallet.name;
+      const note=document.createElement('span');note.textContent=wallet.name+(link.provider==='uniswap'?' · '+(link.chain==='arbitrum'?'Arbitrum One':'Ethereum'):'');
       head.append(title,note);
       const amount=document.createElement('div');amount.className='finance-crypto-source-amount';
       if(typeof link.balanceUsd==='number'&&Number.isFinite(link.balanceUsd)){amount.textContent=cash(link.balanceUsd);total+=link.balanceUsd;}
@@ -113,7 +115,7 @@
     const link=connections.find(row=>row.walletId===editingWalletId);
     const state=$('financeCryptoWalletState'),button=$('financeCryptoToggleConnect'),disconnect=$('financeCryptoDisconnectButton');
     if(state)state.textContent=link
-      ? providerName(link.provider)+' · '+(link.lastSyncAt?'Обновлён '+dateLabel(link.lastSyncAt):link.lastError?errorLabel({message:link.lastError}):'Ожидает обновления')
+      ? providerName(link.provider)+(link.provider==='uniswap'?' · '+(link.chain==='arbitrum'?'Arbitrum':'Ethereum'):'')+' · '+(link.lastSyncAt?'Обновлён '+dateLabel(link.lastSyncAt):link.lastError?errorLabel({message:link.lastError}):'Ожидает обновления')
       :'Не подключён';
     if(button)button.textContent=link?'Изменить подключение':'Подключить API';
     if(disconnect)disconnect.hidden=!link;
@@ -143,10 +145,18 @@
     }catch(err){setStatus('financeCryptoStatus',errorLabel(err));}
     finally{pending=false;if(button)button.disabled=false;}
   }
+  function switchChain(){
+    const arbitrum=$('financeCryptoChain')?.value==='arbitrum';
+    const help=$('financeCryptoNetworkHelp'),label=$('financeCryptoScopeLabel');
+    if(help)help.textContent=arbitrum?'Arbitrum One · поддерживаются WETH, USDT, нативный USDC и USDC.e, Uniswap v3/v4.':'Ethereum Mainnet · поддерживаются ETH, WETH, USDT, USDC, Uniswap v3/v4.';
+    if(label)label.textContent='Подтверждаю учёт токенов и пулов Uniswap v3/v4 в '+(arbitrum?'Arbitrum One':'Ethereum Mainnet')+', включая суммы к получению. Другие сети не включать.';
+    if($('financeCryptoSpotConsent'))$('financeCryptoSpotConsent').checked=false;
+  }
   function switchProvider(){
     const uniswap=$('financeCryptoProvider')?.value==='uniswap';
     if($('financeCryptoBybitFields'))$('financeCryptoBybitFields').hidden=uniswap;
     if($('financeCryptoUniswapFields'))$('financeCryptoUniswapFields').hidden=!uniswap;
+    if(uniswap)switchChain();
   }
   function onOpenWallet(ev){
     editingWalletId=String(ev.detail?.walletId||'');
@@ -154,12 +164,16 @@
     clearKeys();if($('financeCryptoSpotConsent'))$('financeCryptoSpotConsent').checked=false;setStatus('financeCryptoWalletStatus','');
     const wallet=wallets.find(w=>w.id===editingWalletId);
     const provider=/uniswap/i.test(wallet?.name||'')?'uniswap':'bybit';
-    if($('financeCryptoProvider'))$('financeCryptoProvider').value=connections.find(c=>c.walletId===editingWalletId)?.provider||provider;
+    const existing=connections.find(c=>c.walletId===editingWalletId);
+    if($('financeCryptoProvider'))$('financeCryptoProvider').value=existing?.provider||provider;
+    if($('financeCryptoChain'))$('financeCryptoChain').value=existing?.chain||'ethereum';
+    if($('financeCryptoAddress'))$('financeCryptoAddress').value=existing?.address||'';
     switchProvider();renderEditor();
   }
   function boot(){
     if(!$('financeCryptoPanel'))return;
     $('financeCryptoProvider')?.addEventListener('change',switchProvider);
+    $('financeCryptoChain')?.addEventListener('change',switchChain);
     $('financeCryptoToggleConnect')?.addEventListener('click',()=>{
       const form=$('financeCryptoConnectFields');if(!form)return;form.hidden=!form.hidden;
       if(!form.hidden)$('financeCryptoProvider')?.focus();
@@ -173,7 +187,10 @@
       try{
         const payload=provider==='bybit'
           ?{apiKey:$('financeCryptoApiKey')?.value,apiSecret:$('financeCryptoApiSecret')?.value}
-          :{address:$('financeCryptoAddress')?.value,scopeConfirm:$('financeCryptoSpotConsent')?.checked?'ethereum-mainnet-including-lp':''};
+          :{address:$('financeCryptoAddress')?.value,
+             chain:$('financeCryptoChain')?.value||'ethereum',
+             scopeConfirm:$('financeCryptoSpotConsent')?.checked
+              ?($('financeCryptoChain')?.value==='arbitrum'?'arbitrum-one-including-lp':'ethereum-mainnet-including-lp'):''};
         await request('crypto-connect',{walletId,provider,...payload});
         clearKeys();if($('financeCryptoConnectFields'))$('financeCryptoConnectFields').hidden=true;
         await load();
