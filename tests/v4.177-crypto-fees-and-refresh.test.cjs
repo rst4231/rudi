@@ -13,8 +13,8 @@ test('Uniswap monthly figure has a truthful placeholder, no fake cumulative prof
   assert.match(ui,/\['Комиссии в этом месяце',null\]/);
   assert.match(ui,/\['Всего комиссии',unsureFees\?null:link\.feesUsd\]/);
   assert.match(ui,/claimableIncludesPrincipal===true/);
-  assert.match(ui,/Часть суммы к получению может включать снятую ликвидность/);
-  assert.match(ui,/нет полной истории начислений и выплат/);
+  assert.doesNotMatch(ui,/feeNote\.textContent/); // user's requested compact UI
+  assert.match(ui,/\['К получению \(включая возможную ликвидность\)',link\.feesUsd\]/);
 });
 test('Uniswap LP entries distinguish fees from possible returned principal',()=>{
   assert.match(ui,/pos\.claimableIncludesPrincipal\?'К получению \(возможна ликвидность\)':'Всего комиссии'/);

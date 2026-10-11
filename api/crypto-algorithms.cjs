@@ -2,7 +2,7 @@
 /* Independent, forward-only PAPER trading. Never sends private Bybit requests or orders. */
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const NS='rudi-crypto-algorithms-v1',KEY='virtual-short-portfolios';
-const INITIAL=10000,INTERVAL=300000,FEE=0.00055,SLIPPAGE=0.0005,LEV=2;
+const INITIAL=10000,INTERVAL=300000,SCAN_INTERVAL=15*60000,FEE=0.00055,SLIPPAGE=0.0005,LEV=2;
 const STRATEGIES=[
   {id:'pump',name:'Затухание пампа',description:'Рост за час, всплеск объёма и ослабление покупателей.'},
   {id:'rejection',name:'Ложный пробой',description:'Пробой часового максимума с возвратом под сопротивление.'},
@@ -86,11 +86,11 @@ function marketUniverse(response){
       num(v.turnover24h)>=8000000&&num(v.lastPrice)>0&&!String(v.symbol).includes('1000'))
     .sort((a,b)=>num(b.turnover24h)-num(a.turnover24h));
   // Liquid majors + high-turnover positive movers, not only BTC/ETH.
-  const liquid=eligible.slice(0,22);
+  const liquid=eligible.slice(0,7);
   const movers=eligible.filter(v=>num(v.price24hPcnt)>0.04)
-    .sort((a,b)=>num(b.price24hPcnt)-num(a.price24hPcnt)).slice(0,18);
+    .sort((a,b)=>num(b.price24hPcnt)-num(a.price24hPcnt)).slice(0,8);
   return [...new Map([...liquid,...movers].map(v=>[v.symbol,v])).values()]
-    .slice(0,40).map(v=>({symbol:v.symbol,price:num(v.lastPrice)}));
+    .slice(0,15).map(v=>({symbol:v.symbol,price:num(v.lastPrice)}));
 }
 function mark(portfolio,prices){
   let equity=portfolio.cash;
@@ -210,7 +210,7 @@ async function scan(options={}){
     const client=options.client||createRudiStateClient(options),now=options.now??Date.now();
     const existing=await client.getRecord(NS,KEY);
     const state=adapt(existing?.value||initial(now),now);
-    if(state.lastScanAt&&now-Date.parse(state.lastScanAt)<240000)return report(state);
+    if(state.lastScanAt&&now-Date.parse(state.lastScanAt)<SCAN_INTERVAL-30000)return report(state);
     let markets=[],failed=0;
     try{
       const tickerResponse=await bybit('/v5/market/tickers?category=linear',options.fetchImpl);
@@ -256,9 +256,11 @@ async function scan(options={}){
         p.positions.push(...stalePositions);
         p.lastEquity=mark(p,prices);
       }
+      const validMarkets=Object.keys(barsBySymbol).filter(s=>barsBySymbol[s]?.length>=38).length;
+      if(!validMarkets)throw Error('bybit-no-valid-candles');
       state.error=failed?'Недоступны свечи по '+failed+' из '+markets.length+' монет':null;
-      state.marketCount=markets.length;state.updatedAt=date(now);state.lastScanAt=date(now);
-    }catch(e){state.error=String(e?.message||e).slice(0,180);state.lastScanAt=date(now);}
+      state.marketCount=validMarkets;state.updatedAt=date(now);state.lastScanAt=date(now);
+    }catch(e){state.error=String(e?.message||e).slice(0,180);state.lastScanAt=date(now);console.warn('RUDI_CRYPTO_ALGO_SOURCE_WARN',state.error);}
     await client.setRecord({namespace:NS,key:KEY,value:state,tags:['rudi-crypto-algorithms'],updated_at:date(now),expires_at:null});
     return report(state);
   })();

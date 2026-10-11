@@ -101,7 +101,7 @@
       const card=document.createElement('article');card.className='finance-crypto-source-card';card.dataset.walletId=link.walletId;
       const head=document.createElement('div');head.className='finance-crypto-source-head';
       const title=document.createElement('strong');title.textContent=providerName(link.provider);
-      const note=document.createElement('span');note.textContent=wallet.name+(link.provider==='bybit'?'':' · '+(link.chain||'ethereum'));
+      const note=document.createElement('span');note.textContent=link.provider==='bybit'&&wallet.name.trim().toLowerCase()==='bybit'?'':wallet.name+(link.provider==='bybit'?'':' · '+(link.chain||'ethereum'));
       const actions=document.createElement('div');actions.className='finance-crypto-source-actions';
       const sourceRefresh=document.createElement('button');
       sourceRefresh.type='button';sourceRefresh.className='finance-crypto-source-refresh';
@@ -109,7 +109,8 @@
       sourceRefresh.disabled=Boolean(pending);
       sourceRefresh.setAttribute('aria-label','Обновить только '+providerName(link.provider));
       sourceRefresh.addEventListener('click',()=>void refreshSource(link.walletId));
-      actions.append(note,sourceRefresh);head.append(title,actions);
+      if(note.textContent.trim())actions.append(note);
+      actions.append(sourceRefresh);head.append(title,actions);
       const amount=document.createElement('div');amount.className='finance-crypto-source-amount';
       if(typeof link.balanceUsd==='number'&&Number.isFinite(link.balanceUsd)){amount.textContent=cash(link.balanceUsd);total+=link.balanceUsd;knownTotal+=link.balanceUsd;hasKnown=true;}
       else if(link.incomplete&&typeof link.partialUsd==='number'&&Number.isFinite(link.partialUsd)){knownTotal+=link.partialUsd;hasKnown=true;
@@ -146,12 +147,6 @@
           const sum=document.createElement('strong');sum.textContent=typeof value==='number'&&Number.isFinite(value)?cash(value):'—';
           row.append(name,sum);summary.append(row);
         }
-        const feeNote=document.createElement('small');
-        feeNote.className='finance-crypto-fee-hint';
-        feeNote.textContent=unsureFees
-          ?'Часть суммы к получению может включать снятую ликвидность. Её нельзя считать комиссиями. За текущий месяц нет полной истории начислений и выплат.'
-          :'«Всего комиссии» — начисленные, ещё не полученные комиссии, а не доход за всё время. За текущий месяц нет полной истории начислений и выплат.';
-        summary.append(feeNote);
         card.append(summary);
         for(const pos of (Array.isArray(link.positions)?link.positions:[]).filter(pos=>Number(pos.liquidityUsd||0)+Number(pos.feesUsd||0)>0.005)){
           const box=document.createElement('div');
@@ -207,6 +202,29 @@
       const operationButton=document.createElement('button');operationButton.type='button';operationButton.className='finance-crypto-operations-button';operationButton.textContent='История операций';
       operationButton.addEventListener('click',()=>void showOperations(link.walletId,card));
       card.append(operationButton);
+      if(link.provider==='bybit'){
+        const checkButton=document.createElement('button');
+        checkButton.type='button';checkButton.className='finance-crypto-operations-button finance-crypto-history-check';
+        checkButton.textContent='Проверить доступ к сделкам';
+        const checkStatus=document.createElement('small');
+        checkStatus.className='finance-crypto-history-check-status';
+        checkStatus.setAttribute('role','status');checkStatus.setAttribute('aria-live','polite');
+        checkButton.addEventListener('click',async()=>{
+          checkButton.disabled=true;checkButton.textContent='Проверяю…';
+          checkStatus.textContent='Проверяю права текущего Read-only API-ключа…';
+          try{
+            const result=await request('crypto-bybit-history-check',{walletId:link.walletId});
+            checkStatus.textContent=result.accessible
+              ?'Доступ к сделкам Spot есть. '+(result.hasRecentExecutions
+                ?'Есть записи за последние 7 дней.'
+                :'За последние 7 дней записей нет.')+' Полнота старой истории не подтверждена.'
+              :'История Spot недоступна.';
+          }catch(error){
+            checkStatus.textContent='Историю проверить не удалось: '+errorLabel(error);
+          }finally{checkButton.disabled=false;checkButton.textContent='Проверить доступ к сделкам';}
+        });
+        card.append(checkButton,checkStatus);
+      }
       if(link.address){const address=document.createElement('code');address.textContent=link.address.slice(0,8)+'…'+link.address.slice(-6);card.append(address);}
       cards.append(card);
     }
