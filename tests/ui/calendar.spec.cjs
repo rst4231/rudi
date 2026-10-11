@@ -17,6 +17,11 @@ async function mockRudi(page,options={}){
       static now(){return fixedNow}
     }
     window.Date=FixedDate;
+    // These UI scenarios test features after authentication, not WebAuthn itself.
+    // Model a valid prior Face ID grant exactly as the production app persists it.
+    const confirmedAt=fixedNow-60000;
+    localStorage.setItem('rudi:iphone:faceid-grant:v2:Рустам',
+      JSON.stringify({actor:'Рустам',confirmedAt,expiresAt:confirmedAt+3600000}));
   },{fixedNow:Date.parse('2026-09-21T12:00:00+03:00')});
 
   const state={

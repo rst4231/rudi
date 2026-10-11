@@ -9,6 +9,10 @@ module.exports=defineConfig({
   use:{
     baseURL:'http://127.0.0.1:4173',
     ...devices['iPhone 13'],
+    // The mocked Telegram WebApp SDK is loaded only in Telegram launch context.
+    // Use a Telegram iPhone UA so browser tests exercise authenticated mini-app
+    // startup rather than a normal browser login screen.
+    userAgent:devices['iPhone 13'].userAgent+' Telegram',
     browserName:'chromium',
     locale:'ru-RU',
     timezoneId:'Europe/Moscow',
