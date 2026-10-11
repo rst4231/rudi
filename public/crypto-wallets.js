@@ -116,12 +116,29 @@
       // repetitive "Частичный баланс" badge on every connected source card.
       if(link.provider==='uniswap'&&typeof link.walletUsd==='number'){
         const summary=document.createElement('div');summary.className='finance-crypto-breakdown';
-        for(const [label,value] of [['На адресе',link.walletUsd],['В пулах',link.liquidityUsd],['К получению',link.feesUsd]]){
+        const unsureFees=(link.positions||[]).some(pos=>pos.claimableIncludesPrincipal===true);
+        // LP snapshots expose uncollected fees, not a full history of accruals,
+        // collected payouts and removed principal since the first of the month.
+        // Never confuse an uncollected balance with monthly or lifetime income.
+        const rows=[
+          ['На адресе',link.walletUsd],
+          ['В пулах',link.liquidityUsd],
+          ['Комиссии в этом месяце',null],
+          ['Всего комиссии',unsureFees?null:link.feesUsd],
+        ];
+        if(unsureFees)rows.push(['К получению (включая возможную ликвидность)',link.feesUsd]);
+        for(const [label,value] of rows){
           const row=document.createElement('div');row.className='finance-crypto-breakdown-row';
           const name=document.createElement('span');name.textContent=label;
-          const sum=document.createElement('strong');sum.textContent=typeof value==='number'?cash(value):'—';
+          const sum=document.createElement('strong');sum.textContent=typeof value==='number'&&Number.isFinite(value)?cash(value):'—';
           row.append(name,sum);summary.append(row);
         }
+        const feeNote=document.createElement('small');
+        feeNote.className='finance-crypto-fee-hint';
+        feeNote.textContent=unsureFees
+          ?'Часть суммы к получению может включать снятую ликвидность. Её нельзя считать комиссиями. За текущий месяц нет полной истории начислений и выплат.'
+          :'«Всего комиссии» — начисленные, ещё не полученные комиссии, а не доход за всё время. За текущий месяц нет полной истории начислений и выплат.';
+        summary.append(feeNote);
         card.append(summary);
         for(const pos of (Array.isArray(link.positions)?link.positions:[]).filter(pos=>Number(pos.liquidityUsd||0)+Number(pos.feesUsd||0)>0.005)){
           const box=document.createElement('div');
@@ -131,7 +148,7 @@
           const name=document.createElement('strong');name.textContent='Uniswap '+pos.version+' · '+pos.pair+' · #'+pos.tokenId;
           const state=document.createElement('small');state.textContent=rangeState==='in-range'?'В диапазоне':rangeState==='out-of-range'?'Вне диапазона':'Диапазон не определён';
           title.append(name,state);box.append(title);
-          for(const [label,value] of [['Ликвидность',pos.liquidityUsd],['К получению',pos.feesUsd]]){
+          for(const [label,value] of [['Ликвидность',pos.liquidityUsd],[pos.claimableIncludesPrincipal?'К получению (возможна ликвидность)':'Всего комиссии',pos.feesUsd]]){
             const row=document.createElement('div');row.className='finance-crypto-lp-row';
             const name=document.createElement('span');name.textContent=label;
             const sum=document.createElement('b');sum.textContent=cash(value);
