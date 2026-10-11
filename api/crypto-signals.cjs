@@ -90,8 +90,8 @@ function attachTradeUpdates(signals,messages){
 
 function marketFromText(text,direction){
   const source=String(text||'');
-  const spot=/(?:^|[^\\p{L}])(?:спот(?:ов\\p{L}*)?|spot)(?=$|[^\\p{L}])/iu.test(source);
-  const derivative=/(?:^|[^\\p{L}])(?:фьючерс\\p{L}*|перпетуал\\p{L}*|perp(?:etual)?s?|futures?|usdt[- ]?m|isolated|cross|изолированн\\p{L}*|кросс\\p{L}*)(?=$|[^\\p{L}])/iu.test(source);
+  const spot=/(?:^|[^\p{L}])(?:спот(?:ов\p{L}*)?|spot)(?=$|[^\p{L}])/iu.test(source);
+  const derivative=/(?:^|[^\p{L}])(?:фьючерс\p{L}*|перпетуал\p{L}*|perp(?:etual)?s?|futures?|usdt[- ]?m|isolated|cross|изолированн\p{L}*|кросс\p{L}*)(?=$|[^\p{L}])/iu.test(source);
   if(spot&&derivative)return {market:'unconfirmed',marketSource:'conflicting-markets'};
   if(spot&&direction==='short')return {market:'unconfirmed',marketSource:'spot-short-unverified'};
   if(spot)return {market:'spot',marketSource:'explicit'};
