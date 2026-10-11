@@ -12,7 +12,11 @@ const SECTION_REQUESTS=[
   {id:'earn-token',name:'Earn · BYUSDT',path:'/v5/earn/token/position',query:{coin:'BYUSDT'},field:'token'},
 ];
 const knownStable=new Set(['USD','USDT','USDC','FDUSD','TUSD','DAI','USDD','USD1']);
-const validNumber=value=>{const n=Number(value);return Number.isFinite(n)&&n>=0&&n<1e12?n:null};
+const validNumber=value=>{
+  if(value===null||value===undefined||value==='')return null;
+  const n=Number(value);
+  return Number.isFinite(n)&&n>=0&&n<1e12?n:null;
+};
 function holdingsFor(section,data){
   if(section.id==='earn-token'){
     const v=validNumber(data.totalAmount);
@@ -42,7 +46,28 @@ function holdingsFor(section,data){
   }
   return {unknown,items};
 }
-async function fetchSection(section,keys,{bybitGet,options}){
+// Funding's unfiltered query is deprecated. Query known coins in chunks.
+// Not querying an unknown coin is never proof that its balance is zero.
+const FUNDING_COINS=['USDT','USDC','BTC','ETH','SOL','XRP','BNB','TON','DOGE','TRX',
+  'LTC','DOT','NEAR','DAI','USDE','FDUSD','ADA','AVAX','LINK','SHIB',
+  'SUI','PEPE','XLM','ARB','OP','APT','1INCH','SAND','GALA','SUSHI','CVX','STORJ','ENJ'];
+async function fetchSection(section,keys,{bybitGet,options,fundingCoins=[]}){
+  if(section.id==='funding'){
+    const coins=[...new Set([...FUNDING_COINS,...fundingCoins].filter(coin=>/^[A-Z0-9]{2,15}$/.test(coin)))];
+    const chunks=[];
+    for(let i=0;i<coins.length;i+=10)chunks.push(coins.slice(i,i+10));
+    const results=await Promise.allSettled(chunks.map(chunk=>bybitGet(
+      section.path,{...section.query,coin:chunk.join(',')},keys,options
+    )));
+    const items=[];let failed=false;
+    for(const result of results){
+      if(result.status!=='fulfilled'){failed=true;continue;}
+      const normalized=holdingsFor(section,result.value);
+      items.push(...normalized.items);failed ||= normalized.unknown;
+    }
+    // Even successful baskets omit unsupported or unlisted assets.
+    return {items,unknown:true,fundingScanError:failed};
+  }
   let all=[],next='',unknown=false;
   for(let page=0;page<15;page++){
     const query={...section.query};
@@ -87,7 +112,8 @@ async function snapshot(keys,{bybitGet,marketRates,options={}}){
   // Limit outstanding provider requests; Earn APIs require a distinct Read-only permission.
   for(let i=0;i<SECTION_REQUESTS.length;i+=3){
     const batch=SECTION_REQUESTS.slice(i,i+3);
-    const responses=await Promise.allSettled(batch.map(section=>fetchSection(section,keys,{bybitGet,options})));
+    const responses=await Promise.allSettled(batch.map(section=>
+      fetchSection(section,keys,{bybitGet,options,fundingCoins:assets.map(asset=>asset.symbol)})));
     for(let j=0;j<batch.length;j++){
       const section=batch[j],out=responses[j];
       if(out.status==='rejected'){
