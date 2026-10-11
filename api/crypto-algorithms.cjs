@@ -69,14 +69,16 @@ function parseBars(data,now=Date.now()){
     .sort((a,b)=>a.at-b.at);
 }
 async function bybit(path,fetchImpl=globalThis.fetch){
-  const ctrl=new AbortController(),timer=setTimeout(()=>ctrl.abort(),9500);
+  const ctrl=typeof AbortController==='function'?new AbortController():null;
+  const timer=ctrl?setTimeout(()=>ctrl.abort(),9500):null;
   try{
-    const r=await fetchImpl('https://api.bybit.com'+path,{signal:ctrl.signal,headers:{Accept:'application/json'}});
+    const r=await fetchImpl('https://api.bybit.com'+path,{...(ctrl?{signal:ctrl.signal}:{}),
+      headers:{Accept:'application/json'}});
     if(!r.ok)throw Error('bybit-http-'+r.status);
     const json=await r.json();
     if(json.retCode!==0)throw Error('bybit-'+json.retCode);
     return json;
-  }finally{clearTimeout(timer);}
+  }finally{if(timer)clearTimeout(timer);}
 }
 function marketUniverse(response){
   const eligible=(response?.result?.list||[])
