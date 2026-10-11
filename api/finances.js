@@ -9,7 +9,7 @@ const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystRe
 const { readMarketTicker } = require('./market-ticker.cjs');
 const cryptoWallets = require('./crypto-wallets.cjs');
 const {calculatePnl24h}=require('./crypto-pnl.cjs');
-const {readSignals}=require('./crypto-signals.cjs');
+const {readSignals,refreshSignals}=require('./crypto-signals.cjs');
 const virtualSignals=require('./crypto-virtual.cjs');
 const { createHash } = require('node:crypto');
 function cryptoAssignmentKey(walletId,row){
@@ -175,6 +175,14 @@ async function handler(req, res) {
         const [signals,config]=await Promise.all([readSignals(),virtualSignals.settings()]);
         const paper=virtualSignals.simulateVirtual(signals.signals,config);
         return res.status(200).json({ok:true,actor,signals,paper});
+      }
+      if (operation === 'crypto-signal-sync') {
+        // An owner-initiated bounded first sync can bootstrap the page even if
+        // GitHub's best-effort scheduled workflow has not fired yet.
+        const config=await virtualSignals.settings();
+        const signals=await refreshSignals({maxBackfillPages:1,maxChecks:2});
+        return res.status(200).json({ok:true,actor,signals,
+          paper:virtualSignals.simulateVirtual(signals.signals,config)});
       }
       if (operation === 'crypto-signal-settings') {
         const config=await virtualSignals.updateSettings(body);
