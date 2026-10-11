@@ -237,7 +237,8 @@ async function handler(req, res) {
           ...viewState(saved.state,actor)});
       }
       if (operation === 'crypto-refresh') {
-        const connections = await cryptoWallets.refresh(actor, { force: body.force === true });
+        const connections = await cryptoWallets.refresh(actor, { force: body.force === true,
+          ...(body.walletId?{walletId:String(body.walletId)}:{}) });
         const state = await readFinanceState();
         return res.status(200).json({ ok: true, actor, connections, wallets: viewState(state, actor).wallets });
       }
