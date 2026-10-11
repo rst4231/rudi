@@ -132,6 +132,12 @@ test('history stores actual date-stamped observations, preserves partial status'
 test('v4.168 UI provides history chart and hides deprecated captions',()=>{
   const html=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
   const js=fs.readFileSync(path.join(__dirname,'..','public','crypto-wallets.js'),'utf8');
+  assert.match(html,/id="financeApiBalancesRefresh"/);
+  assert.match(html,/id="financeExportButton"/);
+  assert.ok(html.indexOf('id="financeApiBalancesRefresh"') < html.indexOf('id="financeExportButton"'));
+  assert.match(js,/financeApiBalancesRefresh/);
+  assert.match(js,/await refresh\(true\)/);
+  assert.match(js,/document\.dispatchEvent\(new Event\('rudi-finance-plan-saved'\)\)/);
   assert.match(html,/financeCryptoHistory/);
   assert.match(html,/data-crypto-period="365"/);
   assert.match(html,/<option value="trust">Trust Wallet<\/option>/);
