@@ -190,6 +190,8 @@
     if(actor!=='Рустам'||pending)return;
     const data=await request('crypto-list');
     connections=Array.isArray(data.connections)?data.connections:[];loaded=true;render();
+    if(connections.some(c=>c.walletId===editingWalletId)&&$('financeWalletComposer')&&!$('financeWalletComposer').hidden)
+      void loadApiWalletHistory(editingWalletId);
     return data;
   }
   async function refresh(force=false){
@@ -292,24 +294,159 @@
       }
     }catch(error){setStatus('financeCryptoHistoryStatus',errorLabel(error));}
   }
+
+  // Operation attribution never sends funds. It links an already observed API
+  // transaction to a finance ledger row while API balances remain authoritative.
+  let apiHistoryRequest=0,allocationBusy=false;
+  const opDirection=row=>row.kind==='transfer'?row.direction:row.kind;
+  const opTitle=row=>(row.kind==='transfer'?'↔ Перевод':row.kind==='receive'?'↓ Получено':
+    row.kind==='send'?'↑ Отправлено':'Операция')+' · '+String(row.symbol||'')+' · '+
+    Number(row.amount||0).toLocaleString('ru-RU',{maximumFractionDigits:8});
+  function walletOrCategory(result,row){
+    if(!row.assignment)return 'Нажми, чтобы отнести операцию';
+    if(row.assignment.mode==='expense'){
+      const c=(result.categories||[]).find(x=>x.id===row.assignment.categoryId);
+      return 'Расход · '+(c?.name||'Категория');
+    }
+    const w=(result.wallets||[]).find(x=>x.id===row.assignment.targetWalletId);
+    return 'Перевод · '+(w?.name||'Кошелёк');
+  }
+  function operationElement(result,row,walletId){
+    const item=document.createElement('button');
+    item.className='finance-crypto-operation-item';item.type='button';
+    const top=document.createElement('div');top.className='finance-crypto-operation-main';
+    const title=document.createElement('strong');title.textContent=opTitle(row);
+    const when=document.createElement('small');
+    const d=new Date(row.timestamp);when.textContent=Number.isFinite(d.getTime())?
+      d.toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Дата не указана';
+    top.append(title,when);
+    const subtitle=document.createElement('small');subtitle.className='finance-crypto-operation-link';
+    subtitle.textContent=walletOrCategory(result,row);
+    item.append(top,subtitle);
+    item.addEventListener('click',()=>openOperationClassifier(result,row,walletId));
+    return item;
+  }
+  function openOperationClassifier(result,row,walletId){
+    if(actor!=='Рустам'||allocationBusy)return;
+    const direction=opDirection(row);
+    if(!['send','receive'].includes(direction))return;
+    document.querySelector('.finance-crypto-allocation-backdrop')?.remove();
+    const backdrop=document.createElement('div');backdrop.className='finance-crypto-allocation-backdrop';
+    const sheet=document.createElement('section');sheet.className='finance-crypto-allocation-sheet';
+    sheet.setAttribute('role','dialog');sheet.setAttribute('aria-modal','true');
+    sheet.setAttribute('aria-label','Привязать транзакцию');
+    const top=document.createElement('div');top.className='finance-crypto-allocation-heading';
+    const head=document.createElement('strong');head.textContent='Привязать транзакцию';
+    const close=document.createElement('button');close.type='button';close.textContent='×';
+    close.className='finance-crypto-allocation-close';close.setAttribute('aria-label','Закрыть');
+    top.append(head,close);
+    const detail=document.createElement('p');detail.textContent=opTitle(row)+' · '+
+      (row.network||'Сеть не указана')+' · '+String(row.timestamp||'').slice(0,10);
+    const type=document.createElement('select');type.setAttribute('aria-label','Что это за операция');
+    const opt=(value,label)=>{const o=document.createElement('option');o.value=value;o.textContent=label;return o;};
+    type.append(opt('transfer','Перевод между моими кошельками'));
+    if(direction==='send')type.append(opt('expense','Расход по категории'));
+    type.value=row.assignment?.mode||'transfer';
+    if(![...type.options].some(o=>o.value===type.value))type.value='transfer';
+    const target=document.createElement('select');target.setAttribute('aria-label','Кошелёк или категория');
+    const amount=document.createElement('input');amount.type='number';amount.step='0.01';
+    amount.min='0.01';amount.inputMode='decimal';amount.required=true;
+    amount.placeholder='Сумма в ₽';amount.value=row.assignment?.rubAmount||'';
+    const note=document.createElement('input');note.type='text';note.maxLength=120;
+    note.placeholder='Комментарий (необязательно)';
+    note.value=row.assignment?.note||String(row.symbol||'')+' '+String(row.amount||'');
+    const label=(text,input)=>{const box=document.createElement('label');box.className='finance-crypto-allocation-field';
+      const caption=document.createElement('span');caption.textContent=text;box.append(caption,input);return box;};
+    const targetLabel=label('Куда отнести',target);
+    const refreshTarget=()=>{
+      target.replaceChildren();
+      const candidates=type.value==='expense'?result.categories:result.wallets;
+      for(const c of candidates||[]){
+        if(type.value==='transfer'&&c.id===walletId)continue;
+        target.append(opt(c.id,c.name+(c.currency?' · '+c.currency:'')));
+      }
+      const selected=type.value==='expense'?row.assignment?.categoryId:row.assignment?.targetWalletId;
+      if(selected&&[...target.options].some(o=>o.value===selected))target.value=selected;
+    };
+    type.addEventListener('change',refreshTarget);refreshTarget();
+    const help=document.createElement('p');help.className='finance-crypto-allocation-help';
+    help.textContent='Укажи стоимость этой операции в рублях. Для API-кошельков деньги повторно не списываются. Если выбран обычный кошелёк, его баланс изменится.';
+    const status=document.createElement('div');status.className='finance-crypto-allocation-status';
+    status.setAttribute('role','status');
+    const save=document.createElement('button');save.className='finance-crypto-allocation-save';
+    save.type='button';save.textContent='Сохранить';
+    sheet.append(top,detail,label('Тип операции',type),targetLabel,
+      label('Сумма операции в рублях',amount),label('Комментарий',note),help,status,save);
+    backdrop.append(sheet);document.body.append(backdrop);
+    const finish=()=>backdrop.remove();
+    close.addEventListener('click',finish);
+    backdrop.addEventListener('click',e=>{if(e.target===backdrop)finish();});
+    backdrop.addEventListener('keydown',e=>{if(e.key==='Escape')finish();});
+    save.addEventListener('click',async()=>{
+      const rubAmount=Number(amount.value);
+      if(!(rubAmount>0)||!target.value){status.textContent='Выбери кошелёк или категорию и введи сумму в рублях.';return;}
+      if(allocationBusy)return;allocationBusy=true;save.disabled=true;save.textContent='Сохраняю…';status.textContent='';
+      try{
+        await request('crypto-classify',{walletId,operationId:row.id,mode:type.value,
+          categoryId:type.value==='expense'?target.value:undefined,
+          targetWalletId:type.value==='transfer'?target.value:undefined,
+          rubAmount,note:note.value});
+        finish();
+        document.dispatchEvent(new Event('rudi-finance-plan-saved'));
+        setStatus('financeCryptoStatus','Операция сохранена в истории выбранного кошелька или категории.');
+        const card=document.querySelector('#financeCryptoCards .finance-crypto-source-card[data-wallet-id="'+CSS.escape(walletId)+'"]');
+        const opWrap=card?.querySelector('.finance-crypto-operations');
+        if(opWrap){opWrap.remove();void showOperations(walletId,card);}
+        const modal=$('financeWalletComposer');
+        if(modal&&!modal.hidden&&editingWalletId===walletId)void loadApiWalletHistory(walletId);
+        void refresh(false);
+      }catch(error){status.textContent=errorLabel(error).startsWith('Не удалось получить баланс')?
+        'Не удалось сохранить привязку. Проверь сумму, валюты и доступность API.':errorLabel(error);}
+      finally{allocationBusy=false;save.disabled=false;save.textContent='Сохранить';}
+    });
+    amount.focus();
+  }
   async function showOperations(walletId,card){
     let wrap=card.querySelector('.finance-crypto-operations');
     if(wrap){wrap.remove();return;}
-    wrap=document.createElement('div');wrap.className='finance-crypto-operations';wrap.textContent='Получаю операции…';card.append(wrap);
+    wrap=document.createElement('div');wrap.className='finance-crypto-operations';
+    wrap.textContent='Получаю операции…';card.append(wrap);
     try{
       const result=await request('crypto-operations',{walletId});
+      if(!wrap.isConnected)return;
       wrap.replaceChildren();
       const rows=Array.isArray(result.items)?result.items:[];
       if(!rows.length){wrap.textContent='Операций пока нет';return;}
-      for(const row of rows.slice(0,25)){
-        const item=document.createElement('div');item.className='finance-crypto-asset';
-        const label=document.createElement('span');
-        label.textContent=(row.kind==='transfer'?row.details:row.kind==='receive'?'Пополнение':row.kind==='send'?'Вывод':'Перемещение')+' · '+row.symbol+' · '+new Date(row.timestamp).toLocaleDateString('ru-RU');
-        const value=document.createElement('strong');value.textContent=Number(row.amount).toLocaleString('ru-RU',{maximumFractionDigits:8});
-        item.append(label,value);wrap.append(item);
+      for(const row of rows.slice(0,40))wrap.append(operationElement(result,row,walletId));
+      if(result.incomplete){const warning=document.createElement('small');
+        warning.textContent='Доступна только часть истории внешнего API.';wrap.append(warning);}
+    }catch(error){if(wrap.isConnected)wrap.textContent=errorLabel(error);}
+  }
+  async function loadApiWalletHistory(walletId){
+    const root=$('financeWalletHistory'),modal=$('financeWalletComposer');
+    if(!root||!modal||modal.hidden||editingWalletId!==walletId)return;
+    const id=++apiHistoryRequest;
+    let host=$('financeApiWalletHistory');
+    if(!host){host=document.createElement('div');host.id='financeApiWalletHistory';
+      host.className='finance-crypto-embedded-history';root.append(host);}
+    host.textContent='Загружаю операции подключённого кошелька…';
+    try{
+      const result=await request('crypto-operations',{walletId});
+      if(id!==apiHistoryRequest||!host.isConnected||editingWalletId!==walletId)return;
+      host.replaceChildren();
+      const title=document.createElement('h4');title.textContent='Операции API';host.append(title);
+      const rows=Array.isArray(result.items)?result.items:[];
+      if(rows.length){
+        root.querySelectorAll('.finance-history-empty').forEach(empty=>empty.remove());
+        for(const row of rows.slice(0,35))host.append(operationElement(result,row,walletId));
+      }else{
+        const empty=document.createElement('p');empty.textContent='У подключённого API пока нет доступных операций.';
+        host.append(empty);
       }
-      if(result.incomplete){const warning=document.createElement('small');warning.textContent='Показана доступная история, часть данных недоступна.';wrap.append(warning);}
-    }catch(error){wrap.textContent=errorLabel(error);}
+      if(result.incomplete){const note=document.createElement('small');
+        note.textContent='История внешнего API может быть частичной.';host.append(note);}
+    }catch(error){if(id===apiHistoryRequest&&host.isConnected)host.textContent=
+      'История API недоступна. Повтори позже.';}
   }
   function boot(){
     if(!$('financeCryptoPanel'))return;
@@ -393,7 +530,11 @@
     walletList?.addEventListener('click',markWallet,true);
     walletList?.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')markWallet(event);},true);
     if(modal)new MutationObserver(()=>{
-      if(!modal.hidden&&modal.getAttribute('aria-hidden')!=='true')onOpenWallet({detail:{walletId:editingWalletId}});
+      if(!modal.hidden&&modal.getAttribute('aria-hidden')!=='true'){
+        onOpenWallet({detail:{walletId:editingWalletId}});
+        if(connections.some(row=>row.walletId===editingWalletId))
+          void loadApiWalletHistory(editingWalletId);
+      }else apiHistoryRequest++;
     }).observe(modal,{attributes:true,attributeFilter:['hidden','aria-hidden']});
     document.addEventListener('rudi-finances-updated',async(ev)=>{
       actor=String(ev.detail?.actor||'');
