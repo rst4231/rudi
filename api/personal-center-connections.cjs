@@ -25,6 +25,78 @@ function moodByDay(rows,through){
  }
  return result;
 }
+// Mood comparison counts *recorded purchases*, not inferred no-spend days.
+function moodPolarityByDay(rows,through){
+ const groups=new Map();
+ for(const row of Array.isArray(rows)?rows:[]){
+  const day=fixedDay(row?.date);if(!day||day>through)continue;
+  const samples=(Array.isArray(row.samples)?row.samples:[]).map(x=>x?.mood).filter(x=>MOODS.has(x));
+  const emotions=samples.length?samples:MOODS.has(row.mood)?[row.mood]:[];
+  const positive=emotions.filter(x=>x==='joy'||x==='love').length;
+  const negative=emotions.filter(x=>NEGATIVE.has(x)).length;
+  if(!emotions.length)continue;
+  if(positive/emotions.length>=.6)groups.set(day,'positive');
+  else if(negative/emotions.length>=.6)groups.set(day,'negative');
+ }
+ return groups;
+}
+function median(values){
+ if(!values.length)return null;
+ const sorted=values.slice().sort((a,b)=>a-b),n=sorted.length,mid=Math.floor(n/2);
+ return n%2?sorted[mid]:(sorted[mid-1]+sorted[mid])/2;
+}
+function moodSpendingFindings(moodHistory,spending,through){
+ const polarity=moodPolarityByDay(moodHistory,through);
+ const group={positive:[],negative:[]};
+ for(const [day,mood] of polarity)group[mood].push({day,record:spending.get(day)||null});
+ const good=group.positive,bad=group.negative;
+ const all=[...good,...bad],results=[];
+ // At least eight observations of EACH mood across >=21 days.
+ if(good.length<8||bad.length<8||spanDays(all)<21)return results;
+ const goodSpend=good.filter(x=>x.record),badSpend=bad.filter(x=>x.record);
+ // Relative share of days WITH an expense record, not spending frequency.
+ // Require multiple observations for each mood so gaps do not masquerade as savings.
+ if(goodSpend.length>=4&&badSpend.length>=4){
+  const rateGood=Math.round(goodSpend.length/good.length*100);
+  const rateBad=Math.round(badSpend.length/bad.length*100);
+  if(Math.abs(rateGood-rateBad)>=25){
+   results.push({kind:'mood-spending-coverage',title:'Настроение и частота записей расходов',
+    daysA:good.length,daysB:bad.length,spanDays:spanDays(all),percentA:rateGood,percentB:rateBad,
+    text:'В дни с преимущественно позитивным настроением расходы записаны в '+goodSpend.length+' из '+good.length+' дней ('+rateGood+'%), с негативным — в '+badSpend.length+' из '+bad.length+' ('+rateBad+'%). Отсутствие записи не доказывает отсутствие трат.',
+    interpretation:'Сравнивается частота записей, а не фактическая частота покупок; причинная связь не установлена.'});
+  }
+ }
+ // Amounts are compared ONLY among days with actual recorded expenses.
+ if(sampleEvidence(goodSpend,badSpend)){
+  const goodMedian=median(goodSpend.map(x=>x.record.sum));
+  const badMedian=median(badSpend.map(x=>x.record.sum));
+  if(Math.abs(goodMedian-badMedian)>=Math.max(150,Math.min(goodMedian,badMedian)*.25)){
+   results.push({kind:'mood-spending-amount',title:'Настроение и размер расходов',
+    daysA:goodSpend.length,daysB:badSpend.length,spanDays:spanDays([...goodSpend,...badSpend]),
+    medianA:Math.round(goodMedian),medianB:Math.round(badMedian),
+    text:'В дни с записанными расходами медианная сумма при позитивном настроении — '+Math.round(goodMedian)+' ₽ ('+goodSpend.length+' дней), при негативном — '+Math.round(badMedian)+' ₽ ('+badSpend.length+' дней).',
+    interpretation:'Сравниваются только дни с подтверждёнными расходами; различие не доказывает влияние настроения.'});
+  }
+  // Look for one clearly distinct, recorded spending category.
+  const categories=new Set([...goodSpend,...badSpend].flatMap(x=>Object.keys(x.record.categories||{})));
+  let strongest=null;
+  for(const name of categories){
+   if(name==='Без категории')continue;
+   const a=goodSpend.filter(x=>x.record.categories?.[name]).length;
+   const b=badSpend.filter(x=>x.record.categories?.[name]).length;
+   if(a+b<4)continue;
+   const pa=Math.round(a/goodSpend.length*100),pb=Math.round(b/badSpend.length*100),delta=Math.abs(pa-pb);
+   if(delta>=35&&(!strongest||delta>strongest.delta))strongest={name,a,b,pa,pb,delta};
+  }
+  if(strongest){
+   const x=strongest;
+   results.push({kind:'mood-spending-category',title:'Настроение и категории расходов',daysA:goodSpend.length,daysB:badSpend.length,spanDays:spanDays([...goodSpend,...badSpend]),
+    text:'Категория «'+x.name+'» встречалась в '+x.a+' из '+goodSpend.length+' дней с позитивным настроением и записанными расходами ('+x.pa+'%) и в '+x.b+' из '+badSpend.length+' таких дней с негативным ('+x.pb+'%).',
+    interpretation:'Сопоставление записанных категорий, а не доказательство влияния настроения.'});
+  }
+ }
+ return results;
+}
 function spendingByDay(finances,actor,through){
  const categories=new Map((finances?.categories?.[actor]||[]).map(x=>[x.id,String(x.name||'').slice(0,50)]));
  const days=new Map();
@@ -68,7 +140,7 @@ function analyzeConnections({actor,date,finances,habits,moodHistory,symptoms,wor
  if(!['Рустам','Диана'].includes(actor)||!fixedDay(date))throw Error('invalid-cross-section-context');
  const moods=moodByDay(moodHistory,date),spending=spendingByDay(finances,actor,date),habitDays=habitStatus(habits,date);
  const calendar=actor==='Диана'?workdaysByDate(workCalendar,date):null;
- const findings=[];
+ const findings=moodSpendingFindings(moodHistory,spending,date);
  for(const habit of habitDays){
   const done=[],miss=[];
   for(const [day,success] of habit.states){
@@ -114,7 +186,7 @@ function analyzeConnections({actor,date,finances,habits,moodHistory,symptoms,wor
    text:'На '+overlap.length+' датах записаны и симптомы, и настроение. Дней без симптомов определить нельзя.',
    interpretation:'Совпадение дат — не свидетельство о причине симптомов.'});
  }
- findings.sort((a,b)=>(b.daysA+b.daysB)-(a.daysA+a.daysB));
+ findings.sort((a,b)=>Number(b.kind.startsWith('mood-spending'))-Number(a.kind.startsWith('mood-spending'))||(b.daysA+b.daysB)-(a.daysA+a.daysB));
  const gaps=[];
  if(!moods.size)gaps.push('Не хватает датированных эмоций.');
  if(!spending.size)gaps.push('Не хватает датированных расходов.');
@@ -123,4 +195,4 @@ function analyzeConnections({actor,date,finances,habits,moodHistory,symptoms,wor
  return {method:'observed-paired-days-v1',actor,date,coverage:{moodDays:moods.size,expenseDays:spending.size,habitStatusDays:new Set(habitDays.flatMap(x=>[...x.states.keys()])).size,calendarDays:calendar?.size||0,symptomOnsetDays:symptomDays.size,historicalCompletedTaskDays:0},
   findings:findings.slice(0,5),gaps:gaps.slice(0,4),disclaimer:'Наблюдения — статистические совпадения в записанных данных, не доказательство причины. Неполные дни не считаются днями без расходов, эмоций или задач.'};
 }
-module.exports={analyzeConnections,moodByDay,spendingByDay,habitStatus,workdaysByDate,sampleEvidence};
+module.exports={analyzeConnections,moodByDay,moodPolarityByDay,moodSpendingFindings,spendingByDay,habitStatus,workdaysByDate,sampleEvidence};

@@ -415,3 +415,78 @@ test('Diana is cron-only: no manual invocation, no button and an idempotent 07:0
  assert.match(app,/button.hidden=who!=='Рустам'/);
  assert.match(app,/if\(who!=='Рустам'\|\|manualLoading\)return/);
 });
+
+test('AI personal review prioritizes genuine life domains instead of financial data volume',()=>{
+ const source=fs.readFileSync(path.join(__dirname,'..','api','personal-center-ai.cjs'),'utf8');
+ const front=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ const styles=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
+ assert.match(source,/availableReviewDomains\(payload\.data\)/);
+ assert.match(source,/Это личный обзор ВСЕЙ жизни, а НЕ отчёт о расходах/);
+ assert.match(source,/Деньги — только один из разделов/);
+ assert.match(source,/lifeAreas:\{type:'array',items:/);
+ assert.match(source,/availableDomains,data:\{tasks:payload\.data\.tasks/);
+ assert.match(front,/Разбор по сферам жизни/);
+ assert.match(front,/rudi-center__report-life-grid/);
+ assert.match(styles,/grid-template-columns:1fr/);
+});
+test('review domain coverage and output validation never invent absent records',()=>{
+ const rich={tasks:[{title:'План'}],habits:{items:[{name:'Зарядка'}]},moodHistory:{entries:3},
+   profile:{body:{weightCount:2},health:{symptomsTotal:1}},supplements:{items:[]},
+   finances:{expenseEntries:140,incomeEntries:0}};
+ assert.deepEqual(ai.availableReviewDomains(rich),['mood','habits','tasks','health','finances']);
+ const payload={data:{...rich,connections:{findings:[]}}};
+ const response=ai.sanitize({lifeAreas:[
+   {domain:'tasks',observation:'Есть запланированное дело',nextStep:'Уточни приоритет'},
+   {domain:'habits',observation:'В списке есть зарядка',nextStep:''},
+   {domain:'finances',observation:'Доходы выросли',nextStep:''},
+   {domain:'mood',observation:'Есть 3 записи настроения',nextStep:'Продолжай записи'},
+   {domain:'cycle',observation:'Есть прогноз цикла',nextStep:''},
+   {domain:'mood',observation:'Дубликат',nextStep:''}
+ ]},payload);
+ assert.deepEqual(response.lifeAreas.map(x=>x.domain),['tasks','habits','mood']);
+ assert.equal(response.lifeAreas[0].nextStep,'Уточни приоритет');
+ assert.equal(ai.availableReviewDomains({}),[].length);
+ const none=ai.sanitize({lifeAreas:[{domain:'finances',observation:'Куплено 3 товара'}]},
+  {data:{profile:{slot:'morning'},connections:{findings:[]}}});
+ assert.deepEqual(none.lifeAreas,[]);
+});
+
+test('mood spending finds balanced recorded-day, amount and category patterns without causality',()=>{
+ const moods=[],expenses=[];
+ for(let n=1;n<=24;n++){
+  const day='2026-09-'+String(n).padStart(2,'0');
+  const good=n%2===0;
+  moods.push({date:day,mood:good?'joy':'sadness',samples:[{mood:good?'joy':'sadness'}]});
+  if(good||n%4===1){
+   expenses.push({actor:'Рустам',occurredAt:day+'T11:00:00+03:00',rubAmount:good?1600:300,categoryId:good?'coffee':'food'});
+  }
+  expenses.push({actor:'Диана',occurredAt:day+'T11:00:00+03:00',rubAmount:99999,categoryId:'food'});
+ }
+ const finances={categories:{'Рустам':[{id:'coffee',name:'Кафе'},{id:'food',name:'Продукты'}]},personalExpenses:expenses};
+ const rich=connections.analyzeConnections({actor:'Рустам',date:'2026-10-10',moodHistory:moods,finances});
+ assert.equal(rich.coverage.moodDays,24);
+ assert.equal(rich.coverage.expenseDays,18);
+ const coverage=rich.findings.find(x=>x.kind==='mood-spending-coverage');
+ const amount=rich.findings.find(x=>x.kind==='mood-spending-amount');
+ const category=rich.findings.find(x=>x.kind==='mood-spending-category');
+ assert.ok(coverage);assert.ok(amount);assert.ok(category);
+ assert.equal(coverage.percentA,100);
+ assert.equal(coverage.percentB,50);
+ assert.equal(amount.medianA,1600);
+ assert.equal(amount.medianB,300);
+ assert.match(coverage.text,/Отсутствие записи не доказывает отсутствие трат/);
+ assert.match(amount.interpretation,/не доказывает влияние настроения/);
+ assert.match(category.text,/Кафе/);
+ assert.doesNotMatch(JSON.stringify(rich.findings),/99999/);
+ const none=connections.analyzeConnections({actor:'Диана',date:'2026-10-10',moodHistory:moods,finances});
+ assert.equal(none.findings.filter(x=>x.kind.startsWith('mood-spending')).length,0);
+});
+test('mood spending rejects sparse or mixed emotion comparisons',()=>{
+ const spending=new Map([['2026-09-01',{sum:900,categories:{Кафе:900}}]]);
+ assert.deepEqual(connections.moodSpendingFindings([{date:'2026-09-01',mood:'joy'}],spending,'2026-10-10'),[]);
+ const mixed=connections.moodPolarityByDay([{date:'2026-09-01',samples:[{mood:'joy'},{mood:'sadness'}]}],'2026-10-10');
+ assert.equal(mixed.has('2026-09-01'),false);
+ const ui=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ assert.match(ui,/Настроение и траты/);
+ assert.match(ui,/kind\|\|''\)\.startsWith\('mood-spending'\)/);
+});

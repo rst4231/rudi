@@ -263,3 +263,11 @@ body.rudi-center-open{overflow:hidden!important}
  .rudi-center__report-section{padding:15px 13px}
 }
 @media(prefers-reduced-motion:reduce){.rudi-center__report-evidence summary::after{transition:none}}
+
+/* v4.171 · evidence-based cross-domain daily review */
+.rudi-center__report-life-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.rudi-center__report-life-item{border:1px solid var(--pc-border);border-radius:13px;padding:14px;background:var(--pc-surface,var(--pc-panel));min-width:0}
+.rudi-center__report-life-item strong{display:block;font-size:14px;font-weight:800;color:var(--pc-text);margin-bottom:7px}
+.rudi-center__report-life-item p{font-size:13px;line-height:1.6;margin:0;overflow-wrap:anywhere}
+.rudi-center__report-life-item small{display:block;font-size:12px;line-height:1.55;color:var(--pc-muted);margin-top:10px;overflow-wrap:anywhere}
+@media(max-width:520px){.rudi-center__report-life-grid{grid-template-columns:1fr}}

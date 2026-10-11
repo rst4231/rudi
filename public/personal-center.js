@@ -401,8 +401,17 @@ function sheet(name){
       html+=section('Что изменилось',n.mainChange);
       html+=section('На что обратить внимание',n.mainObservation);
       html+=section('Что сделать сегодня',n.mainAction,'action');
+      const domains={mood:'Настроение',habits:'Привычки',tasks:'Дела и планы',health:'Самочувствие',supplements:'Добавки',cycle:'Цикл',finances:'Финансы'};
+      const lifeAreas=(Array.isArray(n.lifeAreas)?n.lifeAreas:[]).filter(x=>domains[x?.domain]&&reportHasText(x.observation)).slice(0,4);
+      if(lifeAreas.length){
+        html+='<section class="rudi-center__report-section rudi-center__report-section--life"><h3>Разбор по сферам жизни</h3><div class="rudi-center__report-life-grid">'+lifeAreas.map(x=>
+          '<div class="rudi-center__report-life-item"><strong>'+esc(domains[x.domain])+'</strong><p>'+esc(x.observation)+'</p>'+
+          (reportHasText(x.nextStep)?'<small>'+esc(x.nextStep)+'</small>':'')+'</div>').join('')+'</div></section>';
+      }
       html+=section('Что проверить дальше',n.forecast);
-      if(ctx.connections?.findings?.length)html+=section('Связи между разделами',n.connectionsText);
+      const moodSpending=(ctx.connections?.findings||[]).filter(x=>String(x.kind||'').startsWith('mood-spending'));
+      if(moodSpending.length)html+=section('Настроение и траты',moodSpending.slice(0,3).map(x=>x.text).join('\n\n'));
+      if((ctx.connections?.findings||[]).some(x=>!String(x.kind||'').startsWith('mood-spending')))html+=section('Связи между разделами',n.connectionsText);
     }
     const evidence=[];
     if(Array.isArray(n.focus)&&n.focus.length){
