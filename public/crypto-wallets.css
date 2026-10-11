@@ -122,3 +122,8 @@
 .finance-crypto-allocation-save:disabled{opacity:.6;cursor:wait}
 @media(min-width:640px){.finance-crypto-allocation-backdrop{align-items:center}}
 @media(max-width:375px){.finance-crypto-allocation-sheet{padding:14px 12px;gap:9px}.finance-crypto-operation-main{flex-wrap:wrap;gap:4px}}
+
+/* v4.174 crypto: all periods are visible as two mobile rows */
+.finance-crypto-periods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;overflow:visible}
+.finance-crypto-periods button{min-width:0;flex:none;white-space:nowrap;padding:9px 3px}
+@media(max-width:360px){.finance-crypto-periods{gap:4px}.finance-crypto-periods button{font-size:10px;padding:9px 1px}}

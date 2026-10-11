@@ -1,17 +1,16 @@
 {
-  "current": "v4.173",
+  "current": "v4.174",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.172",
+  "basedOnProduction": "v4.173",
   "notes": [
-    "Added Monday-through-Sunday expense bars above the existing 'Где уходят деньги' block.",
-    "Chart uses real personal expense records and Moscow dates, excludes manual balance adjustments, and respects RUB/USD display.",
-    "Removed redundant yesterday and today expense figures from the 'Расходы' heading.",
-    "Added weekly data/date/cross-month and chart placement regression tests.",
-    "Do not deploy without explicit user approval."
+    "Expense chart switches week/month/year from recorded transactions without new requests.",
+    "Crypto portfolio chart offers 5h, 12h, 24h via recorded timestamps; legacy daily history preserved.",
+    "Restored finance insights and simulator styling with permanent IDs instead of positional CSS selectors.",
+    "One combined production release after regression checks."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

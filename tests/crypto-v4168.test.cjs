@@ -171,3 +171,12 @@ test('intraday balance samples preserve daily records and reflect actual sync ti
  assert.equal(empty.points.length,0,'no artificial backfill');
  await assert.rejects(()=>history.range('__portfolio__',30,{client,hours:6}),/crypto-history-period-invalid/);
 });
+
+test('new crypto timeline controls preserve old daily periods',()=>{
+ const page=fs.readFileSync(path.join(__dirname,'..','public','index.html'),'utf8');
+ const script=fs.readFileSync(path.join(__dirname,'..','public','crypto-wallets.js'),'utf8');
+ for(const hours of [5,12,24])assert.match(page,new RegExp('data-crypto-hours="'+hours+'"'));
+ for(const days of [7,30,60,90,365])assert.match(page,new RegExp('data-crypto-period="'+days+'"'));
+ assert.match(script,/historyHours/);
+ assert.match(script,/timeZone:'Europe\/Moscow'/);
+});
