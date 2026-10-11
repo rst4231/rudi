@@ -149,7 +149,12 @@
     const link=connections.find(row=>row.walletId===editingWalletId);
     const state=$('financeCryptoWalletState'),button=$('financeCryptoToggleConnect'),disconnect=$('financeCryptoDisconnectButton');
     if(state)state.textContent=link
-      ? providerName(link.provider)+(link.provider==='uniswap'?' · '+(link.chain==='arbitrum'?'Arbitrum':'Ethereum'):'')+' · '+(link.lastSyncAt?'Обновлён '+dateLabel(link.lastSyncAt):link.lastError?errorLabel({message:link.lastError}):'Ожидает обновления')
+      ? providerName(link.provider)+(link.provider==='uniswap'?' · '+(link.chain==='arbitrum'?'Arbitrum':'Ethereum'):'')+' · '+(
+          link.incomplete&&typeof link.partialUsd==='number'
+            ?'Найдено '+cash(link.partialUsd)+' (частично, v3) · '+dateLabel(link.partialSyncAt)
+            :link.lastSyncAt?'Обновлён '+dateLabel(link.lastSyncAt)
+            :link.lastError?errorLabel({message:link.lastError}):'Ожидает обновления'
+        )
       :'Не подключён';
     if(button)button.textContent=link?'Изменить подключение':'Подключить API';
     if(disconnect)disconnect.hidden=!link;
