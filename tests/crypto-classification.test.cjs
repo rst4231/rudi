@@ -20,8 +20,8 @@ async function setup(){
   await saveWallet('Рустам',{name:'Bybit',currency:'USD',balance:500}, {...options,id:'api-wallet'});
   await saveWallet('Рустам',{name:'Получатель',currency:'RUB',balance:1000},{...options,id:'manual-wallet'});
   await saveWallet('Рустам',{name:'Trust Wallet',currency:'USD',balance:700},{...options,id:'api-peer'});
-  await saveExpenseCategory('Рустам',{name:'Покупки',currency:'RUB'}, {...options,id:'cat-shopping'});
-  await saveExpenseCategory('Рустам',{name:'Еда',currency:'RUB'}, {...options,id:'cat-food'});
+  await saveExpenseCategory('Рустам',{name:'Крипто-покупки',currency:'RUB'}, {...options,id:'cat-shopping'});
+  await saveExpenseCategory('Рустам',{name:'Крипто-еда',currency:'RUB'}, {...options,id:'cat-food'});
   const view=async()=>viewState(await readFinanceState({financeCache}),'Рустам');
   return {financeCache,view,options};
 }
