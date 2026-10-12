@@ -75,15 +75,17 @@ test('personal greeting uses AI output if available and fallback if unavailable'
  assert.equal(fallback.aiGenerated,false);
  assert.match(fallback.greeting,/Рустам/);
 });
-test('birthday API validates session and restricts greeting to owner birthday',async()=>{
+test('birthday API validates session and can greet a partner on their birthday',async()=>{
  const now=Date.parse('2027-03-03T10:00:00Z'),cacheValue=new Map();
  const cache={get:async key=>cacheValue.get(key),set:async(key,val)=>{cacheValue.set(key,val);return true}};
  const response=()=>({code:200,status(v){this.code=v;return this},json(data){this.value=data;return this}});
- const req=(actor)=>({method:'POST',body:{},headers:{cookie:'rudi_session='+encodeURIComponent(encodeSession(actor,'mock-bot-secret',now))}});
+ const req=(actor,birthdayName)=>({method:'POST',body:{birthdayName},headers:{cookie:'rudi_session='+encodeURIComponent(encodeSession(actor,'mock-bot-secret',now))}});
  const opts={now,botToken:'mock-bot-secret',cache,apiKey:'',env:{GROQ_API_KEY:''},birthdays:require('../rudi-config.json').birthdays};
- const yes=response();await handleBirthdayGreeting(req('Рустам'),yes,opts);
+ const yes=response();await handleBirthdayGreeting(req('Рустам','Рустам'),yes,opts);
  assert.equal(yes.code,200);assert.match(yes.value.greeting,/Рустам/);
- const no=response();await handleBirthdayGreeting(req('Диана'),no,opts);
+ const partner=response();await handleBirthdayGreeting(req('Диана','Рустам'),partner,opts);
+ assert.equal(partner.code,200);assert.match(partner.value.greeting,/Рустам/);
+ const no=response();await handleBirthdayGreeting(req('Диана','Диана'),no,opts);
  assert.equal(no.code,403);
 });
 test('birthday modal shows once per birthday and requires authenticated actor',()=>{
@@ -91,18 +93,20 @@ test('birthday modal shows once per birthday and requires authenticated actor',(
  assert.match(js,/rudi:birthday:greeting:v1:/);
  assert.match(js,/localStorage\.getItem\(seen\)==='1'/);
  assert.match(js,/localStorage\.setItem\(seen,'1'\)/);
- assert.match(js,/if\(birthday\.some\(x=>x\.name===actor\)\)birthdayWindow\(d\)/);
+ assert.match(js,/if\(human\)birthdayWindow\(d,human\.name\)/);
+ assert.match(js,/birthdayName:celebrant/);
  assert.match(js,/С днём рождения, /);
  assert.match(js,/birthday-greeting/);
  assert.match(app,/window\.RUDI_EFFECTS\?\.init\?\.\(\{actor:currentActor,birthdays:config\?\.birthdays/);
  const html=src('public/index.html');
- assert.ok(html.indexOf('/rudi-effects.js?v=4.199')<html.indexOf('/app.js?v=4.199'));
+ assert.ok(html.indexOf('/rudi-effects.js?v=4.200')>=0);
+ assert.ok(html.indexOf('/rudi-effects.js?v=4.200')<html.indexOf('/app.js?v='));
 });
 test('decorative animations are non-interactive across every app screen and respect reduced motion',()=>{
  const css=src('public/rudi-effects.css'),js=src('public/rudi-effects.js'),sw=src('public/sw.js');
  assert.match(css,/\.rudi-effects-layer,\.rudi-effect\{[^}]*pointer-events:none!important/s);
  assert.match(css,/prefers-reduced-motion:reduce/);
  assert.match(js,/window\.matchMedia\?\./);
- assert.match(sw,/rudi-effects\.js\?v=4\.199/);
- assert.match(sw,/rudi-effects\.css\?v=4\.199/);
+ assert.match(sw,/rudi-effects\.js\?v=4\.200/);
+ assert.match(sw,/rudi-effects\.css\?v=4\.200/);
 });

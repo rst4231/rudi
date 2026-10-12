@@ -1,16 +1,18 @@
 {
-  "current": "v4.199",
+  "current": "v4.200",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.197",
+  "basedOnProduction": "v4.199",
   "notes": [
     "Includes v4.198 prepared fixes: 100-star wishlist reward, updated earning guide, expense label, and native iOS date/time field refresh.",
     "Global rain and snow effects driven by live Open-Meteo current weather, individually toggleable and enabled by default with sync.",
     "New Year fireworks on Dec 31 23:55 to Jan 1 05:00 in Europe/Moscow.",
-    "Birthdays read from RUDI config: floating balloons all day; Rustam and Diana see personal, once-per-birthday AI greetings."
+    "Birthdays read from RUDI config: floating balloons all day; Rustam and Diana see personal, once-per-birthday AI greetings.",
+    "Birthday greeting appears on the first app visit on Rustam's OR Diana's birthday, regardless of which partner is signed in.",
+    "Cache RUDI decorative animation assets for reliable PWA updates and offline shell."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

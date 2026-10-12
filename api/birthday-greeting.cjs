@@ -46,16 +46,17 @@ async function handleBirthdayGreeting(req,res,options={}){
  try{actor=authorizeRequest(req,req.body?.initData||'',options).actor}
  catch(e){return res.status(statusForError(e)).json({ok:false,error:'unauthorized'})}
  const date=moscowToday(options.now||Date.now());
- if(!birthdayForActor(actor,date,options.birthdays||birthdayConfig))
+ const celebrant=String(req.body?.birthdayName||actor);
+ if(!['Рустам','Диана'].includes(celebrant)||!birthdayForActor(celebrant,date,options.birthdays||birthdayConfig))
   return res.status(403).json({ok:false,error:'not-birthday'});
  const cache=options.cache||createStrictRuntimeCache({namespace:NAMESPACE});
- const key='greeting:'+actor+':'+date.key;
+ const key='greeting:'+celebrant+':'+date.key;
  try{
   const stored=await cache.get(key);
   if(stored?.greeting)return res.status(200).json({ok:true,...stored,cached:true});
-  const generated=await generateBirthdayGreeting(actor,options);
+  const generated=await generateBirthdayGreeting(celebrant,options);
   await cache.set(key,generated,{ttl:370*24*60*60,name:key,tags:['rudi-birthday-greetings']});
   return res.status(200).json({ok:true,...generated,cached:false});
- }catch(_){return res.status(200).json({ok:true,greeting:fallback(actor),aiGenerated:false})}
+ }catch(_){return res.status(200).json({ok:true,greeting:fallback(celebrant),aiGenerated:false})}
 }
 module.exports={moscowToday,birthdayForActor,fallback,generateBirthdayGreeting,handleBirthdayGreeting};

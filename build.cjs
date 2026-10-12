@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { PNG } = require('pngjs');
 
-const WEB_ASSETS = ['personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js'];
+const WEB_ASSETS = ['personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'rudi-effects.js', 'rudi-effects.css', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -148,6 +148,8 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/pwa-extras\.js\?v=[^"]+/g, '/pwa-extras.js?v=' + assetVersion);
   html = html.replace(/\/smart-home\.js\?v=[^"]+/g, '/smart-home.js?v=' + assetVersion);
   html = html.replace(/\/weather\.js\?v=[^"]+/g, '/weather.js?v=' + assetVersion);
+  html = html.replace(/\/rudi-effects\.js\?v=[^"]+/g, '/rudi-effects.js?v=' + assetVersion);
+  html = html.replace(/\/rudi-effects\.css\?v=[^"]+/g, '/rudi-effects.css?v=' + assetVersion);
   html = html.replace(/\/mood-history\.js\?v=[^"]+/g, '/mood-history.js?v=' + assetVersion);
   html = html.replace(/\/profile-supplements\.css\?v=[^"]+/g, '/profile-supplements.css?v=' + assetVersion);
   html = html.replace(/\/supplement-advanced\.css\?v=[^"]+/g, '/supplement-advanced.css?v=' + assetVersion);

@@ -63,9 +63,9 @@ function installSettings(){
  if(interfaceGroup)interfaceGroup.after(group);else panel.insertBefore(group,panel.firstChild);
  updateSettings();
 }
-function birthdayWindow(day){
- if(shownModal||!['Рустам','Диана'].includes(actor))return;
- const seen='rudi:birthday:greeting:v1:'+actor+':'+day.key;
+function birthdayWindow(day,celebrant){
+ if(shownModal||!['Рустам','Диана'].includes(celebrant))return;
+ const seen='rudi:birthday:greeting:v1:'+celebrant+':'+day.key;
  try{if(localStorage.getItem(seen)==='1')return}catch(_){}
  const backdrop=document.createElement('div');backdrop.className='rudi-birthday-modal';backdrop.id='rudiBirthdayGreeting';
  const decorations=document.createElement('div');decorations.className='rudi-birthday-decorations';decorations.setAttribute('aria-hidden','true');
@@ -82,16 +82,16 @@ function birthdayWindow(day){
  }
  const sheet=document.createElement('section');sheet.className='rudi-birthday-card';sheet.setAttribute('role','dialog');sheet.setAttribute('aria-modal','true');sheet.setAttribute('aria-labelledby','rudiBirthdayTitle');
  const icon=document.createElement('div');icon.className='rudi-birthday-emblem';icon.textContent='🎂';
- const heading=document.createElement('h2');heading.id='rudiBirthdayTitle';heading.textContent='С днём рождения, '+actor+'!';
+ const heading=document.createElement('h2');heading.id='rudiBirthdayTitle';heading.textContent='С днём рождения, '+celebrant+'!';
  const message=document.createElement('p');message.className='rudi-birthday-message';
- message.textContent=actor==='Рустам'?'Рустам, пусть впереди будет много счастливых моментов с Дианой и Лулу, вдохновения и исполнения самых важных желаний!':'Диана, желаем тебе любви, ярких впечатлений, душевного тепла и счастливых моментов с Рустамом и Лулу!';
+ message.textContent=celebrant==='Рустам'?'Рустам, пусть впереди будет много счастливых моментов с Дианой и Лулу, вдохновения и исполнения самых важных желаний!':'Диана, желаем тебе любви, ярких впечатлений, душевного тепла и счастливых моментов с Рустамом и Лулу!';
  const foot=document.createElement('div');foot.className='rudi-birthday-note';foot.textContent='Создаём личное поздравление…';
  const button=document.createElement('button');button.type='button';button.className='rudi-birthday-accept';button.textContent='Спасибо! ❤️';
  button.addEventListener('click',()=>{backdrop.remove();shownModal=false});
  sheet.append(icon,heading,message,foot,button);backdrop.append(decorations,sheet);document.body.appendChild(backdrop);shownModal=true;
  try{localStorage.setItem(seen,'1')}catch(_){}
  button.focus({preventScroll:true});
- fetch('/api/index?route=birthday-greeting',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',cache:'no-store',body:JSON.stringify({initData:window.Telegram?.WebApp?.initData||''})})
+ fetch('/api/index?route=birthday-greeting',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',cache:'no-store',body:JSON.stringify({initData:window.Telegram?.WebApp?.initData||'',birthdayName:celebrant})})
   .then(r=>r.ok?r.json():Promise.reject(Error('unavailable')))
   .then(data=>{if(!backdrop.isConnected)return;if(data?.greeting)message.textContent=String(data.greeting).slice(0,850);
     foot.textContent=data?.aiGenerated?'Личное поздравление от РуДи ✨':'С любовью от РуДи ✨'})
@@ -104,7 +104,8 @@ function tick(now=new Date()){
  show('snow',weatherEnabled&&weather==='snow'&&enabled('snow'));
  show('balloons',birthday.length>0);
  show('fireworks',newYear(d));
- if(birthday.some(x=>x.name===actor))birthdayWindow(d);
+ const human=birthday.find(x=>x.name==='Рустам'||x.name==='Диана');
+ if(human)birthdayWindow(d,human.name);
 }
 async function refreshWeather(){
  if(!initialized||document.hidden||!weatherEnabled||flight||!window.RUDI_WEATHER?.get)return;
