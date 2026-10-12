@@ -13443,7 +13443,8 @@
         }
         if(title){
           title.hidden=false;
-          title.textContent='Сегодня дел нет';
+          title.textContent=sharedAgendaSelectedDay==='tomorrow'?'Завтра дел нет':'Сегодня дел нет';
+          document.getElementById('ticktickPanel')?.classList.remove('is-list-visible');
         }
         if(badge){
           badge.hidden=true;
@@ -13811,6 +13812,42 @@
 
       let openTickTickTaskForEditing=null;
       let openTickTickTaskForCreation=null;
+      // Keep the tab locally; only one TickTick request supplies both days.
+      let sharedAgendaSelectedDay='today';
+      let sharedAgendaLatestPayload=null;
+      function syncSharedAgendaTabs(){
+        for(const tab of document.querySelectorAll('#sharedAgendaTabs [data-shared-agenda-day]')){
+          const active=tab.dataset.sharedAgendaDay===sharedAgendaSelectedDay;
+          tab.setAttribute('aria-selected',active?'true':'false');
+          tab.tabIndex=active?0:-1;
+        }
+        const panel=document.getElementById('ticktickPanel');
+        if(panel)panel.setAttribute('aria-label',
+          'Совместные дела на '+(sharedAgendaSelectedDay==='today'?'сегодня':'завтра'));
+      }
+      function setupSharedAgendaTabs(){
+        const tabs=[...document.querySelectorAll('#sharedAgendaTabs [data-shared-agenda-day]')];
+        if(!tabs.length)return;
+        const changeDay=day=>{
+          if(day!=='today'&&day!=='tomorrow')return;
+          sharedAgendaSelectedDay=day;
+          if(sharedAgendaLatestPayload)renderTickTickTodayState(sharedAgendaLatestPayload);
+          else syncSharedAgendaTabs();
+          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+        };
+        for(const tab of tabs){
+          tab.addEventListener('click',()=>changeDay(tab.dataset.sharedAgendaDay));
+          tab.addEventListener('keydown',event=>{
+            if(event.key!=='ArrowLeft'&&event.key!=='ArrowRight')return;
+            event.preventDefault();
+            const next=event.key==='ArrowRight'?'tomorrow':'today';
+            changeDay(next);
+            document.querySelector('#sharedAgendaTabs [data-shared-agenda-day="'+next+'"]')?.focus();
+          });
+        }
+        syncSharedAgendaTabs();
+      }
+
       function renderTickTickTodayState(payload,{preserveExpanded=false}={}){
         const title=document.getElementById('ticktickTitle');
         const list=document.getElementById('ticktickTodayList');
@@ -13820,6 +13857,9 @@
         const connect=document.getElementById('ticktickConnect');
         const panel=document.getElementById('ticktickPanel');
         const previousOpenTaskId=preserveExpanded?String(panel.dataset.openTaskId||''):'';
+        sharedAgendaLatestPayload=payload;
+        syncSharedAgendaTabs();
+        panel.classList.remove('is-list-visible');
 
         renderTickTickDetails(null);
         panel.dataset.openTaskId='';
@@ -13850,19 +13890,25 @@
           badge.hidden=false;badge.textContent='Выключено';return;
         }
 
-        const tasks=Array.isArray(payload?.tasks)
+        const todayTasks=Array.isArray(payload?.tasks)
           ?payload.tasks.filter(task=>!task?.completed&&!tickTickTaskRecentlyCompleted(task?.id))
           :[];
-        homeDashboardState.tasks=tasks;
+        const tasks=sharedAgendaSelectedDay==='tomorrow'
+          ?(Array.isArray(payload?.tomorrowTasks)
+            ?payload.tomorrowTasks.filter(task=>!task?.completed&&!tickTickTaskRecentlyCompleted(task?.id))
+            :[])
+          :todayTasks;
+        homeDashboardState.tasks=todayTasks;
         renderHomeDashboard();
         if(!tasks.length){
-          title.textContent='Сегодня дел нет';
+          title.textContent=sharedAgendaSelectedDay==='tomorrow'?'Завтра дел нет':'Сегодня дел нет';
           badge.hidden=true;badge.textContent='';
           if(payload?.writable===false) showTickTickWritePermission();
           return;
         }
 
         title.hidden=true;list.hidden=false;
+        panel.classList.add('is-list-visible');
         badge.hidden=false;
         badge.textContent=tasks.length===1?'1 дело':(tasks.length<5?tasks.length+' дела':tasks.length+' дел');
         let reopenTask=null;
@@ -13871,6 +13917,17 @@
           const row=document.createElement('div');
           row.className='ticktick-today-task';
           row.dataset.taskId=String(task?.id||'');
+          const ownerLabel=tickTickAssigneeLabel(task);
+          row.dataset.owner=ownerLabel==='Диана'?'diana':ownerLabel==='Рустам'?'rustam':'together';
+          const timeRail=document.createElement('div');
+          timeRail.className='ticktick-agenda-time';
+          const startTime=document.createElement('span');
+          startTime.className='ticktick-agenda-start';
+          startTime.textContent=task?.allDay?'Весь день':String(task?.startTime||task?.endTime||'Весь день');
+          const endTime=document.createElement('span');
+          endTime.className='ticktick-agenda-end';
+          endTime.textContent=task?.allDay?'':String(task?.endTime||'');
+          timeRail.append(startTime,endTime);
 
           const complete=document.createElement('button');
           complete.type='button';
@@ -13882,6 +13939,16 @@
             ?'Отметить выполненным: '+String(task?.title||'Дело')
             :'Эта задача назначена другому участнику');
           complete.disabled=!canComplete||payload?.writable===false;
+          const agendaAvatars=ownerLabel==='Диана'?['Д']:ownerLabel==='Рустам'?['Р']:['Р','Д'];
+          complete.classList.toggle('is-shared-avatar',agendaAvatars.length>1);
+          complete.replaceChildren(...agendaAvatars.map(name=>{
+            const avatar=document.createElement('span');
+            avatar.className='shared-agenda-avatar';
+            avatar.dataset.person=name==='Д'?'diana':'rustam';
+            avatar.textContent=name;
+            return avatar;
+          }));
+          complete.title=canComplete?'Отметить выполненным':ownerLabel;
           complete.addEventListener('click',event=>{
             event.stopPropagation();
             completeTickTickTodayTask(task,row,complete,payload?.writable!==false);
@@ -13900,9 +13967,20 @@
           taskTitle.textContent=String(task?.title||'Дело');
           const meta=document.createElement('div');
           meta.className='ticktick-today-meta';
-          meta.textContent=tickTickTodayTaskMeta(task);
+          meta.textContent=ownerLabel;
           meta.hidden=!meta.textContent;
           copy.append(taskTitle,meta);
+          const placeText=String(task?.location||'').trim();
+          if(placeText){
+            const place=document.createElement('div');
+            place.className='ticktick-agenda-location';
+            const icon=document.createElement('span');
+            icon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>';
+            const text=document.createElement('span');
+            text.textContent=placeText;
+            place.append(icon,text);
+            copy.appendChild(place);
+          }
 
           const inlineDetails=hasDetails
             ?createTickTickInlineDetails(task,{writable:payload?.writable!==false})
@@ -13928,7 +14006,7 @@
             });
           }
 
-          row.append(complete,copy);
+          row.append(timeRail,complete,copy);
           if(task?.canDelete){
             row.classList.add('has-delete');
             const actions=document.createElement('div');actions.className='ticktick-today-actions';
@@ -14049,7 +14127,9 @@
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         };
 
-        add.addEventListener('click',()=>open());
+        add.addEventListener('click',()=>open(null,{
+          date:sharedAgendaSelectedDay==='tomorrow'?String(sharedAgendaLatestPayload?.tomorrowDate||''):''
+        }));
         openTickTickTaskForEditing=task=>open(task);
         openTickTickTaskForCreation=options=>open(null,options);
         closeButton?.addEventListener('click',close);
@@ -21310,6 +21390,7 @@
         setupDailyQuestion();
         setupStreakAndMood(config);
         setupTickTickDisclosure();
+        setupSharedAgendaTabs();
         setupTickTickConnect();
         setupTickTickTaskComposer();
         setupWishlist();

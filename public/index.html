@@ -268,12 +268,19 @@
         <div class="priority-title-row">
           <h2 id="priorityTitle"><button id="priorityCalendarOpen" type="button" class="priority-calendar-link">Совместные дела</button></h2>
           <span id="priorityAttentionBadge" class="priority-attention-badge" hidden aria-label=""></span>
-          <button id="ticktickAddButton" class="ticktick-add-button" type="button" aria-label="Добавить дело" title="Добавить дело">+</button>
         </div>
       </div>
       <div class="priority-grid">
         <article id="ticktickPanel" class="panel ticktick-panel" aria-label="Совместные дела на сегодня">
         <div id="taskCompletionConfetti" class="task-completion-confetti" aria-hidden="true"></div>
+        <div class="shared-agenda-toolbar">
+          <div id="sharedAgendaTabs" class="shared-agenda-tabs" role="tablist" aria-label="День совместных дел">
+            <button id="sharedAgendaToday" type="button" role="tab" data-shared-agenda-day="today" aria-selected="true" aria-controls="ticktickTodayList">Сегодня</button>
+            <span class="shared-agenda-tab-divider" aria-hidden="true"></span>
+            <button id="sharedAgendaTomorrow" type="button" role="tab" data-shared-agenda-day="tomorrow" aria-selected="false" aria-controls="ticktickTodayList">Завтра</button>
+          </div>
+          <button id="ticktickAddButton" class="ticktick-add-button" type="button" aria-label="Добавить совместное дело" title="Добавить дело"><span class="shared-agenda-plus" aria-hidden="true">+</span><span>Новое</span></button>
+        </div>
         <div id="ticktickToggle" class="ticktick-toggle" role="button" tabindex="-1" aria-expanded="false" aria-controls="ticktickDetails">
           <div class="ticktick-head">
             <div class="ticktick-head-spacer" aria-hidden="true"></div>

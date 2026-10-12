@@ -18186,3 +18186,152 @@ body[data-app-tab="products"] .kitchen-switcher>button#kitchenFinanceShortcut:fo
 .settings-page .settings-auth-session-browser{font-size:13px;font-weight:500;opacity:.84;margin-bottom:2px}
 .settings-page .settings-auth-session-location{font-size:12px;line-height:1.45;opacity:.65;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 @media(max-width:390px){.settings-page .settings-auth-session-badge{width:38px;height:38px;flex-basis:38px}.settings-page .settings-auth-session-item{gap:10px}.settings-page .settings-auth-session-date{font-size:11px}}
+
+
+/* RUDI v4.202: shared agenda based on the timeline reference. Layout only:
+   all create/edit/delete/complete actions retain their original event listeners. */
+body[data-app-tab="home"] .priority-section #ticktickPanel {
+  --agenda-blue:#2d82ce;
+  --agenda-purple:#b862c5;
+  --agenda-shared:#27a88a;
+  padding:16px 15px 17px!important;
+  border:1px solid var(--line)!important;
+  border-radius:22px!important;
+  background:var(--surface-strong)!important;
+  box-shadow:0 10px 32px rgba(18,30,48,.045)!important;
+}
+html[data-theme="dark"] body[data-app-tab="home"] .priority-section #ticktickPanel{
+  box-shadow:0 10px 32px rgba(0,0,0,.14)!important;
+}
+.shared-agenda-toolbar{display:flex;align-items:center;justify-content:space-between;gap:9px;min-width:0;margin-bottom:12px}
+.shared-agenda-tabs{display:flex;align-items:center;gap:13px;min-width:0}
+.shared-agenda-tabs [role="tab"]{
+  position:relative;min-height:41px;display:grid;place-items:center;flex:none;
+  border:0;background:transparent;padding:0 0 8px;outline-offset:3px;
+  color:var(--muted);font:inherit;font-size:14px;font-weight:540;letter-spacing:-.015em;
+  white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent
+}
+.shared-agenda-tabs [role="tab"][aria-selected="true"]{color:var(--text);font-weight:800}
+.shared-agenda-tabs [role="tab"][aria-selected="true"]::after{
+  content:'';position:absolute;width:26px;height:3px;bottom:0;left:50%;
+  transform:translateX(-50%);border-radius:4px;background:var(--agenda-blue)
+}
+.shared-agenda-tab-divider{width:1px;height:19px;flex:none;margin-bottom:8px;background:var(--line)}
+body[data-app-tab="home"] .priority-section .shared-agenda-toolbar #ticktickAddButton{
+  position:static;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-width:0;width:auto;height:35px;margin:0;padding:0 12px;
+  border:1px solid var(--line);border-radius:999px;
+  color:var(--text);background:var(--surface);box-shadow:none;
+  font:inherit;font-size:12px;line-height:1;font-weight:650;white-space:nowrap
+}
+body[data-app-tab="home"] .priority-section .shared-agenda-toolbar #ticktickAddButton::before,
+body[data-app-tab="home"] .priority-section .shared-agenda-toolbar #ticktickAddButton::after{display:none}
+.shared-agenda-plus{font-size:20px;line-height:1;font-weight:370;transform:translateY(-1px)}
+body[data-app-tab="home"] .priority-section #ticktickToggle{min-height:0;padding:0;position:relative}
+body[data-app-tab="home"] .priority-section #ticktickPanel.is-list-visible .ticktick-head{display:none}
+body[data-app-tab="home"] .priority-section #ticktickPanel .ticktick-head{position:static}
+body[data-app-tab="home"] .priority-section #ticktickPanel .ticktick-title{padding-right:0!important;font-size:12px!important;font-weight:590!important;color:var(--muted);line-height:1.5!important}
+body[data-app-tab="home"] .priority-section .ticktick-today-list{display:grid;gap:0;margin:0}
+body[data-app-tab="home"] .priority-section .ticktick-today-task,
+body[data-app-tab="home"] .priority-section .ticktick-today-task.has-delete{
+  --agenda-task-color:var(--agenda-blue);
+  position:relative;display:grid!important;grid-template-columns:53px 34px minmax(0,1fr)!important;
+  grid-auto-rows:auto;align-items:start;column-gap:12px;row-gap:0;
+  min-width:0;min-height:86px;margin:0;padding:13px 0 15px!important;
+  border:0!important;border-radius:0!important;background:transparent!important;
+  box-shadow:none!important;transform:none
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task[data-owner="diana"]{--agenda-task-color:var(--agenda-purple)}
+body[data-app-tab="home"] .priority-section .ticktick-today-task[data-owner="together"]{--agenda-task-color:var(--agenda-shared)}
+body[data-app-tab="home"] .priority-section .ticktick-today-task.syncing{opacity:.5}
+body[data-app-tab="home"] .priority-section .ticktick-today-task.done{opacity:.55}
+.ticktick-agenda-time{
+  position:relative;grid-column:1;grid-row:1 / span 2;min-width:0;
+  display:flex;flex-direction:column;align-items:flex-end;gap:3px;
+  padding-top:4px;text-align:right;white-space:nowrap
+}
+.ticktick-agenda-start{color:var(--text);font-size:12px;line-height:1.1;font-weight:740;font-variant-numeric:tabular-nums}
+.ticktick-agenda-end{color:var(--muted);font-size:10px;line-height:1.15;font-variant-numeric:tabular-nums}
+.ticktick-agenda-time::after{
+  content:'';position:absolute;top:19px;right:-12px;width:9px;height:9px;border-radius:50%;
+  background:var(--agenda-task-color);box-shadow:0 0 0 3px var(--surface-strong)
+}
+.ticktick-agenda-time::before{
+  content:'';position:absolute;top:25px;bottom:-80px;right:-8px;width:1.5px;
+  background:var(--line);pointer-events:none
+}
+.ticktick-today-task:last-child .ticktick-agenda-time::before{display:none}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-complete{
+  grid-column:2;grid-row:1;display:grid;place-items:center;width:34px;height:34px;
+  padding:0;border:1px solid color-mix(in srgb,var(--agenda-task-color) 15%,transparent);
+  border-radius:50%;background:color-mix(in srgb,var(--agenda-task-color) 11%,var(--surface));
+  color:var(--agenda-task-color);font-size:15px;line-height:1;font-weight:750;
+  box-shadow:none
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-complete:disabled{
+  opacity:.75;cursor:default
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-complete:active:not(:disabled){transform:scale(.94)}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-copy{
+  grid-column:3;grid-row:1;display:block;min-width:0;width:100%;padding:1px 17px 0 0;
+  margin:0;align-self:start
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-title{
+  font-size:15px;line-height:1.27;font-weight:750;letter-spacing:-.02em;overflow-wrap:anywhere
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-meta{
+  display:flex;align-items:center;gap:6px;min-height:16px;
+  margin-top:7px;color:var(--muted);font-size:11px;font-weight:530;line-height:1.3
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-meta::before{
+  content:'';width:7px;height:7px;flex:none;border-radius:50%;background:var(--agenda-task-color)
+}
+.ticktick-agenda-location{display:flex;gap:5px;align-items:flex-start;margin-top:5px;color:var(--muted);font-size:10.5px;line-height:1.3;overflow-wrap:anywhere}
+.ticktick-agenda-location svg{width:12px;height:12px;flex:none;margin-top:1px;fill:none;stroke:currentColor;stroke-width:1.8}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-actions{
+  grid-column:3;grid-row:2;justify-content:flex-end;min-height:25px;margin:5px 0 0;
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-actions button{
+  width:25px;height:25px;border-radius:8px
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-inline-details{
+  grid-column:3!important;grid-row:auto;min-width:0;margin-top:9px
+}
+@media(max-width:370px){
+  .shared-agenda-tabs{gap:8px}
+  .shared-agenda-tabs [role="tab"]{font-size:12.5px}
+  body[data-app-tab="home"] .priority-section .shared-agenda-toolbar #ticktickAddButton{padding:0 9px;font-size:11px}
+  body[data-app-tab="home"] .priority-section .ticktick-today-task,
+  body[data-app-tab="home"] .priority-section .ticktick-today-task.has-delete{
+    grid-template-columns:45px 30px minmax(0,1fr)!important;column-gap:9px
+  }
+  body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-complete{width:30px;height:30px;font-size:13px}
+  .ticktick-agenda-start{font-size:11px}
+}
+
+/* Overlapping actor avatars, matching the reference without replacing the completion action. */
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-complete{
+  position:relative;overflow:visible;background:transparent;border:0;box-shadow:none
+}
+body[data-app-tab="home"] .priority-section .shared-agenda-avatar{
+  position:absolute;top:1px;left:1px;width:32px;height:32px;
+  display:grid;place-items:center;border-radius:50%;
+  background:#e5f2ff;color:#267abd;font-size:14px;font-weight:730;
+  border:2px solid var(--surface-strong);box-shadow:0 2px 6px rgba(28,60,100,.04)
+}
+body[data-app-tab="home"] .priority-section .shared-agenda-avatar[data-person="diana"]{
+  background:#f8eafa;color:#b45cc6
+}
+html[data-theme="dark"] body[data-app-tab="home"] .priority-section .shared-agenda-avatar{
+  background:#17364e;color:#8ccfff
+}
+html[data-theme="dark"] body[data-app-tab="home"] .priority-section .shared-agenda-avatar[data-person="diana"]{
+  background:#402847;color:#e1a5ef
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-complete.is-shared-avatar .shared-agenda-avatar{
+  width:29px;height:29px;top:-5px;left:2px;font-size:12px
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-complete.is-shared-avatar .shared-agenda-avatar + .shared-agenda-avatar{
+  top:18px;left:2px
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task:has(.is-shared-avatar){min-height:97px}

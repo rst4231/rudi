@@ -2094,7 +2094,7 @@ async function handleTickTick(req, res, action, options = {}) {
       ]);
       const calendar = buildTickTickCalendar(sourceTasks, now, 'month');
       const today = calendarDateKey(now);
-      const tasks = (calendar.days.find((day) => day.date === today)?.events || [])
+      const mapAgendaDay = (events, dayKey) => (events || [])
         .filter((event) => !event.completed)
         .map((event) => {
           const source = sourceById.get(String(event?.id || '')) || {};
@@ -2112,13 +2112,14 @@ async function handleTickTick(req, res, action, options = {}) {
           const assignee = sharedTaskAssigneePayload(source, meta);
           return {
             ...event,
-            date: today,
+            date: dayKey,
             assignee: assignee.assignee,
             assigned: assignee.assigned,
             responsible: assignee.responsibility.responsible,
             responsibilityKnown: assignee.responsibility.known,
             canDelete: sharedTaskCanDelete(actor, source, meta),
             description: String(source.desc || source.content || '').trim().slice(0, 5000),
+            location: typeof source.location === 'string' ? source.location.trim().slice(0, 180) : '',
             repeat: String(source.repeatFlag || '').includes('BYDAY=MO,TU,WE,TH,FR') ? 'weekdays'
               : (String(source.repeatFlag || '').match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1] || 'none').toLowerCase(),
             repeatCount: tickTickRepetitionsFromFlag(source.repeatFlag),
@@ -2126,11 +2127,17 @@ async function handleTickTick(req, res, action, options = {}) {
             checklist,
           };
         });
+      const tasks = mapAgendaDay(calendar.days.find((day) => day.date === today)?.events, today);
+      // Return tomorrow with today's response: switching Home tabs makes no extra network calls.
+      const tomorrowDate = calendarDateKey(new Date(now.getTime() + 86400000));
+      const nextCalendar = tomorrowDate.slice(0, 7) === today.slice(0, 7)
+        ? calendar : buildTickTickCalendar(sourceTasks, new Date(now.getTime() + 86400000), 'month');
+      const tomorrowTasks = mapAgendaDay(nextCalendar.days.find((day) => day.date === tomorrowDate)?.events, tomorrowDate);
       return res.status(200).json({
         ok: true, connected: true, enabled: true,
         writable: tokenHasWriteScope(token) !== false,
         project: data?.project?.name || 'Общий',
-        date: today, tasks,
+        date: today, tasks, tomorrowDate, tomorrowTasks,
       });
     } catch (error) {
       if (String(error?.message || '') === 'ticktick-token-invalid') {

@@ -1,11 +1,11 @@
 {
-  "current": "v4.201",
+  "current": "v4.202",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.200",
+  "basedOnProduction": "v4.201",
   "notes": [
     "Includes v4.198 prepared fixes: 100-star wishlist reward, updated earning guide, expense label, and native iOS date/time field refresh.",
     "Global rain and snow effects driven by live Open-Meteo current weather, individually toggleable and enabled by default with sync.",
@@ -15,7 +15,11 @@
     "Cache RUDI decorative animation assets for reliable PWA updates and offline shell.",
     "Optimized Cloudflare D1 request-scoped batch reading with safe legacy fallback, reduced Worker invocation count.",
     "Fixed duplicated native date and time display in iPhone personal TickTick editor without changing task data or API.",
-    "Bumped PWA shell version to guarantee fresh scripts and styles on iOS."
+    "Bumped PWA shell version to guarantee fresh scripts and styles on iOS.",
+    "Оформление совместных дел как таймлайн: вкладки Сегодня/Завтра, время, цветные точки и аватары участников.",
+    "Задачи обоих дней возвращаются одним запросом TickTick, без дополнительных запросов при переключении.",
+    "Существующие создание, редактирование, удаление, выполнение и Undo сохранены; кнопка Новое на Завтра выбирает завтрашнюю дату.",
+    "Добавлены проверки регрессий, адаптация к узким экранам и тёмной теме."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
