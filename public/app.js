@@ -21315,7 +21315,7 @@
         setupWishlist();
         setupSharedAlbum();
         setupWorkCalendarDisclosure();
-        loadCalendarOverdueCount({force:true}).catch(()=>{});
+        if(currentAppTab==='home'||currentAppTab==='schedule')loadCalendarOverdueCount({force:true}).catch(()=>{});
         markDataSyncNow();
         setTimeout(()=>{if(!stateBackupSyncFresh(6*60*60*1000)) refreshStateBackup()},2500);
       }
@@ -21335,7 +21335,7 @@
         },
         {
           key:'calendar-overdue',everyMs:5*60*1000,offsetMs:20*1000,
-          shouldRun:()=>Boolean(currentActor&&appAccessReady&&appVisibleForRefresh()),
+          shouldRun:()=>Boolean(currentActor&&appAccessReady&&appVisibleForRefresh()&&(currentAppTab==='home'||currentAppTab==='schedule')),
           run:()=>loadCalendarOverdueCount({force:true})
         },
         {
@@ -21437,7 +21437,8 @@
           requestAnimationFrame(()=>requestAnimationFrame(resolve));
         }).then(async()=>{
           resetMoodForNewDay();
-          const tabTasks=[loadCalendarOverdueCount({force:true})];
+          const tabTasks=[];
+          if(currentAppTab==='home'||currentAppTab==='schedule')tabTasks.push(loadCalendarOverdueCount({force:true}));
           if(currentAppTab==='home'){
             tabTasks.push(force
               ?loadHomeBootstrap({force:true})
@@ -21506,9 +21507,9 @@
 
       let lastForegroundUiSyncAt=0;
       function syncUiPreferencesAfterForeground(){
-        if(!appAccessReady||!currentActor) return;
+        if(!appAccessReady||!currentActor||!appVisibleForRefresh()) return;
         const now=Date.now();
-        if(now-lastForegroundUiSyncAt<5000) return;
+        if(now-lastForegroundUiSyncAt<30*1000) return;
         lastForegroundUiSyncAt=now;
         syncUiPreferencesFromServer({force:true});
       }
