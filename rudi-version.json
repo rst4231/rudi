@@ -1,16 +1,15 @@
 {
-  "current": "v4.188",
+  "current": "v4.192",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.187",
+  "basedOnProduction": "v4.191",
   "notes": [
-    "Bring back permanently visible compact expense and income amounts above both annual chart bars for each month, including zero months.",
-    "Use compact k/m notation for 12-month mobile width, with exact amount in month selection and accessibility labels.",
-    "Keep separate colours, annual legend and currency indicator, and hide all values with the existing privacy control.",
-    "Do not alter other chart periods, archive operations, financial records, wallets, categories or balances."
+    "Home bootstrap returns changed sections only when previous hashes are known.",
+    "Home cards skip unchanged DOM re-renders; manual refresh and offline sync preserved.",
+    "Refresh app.js browser and service-worker cache version, fix outdated script-order regression test."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
