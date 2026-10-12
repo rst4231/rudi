@@ -69,7 +69,10 @@ test('UI exposes meditation timer and calendar edits without edit quick-action r
  assert.ok(!editor.includes("role=\"group\" aria-label=\"Быстро изменить дату\""));
  assert.ok(editor.includes('function create(ctx='));
  assert.ok(editor.includes('holdTimer=setTimeout'));
- assert.ok(!html.includes('id="calendarModeSwitch"'));
+ assert.ok(html.includes('id="calendarModeSwitch"'));
+  assert.ok(app.includes("modeSwitch.dataset.calendarMode=nextMode"));
+  assert.ok(app.includes("calendarWeekAgenda(day.date,tasks,events,holidays,obligations"));
+  assert.ok(app.includes("calendar-week-now-line"));
  assert.ok(app.includes("window.RUDIPersonalTaskEditor?.create({"));
  const css=fs.readFileSync('public/meditation.css','utf8');
  assert.ok(app.includes("const budgetState=spentPercent>=100?'full':spentPercent>=50?'mid':'low'"));
