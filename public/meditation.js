@@ -2,7 +2,7 @@
 (()=>{'use strict';
 const API='/api/meditation',GOALS=[5,10,20,30,60],ACTORS=['Рустам','Диана'];
 const $=id=>document.getElementById(id);
-let actor='',state=null,partner=null,quote=null,page=null,clock=0,busy=false,goal=10,lastPartnerFetch=0,fetching=false,playing=false;
+let actor='',state=null,partner=null,quote=null,page=null,clock=0,busy=false,goal=10,lastPartnerFetch=0,fetching=false,lastFinishAttempt=0;
 const initData=()=>String(window.Telegram?.WebApp?.initData||'');
 const actorFromPage=()=>String(document.body?.dataset?.rudiActor||'');
 const key=s=>'rudi:meditation:'+actor+':'+s;
@@ -145,6 +145,7 @@ async function start(){
 }
 async function stop(auto){
  if(busy||!state?.active)return;
+ if(auto)lastFinishAttempt=Date.now();
  const active=state.active;
  busy=true;render();status('Сохраняю сеанс…');
  try{
@@ -158,7 +159,7 @@ async function stop(auto){
 async function autoFinish(){
  if(busy||!state?.active)return;
  const a=state.active,goalMs=a.goalMinutes*60000;
- if(Date.now()-Date.parse(a.startedAt)>=goalMs)await stop(true);
+ if(Date.now()-Date.parse(a.startedAt)>=goalMs&&Date.now()-lastFinishAttempt>30000&&navigator.onLine!==false)await stop(true);
 }
 function open(){
  const current=actorFromPage();if(!ACTORS.includes(current))return;
