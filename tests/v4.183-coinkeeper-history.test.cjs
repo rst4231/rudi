@@ -101,7 +101,7 @@ test('UI provides a review step and does not use the old balance-mutating import
  assert.match(js,/parseCsv\(/);
  assert.doesNotMatch(js,/import-expenses/);
  const html=fs.readFileSync('public/index.html','utf8');
- assert.match(html,/coinkeeper-history\.js\?v=4\.183/);
+ assert.match(html,/coinkeeper-history\.js\?v=4\.184/);
 });
 test('last CoinKeeper upload can be deleted without changing RUDI state, preserving older upload',async()=>{
  const s=state(),original=JSON.stringify(s),storage=cache();
