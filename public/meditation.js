@@ -208,6 +208,10 @@ function reconcile(){
  if(document.body.dataset.appTab==='home'){updatePartner();void refreshPartner()}
 }
 window.RudiMeditation={open,close,reconcile};
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{reconcile();setInterval(reconcile,4000)},{once:true});
-else{reconcile();setInterval(reconcile,4000)}
+window.addEventListener('rudi:profile-ready',()=>{reconcile();void refreshPartner()});
+window.addEventListener('rudi:app-tab-change',event=>{
+ if(event.detail?.tab==='home'){reconcile();void refreshPartner()}
+});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{reconcile();setInterval(reconcile,12000)},{once:true});
+else{reconcile();setInterval(reconcile,12000)}
 })();
