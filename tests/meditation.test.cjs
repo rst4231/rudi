@@ -145,10 +145,12 @@ test('meditation mood hint is private to signed-in actor and only rendered in Ho
  assert.match(js,/if\(who!==current\).*?\.remove\(\)/);
  assert.match(js,/\$\('moodCurrentButton'\)\?\.dataset\.mood/);
  assert.match(js,/const progress=todayProgress\[current\]/);
- assert.match(js,/notice\.dataset\.appTabSection='home'/);
+ assert.doesNotMatch(js,/notice\.dataset\.appTabSection='home'/);
  assert.match(js,/tile\.parentElement\.insertBefore\(notice,tile\)/);
  assert.match(css,/body:not\(\[data-app-tab="home"\]\) \.meditation-mood-nudge\{display:none!important\}/);
  assert.match(css,/\.meditation-mood-nudge\{padding:8px 12px;margin:0!important;/);
+ assert.match(css,/\.profile-name-row\{[\\s\\S]*?margin:0!important;padding:0!important/);
+ assert.match(css,/\.profile-work-status,\.profile-cycle-mood,\.profile-rhythm-status/);
  assert.match(html,/meditation\.js\?v=4\.195/);
  assert.match(html,/meditation\.css\?v=4\.195/);
 });

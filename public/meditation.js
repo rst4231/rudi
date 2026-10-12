@@ -246,7 +246,8 @@ function updateNudges(){
  const show=Boolean(progress)&&SAD_MOODS.has(mood)&&Number(progress.todaySessions||0)===0;
  if(!show){if(notice)notice.hidden=true;return;}
  if(!notice){notice=document.createElement('div');notice.id=id;notice.className='meditation-mood-nudge';}
- notice.dataset.appTabSection='home';
+ // The global tab router changes [data-app-tab-section]. Keep this hint independent
+ // so it cannot be re-shown by the router when mood or meditation changes.
  notice.textContent='🧘 Сегодня настроение не самое лучшее. Попробуй уделить 5–10 минут медитации — это может помочь успокоиться.';
  notice.hidden=false;
  if(notice.parentElement!==tile.parentElement||notice.nextElementSibling!==tile)tile.parentElement.insertBefore(notice,tile);
