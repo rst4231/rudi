@@ -166,3 +166,16 @@ test('v4 requires complete indexer discovery and never assumes zero NFTs',async(
   assert.deepEqual(result.positions,[]);
   assert.equal(result.liquidityUsd,0);
 });
+
+
+test('LP price bounds and current token quote are calculated from sqrt price and decimals, not raw ticks',()=>{
+  const { lpQuotePriceFromSqrt, lpQuotePriceFromTick, lpPriceDetails }=require('../api/uniswap-lp.cjs');
+  const p=lpPriceDetails(1n<<96n,-100,100,{symbol:'ETH',decimals:18},{symbol:'USDT',decimals:6});
+  assert.equal(p.priceBaseSymbol,'ETH');assert.equal(p.priceQuoteSymbol,'USDT');
+  assert.equal(p.currentPrice,1e12);
+  assert.ok(p.priceRange[0]<p.currentPrice&&p.priceRange[1]>p.currentPrice);
+  assert.equal(lpQuotePriceFromTick(0,6,6),1);
+  assert.equal(lpQuotePriceFromSqrt(1n<<96n,6,6),1);
+  const screen=require('node:fs').readFileSync('public/crypto-wallets.js','utf8');
+  assert.match(screen,/Диапазон/);assert.match(screen,/Сейчас 1/);
+});
