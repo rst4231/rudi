@@ -15121,8 +15121,8 @@
             block.appendChild(owner);
           }
           attachCompletion(block,event.task);
-          // Personal long-press opens TickTick; dragging must not steal the gesture.
-          if(event.task?.personal!==true)calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable);
+          // Keep the existing vertical time drag; long hold with no movement opens TickTick.
+          calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable);
           track.appendChild(block);
         }
         if(dateKey===todayState().key){
