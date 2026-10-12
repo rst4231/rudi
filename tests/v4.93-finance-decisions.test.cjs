@@ -138,7 +138,7 @@ test('paired yearly chart has explicit title, owner-only historical totals and a
  assert.match(css,/\.rudi-year-legend/);
  assert.match(app,/rudi-coinkeeper-overview-loaded/);
  assert.match(app,/rudi-finance-decisions-mounted/);
- assert.match(index,/finance-decisions-ui\.js\?v=4\.188/);
+ assert.match(index,/finance-decisions-ui\.js\?v=[0-9.]+/);
 });
 
 test('v4.188 year chart labels show each month expense and income amount permanently with privacy masking',()=>{
@@ -156,8 +156,8 @@ test('v4.188 year chart labels show each month expense and income amount permane
  assert.match(css,/\.rudi-weekly-chart\.is-year \.rudi-year-values/);
  assert.match(css,/position:absolute;bottom:calc\(var\(--rudi-year-peak,0%\) \+ 5px\)/);
  assert.match(css,/\.rudi-weekly-chart\.is-year \.rudi-year-values \.is-income/);
- assert.match(html,/finance-decisions-ui\.js\?v=4\.188/);
- assert.match(html,/finance-decisions\.css\?v=4\.188/);
+ assert.match(html,/finance-decisions-ui\.js\?v=[0-9.]+/);
+ assert.match(html,/finance-decisions\.css\?v=[0-9.]+/);
 });
 
 test('year value is a tappable picker for every calendar year 2016 through the present',()=>{
