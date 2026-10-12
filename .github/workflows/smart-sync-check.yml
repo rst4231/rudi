@@ -1,0 +1,32 @@
+name: Verify smart sync changes
+on:
+  pull_request:
+    paths:
+      - 'api/d1-state-client.cjs'
+      - 'public/app.js'
+      - 'cloudflare/rudi-db-api.worker.js'
+      - 'tests/d1-batch-read.test.cjs'
+      - 'tests/rudi-d1-worker-batch.test.cjs'
+      - 'tests/smart-sync-active-tab.test.cjs'
+      - '.github/workflows/smart-sync-check.yml'
+permissions:
+  contents: read
+jobs:
+  sync-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - name: Syntax safety
+        run: |
+          node --check api/d1-state-client.cjs
+          node --check public/app.js
+          node --check cloudflare/rudi-db-api.worker.js
+      - name: Focused read/write and UX regression
+        run: |
+          node --test tests/d1-batch-read.test.cjs tests/rudi-d1-worker-batch.test.cjs tests/smart-sync-active-tab.test.cjs tests/d1-state-client.test.cjs tests/strict-runtime-cache.test.cjs
+      - name: Build without deployment
+        run: npm run build
