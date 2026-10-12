@@ -61,8 +61,8 @@ test('UI exposes meditation timer and calendar edits without edit quick-action r
  const html=fs.readFileSync('public/index.html','utf8'),js=fs.readFileSync('public/meditation.js','utf8');
  const editor=fs.readFileSync('public/personal-task-editor.js','utf8');
  const app=fs.readFileSync('public/app.js','utf8');
- assert.ok(html.includes('meditation.js?v=4.194'));
- assert.ok(html.includes('meditation.css?v=4.194'));
+ assert.ok(html.includes('meditation.js?v=4.195'));
+ assert.ok(html.includes('meditation.css?v=4.195'));
  assert.ok(js.includes('id="meditationOrbit"'));
  assert.ok(js.includes('id="meditationHistoryCard"'));
  assert.ok(js.includes("duration=(a?a.goalMinutes:goal)*60"));
@@ -134,4 +134,21 @@ test('meditation UI has wake lock, collapsed benefits and mood guidance',()=>{
  assert.match(fs.readFileSync('public/calendar-day-recap.js','utf8'),/section\('Медитация'/);
  assert.match(fs.readFileSync('public/app.js','utf8'),/Только одна награда в день на человека/);
  assert.match(fs.readFileSync('api/personal-center-ai.cjs','utf8'),/meditation:payload\.data\.meditation/);
+});
+
+test('meditation mood hint is private to signed-in actor and only rendered in Home',()=>{
+ const fs=require('node:fs');
+ const js=fs.readFileSync('public/meditation.js','utf8');
+ const css=fs.readFileSync('public/meditation.css','utf8');
+ const html=fs.readFileSync('public/index.html','utf8');
+ assert.match(js,/const current=actorFromPage\(\);/);
+ assert.match(js,/if\(who!==current\).*?\.remove\(\)/);
+ assert.match(js,/\$\('moodCurrentButton'\)\?\.dataset\.mood/);
+ assert.match(js,/const progress=todayProgress\[current\]/);
+ assert.match(js,/notice\.dataset\.appTabSection='home'/);
+ assert.match(js,/tile\.parentElement\.insertBefore\(notice,tile\)/);
+ assert.match(css,/body:not\(\[data-app-tab="home"\]\) \.meditation-mood-nudge\{display:none!important\}/);
+ assert.match(css,/\.meditation-mood-nudge\{padding:8px 12px;margin:0!important;/);
+ assert.match(html,/meditation\.js\?v=4\.195/);
+ assert.match(html,/meditation\.css\?v=4\.195/);
 });

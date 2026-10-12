@@ -147,6 +147,11 @@ html[data-theme="dark"] .meditation-secondary{background:#b93542!important;color
  color:inherit!important;font-size:12px!important;font-weight:680!important;min-height:36px;display:flex;align-items:center}
 .profile-person-card .profile-person-details{gap:9px!important}
 .profile-person-card #homePartnerHabitsSummary[hidden]{display:none!important}
-.meditation-mood-nudge{padding:10px 14px;margin:0 0 2px;border:1px solid rgba(117,172,198,.28);border-radius:14px;
+.meditation-mood-nudge{padding:8px 12px;margin:0!important;border:1px solid rgba(117,172,198,.28);border-radius:14px;
  background:color-mix(in srgb,var(--surface) 92%,#c4e9f4);font-size:12px;line-height:1.45;color:var(--text);font-weight:580}
 .meditation-mood-nudge[hidden]{display:none!important}
+
+/* v4.195: no meditation reminder outside Home; compact spacing. */
+body:not([data-app-tab="home"]) .meditation-mood-nudge{display:none!important}
+body[data-app-tab="home"] #homeTileHost > .meditation-mood-nudge{width:100%;box-sizing:border-box;align-self:stretch}
+body[data-app-tab="home"] #homeTileHost > .meditation-mood-nudge + .profile-person-card{margin-top:0!important}

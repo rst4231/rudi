@@ -228,19 +228,28 @@ async function refreshPartner(){
  }catch{}
 }
 function updateNudges(){
- if(document.body.dataset.appTab!=='home')return;
+ // Never show a partner's mood reminder on the signed-in user's home.
+ const current=actorFromPage();
  for(const who of ACTORS){
-  const tile=$(who==='Рустам'?'homeRustamTile':'homeDianaTile');if(!tile?.parentElement)continue;
-  const moodButton=$(who===actorFromPage()?'moodCurrentButton':'partnerMoodValue');
-  const mood=String(moodButton?.dataset.mood||'');const progress=todayProgress[who];
-  let notice=$(who==='Рустам'?'meditationMoodNudgeRustam':'meditationMoodNudgeDiana');
-  const show=Boolean(progress)&&SAD_MOODS.has(mood)&&Number(progress.todaySessions||0)===0;
-  if(!show){if(notice)notice.hidden=true;continue;}
-  if(!notice){notice=document.createElement('div');notice.id=who==='Рустам'?'meditationMoodNudgeRustam':'meditationMoodNudgeDiana';notice.className='meditation-mood-nudge';}
-  notice.textContent='🧘 Сегодня настроение не самое лучшее. Попробуй уделить 5–10 минут медитации — это может помочь успокоиться.';
-  notice.hidden=false;
-  if(notice.parentElement!==tile.parentElement||notice.nextElementSibling!==tile)tile.parentElement.insertBefore(notice,tile);
+  if(who!==current)$(who==='Рустам'?'meditationMoodNudgeRustam':'meditationMoodNudgeDiana')?.remove();
  }
+ const id=current==='Диана'?'meditationMoodNudgeDiana':'meditationMoodNudgeRustam';
+ let notice=$(id);
+ if(document.body.dataset.appTab!=='home'||!ACTORS.includes(current)){
+  if(notice)notice.hidden=true;
+  return;
+ }
+ const tile=$(current==='Рустам'?'homeRustamTile':'homeDianaTile');
+ if(!tile?.parentElement){if(notice)notice.hidden=true;return;}
+ const mood=String($('moodCurrentButton')?.dataset.mood||'');
+ const progress=todayProgress[current];
+ const show=Boolean(progress)&&SAD_MOODS.has(mood)&&Number(progress.todaySessions||0)===0;
+ if(!show){if(notice)notice.hidden=true;return;}
+ if(!notice){notice=document.createElement('div');notice.id=id;notice.className='meditation-mood-nudge';}
+ notice.dataset.appTabSection='home';
+ notice.textContent='🧘 Сегодня настроение не самое лучшее. Попробуй уделить 5–10 минут медитации — это может помочь успокоиться.';
+ notice.hidden=false;
+ if(notice.parentElement!==tile.parentElement||notice.nextElementSibling!==tile)tile.parentElement.insertBefore(notice,tile);
 }
 function reconcile(){
  const current=actorFromPage();
@@ -261,6 +270,7 @@ window.RudiMeditation={open,close,reconcile,updateNudges};
 window.addEventListener('rudi:mood-updated',updateNudges);
 window.addEventListener('rudi:profile-ready',()=>{reconcile();void refreshPartner()});
 window.addEventListener('rudi:app-tab-change',event=>{
+ updateNudges();
  if(event.detail?.tab==='home'){reconcile();void refreshPartner()}
 });
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{reconcile();setInterval(reconcile,12000)},{once:true});

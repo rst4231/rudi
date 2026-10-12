@@ -1,15 +1,15 @@
 {
-  "current": "v4.194",
+  "current": "v4.195",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.193",
+  "basedOnProduction": "v4.194",
   "notes": [
-    "Improve meditation Wake Lock, screen, benefits, minimum duration and one daily star bonus, with reward recorded in history.",
-    "Connect meditation to calendar recap, AI personal analysis, partner summary, mood guidance and updated profile UI.",
-    "Remove search button in main header while keeping existing notifications, relocate mood emojis to avatar, unify profile card spacing."
+    "Show meditation mood guidance only for the signed-in actor above their own home profile card.",
+    "Hide the prompt immediately outside Home; never allow Diana's mood to create a prompt on Rustam's home.",
+    "Reduce spacing of meditation reminder and refresh PWA assets."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
