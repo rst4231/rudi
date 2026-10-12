@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { REWARDS, DAILY_LIMIT_UNITS, scoreView, awardScore, awardProductScore, redeemReward, resetMutationQueueForTests } = require('../api/score-store.cjs');
 
 const expected = [
-  ["movie", 3, "Ты выбираешь фильм или сериал для совместного просмотра."],
+  ["movie", 3, "Ты выбираешь фильм для совместного просмотра."],
   ["dessert", 10, "Партнёр покупает для тебя выбранный десерт или вкусняшку стоимостью до 300 ₽."],
   ["telegram-premium", 11, "Партнёр дарит подписку Telegram Premium на 1 месяц."],
   ["breakfast", 20, "Партнёр готовит и приносит завтрак в постель."],
@@ -92,10 +92,10 @@ test('home actions use the configured fractional star rewards', () => {
 });
 
 
-test('movie and series are one shop reward and legacy series stays compatible', async () => {
+test('movie-only reward and legacy series stays compatible', async () => {
   const movie=REWARDS.find((row)=>row.id==='movie');
   assert.ok(movie);
-  assert.equal(movie.label,'Выбрать фильм или сериал');
+  assert.equal(movie.label,'Выбрать фильм');
   assert.equal(movie.costUnits,30);
   assert.equal(REWARDS.some((row)=>row.id==='series'),false);
 
