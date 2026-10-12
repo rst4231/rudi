@@ -81,3 +81,19 @@ test('personal calendar interactions and labels are wired in UI',()=>{
  assert.ok(editor.includes('rudiPersonalTaskProject'));
  assert.ok(app.includes('calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable)'));
 });
+
+test('personal editor keeps date and time when switching between different task cards',()=>{
+ const fs=require('node:fs'),vm=require('node:vm');
+ const src=fs.readFileSync('public/personal-task-editor.js','utf8');
+ const start=src.indexOf('function normalizedEditorWhen(task){');
+ const end=src.indexOf('function open(task,ctx={}){',start);
+ assert.ok(start>=0&&end>start);
+ const convert=vm.runInNewContext(src.slice(start,end)+';normalizedEditorWhen');
+ const first=convert({date:'2026-10-12',startTime:'09:15',originalStartDate:'2026-10-12T06:15:00Z'});
+ const second=convert({date:'2026-10-15',startTime:'18:40',originalStartDate:'2026-10-12T06:15:00Z'});
+ assert.equal(first.date,'2026-10-12');assert.equal(first.time,'09:15');
+ assert.equal(second.date,'2026-10-15');assert.equal(second.time,'18:40');
+ const due=convert({date:'2026-10-18',startTime:'',endTime:'20:30',originalStartDate:'2026-10-12T06:15:00Z'});
+ assert.equal(due.date,'2026-10-18');assert.equal(due.time,'20:30');
+ assert.match(src,/byId\('rudiPersonalTaskForm'\)\.reset\(\)/);
+});

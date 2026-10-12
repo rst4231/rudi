@@ -124,26 +124,31 @@ async function projects(){
   }
 }
 function normalizedEditorWhen(task){
-  // Personal calendar already renders occurrences in Moscow time. Do not
-  // silently replace a selected occurrence with the current day or UTC date.
-  let date=/^20\d\d-\d\d-\d\d$/.test(String(task?.date||''))?String(task.date):'';
-  let time=/^([01]\d|2[0-3]):[0-5]\d$/.test(String(task?.startTime||''))?String(task.startTime):'';
+  // Use the selected card's date/time. Original TickTick timestamps can
+  // belong to a different date (for example a due date occurrence).
+  const validDate=value=>/^20\d\d-\d\d-\d\d$/.test(String(value||''));
+  const validTime=value=>/^([01]\d|2[0-3]):[0-5]\d$/.test(String(value||''));
+  let date=validDate(task?.date)?String(task.date):'';
+  let time=validTime(task?.startTime)?String(task.startTime)
+    :validTime(task?.endTime)?String(task.endTime):'';
   const raw=String(task?.originalStartDate||'').trim();
-  // A stored timestamp is authoritative if the card has a stale/missing date.
-  if(raw&&!String(task?.repeatFlag||'').trim()){
+  if(raw){
     const instant=new Date(raw);
     if(Number.isFinite(instant.getTime())){
-      const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(instant).map(x=>[x.type,x.value]));
+      const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{
+        timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',
+        hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+      }).formatToParts(instant).map(x=>[x.type,x.value]));
       const sourceDate=parts.year+'-'+parts.month+'-'+parts.day;
-      if(!date||date!==sourceDate)date=sourceDate;
-      if(!task?.allDay&&(time!==parts.hour+':'+parts.minute))time=parts.hour+':'+parts.minute;
+      if(!date)date=sourceDate;
+      if(!time&&!task?.allDay&&date===sourceDate)time=parts.hour+':'+parts.minute;
     }
   }
   return {date,time:task?.allDay?'':time};
 }
 function open(task,ctx={}){
   if(!task?.id||!task?.personal)return;
-  init();closeMenu();active={task:{...task},ctx,creating:task.isNew===true};
+  init();closeMenu();byId('rudiPersonalTaskForm').reset();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
   const {date,time}=normalizedEditorWhen(task);
   f('date').value=date;

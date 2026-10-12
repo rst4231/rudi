@@ -19753,7 +19753,61 @@
           navigateToAppTab('fasting',{scroll:true});
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         };
-        profileButton?.addEventListener('click',navigateOwnFasting);
+        // Hold the fasting Home icon to start 16 hours. A tap still opens the tracker.
+        let fastingHoldTimer=0,fastingHoldStart=null,fastingSuppressClickUntil=0,fastingQuickBusy=false;
+        const clearFastingHold=()=>{clearTimeout(fastingHoldTimer);fastingHoldTimer=0;fastingHoldStart=null;};
+        const quickStartFasting=async()=>{
+          if(fastingQuickBusy)return;
+          fastingQuickBusy=true;
+          navigateOwnFasting();
+          if(status)status.textContent='Запускаю голодание на 16 часов…';
+          try{
+            const latest=await fastingRequest('state');
+            renderFasting(latest.fasting);
+            if(latest.fasting?.active){
+              if(status)status.textContent='Голодание уже запущено';
+              return;
+            }
+            const data=await fastingRequest('start',{startedAt:new Date().toISOString(),goalHours:16});
+            renderFasting(data.fasting);
+            updateOwnFastingOverview(data.fasting?.active||null);
+            loadActivityJournal({silent:true}).catch(()=>{});
+            if(status)status.textContent='';
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }catch(error){
+            if(String(error?.message||'').includes('fasting-already-active')){
+              await loadFastingTracker({silent:true});
+              if(status)status.textContent='Голодание уже запущено';
+            }else{
+              if(status)status.textContent=fastingErrorText(error);
+              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+            }
+          }finally{fastingQuickBusy=false}
+        };
+        profileButton?.addEventListener('pointerdown',event=>{
+          if((event.pointerType==='mouse'&&event.button!==0)||event.isPrimary===false)return;
+          clearFastingHold();
+          fastingHoldStart={id:event.pointerId,x:event.clientX,y:event.clientY};
+          fastingHoldTimer=setTimeout(()=>{
+            if(!fastingHoldStart)return;
+            fastingSuppressClickUntil=Date.now()+1500;clearFastingHold();
+            void quickStartFasting();
+            try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
+          },550);
+        });
+        profileButton?.addEventListener('pointermove',event=>{
+          if(fastingHoldStart&&event.pointerId===fastingHoldStart.id&&
+            Math.hypot(event.clientX-fastingHoldStart.x,event.clientY-fastingHoldStart.y)>12)clearFastingHold();
+        });
+        profileButton?.addEventListener('pointerup',clearFastingHold);
+        profileButton?.addEventListener('pointercancel',clearFastingHold);
+        profileButton?.addEventListener('contextmenu',event=>event.preventDefault());
+        profileButton?.addEventListener('click',event=>{
+          if(Date.now()<fastingSuppressClickUntil){
+            event.preventDefault();event.stopImmediatePropagation();return;
+          }
+          navigateOwnFasting();
+        });
 
         historyToggle?.addEventListener('click',()=>{
           const card=document.querySelector('.fasting-history-card');

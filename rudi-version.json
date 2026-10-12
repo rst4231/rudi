@@ -1,15 +1,16 @@
 {
-  "current": "v4.195",
+  "current": "v4.196",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.194",
+  "basedOnProduction": "v4.195",
   "notes": [
-    "Show meditation mood guidance only for the signed-in actor above their own home profile card.",
-    "Hide the prompt immediately outside Home; never allow Diana's mood to create a prompt on Rustam's home.",
-    "Reduce spacing of meditation reminder and refresh PWA assets."
+    "Swipe right from the left edge of the meditation page to return to Home.",
+    "Use each personal calendar task card's date/time, ignoring timestamps from previous TickTick occurrences; reset editor state.",
+    "Long-press fasting on Home to start a 16-hour fast; no duplicate if one already runs.",
+    "Long-press meditation on Home to open and start a 10-minute session; preserve normal taps."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

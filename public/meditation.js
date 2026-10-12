@@ -65,6 +65,24 @@ function ensurePage(){
   </div>`;
  document.body.appendChild(page);
  $('meditationBack').addEventListener('click',close);
+ // Edge swipe right exits the full-page meditation view on iPhone/PWA.
+ let edgeSwipe=null;
+ page.addEventListener('touchstart',event=>{
+  if(page.hidden||event.touches.length!==1){edgeSwipe=null;return;}
+  const finger=event.touches[0];
+  edgeSwipe=finger.clientX<=110?{x:finger.clientX,y:finger.clientY}:null;
+ },{passive:true});
+ page.addEventListener('touchend',event=>{
+  if(!edgeSwipe||page.hidden)return;
+  const start=edgeSwipe;edgeSwipe=null;
+  const finger=event.changedTouches[0];if(!finger)return;
+  const dx=finger.clientX-start.x,dy=finger.clientY-start.y;
+  if(dx>=65&&Math.abs(dx)>Math.abs(dy)*1.35){
+   if(event.cancelable)event.preventDefault();
+   close();
+  }
+ },{passive:false});
+ page.addEventListener('touchcancel',()=>{edgeSwipe=null},{passive:true});
  $('meditationDurations').addEventListener('click',event=>{const b=event.target.closest('[data-med-goal]');if(!b||state?.active)return;goal=Number(b.dataset.medGoal);render()});
  $('meditationStart').addEventListener('click',()=>void start());
  $('meditationStop').addEventListener('click',()=>void stop(false));
@@ -198,8 +216,23 @@ function open(){
  page.hidden=false;document.body.classList.add('meditation-page-open');
  window.scrollTo({top:0,behavior:'instant'});
  state=null;quote=null;partner=null;status('Загружаю…');
- render();void load();
+ render();
+ const loading=load();
  try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch{}
+ return loading;
+}
+let quickStartBusy=false;
+async function quickStart(){
+ if(quickStartBusy)return;
+ quickStartBusy=true;
+ goal=10;
+ try{
+  await open();
+  if(!page||page.hidden)return;
+  if(!state){status('Не удалось проверить сеанс. Попробуй ещё раз.');return;}
+  if(state.active){status('Медитация уже запущена');return;}
+  await start();
+ }finally{quickStartBusy=false;}
 }
 function close(){
  if(!page)return;page.hidden=true;document.body.classList.remove('meditation-page-open');void syncWakeLock();updatePartner();
@@ -263,7 +296,28 @@ function reconcile(){
   button.type='button';button.title='Медитация';button.setAttribute('aria-label','Открыть таймер медитации');
   button.innerHTML='<span class="mood-emoji" aria-hidden="true">🧘</span>';
   fasting.insertAdjacentElement('afterend',button);
-  button.addEventListener('click',open);
+  let holdTimer=0,press=null,suppressClickUntil=0;
+  const clearHold=()=>{clearTimeout(holdTimer);holdTimer=0;press=null;};
+  button.addEventListener('pointerdown',event=>{
+   if((event.pointerType==='mouse'&&event.button!==0)||event.isPrimary===false)return;
+   clearHold();press={id:event.pointerId,x:event.clientX,y:event.clientY};
+   holdTimer=setTimeout(()=>{
+    if(!press)return;
+    suppressClickUntil=Date.now()+1500;clearHold();
+    void quickStart();
+    try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('medium')}catch{}
+   },550);
+  });
+  button.addEventListener('pointermove',event=>{
+   if(press&&event.pointerId===press.id&&Math.hypot(event.clientX-press.x,event.clientY-press.y)>12)clearHold();
+  });
+  button.addEventListener('pointerup',clearHold);
+  button.addEventListener('pointercancel',clearHold);
+  button.addEventListener('contextmenu',event=>event.preventDefault());
+  button.addEventListener('click',event=>{
+   if(Date.now()<suppressClickUntil){event.preventDefault();event.stopImmediatePropagation();return;}
+   void open();
+  });
  }
  if(document.body.dataset.appTab==='home'){updatePartner();updateNudges();void refreshPartner()}
 }
