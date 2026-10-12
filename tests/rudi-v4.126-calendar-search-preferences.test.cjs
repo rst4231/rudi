@@ -8,8 +8,8 @@ test('calendar restores view by actor',()=>{
  assert.match(app,/setWorkCalendarRangeActive\(saved.mode\|\|'month'\)/);
  assert.match(app,/calendarSetScope\(saved.scope\|\|'personal'/);
 });
-test('search button positioned between mode and settings',()=>{
- const a=html.indexOf('id="calendarModeSwitch"'),b=html.indexOf('id="calendarSearchButton"'),c=html.indexOf('id="calendarConnectionsGear"');
+test('search button positioned between scope and settings',()=>{
+ const a=html.indexOf('id="calendarScopeSwitch"'),b=html.indexOf('id="calendarSearchButton"'),c=html.indexOf('id="calendarConnectionsGear"');
  assert.ok(a>=0&&a<b&&b<c);
  assert.match(app,/function calendarOpenSearchResult\(task\)/);
  assert.match(api,/tickTickTaskDateKeys\(task\)/);
