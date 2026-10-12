@@ -61,8 +61,8 @@ test('UI exposes meditation timer and calendar edits without edit quick-action r
  const html=fs.readFileSync('public/index.html','utf8'),js=fs.readFileSync('public/meditation.js','utf8');
  const editor=fs.readFileSync('public/personal-task-editor.js','utf8');
  const app=fs.readFileSync('public/app.js','utf8');
- assert.ok(/meditation\.js\?v=\d+\.\d+/.test(html));
- assert.ok(/meditation\.css\?v=\d+\.\d+/.test(html));
+ assert.match(html,/meditation\.js\?v=\d+\.\d+/);
+ assert.match(html,/meditation\.css\?v=\d+\.\d+/);
  assert.ok(js.includes('id="meditationOrbit"'));
  assert.ok(js.includes('id="meditationHistoryCard"'));
  assert.ok(js.includes("duration=(a?a.goalMinutes:goal)*60"));
@@ -161,7 +161,7 @@ test('meditation edge swipe and both guarded Home long-press shortcuts exist',()
  const app=fs.readFileSync('public/app.js','utf8');
  assert.match(js,/page\.addEventListener\('touchend'/);
  assert.match(js,/dx>=65&&Math\.abs\(dx\)>Math\.abs\(dy\)\*1\.35/);
- assert.match(js,/suppressClickUntil=Date\.now\(\)\+(?:1500|1600)/);
+ assert.match(js,/suppressClickUntil=Date\.now\(\)\+1500/);
  assert.match(js,/goal=10;/);
  assert.match(js,/if\(state\.active\)\{status\('Медитация уже запущена'\)/);
  assert.match(app,/goalHours:16/);
