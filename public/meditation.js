@@ -70,6 +70,8 @@ function ensurePage(){
  $('meditationStop').addEventListener('click',()=>void stop(false));
  $('meditationSound').addEventListener('change',event=>{try{localStorage.setItem(key('sound'),event.target.checked?'on':'off')}catch{}});
  document.addEventListener('visibilitychange',()=>{void syncWakeLock();if(!document.hidden&&page&&!page.hidden){render();void autoFinish()}});
+ // Restore screen wake lock when returning to the meditation page on mobile.
+ window.addEventListener('pageshow',()=>{if(page&&!page.hidden){void syncWakeLock();renderClock()}});
  window.addEventListener('online',()=>{if(!page?.hidden)void load()});
  window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!page.hidden)close()});
  clock=setInterval(()=>{if(page&&!page.hidden){renderClock();void autoFinish()}},300);
