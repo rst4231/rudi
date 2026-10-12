@@ -58,6 +58,13 @@ async function persist(env,key,body,now=Date.now()){
     'INSERT INTO rudi_crypto_market_cache(cache_key,body,fetched_at) VALUES(?,?,?) '+
     'ON CONFLICT(cache_key) DO UPDATE SET body=excluded.body,fetched_at=excluded.fetched_at'
   ).bind(key,body,now).run();
+  if(!key.startsWith('__')){
+    const entry={body,fetchedAt:now};
+    await env.MARKET_DB.prepare(
+      "INSERT INTO rudi_state(namespace,key,value,tags,expires_at,updated_at) VALUES('rudi-crypto-market-cache-v1',?,?, '[]',NULL,?) "+
+      "ON CONFLICT(namespace,key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at"
+    ).bind(key,JSON.stringify(entry),new Date(now).toISOString()).run();
+  }
 }
 function reply(body,fetchedAt,hit){
   return new Response(body,{headers:{
