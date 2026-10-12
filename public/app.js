@@ -14697,7 +14697,38 @@
           const time=financeNowDateTimeInputs().time;
           openTickTickTaskForCreation?.({date,time});
         });
-        document.getElementById('calendarPersonalCreateTask')?.addEventListener('click',calendarOpenPersonalTickTickComposer);
+        const personalPlus=document.getElementById('calendarPersonalCreateTask');
+        if(personalPlus){
+          let hold=0,suppressUntil=0,point=null;
+          const clear=()=>{clearTimeout(hold);hold=0;point=null};
+          personalPlus.addEventListener('pointerdown',event=>{
+            if(event.button!==0)return;
+            clear();point={id:event.pointerId,x:event.clientX,y:event.clientY};
+            hold=setTimeout(()=>{
+              if(!point)return;
+              suppressUntil=Date.now()+1500;
+              clear();
+              calendarOpenPersonalTickTickComposer();
+            },550);
+          });
+          personalPlus.addEventListener('pointermove',event=>{
+            if(point&&Math.hypot(event.clientX-point.x,event.clientY-point.y)>12)clear();
+          });
+          personalPlus.addEventListener('pointerup',clear);
+          personalPlus.addEventListener('pointercancel',clear);
+          personalPlus.addEventListener('contextmenu',event=>event.preventDefault());
+          personalPlus.addEventListener('click',event=>{
+            event.preventDefault();event.stopPropagation();
+            if(Date.now()<suppressUntil||calendarScope!=='personal'||currentActor!=='Рустам')return;
+            const date=currentSelectedWorkDate||calendarDateCursor||todayState().key;
+            const time=financeNowDateTimeInputs().time;
+            window.RUDIPersonalTaskEditor?.create({
+              initData:telegramInitData(),date,time,
+              refresh:()=>refreshAfterTickTickTaskChange({preserveExpanded:false}),
+              openTickTick:()=>calendarOpenPersonalTickTickComposer()
+            });
+          });
+        }
         const grid=document.getElementById('workCalendarDays');
         let startX=0,startY=0;
         grid?.addEventListener('touchstart',event=>{
