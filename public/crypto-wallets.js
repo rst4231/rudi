@@ -60,9 +60,35 @@
   const dateLabel=iso=>iso?new Date(iso).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Пока не обновлялся';
   const setStatus=(id,message)=>{const e=$(id);if(e)e.textContent=message||'';};
   function clearKeys(){for(const id of ['financeCryptoApiKey','financeCryptoApiSecret'])if($(id))$(id).value='';}
+  const pnlUnavailable=(p,period)=>{
+    if(!p)return 'проверяю историю';
+    const issue={
+      'crypto-bybit-coverage-incomplete':'не все счета Bybit учтены',
+      'crypto-trust-coverage-incomplete':'не все активы Trust Wallet учтены',
+      'crypto-lp-discovery-unavailable':'не все LP-позиции Uniswap учтены',
+      'crypto-refresh-deferred':'обновление отложено'
+    }[p.issue];
+    const missingMonth=p.reason==='month-baseline-missing'||
+      p.underlyingReason==='month-baseline-missing';
+    if(period==='month'&&missingMonth)return 'нет полного снимка за 1-е число';
+    if(p.reason==='incomplete-balance'){
+      if(issue)return issue;
+      if(p.missingSources)return 'неполный баланс '+p.missingSources+' из '+p.totalSources+' источников';
+      return 'баланс неполный';
+    }
+    if(p.reason==='partial-history')return 'только неполные снимки';
+    if(p.reason==='history-too-short')return 'история '+(p.historyHours||0)+' из 24 ч';
+    if(p.reason==='baseline-missing')return 'нет полного снимка 24 ч назад';
+    if(p.reason==='last-sync-stale')return 'нет свежего баланса';
+    if(p.reason==='first-day-insufficient-history')return 'месяц только начался';
+    if(p.reason==='month-baseline-missing')return 'нет полного снимка за 1-е число';
+    if(p.reason==='history-unavailable')return 'история временно недоступна';
+    if(p.reason==='no-history')return 'история ещё не накоплена';
+    return 'недостаточно полных снимков';
+  };
   const pnlText=(p,period='day')=>{
     const label=period==='month'?'За месяц':'За 24 ч';
-    if(!p?.available)return label+': недостаточно данных';
+    if(!p?.available)return label+': '+pnlUnavailable(p,period);
     return label+': '+(p.deltaUsd>0?'+':'')+cash(p.deltaUsd)+
       ' ('+(p.percent>0?'+':'')+p.percent.toFixed(2)+'%)';
   };
@@ -72,9 +98,14 @@
     if(p?.available){
       el.classList.add(p.deltaUsd>0?'is-positive':p.deltaUsd<0?'is-negative':'is-neutral');
       el.title=p.note||'Изменение стоимости без корректировки на вводы/выводы. Это не чистый PNL.';
-    }else el.title=period==='month'
-      ?'Для оценки нужен полный баланс за первое число месяца и свежая синхронизация. Переводы и выводы не вычтены.'
-      :'Для оценки нужны два полных снимка за 24 часа. Переводы и выводы не вычтены.';
+    }else{
+      const time=p?.firstAt&&Number.isFinite(p.historyHours)
+        ?' История снимков: '+p.historyHours+' из 24 ч.':'';
+      const extra=p?.reason==='incomplete-balance'
+        ?' Для расчёта требуются полные балансы всех активов.':'';
+      el.title=pnlUnavailable(p,period)+'.'+time+extra+
+        ' Оценка исключает пополнения и выводы только при отдельной корректировке.';
+    }
     return el;
   };
   const periodBadges=(day,month)=>{
