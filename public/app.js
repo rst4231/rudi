@@ -3788,9 +3788,8 @@
             detail.textContent=[row.historicalImport?'CoinKeeper':'',wallet?.name||row.fromName,sourcePart?sourcePart+financeMoney(row.amount,targetCurrency):'',meta.time].filter(Boolean).join(' · ');
             copy.append(rowTitle,detail);
             const value=document.createElement('b');
-            value.textContent=row.unconverted
-              ?'−'+financeMoney(row.sourceAmount,row.sourceCurrency)+' · без курса RUB'
-              :'−'+financeOverviewMoney(row.rubAmount||row.amount);
+            value.textContent='−'+financeOverviewMoney(row.rubAmount||row.amount);
+            if(row.unconverted)value.textContent='−'+financeMoney(row.sourceAmount,row.sourceCurrency)+' · без курса RUB';
             const del=document.createElement('button');del.type='button';del.className='finance-category-history-delete';del.textContent='×';del.setAttribute('aria-label','Удалить расход');
             if(row.historicalImport){del.hidden=true;del.disabled=true;del.setAttribute('aria-hidden','true')}
             del.addEventListener('click',async()=>{
