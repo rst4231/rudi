@@ -6,6 +6,7 @@ const NS='rudi-coinkeeper-history-v1';
 const CUTOFF='2026-10-01';
 const TTL=10*365*24*60*60;
 const LAST_IMPORT_KEY='rustam:last-import';
+const OVERVIEW_KEY='rustam:overview:v1';
 function keyOf(value){return String(value||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/\s+/g,' ')}
 function dateOnly(value){
  const s=String(value||'');
@@ -134,6 +135,7 @@ async function importBatch(actor,rows,opts={}){
   result.imported+=fresh.length;
   result.months.push(month);
  }
+ if(result.imported>0)await cache.delete(OVERVIEW_KEY);
  return result;
 }
 async function deleteLastImport(actor,importId,offset=0,opts={}){
@@ -157,7 +159,56 @@ async function deleteLastImport(actor,importId,offset=0,opts={}){
  }
  const done=end>=months.length;
  if(done)await cache.delete(LAST_IMPORT_KEY);
+ if(deleted>0)await cache.delete(OVERVIEW_KEY);
  return {deleted,totalMonths:months.length,nextOffset:end,done};
+}
+function archiveOverviewFromRows(items){
+ // Read-only RUB analytics. Missing historical RUB rates stay unknown,
+ // never treated as today's FX or as native-currency RUB amounts.
+ const months=Object.create(null),days=Object.create(null);
+ let expenses=0,transfers=0,unknownRub=0,knownRub=0;
+ for(const item of items||[]){
+  if(!/^rustam:(201[6-9]|202[0-6])-(0[1-9]|1[0-2])$/.test(item?.key||''))continue;
+  if(!Array.isArray(item.value))continue;
+  const month=item.key.slice('rustam:'.length);
+  if(month>='2026-10')continue;
+  for(const row of item.value){
+   if(row?.type==='transfer'){transfers++;continue;}
+   if(row?.type!=='expense'||!/^\d{4}-\d{2}-\d{2}$/.test(row.date||''))continue;
+   if(row.date.slice(0,7)!==month)continue;
+   const categoryId=String(row.categoryId||'').slice(0,100);
+   if(!categoryId)continue;
+   const daily=days[row.date]||(days[row.date]={total:0,count:0,unknownRub:0,categories:{}});
+   const monthly=months[month]||(months[month]={total:0,count:0,unknownRub:0,categories:{}});
+   expenses++;daily.count++;monthly.count++;
+   if(row.rubAmount===null||row.rubAmount===undefined||!Number.isFinite(Number(row.rubAmount))){
+    unknownRub++;daily.unknownRub++;monthly.unknownRub++;continue;
+   }
+   const amount=Math.round(Number(row.rubAmount)*100)/100;
+   if(amount<0)continue;
+   knownRub=Math.round((knownRub+amount)*100)/100;
+   for(const bucket of [daily,monthly]){
+    bucket.total=Math.round((bucket.total+amount)*100)/100;
+    const cat=bucket.categories[categoryId]||(bucket.categories[categoryId]={total:0,count:0});
+    cat.total=Math.round((cat.total+amount)*100)/100;
+    cat.count++;
+   }
+  }
+ }
+ return {months,days,expenses,transfers,unknownRub,knownRub};
+}
+async function overview(actor,opts={}){
+ if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
+ // A one-time 121-month reconstruction may be larger than a normal D1 read.
+ const cache=cacheOf({...opts,cacheOptions:{...opts.cacheOptions,timeoutMs:20000}});
+ const saved=await cache.get(OVERVIEW_KEY);
+ if(saved&&saved.months&&saved.days)return saved;
+ // One-time rebuild of the compact index from the isolated monthly archive.
+ // Subsequent reads fetch only this small index; no live finance state writes.
+ const rows=await cache.list();
+ const result=archiveOverviewFromRows(rows);
+ await cache.set(OVERVIEW_KEY,result,{ttl:TTL,tags:['coinkeeper-history'],name:OVERVIEW_KEY});
+ return result;
 }
 async function readMonth(actor,month,opts={}){
  if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
@@ -180,4 +231,4 @@ async function readMonth(actor,month,opts={}){
   unknownRub:amountUnknown,categories:expenseTotals,currencies:currencyTotals
  }};
 }
-module.exports={NS,CUTOFF,keyOf,dateOnly,normalizeRow,context,contextFromState,dedupeExisting,importBatch,readMonth,deleteLastImport};
+module.exports={NS,CUTOFF,keyOf,dateOnly,normalizeRow,context,contextFromState,dedupeExisting,importBatch,readMonth,deleteLastImport,archiveOverviewFromRows,overview};

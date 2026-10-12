@@ -234,6 +234,7 @@
           offset=data.nextOffset;
         }
         await showMonth();
+        document.dispatchEvent(new Event('rudi-coinkeeper-updated'));
         setStatus('Удалено '+removed+' операций последней загрузки CoinKeeper. Текущие финансы RUDI не изменены.');
       }catch(error){
         setStatus('Удаление прервалось: '+String(error.message||error)+'. Нажми «Удалить последний импорт» ещё раз, чтобы продолжить.');
@@ -274,6 +275,7 @@
           matchedSeptember+'. Повторный импорт: '+duplicates+'. Без точного RUB курса: '+unknownRub+
           '. Балансы и справочники RUDI не изменялись.';
         progress.textContent=result;setStatus(result);
+        document.dispatchEvent(new Event('rudi-coinkeeper-updated'));
         await showMonth();
       }catch(error){
         const message='Импорт остановлен: '+String(error.message||error)+

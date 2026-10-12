@@ -18,7 +18,8 @@ function cache(){
  const map=new Map();
  return {map,async get(key){return structuredClone(map.get(key)||null)},
    async set(key,value){map.set(key,structuredClone(value))},
-   async delete(key){map.delete(key)}};
+   async delete(key){map.delete(key)},
+   async list(){return [...map.entries()].map(([key,value])=>({key,value:structuredClone(value)}))}};
 }
 const row=(values={})=>({type:'expense',date:'2016-09-24',amount:122,currency:'THB',
  convertedAmount:245.73881964,convertedCurrency:'RUB',fromName:'Баты',toName:'Транспорт',
@@ -102,7 +103,7 @@ test('UI provides a review step and does not use the old balance-mutating import
  assert.match(js,/parseCsv\(/);
  assert.doesNotMatch(js,/import-expenses/);
  const html=fs.readFileSync('public/index.html','utf8');
- assert.match(html,/coinkeeper-history\.js\?v=4\.185/);
+ assert.match(html,/coinkeeper-history\.js\?v=4\.186/);
 });
 test('last CoinKeeper upload can be deleted without changing RUDI state, preserving older upload',async()=>{
  const s=state(),original=JSON.stringify(s),storage=cache();
@@ -147,7 +148,7 @@ test('CoinKeeper v4.184 UI has fully opaque readable dialog and accessible delet
  assert.match(js,/В \(вероятно, Вика\)/);
  assert.doesNotMatch(js,/\bimport-expenses\b/);
  const html=fs.readFileSync('public/index.html','utf8');
- assert.match(html,/coinkeeper-history\.js\?v=4\.185/);
+ assert.match(html,/coinkeeper-history\.js\?v=4\.186/);
 });
 
 test('CoinKeeper owner-only UI does not mount for Diana, waits for Rustam auth, and removes on switch',()=>{
@@ -186,4 +187,53 @@ test('CoinKeeper owner-only UI does not mount for Diana, waits for Rustam auth, 
  assert.equal(elements.has('ckhHistory'),false,'archive disappears on account switch');
  assert.equal(elements.has('ckhDialog'),false);
  assert.ok(calls.removed>=2);
+});
+
+test('CoinKeeper overview combines monthly and daily RUB expenses with existing category IDs, ignoring transfers',async()=>{
+ const s=state(),original=JSON.stringify(s),storage=cache();
+ const rows=[
+  row({importKey:'ckhistory:overview:1',date:'2016-09-24',categoryId:'food'}),
+  row({importKey:'ckhistory:overview:2',date:'2016-09-25',categoryId:'shop',currency:'EUR',amount:20,convertedCurrency:null,convertedAmount:null}),
+  row({importKey:'ckhistory:overview:3',date:'2016-09-25',type:'transfer',categoryId:'',amount:500,currency:'RUB'}),
+  row({importKey:'ckhistory:overview:4',date:'2026-09-26',categoryId:'shop',currency:'RUB',amount:120,convertedCurrency:null,convertedAmount:null})
+ ];
+ const imported=await mod.importBatch('Рустам',rows,{state:s,cache:storage});
+ assert.equal(imported.imported,4);
+ const result=await mod.overview('Рустам',{state:s,cache:storage});
+ assert.equal(result.expenses,3);
+ assert.equal(result.transfers,1);
+ assert.equal(result.unknownRub,1);
+ assert.equal(result.knownRub,365.74);
+ assert.equal(result.months['2016-09'].total,245.74);
+ assert.equal(result.months['2016-09'].count,2);
+ assert.equal(result.months['2016-09'].unknownRub,1);
+ assert.equal(result.months['2016-09'].categories.food.total,245.74);
+ assert.equal(result.months['2026-09'].categories.shop.total,120);
+ assert.equal(result.days['2016-09-24'].total,245.74);
+ assert.equal(result.days['2026-09-26'].total,120);
+ assert.equal(JSON.stringify(s),original,'never touch RUDI live expense/wallet/category state');
+ const saved=await mod.overview('Рустам',{state:s,cache:storage});
+ assert.deepEqual(JSON.parse(JSON.stringify(saved)),JSON.parse(JSON.stringify(result)),'second request loads compact index');
+ await assert.rejects(()=>mod.overview('Диана',{state:s,cache:storage}),/owner-only/);
+ const removed=await mod.deleteLastImport('Рустам','overview',0,{cache:storage});
+ assert.equal(removed.deleted,4);
+ const rebuilt=await mod.overview('Рустам',{state:s,cache:storage});
+ assert.equal(rebuilt.expenses,0,'removal invalidates historical totals');
+});
+test('existing RUDI UI reads CoinKeeper history for category totals and analytics without mutating wallet state',()=>{
+ const app=fs.readFileSync('public/app.js','utf8');
+ assert.match(app,/financeRequest\('ck-overview'\)/);
+ assert.match(app,/financeRequest\('ck-month'/);
+ assert.match(app,/coinKeeperMonthly\(month\)/);
+ assert.match(app,/coinKeeperRange\(range.from,range.to\)/);
+ assert.match(app,/coinKeeperRows\.get\(month\)/);
+ assert.match(app,/row\.historicalImport/);
+ assert.match(app,/row\.unconverted/);
+ assert.match(app,/currentActor==='Рустам'/);
+ assert.match(app,/loadCoinKeeperOverview/);
+ const importer=fs.readFileSync('public/coinkeeper-history.js','utf8');
+ assert.match(importer,/rudi-coinkeeper-updated/);
+ assert.doesNotMatch(app,/financeState\.personalExpenses\.push\(.*coinKeeper/s);
+ const api=fs.readFileSync('api/finances.js','utf8');
+ assert.match(api,/operation==='ck-overview'/);
 });

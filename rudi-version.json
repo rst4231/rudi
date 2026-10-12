@@ -1,15 +1,16 @@
 {
-  "current": "v4.185",
+  "current": "v4.186",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.184",
+  "basedOnProduction": "v4.185",
   "notes": [
-    "Show historical CoinKeeper archive only on Rustam's authenticated account, never on Diana's.",
-    "React safely to delayed authentication and account switching without showing archive on non-owner accounts.",
-    "Keep all Cloudflare historical records, current RUDI finances, categories, and wallet balances unchanged."
+    "Show already-imported 2016–September 2026 CoinKeeper expenses in existing RUDI monthly category totals, historical category lists and finance analytics.",
+    "Rebuild a compact daily/monthly category index from historical D1 archive without storing 17k operations in the live finance record.",
+    "Never change current balances or wallets, never create categories, never count transfers as expenses, retain original currencies and exclude missing RUB rates from RUB totals.",
+    "Preserve September deduplication, historic archive delete/reimport behavior, and owner-only access."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
