@@ -140,3 +140,22 @@ test('paired yearly chart has explicit title, owner-only historical totals and a
  assert.match(app,/rudi-finance-decisions-mounted/);
  assert.match(index,/finance-decisions-ui\.js\?v=4\.187/);
 });
+
+test('v4.188 year chart labels show each month expense and income amount permanently with privacy masking',()=>{
+ const fs=require('node:fs'),ui=fs.readFileSync('public/finance-decisions-ui.js','utf8'),
+ css=fs.readFileSync('public/finance-decisions.css','utf8'),
+ html=fs.readFileSync('public/index.html','utf8');
+ assert.match(ui,/const yearCompactValue=\(rubAmount,ctx\)=>/);
+ assert.match(ui,/rudi-year-values/);
+ assert.match(ui,/yearCompactValue\(bucket\.total,ctx\)/);
+ assert.match(ui,/yearCompactValue\(income,ctx\)/);
+ assert.match(ui,/hidden\?'•••':yearCompactValue/);
+ assert.match(ui,/displayMoney\(selectedBucket\.total,ctx\)/);
+ assert.match(ui,/displayMoney\(selectedBucket\.income\|\|0,ctx\)/);
+ assert.match(ui,/Расходы\/Доходы за год/);
+ assert.match(css,/\.rudi-weekly-chart\.is-year \.rudi-year-values/);
+ assert.match(css,/position:absolute;top:2px/);
+ assert.match(css,/\.rudi-weekly-chart\.is-year \.rudi-year-values \.is-income/);
+ assert.match(html,/finance-decisions-ui\.js\?v=4\.188/);
+ assert.match(html,/finance-decisions\.css\?v=4\.188/);
+});
