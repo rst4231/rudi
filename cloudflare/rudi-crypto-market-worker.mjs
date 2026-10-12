@@ -1,92 +1,81 @@
 'use strict';
-/* Explicitly sourced OKX public SWAP/Spot market reference for forward-only paper trades.
- * Never forwards private Bybit endpoints and never places exchange orders. */
-const ORIGIN='https://www.okx.com';
+/* Read-only Binance USDT-perpetual market reference for independent paper-trading models.
+ * Bybit remains the author's original venue, never misrepresented as quote source. */
+const FUTURES='https://fapi.binance.com',SPOT='https://api.binance.com';
 const SYMBOL=/^[A-Z0-9]{2,25}USDT$/;
-const DIGITS=/^\d{10,16}$/;
-function parsedRequest(requestUrl){
-  const u=new URL(requestUrl),p=u.searchParams,path=u.pathname;
-  if(path==='/v5/market/tickers'&&p.get('category')==='linear'&&[...p.keys()].every(k=>k==='category'))
-    return {kind:'tickers'};
-  if(['/v5/market/kline','/v5/market/mark-price-kline'].includes(path)&&
-      ['spot','linear'].includes(p.get('category'))&&SYMBOL.test(p.get('symbol')||'')&&
-      ['5','60'].includes(p.get('interval'))&&['120','1000'].includes(p.get('limit'))&&
-      [...p.keys()].every(k=>['category','symbol','interval','limit','start','end'].includes(k))&&
-      (!p.get('start')||DIGITS.test(p.get('start')))&&(!p.get('end')||DIGITS.test(p.get('end')))){
-    const coin=p.get('symbol').slice(0,-4);
-    if(path.includes('mark-price')&&p.get('category')!=='linear')return null;
-    return {kind:'candles',category:p.get('category'),mark:path.includes('mark-price'),
-      instId:coin+'-USDT'+(p.get('category')==='linear'?'-SWAP':''),
-      bar:p.get('interval')==='5'?'5m':'1H',
-      limit:p.get('interval')==='5'?120:100};
-  }
-  if(path==='/v5/market/funding/history'&&p.get('category')==='linear'&&
-      SYMBOL.test(p.get('symbol')||'')&&DIGITS.test(p.get('startTime')||'')&&
-      DIGITS.test(p.get('endTime')||'')&&p.get('limit')==='200'&&
-      [...p.keys()].every(k=>['category','symbol','startTime','endTime','limit'].includes(k)))
-    return {kind:'funding',instId:p.get('symbol').slice(0,-4)+'-USDT-SWAP'};
-  return null;
+const TIME=/^\d{10,16}$/;
+function requestConfig(href){
+ const u=new URL(href),p=u.searchParams,route=u.pathname,keys=[...p.keys()];
+ if(route==='/v5/market/tickers'&&p.get('category')==='linear'&&keys.length===1)return {type:'tickers'};
+ if(['/v5/market/kline','/v5/market/mark-price-kline'].includes(route)&&
+    ['spot','linear'].includes(p.get('category'))&&SYMBOL.test(p.get('symbol')||'')&&
+    ['5','60'].includes(p.get('interval'))&&['120','1000'].includes(p.get('limit'))&&
+    keys.every(k=>['category','symbol','interval','start','end','limit'].includes(k))&&
+    (!p.get('start')||TIME.test(p.get('start')))&&(!p.get('end')||TIME.test(p.get('end'))) &&
+    (!route.includes('mark-price')||p.get('category')==='linear'))
+   return {type:'candles',category:p.get('category'),symbol:p.get('symbol'),
+    interval:p.get('interval')==='5'?'5m':'1h',limit:p.get('limit'),
+    start:p.get('start'),end:p.get('end'),mark:route.includes('mark-price')};
+ if(route==='/v5/market/funding/history'&&p.get('category')==='linear'&&
+    SYMBOL.test(p.get('symbol')||'')&&TIME.test(p.get('startTime')||'')&&
+    TIME.test(p.get('endTime')||'')&&p.get('limit')==='200'&&
+    keys.every(k=>['category','symbol','startTime','endTime','limit'].includes(k)))
+   return {type:'funding',symbol:p.get('symbol'),start:p.get('startTime'),
+    end:p.get('endTime')};
+ return null;
 }
-async function upstream(path){
-  const response=await fetch(ORIGIN+path,{headers:{accept:'application/json'},
-    signal:AbortSignal.timeout(9000),redirect:'manual'});
-  if(!response.ok)throw Error('okx-http-'+response.status);
-  const data=await response.json();
-  if(String(data.code)!=='0'||!Array.isArray(data.data))throw Error('okx-invalid-result');
-  return data.data;
+async function getJson(url){
+ const r=await fetch(url,{headers:{Accept:'application/json'},redirect:'manual',
+  signal:AbortSignal.timeout(9000)});
+ if(!r.ok)throw Error('binance-http-'+r.status);
+ const body=await r.json();
+ if(!Array.isArray(body))throw Error('binance-data-unavailable');
+ return body;
 }
-function quoteResponse(list){
-  return Response.json({retCode:0,retMsg:'OK',marketSource:'OKX',result:{list}},
-    {headers:{'cache-control':'no-store','x-rudi-market-source':'OKX'}});
-}
-async function handleMarket(config){
-  if(config.kind==='tickers'){
-    const data=await upstream('/api/v5/market/tickers?instType=SWAP');
-    return quoteResponse(data.filter(t=>/^([A-Z0-9]+)-USDT-SWAP$/.test(t.instId||''))
-      .map(t=>{
-        const last=Number(t.last),open=Number(t.open24h),vol=Number(t.volCcy24h);
-        return {symbol:t.instId.split('-')[0]+'USDT',lastPrice:t.last,
-          turnover24h:String(last*vol),price24hPcnt:open>0?String(last/open-1):'0'};
-      }).filter(x=>Number(x.lastPrice)>0&&Number(x.turnover24h)>=0));
-  }
-  if(config.kind==='candles'){
-    const route=config.mark?'/api/v5/market/mark-price-candles':'/api/v5/market/candles';
-    const data=await upstream(route+'?'+new URLSearchParams({
-      instId:config.instId,bar:config.bar,limit:String(config.limit)}));
-    return quoteResponse(data.filter(row=>Array.isArray(row)&&row.length>=5&&
-      (row[8]===undefined||String(row[8])==='1')).map(row=>
-      [row[0],row[1],row[2],row[3],row[4],row[5]||'0']));
-  }
-  const data=await upstream('/api/v5/public/funding-rate-history?'+new URLSearchParams({
-    instId:config.instId,limit:'100'}));
-  return quoteResponse(data.map(row=>({
-    fundingRate:row.fundingRate,
-    fundingRateTimestamp:row.fundingTime,
-  })).filter(row=>Number.isFinite(Number(row.fundingRateTimestamp))));
+const reply=list=>Response.json({retCode:0,retMsg:'OK',marketSource:'Binance Futures',
+  result:{list}},{headers:{'cache-control':'no-store','x-rudi-market-source':'Binance Futures'}});
+async function handleMarket(c){
+ if(c.type==='tickers'){
+  const rows=await getJson(FUTURES+'/fapi/v1/ticker/24hr');
+  return reply(rows.filter(r=>SYMBOL.test(r.symbol||'')).map(r=>({
+   symbol:r.symbol,lastPrice:r.lastPrice,turnover24h:String(Number(r.quoteVolume)||0),
+   price24hPcnt:String((Number(r.priceChangePercent)||0)/100)
+  })).filter(r=>Number(r.lastPrice)>0));
+ }
+ if(c.type==='candles'){
+  const base=c.category==='spot'?SPOT:FUTURES;
+  const route=c.category==='spot'?'/api/v3/klines':c.mark?'/fapi/v1/markPriceKlines':'/fapi/v1/klines';
+  const query={symbol:c.symbol,interval:c.interval,limit:c.limit};
+  if(c.start)query.startTime=c.start;
+  if(c.end)query.endTime=c.end;
+  const rows=await getJson(base+route+'?'+new URLSearchParams(query));
+  return reply(rows.filter(r=>Array.isArray(r)&&r.length>=6).map(r=>
+   [String(r[0]),String(r[1]),String(r[2]),String(r[3]),String(r[4]),String(r[5])]));
+ }
+ const data=await getJson(FUTURES+'/fapi/v1/fundingRate?'+new URLSearchParams({
+  symbol:c.symbol,startTime:c.start,endTime:c.end,limit:'200'
+ }));
+ return reply(data.map(x=>({fundingRate:x.fundingRate,fundingRateTimestamp:x.fundingTime})));
 }
 export default {
-  async fetch(request,env){
-    const url=new URL(request.url);
-    if(url.pathname==='/health')return Response.json({ok:true,service:'rudi-crypto-market',
-      marketSource:'OKX',cronSecretPresent:Boolean(env.CRON_SECRET)});
-    if(request.method!=='GET')return new Response('method-not-allowed',{status:405});
-    const config=parsedRequest(request.url);
-    if(!config)return new Response('not-found',{status:404});
-    try{return await handleMarket(config)}
-    catch(error){
-      return Response.json({ok:false,error:'market-data-unavailable',
-        reason:String(error?.message||error).slice(0,80)},
-        {status:502,headers:{'cache-control':'no-store'}});
-    }
-  },
-  async scheduled(event,env,ctx){
-    if(!env.CRON_SECRET)throw Error('cron-secret-missing');
-    const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-monitor-cron',{
-      headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json'},
-      signal:AbortSignal.timeout(145000),
-    });
-    if(!response.ok)throw Error('rudi-monitor-http-'+response.status);
-    const body=await response.json();
-    if(body?.ok!==true)throw Error('rudi-monitor-incomplete');
-  }
+ async fetch(request,env){
+  const u=new URL(request.url);
+  if(u.pathname==='/health')return Response.json({ok:true,service:'rudi-crypto-market',
+   marketSource:'Binance Futures',cronSecretPresent:Boolean(env.CRON_SECRET)});
+  if(request.method!=='GET')return new Response('method-not-allowed',{status:405});
+  const c=requestConfig(request.url);
+  if(!c)return new Response('not-found',{status:404});
+  try{return await handleMarket(c)}
+  catch(error){return Response.json({ok:false,error:'market-data-unavailable',
+   reason:String(error?.message||error).slice(0,80)},{status:502,headers:{'cache-control':'no-store'}})}
+ },
+ async scheduled(event,env,ctx){
+  if(!env.CRON_SECRET)throw Error('cron-secret-missing');
+  const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-monitor-cron',{
+   headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json'},
+   signal:AbortSignal.timeout(145000)});
+  if(!response.ok)throw Error('rudi-monitor-http-'+response.status);
+  const data=await response.json();
+  if(data?.ok!==true)throw Error('rudi-monitor-incomplete');
+ }
 };
