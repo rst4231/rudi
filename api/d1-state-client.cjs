@@ -105,16 +105,18 @@ function createD1StateClient(options={}){
     });
   }
 
-  async function flushQueuedReads(queue){
+  async function flushQueuedReads(queue,individual=false){
     const jobs=queue.jobs.splice(0,MAX_READ_BATCH);
     if(queue.jobs.length)queueMicrotask(()=>flushQueuedReads(queue));
     else queue.scheduled=false;
     if(!jobs.length)return;
-    // A singleton read is cheaper through the original endpoint.
-    if(jobs.length===1){
-      const job=jobs[0];
-      try{job.resolve(await request('/get',{namespace:job.namespace,key:job.key},{allow404:true,retries:1}));}
-      catch(error){job.reject(error);}
+    // Singletons and reads queued before a write use the original endpoint.
+    // Pre-write reads must begin synchronously even if the batch route is down.
+    if(jobs.length===1||individual){
+      await Promise.all(jobs.map(async(job)=>{
+        try{job.resolve(await request('/get',{namespace:job.namespace,key:job.key},{allow404:true,retries:1}));}
+        catch(error){job.reject(error);}
+      }));
       return;
     }
     try{
@@ -150,7 +152,7 @@ function createD1StateClient(options={}){
     const scoped=scopedD1Reads.getStore();
     const queues=scoped?.get(BATCH_SCOPE_KEY)?.get(fetchImpl);
     if(queues)for(const queue of queues.values()){
-      if(queue.jobs.length)void flushQueuedReads(queue);
+      while(queue.jobs.length)void flushQueuedReads(queue,true);
     }
     const pending=scoped?.get(fetchImpl);
     if(!pending)return;
