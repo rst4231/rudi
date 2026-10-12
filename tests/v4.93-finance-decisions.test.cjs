@@ -154,7 +154,7 @@ test('v4.188 year chart labels show each month expense and income amount permane
  assert.match(ui,/displayMoney\(selectedBucket\.income\|\|0,ctx\)/);
  assert.match(ui,/Расходы\/Доходы за год/);
  assert.match(css,/\.rudi-weekly-chart\.is-year \.rudi-year-values/);
- assert.match(css,/position:absolute;top:2px/);
+ assert.match(css,/position:absolute;bottom:calc\(var\(--rudi-year-peak,0%\) \+ 5px\)/);
  assert.match(css,/\.rudi-weekly-chart\.is-year \.rudi-year-values \.is-income/);
  assert.match(html,/finance-decisions-ui\.js\?v=4\.188/);
  assert.match(html,/finance-decisions\.css\?v=4\.188/);
