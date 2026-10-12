@@ -157,13 +157,14 @@ test('AI center hides the entire emotion summary card but keeps derived mood his
  assert.match(app,/const emotions=data.emotions/);
 });
 
-test('scheduled AI report runs only at 07:00 Moscow, no evening or legacy replay',()=>{
+test('personal AI uses the same 06:00 Moscow cron as Telegram and has no duplicate GitHub schedule',()=>{
  const yaml=fs.readFileSync(path.join(__dirname,'..','.github/workflows/personal-ai-center.yml'),'utf8');
  const handler=fs.readFileSync(path.join(__dirname,'..','api/personal-center-cron-handler.cjs'),'utf8');
- assert.ok(yaml.includes("cron: '0 4 * * *'"));
- assert.doesNotMatch(yaml,/cron: '0 4,18/);
+ const feed=fs.readFileSync(path.join(__dirname,'..','api','feed-notify-cron.js'),'utf8');
+ assert.doesNotMatch(yaml,/^\s*- cron:/m);
+ assert.match(feed,/runPersonalAi/);
  assert.doesNotMatch(handler,/backfillOnly|releaseBackfill/);
- assert.equal(cron.slotAt(Date.parse('2026-10-10T04:00:00Z')),'morning');
+ assert.equal(cron.slotAt(Date.parse('2026-10-10T03:00:00Z')),'morning');
  assert.equal(cron.slotAt(Date.parse('2026-10-10T18:00:00Z')),'');
 });
 test('paired evidence identifies supported habit-mood and expense comparisons, not missing values',()=>{
@@ -519,4 +520,24 @@ test('deep analysis is generated separately and only for observed life domains',
  assert.deepEqual(narrative.deepAnalysis.map(x=>x.domain),['mood','habits']);
  assert.equal(narrative.deepAnalysis[1].verify,'Проверить через 7 дней.');
  assert.deepEqual(ai.sanitize({deepAnalysis:[]},payload).deepAnalysis,[]);
+});
+
+
+test('Diana can manually generate a missing report and neither actor can replace a ready report',async()=>{
+ map.clear();const c=client(),now=Date.parse('2026-10-12T03:00:00Z');
+ let count=0;const generate=async actor=>{count++;return {model:'test',narrative:{overview:actor}};};
+ const first=await cron.generateForActor('Диана','2026-10-12',{client:c,now,manual:true,generate});
+ assert.equal(first.status,'created');assert.equal(count,1);
+ const second=await cron.generateForActor('Диана','2026-10-12',{client:c,now,manual:true,generate});
+ assert.equal(second.status,'exists');assert.equal(count,1);
+ await store.seen('Диана',{client:c});
+ assert.equal((await store.unread('Диана',{client:c})).unread,false);
+});
+
+test('deterministic placeholder never creates a green halo and remains manually retryable',async()=>{
+ map.clear();const c=client(),now=Date.parse('2026-10-12T03:00:00Z');
+ await store.saveReport('Диана','2026-10-12','morning',{model:'deterministic',narrative:{overview:'fallback'}},{client:c,now});
+ assert.equal((await store.unread('Диана',{client:c})).unread,false);
+ const row=await cron.generateForActor('Диана','2026-10-12',{client:c,now,manual:true,generate:async()=>({model:'test',narrative:{overview:'ready'}})});
+ assert.equal(row.status,'upgraded');assert.equal((await store.unread('Диана',{client:c})).unread,true);
 });
