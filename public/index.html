@@ -1058,7 +1058,7 @@
       <div id="financeLiteracyPanel" class="finance-tab-panel finance-literacy-panel" data-finance-panel="literacy" hidden>
         <article class="finance-analyst-card" aria-labelledby="financeAnalystTitle">
           <h2 id="financeAnalystTitle">Финансовый аналитик</h2>
-          <div class="finance-analyst-limit">Лимит: 1 анализ в сутки</div>
+          <div class="finance-analyst-limit">Лимит: 2 анализа в сутки</div>
           <button id="financeAnalystButton" class="finance-analyst-button" type="button">Получить анализ</button>
           <div id="financeAnalystStatus" class="finance-status" role="status" aria-live="polite"></div>
           <div id="financeAnalystResult" class="finance-analyst-result" hidden></div>
@@ -2598,7 +2598,7 @@ const open=async expense=>{
  const currencySymbol={RUB:'₽',USD:'$',EUR:'€',BTC:'₿',ETH:'Ξ',USDT:'₮'}[inputCurrency]||inputCurrency;
  if(title)title.textContent='Редактировать · '+(cat?.name||'Расход');
  if(icon)icon.textContent=cat?.icon||'💳';
- if(amount)amount.value=String(Number(expense.sourceAmount||expense.amount||0)).replace('.',',');
+ if(amount)amount.value=String(Number(expense.sourceAmount??expense.amount??0)).replace('.',',');
  if(currency)currency.textContent=currencySymbol;
  if(switcher)switcher.hidden=true;
  if(conversion)conversion.hidden=true;
@@ -2607,11 +2607,21 @@ const open=async expense=>{
  if(time){time.value=st.time;sync(time)}
  if(source){source.hidden=!wallet;source.textContent=wallet?'Источник: '+wallet.name:''}
  const labels=document.getElementById('financeExpenseLabelList');
- if(labels){[...labels.children].forEach(b=>{const value=String(b.textContent||'').trim();b.classList.toggle('is-active',value===String(expense.label||''));b.setAttribute('aria-selected',value===String(expense.label||'')?'true':'false')})}
+ if(labels){labels.querySelectorAll('button.finance-expense-label-chip').forEach(b=>{const value=String(b.textContent||'').trim();b.classList.toggle('is-active',value===String(expense.label||''));b.setAttribute('aria-selected',value===String(expense.label||'')?'true':'false')})}
+ const save=document.getElementById('financeExpenseComposerSave');if(save)save.disabled=false;
+ const status=document.getElementById('financeExpenseComposerStatus');if(status)status.textContent='';
  m.hidden=false;m.setAttribute('aria-hidden','false');document.body.classList.add('finance-coin-modal-open')
 };
 document.addEventListener('click',async e=>{
- const chip=e.target.closest('#financeExpenseLabelList button');if(active&&chip){active.label=String(chip.textContent||'').trim();return}
+ const chip=e.target.closest('#financeExpenseLabelList .finance-expense-label-chip');if(active&&chip){
+   e.preventDefault();e.stopImmediatePropagation();
+   active.label=String(chip.textContent||'').trim();
+   document.querySelectorAll('#financeExpenseLabelList .finance-expense-label-chip').forEach(b=>{
+     const chosen=b===chip;b.classList.toggle('is-active',chosen);b.setAttribute('aria-selected',chosen?'true':'false');
+   });
+   const save=document.getElementById('financeExpenseComposerSave');if(save)save.disabled=false;
+   return;
+ }
  if(e.target.closest('button,select,input,a'))return;
  const row=e.target.closest('#financeOperationList .finance-operation-row.is-expense');if(!row)return;
  const all=[...document.querySelectorAll('#financeOperationList .finance-operation-row.is-expense')],idx=all.indexOf(row);if(idx<0)return;
@@ -2621,9 +2631,51 @@ document.getElementById('financeExpenseComposerSave')?.addEventListener('click',
  if(!active)return;
  e.preventDefault();e.stopImmediatePropagation();
  const button=e.currentTarget,amountEl=document.getElementById('financeExpenseComposerAmount'),date=document.getElementById('financeExpenseComposerDate')?.value,time=document.getElementById('financeExpenseComposerTime')?.value,note=document.getElementById('financeExpenseComposerNote')?.value||'';
- const amount=Number(String(amountEl?.value||'').replace(/\s/g,'').replace(',','.'));if(!amount||!date||!time)return;
- button.disabled=true;
- try{await req('save-expense',{id:active.id,month:date.slice(0,7),categoryId:active.categoryId,amount,inputCurrency:active.sourceCurrency||'RUB',walletId:active.walletId||'',occurredAt:new Date(date+'T'+time+':00+03:00').toISOString(),label:active.label||'',note});document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));active=null;cache=null;location.reload()}catch(_){button.disabled=false;const s=document.getElementById('financeExpenseComposerStatus');if(s)s.textContent='Не удалось сохранить изменения'}
+ const amount=Number(String(amountEl?.value||'').replace(/\s/g,'').replace(',','.'));
+ const status=document.getElementById('financeExpenseComposerStatus');
+ if(!Number.isFinite(amount)||amount<=0||!date||!time){if(status)status.textContent='Укажи сумму, дату и время расхода';return;}
+ const occurredAt=new Date(date+'T'+time+':00+03:00');
+ if(Number.isNaN(occurredAt.getTime())){if(status)status.textContent='Проверь дату и время';return;}
+ button.disabled=true;if(status)status.textContent='Сохраняю…';
+ try{
+   await req('save-expense',{id:active.id,month:date.slice(0,7),categoryId:active.categoryId,amount,inputCurrency:active.sourceCurrency||'RUB',walletId:active.walletId||'',occurredAt:occurredAt.toISOString(),label:active.label||'',note});
+   document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));active=null;cache=null;location.reload();
+ }catch(error){
+   button.disabled=false;
+   if(status)status.textContent=String(error?.message||'').includes('rate')
+     ?'Не удалось получить курс валют, попробуй позже'
+     :'Не удалось сохранить изменения: '+String(error?.message||'ошибка');
+ }
+},true);
+// Editing from category history reuses the existing composer, not a new modal.
+const normalizeRowText=v=>String(v||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/\s+/g,' ');
+const findCategoryExpense=(row,data)=>{
+ const directId=row.dataset.expenseId||row.dataset.id||row.querySelector('[data-expense-id]')?.dataset.expenseId||'';
+ if(directId)return(data.personalExpenses||[]).find(x=>String(x.id)===String(directId))||null;
+ const title=normalizeRowText(document.querySelector('#financeCategoryHistoryPage .finance-category-history-title h2')?.textContent);
+ const category=(data.categories||[]).find(c=>normalizeRowText(c.name)===title);
+ const heading=normalizeRowText(row.closest('.finance-category-history-day')?.querySelector('.finance-category-history-day-head strong')?.textContent);
+ const label=normalizeRowText(row.querySelector('.finance-category-history-copy strong')?.textContent);
+ const extra=normalizeRowText(row.querySelector('.finance-category-history-copy small')?.textContent);
+ const amountMatch=String(row.querySelector(':scope > b')?.textContent||'').match(/[0-9\s,\.]+/);
+ const amount=Math.abs(Number(String(amountMatch?.[0]||'').replace(/\s/g,'').replace(',','.')));
+ let candidates=(data.personalExpenses||[]).filter(x=>!x.manualAdjustment&&(!category||x.categoryId===category.id));
+ if(heading){const sameDay=candidates.filter(x=>normalizeRowText(new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'Europe/Moscow'}).format(new Date(x.occurredAt||x.createdAt)))===heading);if(sameDay.length)candidates=sameDay;}
+ if(label){const sameLabel=candidates.filter(x=>normalizeRowText(x.note)===label||normalizeRowText(x.label)===label);if(sameLabel.length)candidates=sameLabel;}
+ if(Number.isFinite(amount)&&amount>0){const sameAmount=candidates.filter(x=>Math.abs(Number(x.sourceAmount??x.amount??0)-amount)<0.005||Math.abs(Number(x.amount||0)-amount)<0.005);if(sameAmount.length)candidates=sameAmount;}
+ if(extra){const sameTime=candidates.filter(x=>extra.includes(stamp(x.occurredAt||x.createdAt).time));if(sameTime.length)candidates=sameTime;}
+ candidates.sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')));
+ if(candidates.length===1)return candidates[0];
+ const index=[...(row.parentElement?.querySelectorAll(':scope > .finance-category-history-row')||[])].indexOf(row);
+ return candidates[Math.max(0,index)]||candidates[0]||null;
+};
+document.addEventListener('click',async e=>{
+ const row=e.target.closest('#financeCategoryHistoryPage .finance-category-history-row');
+ if(!row||e.target.closest('button,a,input,select,textarea'))return;
+ e.preventDefault();e.stopPropagation();
+ try{const data=await getState(true),expense=findCategoryExpense(row,data);
+   if(expense)await open(expense);else console.warn('RUDI_FINANCE_CATEGORY_EDIT_NOT_FOUND');
+ }catch(error){console.warn('RUDI_FINANCE_CATEGORY_EDIT_WARN',String(error?.message||error));}
 },true);
 const back=document.getElementById('financeExpenseHistoryBack');
 back?.addEventListener('click',e=>{const m=modal();if(active&&m&&!m.hidden){e.preventDefault();e.stopImmediatePropagation();m.hidden=true;m.setAttribute('aria-hidden','true');document.body.classList.remove('finance-coin-modal-open');active=null}},true);
