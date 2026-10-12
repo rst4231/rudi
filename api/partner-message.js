@@ -2193,7 +2193,7 @@ async function handleTickTick(req, res, action, options = {}) {
 
 
   // Dedicated private editor and project picker. Shared token is never used.
-  if(action==='personal-task-projects'||action==='personal-task-edit'){
+  if(action==='personal-task-projects'||action==='personal-task-edit'||action==='personal-task-create'){
     if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
     let body,actor;
     try{
@@ -2207,15 +2207,15 @@ async function handleTickTick(req, res, action, options = {}) {
       if(!token?.accessToken)return res.status(401).json({ok:false,error:'ticktick-personal-not-connected'});
       const config=await loadTickTickConfig(options);
       if(!config.enabled)return res.status(409).json({ok:false,error:'ticktick-disabled'});
-      const {personalLists,editPersonalTask}=require('./personal-task-editor.cjs');
+      const {personalLists,editPersonalTask,createPersonalTask}=require('./personal-task-editor.cjs');
       if(action==='personal-task-projects'){
         const {listTickTickProjects}=require('./ticktick-client.cjs');
         const lists=personalLists(await listTickTickProjects(token.accessToken,options),config.projectId);
         return res.status(200).json({ok:true,lists,writable:tokenHasWriteScope(token)!==false});
       }
-      const result=await editPersonalTask({
-        ...body,actor,token,sharedProjectId:config.projectId,options
-      });
+      const result=action==='personal-task-create'
+        ?await createPersonalTask({...body,actor,token,sharedProjectId:config.projectId,options})
+        :await editPersonalTask({...body,actor,token,sharedProjectId:config.projectId,options});
       return res.status(200).json(result);
     }catch(error){
       const code=String(error?.message||error);
@@ -2226,7 +2226,7 @@ async function handleTickTick(req, res, action, options = {}) {
       if(code==='ticktick-personal-not-connected')return res.status(401).json({ok:false,error:code});
       if(code.includes('forbidden')||code.includes('permission-required')||code==='ticktick-write-forbidden')
         return res.status(403).json({ok:false,error:code});
-      if(code.includes('invalid')||code.includes('mismatch')||code.includes('title-required')||code.includes('repeat-date-required')||code.includes('task-completed'))
+      if(code.includes('invalid')||code.includes('mismatch')||code.includes('title-required')||code.includes('date-required')||code.includes('repeat-date-required')||code.includes('task-completed'))
         return res.status(400).json({ok:false,error:code});
       if(code==='ticktick-task-not-found')return res.status(404).json({ok:false,error:code});
       console.warn('RUDI_PERSONAL_TASK_EDITOR_ERROR',code);
