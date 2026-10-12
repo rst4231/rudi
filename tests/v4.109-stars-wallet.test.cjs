@@ -36,7 +36,7 @@ test('score stickers removed from both avatars without touching mood',()=>{
   assert.doesNotMatch(profile,/scoreSticker|className='score-sticker'/);
   assert.match(profile,/avatarWrap\.append\(avatar\)/);
   assert.match(profile,/const moodBadge=avatar\.querySelector\('\.avatar-mood-badge'\)/);
-  assert.match(profile,/nameElement\.insertAdjacentElement\('afterend',moodBadge\)/);
+  assert.match(profile,/avatarWrap\.appendChild\(moodBadge\)/);
 });
 
 test('score points are not counted as currency and have no financial backend ID',()=>{

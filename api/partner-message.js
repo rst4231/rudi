@@ -2705,6 +2705,9 @@ async function handleTickTick(req, res, action, options = {}) {
                 const source=taskById.get(String(item.id||''))||{};
                 target.events.push({
                   ...item,date:day.date,personal:true,
+                  // Preserve the original TickTick timestamp for accurate editor display.
+                  originalStartDate:String(source.startDate||source.dueDate||''),
+                  originalTimeZone:String(source.timeZone||''),
                   responsible:'Рустам',ownerScope:'rustam',
                   projectId:String(source.projectId||''),
                   projectName:String(source.projectName||'Список'),

@@ -123,12 +123,31 @@ async function projects(){
     message('Не удалось загрузить списки. Попробуйте открыть дело ещё раз');
   }
 }
+function normalizedEditorWhen(task){
+  // Personal calendar already renders occurrences in Moscow time. Do not
+  // silently replace a selected occurrence with the current day or UTC date.
+  let date=/^20\d\d-\d\d-\d\d$/.test(String(task?.date||''))?String(task.date):'';
+  let time=/^([01]\d|2[0-3]):[0-5]\d$/.test(String(task?.startTime||''))?String(task.startTime):'';
+  const raw=String(task?.originalStartDate||'').trim();
+  // A stored timestamp is authoritative if the card has a stale/missing date.
+  if(raw&&!String(task?.repeatFlag||'').trim()){
+    const instant=new Date(raw);
+    if(Number.isFinite(instant.getTime())){
+      const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(instant).map(x=>[x.type,x.value]));
+      const sourceDate=parts.year+'-'+parts.month+'-'+parts.day;
+      if(!date||date!==sourceDate)date=sourceDate;
+      if(!task?.allDay&&(time!==parts.hour+':'+parts.minute))time=parts.hour+':'+parts.minute;
+    }
+  }
+  return {date,time:task?.allDay?'':time};
+}
 function open(task,ctx={}){
   if(!task?.id||!task?.personal)return;
   init();closeMenu();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
-  f('date').value=String(task.date||'');
-  f('time').value=task.allDay?'':String(task.startTime||'');
+  const {date,time}=normalizedEditorWhen(task);
+  f('date').value=date;
+  f('time').value=time;
   f('description').value=String(task.description||'');
   f('project').replaceChildren(new Option(task.projectName||'Текущий список',task.projectId||''));
   f('project').value=task.projectId||'';
