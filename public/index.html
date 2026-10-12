@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.149">
+  <meta name="rudi-version" content="v4.188">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -73,7 +73,8 @@
   </script>
   <script defer src="/wallet-brand-icons.js?v=4.149"></script>
   <script defer src="/calendar-offline.js?v=4.149"></script>
-  <script defer src="/app.js?v=4.149"></script>
+  <script defer src="/app.js?v=4.188"></script>
+  <script defer src="/personal-task-editor.js?v=4.188"></script>
   <script defer src="/finance-wallet-currency.js?v=4.180"></script>
   <script defer src="/coinkeeper-history.js?v=4.187"></script>
   <script defer src="/product-extras.js?v=4.149"></script>
@@ -139,6 +140,7 @@
       white-space:normal;overflow:visible;text-align:center;line-height:1.14;font-size:8px;
     }
   </style>
+  <link rel="stylesheet" href="/personal-task-editor.css?v=4.188">
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -1793,7 +1795,7 @@
         <button id="workCalendarBack" class="work-page-back rudi-app-page-back" type="button" aria-label="Назад">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
-        <div class="work-page-head-copy"><h1 id="calendarPageTitle">Личный</h1><span class="work-page-subtitle">Задачи и события</span></div>
+        <div class="work-page-head-copy"><h1 id="calendarPageTitle">Личный</h1><span class="work-page-subtitle">Дела и события</span></div>
         <span class="work-page-head-spacer" aria-hidden="true"></span>
       </header>
       <article class="panel nearest-panel schedule-nearest" hidden>
@@ -1840,9 +1842,9 @@
         <div class="work-calendar-head">
           <div class="calendar-header-actions" role="group" aria-label="Переключатели календаря">
             <button id="calendarScopeSwitch" class="calendar-header-control calendar-scope-switch" type="button" data-calendar-scope="shared" aria-label="Переключить на совместный календарь" title="Совместный календарь">Совместный</button>
-            <button id="calendarFinanceShortcut" class="calendar-header-control calendar-finance-shortcut" data-finance-shortcut="overview" type="button" aria-label="Перейти в финансы" title="Открыть финансы"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="2.5"/><path d="M3 10h18"/><path d="M15 14h6v4h-6a2 2 0 0 1 0-4z"/><path d="M7 6V4.5A1.5 1.5 0 0 1 8.5 3H19"/></svg></button>
             <button id="calendarModeSwitch" class="calendar-header-control calendar-mode-switch" type="button" data-calendar-mode="week" aria-label="Показать неделю" title="Неделя"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3M3 13h18M3 17h18"/></svg></button>
             <button id="calendarSearchButton" class="calendar-header-control calendar-search-button" type="button" aria-label="Поиск по календарю" title="Найти дело" aria-expanded="false" aria-controls="calendarSearchPanel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m15.5 15.5 5 5"/></svg></button>
+            <button id="calendarFinanceShortcut" class="calendar-header-control calendar-finance-shortcut" data-finance-shortcut="overview" type="button" aria-label="Перейти в финансы" title="Открыть финансы"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="2.5"/><path d="M3 10h18"/><path d="M15 14h6v4h-6a2 2 0 0 1 0-4z"/><path d="M7 6V4.5A1.5 1.5 0 0 1 8.5 3H19"/></svg></button>
           <button id="calendarConnectionsGear" class="calendar-connections-gear calendar-header-control" type="button" aria-label="Подключения календаря" title="Подключения">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.2 3.5h3.6l.5 2.2 1.7.9 2.1-.8 2.1 3.1-1.7 1.7v2l1.7 1.8-2.1 3-2.1-.7-1.7.9-.5 2.2h-3.6l-.5-2.2-1.7-.9-2.1.7-2.1-3 1.7-1.8v-2L3.8 9l2.1-3.1 2.1.8 1.7-.9z"/><circle cx="12" cy="12" r="3.1"/></svg>
           </button>
