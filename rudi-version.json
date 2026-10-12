@@ -1,17 +1,16 @@
 {
-  "current": "v4.179",
+  "current": "v4.180",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.178",
+  "basedOnProduction": "v4.179",
   "notes": [
-    "Fix blocked public Bybit market HTTP 403 with allowlisted Cloudflare market gateway; market sources configured via RUDI_BYBIT_PUBLIC_API_URL, including Artemyev candles and funding.",
-    "Move virtual monitors to quarter-hourly Cloudflare Worker Cron using an isolated shared secret; retire unreliable GitHub crypto schedule step, leaving Lulu unchanged.",
-    "Show provider errors, never fabricate trading fills, history, PNL or provider-sourced prices.",
-    "Preserve three independent forward-only paper portfolios and existing records.",
-    "Add source diagnostics and regression tests for both scanners."
+    "Fix regional public Bybit 403/502 with verified OKX USDT swap market reference, explicitly labeled OKX, never described as Bybit quote executions.",
+    "Maintain three independent forward-only paper strategies and author signal monitoring; preserve portfolio history.",
+    "Cloudflare Cron retains dedicated bearer and 15m schedule once live; no real orders.",
+    "Accuracy safeguard: show source of live reference candles and funding, disclose funding and missing history model limits."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
