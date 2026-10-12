@@ -239,7 +239,8 @@ function bind(element,task,ctx){
     const long=Date.now()-start.at>=580;reset();
     if(long){
       suppressUntil=Date.now()+1000;
-      event.preventDefault();event.stopImmediatePropagation();
+      event.preventDefault();
+      // Allow week-agenda drag cleanup to receive pointerup as well.
       ctx.openTickTick?.();
     }
   },true);
