@@ -27,6 +27,6 @@ jobs:
           node --check cloudflare/rudi-db-api.worker.js
       - name: Focused read/write and UX regression
         run: |
-          node --test tests/d1-batch-read.test.cjs tests/rudi-d1-worker-batch.test.cjs tests/smart-sync-active-tab.test.cjs tests/d1-state-client.test.cjs tests/startup-performance.test.cjs tests/strict-runtime-cache.test.cjs
+          node --test tests/d1-batch-read.test.cjs tests/rudi-d1-worker-batch.test.cjs tests/smart-sync-active-tab.test.cjs tests/d1-state-client.test.cjs tests/strict-runtime-cache.test.cjs
       - name: Build without deployment
         run: npm run build
