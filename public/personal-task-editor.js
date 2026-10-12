@@ -61,7 +61,6 @@ function init(){
   byId('rudiPersonalTaskDelete').addEventListener('click',remove);
   // Date shortcuts remain available in the right-click context menu only.
   menu.querySelectorAll('[data-personal-date-action]').forEach(b=>b.addEventListener('click',()=>useQuick(b.dataset.personalDateAction,true)));
-  f('date').addEventListener('change',syncTime);
   document.addEventListener('pointerdown',event=>{
     if(menu&&!menu.hidden&&!menu.contains(event.target))closeMenu();
   },true);
@@ -147,13 +146,25 @@ function normalizedEditorWhen(task){
   }
   return {date,time:task?.allDay?'':time};
 }
+function replaceTemporalInputs(){
+  // iOS WebKit can show stale date/time text on a reused native input
+  // even though its value and picker are already correct.
+  // A fresh element guarantees the visible control belongs to this task.
+  for(const type of ['date','time']){
+    const previous=f(type);
+    const fresh=document.createElement('input');
+    fresh.id=previous.id;
+    fresh.type=type;
+    previous.replaceWith(fresh);
+    if(type==='date')fresh.addEventListener('change',syncTime);
+  }
+}
 function open(task,ctx={}){
   if(!task?.id||!task?.personal)return;
-  init();closeMenu();byId('rudiPersonalTaskForm').reset();active={task:{...task},ctx,creating:task.isNew===true};
+  init();closeMenu();byId('rudiPersonalTaskForm').reset();replaceTemporalInputs();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
   const {date,time}=normalizedEditorWhen(active.task);
-  // Clear the previous task's temporal fields on iOS before every open.
-  f('date').value='';f('time').value='';
+  // Each task receives fresh native date and time elements.
   f('date').value=date;
   f('time').value=date?time:'';
   f('description').value=String(task.description||'');

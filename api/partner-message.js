@@ -4761,7 +4761,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         if(!item) throw new Error('wishlist-item-not-found');
         if(item.owner===owner) throw new Error('wishlist-own-toggle-forbidden');
         const result=await toggleWish(body.id,options);
-        if(!item.done&&result.item?.done) await awardScoreSafe(owner,50,{label:'Желание партнёра',detail:'Выполнено: '+String(item.text||'').trim(),icon:'🎁',dedupeKey:'score:wishlist-partner:'+owner+':'+String(item.id||'')},options);
+        if(!item.done&&result.item?.done) await awardScoreSafe(owner,1000,{label:'Желание партнёра',detail:'Выполнено: '+String(item.text||'').trim(),icon:'🎁',dedupeKey:'score:wishlist-partner:'+owner+':'+String(item.id||''),ignoreDailyLimit:true},options);
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ok:true,owner,...result.state,backupToken});
       }

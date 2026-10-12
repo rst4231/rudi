@@ -285,7 +285,7 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
     if(awardedUnits>0){
       next.balances[who]+=awardedUnits;
       next.lifetimeEarned[who]+=awardedUnits;
-      next.dailyEarned[dateKey][who]+=awardedUnits;
+      if(!ignoreDailyLimit) next.dailyEarned[dateKey][who]+=awardedUnits;
       next.history.unshift(normalizeHistoryItem({
         id:crypto.randomUUID(),actor:who,kind:'earn',units:awardedUnits,requestedUnits:request,
         label:meta.label,detail:meta.detail,icon:meta.icon||'⭐',dedupeKey,dateKey,createdAt:now.toISOString(),

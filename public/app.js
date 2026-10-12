@@ -7522,7 +7522,7 @@
                 <div class="score-rules-item"><span class="score-rules-emoji">🙂</span><span>Отметил настроение<small>Утром, днём или вечером</small></span><strong>+0,1 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">💌</span><span>Написал послание<small>Один раз в день</small></span><strong>+0,1 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">💳</span><span>Записал первый расход за день</span><strong>+0,2 ⭐</strong></div>
-                <div class="score-rules-item"><span class="score-rules-emoji">🎁</span><span>Партнёр исполнил твоё желание</span><strong>+5 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">🎁</span><span>Исполнил желание партнёра из вишлиста</span><strong>+100 ⭐</strong></div>
               </section>
               <section class="score-rules-group score-rules-spend" aria-label="Когда звёзды уменьшаются">
                 <h3><span class="score-rules-group-symbol">−</span> Звёзды уменьшаются</h3>
@@ -7531,7 +7531,7 @@
                 <div class="score-rules-item"><span class="score-rules-emoji">💝</span><span>Подарил звёзды партнёру<small>Они переходят партнёру</small></span><strong>−⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">↩️</span><span>Отменил действие<small>Выданные за него звёзды могут забрать обратно</small></span><strong>−⭐</strong></div>
               </section>
-              <p class="score-rules-note">💡 Обычно можно заработать до 15 ⭐ в день. Бонус +5 ⭐ за 21 день привычки считается отдельно. Подарить партнёру можно до 5 ⭐ за неделю.</p>
+              <p class="score-rules-note">💡 За обычные действия можно заработать до 15 ⭐ в день. Бонус +5 ⭐ за 21 день привычки считается отдельно, а за исполнение желания партнёра бонус +100 ⭐ начисляется сверх лимита. Подарить партнёру можно до 5 ⭐ за неделю.</p>
             </div>
           </section>`;
         document.body.appendChild(dialog);
@@ -12044,7 +12044,7 @@
         if(!row||amount<=0||!occurredAt){node.hidden=true;node.textContent='';return}
         const meta=financeDateTimeLabel(occurredAt);
         const shortDate=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'long'}).format(new Date(occurredAt));
-        node.textContent='Последний расход: '+financeMoney(amount,row.currency||'RUB')+' · '+(category||'Расход')+' · '+shortDate+' · '+meta.time;
+        node.textContent='💸 '+financeMoney(amount,row.currency||'RUB')+' · '+(category||'Расход')+' · '+shortDate+' · '+meta.time;
         node.hidden=false;
       }
 

@@ -1,18 +1,16 @@
 {
-  "current": "v4.197",
+  "current": "v4.198",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.196",
+  "basedOnProduction": "v4.197",
   "notes": [
-    "Reset date and time fields for each selected personal TickTick task.",
-    "Long press any personal calendar task, including week grid and search, to open the precise TickTick task.",
-    "Move and restyle the partner last-expense row directly above meditation.",
-    "Existing fasting and meditation long-press actions remain unchanged.",
-    "Reliable iOS touch holds for fasting (16 hours), meditation (10 minutes), and personal TickTick cards; preserve short taps.",
-    "Selected calendar occurrence date is used for the personal task editor; finance row updates immediately and sits directly above meditation."
+    "Completing a partner wishlist wish earns 100 stars, bypassing the daily ordinary earning cap and remaining deduplicated.",
+    "The stars guide explains the 100-star wishlist bonus and who earns it.",
+    "Display partner's latest expense with an emoji, amount, category, date and time, without the heading.",
+    "Recreate personal task date/time native fields when opening each task so iOS cannot display the previous task's values."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
