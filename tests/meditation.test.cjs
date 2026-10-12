@@ -1,7 +1,8 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {read,start,finish,stats,publicSummary}=require('../api/meditation-store.cjs');
+const {read,start,finish,stats,publicSummary,normalize,recordReward}=require('../api/meditation-store.cjs');
+const {awardScore,scoreView}=require('../api/score-store.cjs');
 const {dailyQuote,LIBRARY}=require('../api/meditation-quote.cjs');
 function mockCache(){
  const data=new Map();
@@ -60,8 +61,8 @@ test('UI exposes meditation timer and calendar edits without edit quick-action r
  const html=fs.readFileSync('public/index.html','utf8'),js=fs.readFileSync('public/meditation.js','utf8');
  const editor=fs.readFileSync('public/personal-task-editor.js','utf8');
  const app=fs.readFileSync('public/app.js','utf8');
- assert.ok(html.includes('meditation.js?v=4.193'));
- assert.ok(html.includes('meditation.css?v=4.193'));
+ assert.ok(html.includes('meditation.js?v=4.194'));
+ assert.ok(html.includes('meditation.css?v=4.194'));
  assert.ok(js.includes('id="meditationOrbit"'));
  assert.ok(js.includes('id="meditationHistoryCard"'));
  assert.ok(js.includes("duration=(a?a.goalMinutes:goal)*60"));
@@ -94,4 +95,40 @@ test('meditation endpoint is routed through existing index function within Hobby
  assert.deepEqual(config.rewrites.find(r=>r.source==='/api/meditation'),{
    source:'/api/meditation',destination:'/api/index?route=meditation'
  });
+});
+
+test('sessions shorter than 60 seconds never appear in history',async()=>{
+ const cache=mockCache(),now=Date.parse('2026-10-12T10:00:00Z');
+ const started=await start('Рустам',5,{meditationCache:cache,now});
+ const ended=await finish('Рустам',started.active.id,false,{meditationCache:cache,now:now+59000});
+ assert.equal(ended.session,null);assert.equal(stats(ended.state).sessions,0);
+ assert.equal(normalize({history:[{id:'legacy',startedAt:new Date(now).toISOString(),endedAt:new Date(now+59000).toISOString(),goalMinutes:5,durationSeconds:59}]}).history.length,0);
+});
+test('meditation stars use score ledger daily idempotency separately by actor',async()=>{
+ const scoreCache=mockCache(),meditationCache=mockCache(),now=Date.parse('2026-10-12T10:00:00Z');
+ for(const actor of ['Рустам','Диана']){
+  const key='score:meditation:'+actor+':2026-10-12';
+  const first=await awardScore(actor,1,{dedupeKey:key,label:'Медитация'},{scoreCache,now});
+  assert.equal(first.awardedUnits,1);
+  const second=await awardScore(actor,5,{dedupeKey:key,label:'Медитация'},{scoreCache,now:now+1800000});
+  assert.equal(second.awardedUnits,0);assert.equal(second.duplicate,true);
+  const started=await start(actor,5,{meditationCache,now});
+  const finished=await finish(actor,started.active.id,false,{meditationCache,now:now+300000});
+  const rewarded=await recordReward(actor,finished.session.id,.1,{meditationCache});
+  assert.equal(rewarded.history[0].rewardPoints,.1);
+ }
+ const view=scoreView(await scoreCache.get('score-state'),{now});
+ assert.equal(view.balances['Рустам'],.1);assert.equal(view.balances['Диана'],.1);
+});
+test('meditation UI has wake lock, collapsed benefits and mood guidance',()=>{
+ const fs=require('node:fs');
+ const js=fs.readFileSync('public/meditation.js','utf8');
+ assert.match(js,/navigator\.wakeLock\.request\('screen'\)/);
+ assert.match(js,/id="meditationBenefitsCard"/);
+ assert.match(js,/const SAD_MOODS=new Set\(\['sadness','anger','fatigue','boredom'\]\)/);
+ assert.match(js,/text\('meditationQuoteAuthor',quote.author\)/);
+ assert.doesNotMatch(js,/Только этот момент\. Без спешки/);
+ assert.match(fs.readFileSync('public/calendar-day-recap.js','utf8'),/section\('Медитация'/);
+ assert.match(fs.readFileSync('public/app.js','utf8'),/Только одна награда в день на человека/);
+ assert.match(fs.readFileSync('api/personal-center-ai.cjs','utf8'),/meditation:payload\.data\.meditation/);
 });

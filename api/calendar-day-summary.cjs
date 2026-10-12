@@ -4,6 +4,7 @@ const {readHabits,viewHabits,moscowDateKey}=require('./habit-tracker-store.cjs')
 const {readFastingState}=require('./fasting-store.cjs');
 const {readMoodHistory}=require('./daily-mood-store.cjs');
 const {readSupplements}=require('./supplements-store.cjs');
+const {read:readMeditation,moscowDay}=require('./meditation-store.cjs');
 
 // One authenticated read of each data source per month; no requests on every date tap.
 const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
@@ -78,14 +79,24 @@ function summarizeSupplements(state,date){
   ).sort((a,b)=>String(a.at).localeCompare(String(b.at)));
   return{available:true,items};
 }
+function summarizeMeditation(state,date){
+ const sessions=(state.history||[]).filter(row=>moscowDay(row.endedAt)===date).map(row=>({
+  endedAt:row.endedAt,durationSeconds:row.durationSeconds||0,
+  durationMinutes:Math.round((row.durationSeconds||0)/60*10)/10,
+  completed:row.completed===true,rewardPoints:Number(row.rewardPoints)||0
+ }));
+ return {available:true,sessions,count:sessions.length,
+  totalMinutes:Math.round(sessions.reduce((n,row)=>n+row.durationSeconds,0)/60*10)/10,
+  stars:Math.round(sessions.reduce((n,row)=>n+row.rewardPoints,0)*10)/10};
+}
 function resultOf(settled,format){
   if(settled.status!=='fulfilled')return{available:false};
   try{return format(settled.value)}catch{return{available:false}}
 }
 async function buildMonth(actor,month,now){
-  // Exactly five source reads for the entire selected month, done concurrently.
-  const [finance,habits,fasting,mood,supplements]=await Promise.allSettled([
-    readFinanceState(),readHabits(actor,{now}),readFastingState(actor),readMoodHistory(actor,{now}),readSupplements(actor)
+  // Read six sources once for the selected month, never once per day.
+  const [finance,habits,fasting,mood,supplements,meditation]=await Promise.allSettled([
+    readFinanceState(),readHabits(actor,{now}),readFastingState(actor),readMoodHistory(actor,{now}),readSupplements(actor),readMeditation(actor)
   ]);
   const financeView=finance.status==='fulfilled'?viewState(finance.value,actor):null;
   const days={};
@@ -99,7 +110,8 @@ async function buildMonth(actor,month,now){
       habits:resultOf(habits,state=>summarizeHabits(state,date,now)),
       fasting:resultOf(fasting,state=>summarizeFasting(state,date,now)),
       mood:resultOf(mood,history=>summarizeMood(history,date)),
-      supplements:resultOf(supplements,state=>summarizeSupplements(state,date))
+      supplements:resultOf(supplements,state=>summarizeSupplements(state,date)),
+      meditation:resultOf(meditation,state=>summarizeMeditation(state,date))
     };
     result.partial=Object.values(result).some(value=>value?.available===false);
     days[date]=result;
@@ -147,5 +159,6 @@ module.exports.summarizeHabits=summarizeHabits;
 module.exports.summarizeFasting=summarizeFasting;
 module.exports.summarizeMood=summarizeMood;
 module.exports.summarizeSupplements=summarizeSupplements;
+module.exports.summarizeMeditation=summarizeMeditation;
 module.exports.buildMonth=buildMonth;
 module.exports.resetCacheForTests=()=>{summaryCache.clear();summaryInflight.clear()};

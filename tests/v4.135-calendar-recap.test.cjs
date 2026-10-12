@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const path=require('node:path');
 
 function fixture(){
-  const calls={finance:0,habits:0,fasting:0,mood:0,supplements:0};
+  const calls={finance:0,habits:0,fasting:0,mood:0,supplements:0,meditation:0,meditation:0};
   const expenses=[
     {id:'expense-1',categoryId:'food',amount:350,rubAmount:350,
       occurredAt:'2026-10-03T22:45:00Z',label:'Продукты',note:'Магазин'},
@@ -44,6 +44,10 @@ function fixture(){
       readSupplements:async()=>{calls.supplements++;return{
         items:[{name:'Магний',intakes:[{date:'2026-10-04',at:'2026-10-04T09:35:00+03:00'}]}]
       }}
+    ,
+    './meditation-store.cjs':{
+      read:async()=>{calls.meditation++;return{history:[{endedAt:'2026-10-04T09:00:00Z',durationSeconds:300,rewardPoints:.1,completed:true}]}},
+      moscowDay:value=>new Date(value).toISOString().slice(0,10)
     }
   };
   const file=fs.readFileSync(path.resolve(__dirname,'../api/calendar-day-summary.cjs'),'utf8');
@@ -57,7 +61,7 @@ const res=()=>({
   status(code){this.statusCode=code;return this},
   json(body){this.body=body;return this}
 });
-test('month recap consolidates five sources exactly once, reuses cache on repeated days',async()=>{
+test('month recap consolidates six sources exactly once, reuses cache on repeated days',async()=>{
   const {api,calls}=fixture();
   const response=res();
   await api({method:'POST',body:{month:'2026-10'}},response);
@@ -71,10 +75,13 @@ test('month recap consolidates five sources exactly once, reuses cache on repeat
   assert.equal(day.mood.averageMood,'joy');
   assert.equal(day.supplements.items[0].name,'Магний');
   assert.equal(day.fasting.sessions.length,1);
+  assert.equal(day.meditation.count,1);
+  assert.equal(day.meditation.totalMinutes,5);
+  assert.equal(day.meditation.stars,.1);
   assert.equal(response.body.days['2026-10-05'].fasting.sessions.length,1);
-  assert.deepEqual(calls,{finance:1,habits:1,fasting:1,mood:1,supplements:1});
+  assert.deepEqual(calls,{finance:1,habits:1,fasting:1,mood:1,supplements:1,meditation:1});
   await api({method:'POST',body:{month:'2026-10'}},res());
-  assert.deepEqual(calls,{finance:1,habits:1,fasting:1,mood:1,supplements:1});
+  assert.deepEqual(calls,{finance:1,habits:1,fasting:1,mood:1,supplements:1,meditation:1});
 });
 test('rejects future and malformed periods without accessing storage',async()=>{
   const {api,calls}=fixture();
@@ -83,7 +90,7 @@ test('rejects future and malformed periods without accessing storage',async()=>{
     await api({method:'POST',body:{month}},response);
     assert.equal(response.statusCode,400);
   }
-  assert.deepEqual(calls,{finance:0,habits:0,fasting:0,mood:0,supplements:0});
+  assert.deepEqual(calls,{finance:0,habits:0,fasting:0,mood:0,supplements:0,meditation:0});
 });
 test('client summary script is valid JavaScript',()=>{
   const src=fs.readFileSync(path.resolve(__dirname,'../public/calendar-day-recap.js'),'utf8');

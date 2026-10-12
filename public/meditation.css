@@ -118,3 +118,35 @@ html[data-theme="dark"] .meditation-secondary{color:var(--med-ink);background:#2
 .profile-person-card .profile-name-row > #partnerMoodValue.avatar-mood-badge .partner-mood-icon .mood-emoji{
  font-size:18px!important;line-height:1!important;
 }
+
+/* v4.194: meditation screen polish, rewards, education and profile details. */
+.meditation-status:empty{display:none!important}
+.rudi-meditation-page .meditation-head{margin-bottom:12px}
+.rudi-meditation-page .meditation-intro{padding:6px 12px 0}
+.meditation-secondary{background:#d9484f!important;color:#fff!important;border-color:#c73d46!important;box-shadow:0 8px 20px rgba(217,72,79,.20)}
+html[data-theme="dark"] .meditation-secondary{background:#b93542!important;color:#fff!important}
+.meditation-benefits-list{margin:0;padding:8px 20px 8px 29px;display:grid;gap:11px;border-top:1px solid var(--med-line);font-size:13px;line-height:1.55;text-align:left}
+.meditation-benefits-list li{padding-left:3px}.meditation-benefits-list b{font-weight:800}
+.meditation-benefits-source{font-size:11px;line-height:1.5;opacity:.7;margin:6px 0 16px}
+.meditation-benefits-source a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.profile-person-card .score-avatar-wrap{position:relative!important}
+.profile-person-card .score-avatar-wrap > #moodCurrentButton.avatar-mood-badge,
+.profile-person-card .score-avatar-wrap > #partnerMoodValue.avatar-mood-badge{
+ position:absolute!important;top:-10px!important;right:-10px!important;left:auto!important;bottom:auto!important;
+ width:27px!important;height:27px!important;min-width:27px!important;min-height:27px!important;
+ flex:none!important;transform:rotate(-10deg)!important;z-index:30!important;
+ display:grid!important;place-items:center!important;padding:0!important;border:1px solid rgba(255,255,255,.5)!important;
+ background:color-mix(in srgb,var(--surface-strong) 95%,transparent)!important;border-radius:10px!important;
+}
+.profile-person-card .score-avatar-wrap > .avatar-mood-badge .mood-emoji,
+.profile-person-card .score-avatar-wrap > .avatar-mood-badge .partner-mood-icon .mood-emoji{font-size:18px!important;line-height:1!important}
+.profile-person-card .score-avatar-wrap > .avatar-mood-badge[hidden]{display:none!important}
+.profile-person-card #homePartnerHabitsSummary,
+.profile-person-card .meditation-partner-summary{padding:10px 12px!important;margin:0!important;border-radius:12px!important;
+ border:1px solid rgba(132,202,219,.22)!important;background:rgba(126,188,207,.09)!important;
+ color:inherit!important;font-size:12px!important;font-weight:680!important;min-height:36px;display:flex;align-items:center}
+.profile-person-card .profile-person-details{gap:9px!important}
+.profile-person-card #homePartnerHabitsSummary[hidden]{display:none!important}
+.meditation-mood-nudge{padding:10px 14px;margin:0 0 2px;border:1px solid rgba(117,172,198,.28);border-radius:14px;
+ background:color-mix(in srgb,var(--surface) 92%,#c4e9f4);font-size:12px;line-height:1.45;color:var(--text);font-weight:580}
+.meditation-mood-nudge[hidden]{display:none!important}

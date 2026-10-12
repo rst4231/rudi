@@ -1,16 +1,15 @@
 {
-  "current": "v4.193",
+  "current": "v4.194",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.192",
+  "basedOnProduction": "v4.193",
   "notes": [
-    "Meditation timer 5, 10, 20, 30, 60 min for Rustam and Diana, with partial session history, per-person stats, breathing halo and light/dark theme.",
-    "Durable Groq-selected daily verified spiritual quotation; meditation progress in partner expanded profile card.",
-    "Personal TickTick calendar: plus creates task in-app, long hold opens TickTick, editor quick-date row removed and calendar view icon hidden.",
-    "Unified slightly smaller mood emoji for both partners. No production deployment until explicit user confirmation."
+    "Improve meditation Wake Lock, screen, benefits, minimum duration and one daily star bonus, with reward recorded in history.",
+    "Connect meditation to calendar recap, AI personal analysis, partner summary, mood guidance and updated profile UI.",
+    "Remove search button in main header while keeping existing notifications, relocate mood emojis to avatar, unify profile card spacing."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

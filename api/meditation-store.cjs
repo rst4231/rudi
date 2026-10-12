@@ -15,9 +15,10 @@ function normalize(raw){
    const goal=Number(x.goalMinutes);
    if(!DURATIONS.has(goal))return null;
    const seconds=Math.min(24*3600,Math.max(0,Math.floor(Number(x.durationSeconds)||0)));
-   if(seconds<1)return null;
+   if(seconds<60)return null;
    return {id:String(x.id||'').slice(0,100),startedAt:start,endedAt:end,goalMinutes:goal,
-      durationSeconds:seconds,durationMinutes:Math.round(seconds/60*10)/10,completed:seconds>=goal*60};
+      durationSeconds:seconds,durationMinutes:Math.round(seconds/60*10)/10,completed:seconds>=goal*60,
+      rewardPoints:[0,.1,.2,.3,.4,.5].includes(Number(x.rewardPoints))?Number(x.rewardPoints):0};
  }).filter(Boolean).sort((x,y)=>y.endedAt.localeCompare(x.endedAt)).slice(0,500);
  const active=a.active&&DURATIONS.has(Number(a.active.goalMinutes))&&iso(a.active.startedAt)?
    {id:String(a.active.id||''),startedAt:iso(a.active.startedAt),goalMinutes:Number(a.active.goalMinutes)}:null;
@@ -48,13 +49,23 @@ async function finish(actor,activeId,auto=false,options={}){
   const end=auto?Math.min(nowMs(options),started+active.goalMinutes*60000):nowMs(options);
   const seconds=Math.max(0,Math.floor((end-started)/1000));
   state.active=null;
-  if(seconds>=1){
+  if(seconds>=60){
    state.history.unshift({id:active.id,startedAt:active.startedAt,
      endedAt:new Date(end).toISOString(),goalMinutes:active.goalMinutes,
      durationSeconds:seconds});
   }
   const saved=await write(actor,state,options);
   return {state:saved,session:saved.history.find(x=>x.id===id)||null,alreadyFinished:false};
+ });
+}
+async function recordReward(actor,id,points,options={}){
+ return queue(async()=>{
+  const reward=Number(points),state=await read(actor,options);
+  if(![.1,.2,.3,.4,.5].includes(reward))return state;
+  const row=state.history.find(x=>x.id===String(id||''));
+  if(!row||row.rewardPoints>=reward)return state;
+  row.rewardPoints=reward;
+  return write(actor,state,options);
  });
 }
 function moscowDay(date){
@@ -81,4 +92,4 @@ function stats(state,now=new Date()){
   longestMinutes:history.length?Math.round(Math.max(...history.map(x=>x.durationSeconds))/60*10)/10:0};
 }
 function publicSummary(state,now=new Date()){return {...stats(state,now),active:normalize(state).active}}
-module.exports={NAMESPACE,DURATIONS,normalize,read,write,start,finish,stats,publicSummary,moscowDay};
+module.exports={NAMESPACE,DURATIONS,normalize,read,write,start,finish,recordReward,stats,publicSummary,moscowDay};

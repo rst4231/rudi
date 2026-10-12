@@ -2,7 +2,10 @@
 (()=>{'use strict';
 const API='/api/meditation',GOALS=[5,10,20,30,60],ACTORS=['Рустам','Диана'];
 const $=id=>document.getElementById(id);
-let actor='',state=null,partner=null,quote=null,page=null,clock=0,busy=false,goal=10,lastPartnerFetch=0,fetching=false,lastFinishAttempt=0;
+let actor='',state=null,partner=null,quote=null,page=null,clock=0,busy=false,goal=10,lastPartnerFetch=0,fetching=false,lastFinishAttempt=0,wakeLock=null,wakeLockPending=false;
+let todayProgress={};
+const SAD_MOODS=new Set(['sadness','anger','fatigue','boredom']);
+const formatDailyTime=minutes=>{const n=Math.max(0,Math.round(Number(minutes)||0));return n>=60?Math.floor(n/60)+' ч'+(n%60?' '+n%60+' мин':''):n+' мин'};
 const initData=()=>String(window.Telegram?.WebApp?.initData||'');
 const actorFromPage=()=>String(document.body?.dataset?.rudiActor||'');
 const key=s=>'rudi:meditation:'+actor+':'+s;
@@ -24,10 +27,10 @@ function ensurePage(){
  page.innerHTML=`
   <header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head">
    <button id="meditationBack" class="fasting-back-button rudi-app-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
-   <div class="fasting-page-title"><div class="section-eyebrow">Личное</div><h1>Медитация</h1><small id="meditationActor"></small></div>
+   <div class="fasting-page-title"><h1>Медитация</h1></div>
   </header>
   <div class="meditation-scroll">
-   <article class="meditation-intro"><span class="meditation-overline">Время для себя</span><h2>Вернись к дыханию</h2><p>Только этот момент. Без спешки.</p></article>
+   <article class="meditation-intro"><span class="meditation-overline">Время для себя</span><h2>Вернись к дыханию</h2></article>
    <figure class="meditation-quote" id="meditationQuote"><span class="meditation-quote-mark" aria-hidden="true">“</span><blockquote id="meditationQuoteText">Тишина начинается с одного вдоха.</blockquote><figcaption id="meditationQuoteAuthor">Мысль дня</figcaption></figure>
    <section class="meditation-timer-panel" aria-label="Таймер">
     <div class="meditation-orbit" id="meditationOrbit"><div class="meditation-orbit-glow"></div><div class="meditation-orbit-core">
@@ -44,6 +47,17 @@ function ensurePage(){
     <div><span>Сеансов</span><strong id="meditationCount">0</strong></div><div><span>Минут</span><strong id="meditationTotal">0</strong></div>
     <div><span>Дней подряд</span><strong id="meditationStreak">0</strong></div>
    </section>
+   <details id="meditationBenefitsCard" class="meditation-history-card meditation-benefits-card">
+    <summary><span><strong>Зачем медитировать?</strong><small>5 фактов из научных исследований</small></span><span aria-hidden="true">⌄</span></summary>
+    <ol class="meditation-benefits-list">
+     <li><b>Тревожность.</b> Регулярная практика осознанности может уменьшать симптомы тревоги.</li>
+     <li><b>Подавленное настроение.</b> В исследованиях отмечено умеренное снижение симптомов депрессии.</li>
+     <li><b>Стресс.</b> Медитация может помогать воспринимать стресс спокойнее; сила эффекта зависит от программы.</li>
+     <li><b>Сон.</b> Некоторые исследования связывают практику с улучшением качества сна и уменьшением бессонницы.</li>
+     <li><b>Хроническая боль.</b> Осознанность иногда помогает справляться с болью, хотя результаты исследований неоднородны.</li>
+    </ol>
+    <p class="meditation-benefits-source">Источники: <a href="https://www.nccih.nih.gov/health/tips/8-things-to-know-about-meditation-and-mindfulness" target="_blank" rel="noopener noreferrer">NCCIH</a> и <a href="https://pubmed.ncbi.nlm.nih.gov/24395196/" target="_blank" rel="noopener noreferrer">JAMA Internal Medicine</a>. Эффекты индивидуальны, медитация не заменяет лечение.</p>
+   </details>
    <details id="meditationHistoryCard" class="meditation-history-card">
     <summary><span><strong>История медитаций</strong><small>Фактическое время каждого сеанса</small></span><span aria-hidden="true">⌄</span></summary>
     <div id="meditationHistoryList" class="meditation-history-list"><p>Сеансов пока нет</p></div>
@@ -55,11 +69,21 @@ function ensurePage(){
  $('meditationStart').addEventListener('click',()=>void start());
  $('meditationStop').addEventListener('click',()=>void stop(false));
  $('meditationSound').addEventListener('change',event=>{try{localStorage.setItem(key('sound'),event.target.checked?'on':'off')}catch{}});
- document.addEventListener('visibilitychange',()=>{if(!document.hidden&&page&&!page.hidden){render();void autoFinish()}});
+ document.addEventListener('visibilitychange',()=>{void syncWakeLock();if(!document.hidden&&page&&!page.hidden){render();void autoFinish()}});
  window.addEventListener('online',()=>{if(!page?.hidden)void load()});
  window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!page.hidden)close()});
  clock=setInterval(()=>{if(page&&!page.hidden){renderClock();void autoFinish()}},300);
  return page;
+}
+async function syncWakeLock(){
+ const needed=Boolean(state?.active)&&!document.hidden;
+ if(!needed){if(wakeLock){const lock=wakeLock;wakeLock=null;try{await lock.release()}catch{}}return;}
+ if(wakeLock||wakeLockPending||!navigator.wakeLock?.request)return;
+ wakeLockPending=true;
+ try{const lock=await navigator.wakeLock.request('screen');
+  if(!state?.active||document.hidden){await lock.release();return;}
+  wakeLock=lock;lock.addEventListener('release',()=>{if(wakeLock===lock)wakeLock=null});
+ }catch{}finally{wakeLockPending=false}
 }
 function status(t){text('meditationStatus',t||'')}
 function renderClock(){
@@ -76,7 +100,7 @@ function renderClock(){
 }
 function render(){
  if(!page)return;
- text('meditationActor',actor);renderClock();
+ renderClock();void syncWakeLock();
  for(const btn of page.querySelectorAll('[data-med-goal]')){
   btn.setAttribute('aria-pressed',Number(btn.dataset.medGoal)===(state?.active?.goalMinutes||goal)?'true':'false');
   btn.disabled=Boolean(state?.active)||busy;
@@ -94,12 +118,12 @@ function render(){
   const left=document.createElement('span'),right=document.createElement('strong');
   const date=document.createElement('b');date.textContent=moscowDate(row.endedAt);
   const tag=document.createElement('small');tag.textContent=row.completed?'Завершена':'Остановлена раньше';
-  left.append(date,tag);right.textContent=minuteText(Number(row.durationSeconds||0)/60);
+  left.append(date,tag);right.textContent=minuteText(Number(row.durationSeconds||0)/60)+(Number(row.rewardPoints)>0?' · +'+String(row.rewardPoints).replace('.',',')+' ⭐':'');
   line.append(left,right);history.appendChild(line);
  }
  if(quote){
   text('meditationQuoteText',quote.text);
-  text('meditationQuoteAuthor',quote.author+' · '+quote.source);
+  text('meditationQuoteAuthor',quote.author);
  }
 }
 async function load(){
@@ -108,6 +132,8 @@ async function load(){
   const data=await request('state');
   if(actor!==data.actor)return;
   state=data.meditation;partner=data.partner;quote=data.quote||null;
+  todayProgress[actor]={todaySessions:state.stats?.todaySessions||0,todayMinutes:state.stats?.todayMinutes||0};
+  todayProgress[partner.actor]={todaySessions:partner.todaySessions||0,todayMinutes:partner.todayMinutes||0};
   render();status('');updatePartner();await autoFinish();
  }catch(error){status('Данные не загрузились. Проверьте подключение')}
  finally{fetching=false}
@@ -139,7 +165,7 @@ async function start(){
  try{
   const data=await request('start',{goalMinutes:goal});
   state=data.meditation;
-  render();status('Медитация началась. Таймер продолжит отсчёт после сворачивания.');
+  render();status('');
  }catch(error){status(String(error.message).includes('already-active')?'Сеанс уже идёт. Обновите страницу.':'Не удалось начать. Попробуйте ещё раз.')}
  finally{busy=false;render()}
 }
@@ -150,7 +176,10 @@ async function stop(auto){
  busy=true;render();status('Сохраняю сеанс…');
  try{
   const data=await request('finish',{activeId:active.id,auto});
-  state=data.meditation;render();status(data.session?'Сохранено: '+minuteText(data.session.durationSeconds/60):'Сеанс завершён');
+  state=data.meditation;render();status('');
+  todayProgress[actor]={todaySessions:state.stats?.todaySessions||0,todayMinutes:state.stats?.todayMinutes||0};
+  document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
+  updateNudges();
   if(data.session?.completed)notifyComplete();
   updatePartner();
  }catch(error){status('Не удалось сохранить. Таймер сохранён, повторите после восстановления связи.')}
@@ -180,7 +209,9 @@ function updatePartner(){
  let card=detail.querySelector('#meditationPartnerSummary');
  if(!card){card=document.createElement('div');card.id='meditationPartnerSummary';card.className='meditation-partner-summary';const supplements=detail.querySelector('.profile-supplement-intakes');if(supplements)supplements.insertAdjacentElement('afterend',card);else detail.appendChild(card)}
  const count=Number(partner.todaySessions||0),minutes=Number(partner.todayMinutes||0);
- card.textContent=count?'🧘 Медитация сегодня · '+minuteText(minutes)+' · '+count+' сеанс(ов)':'🧘 Медитация сегодня · пока нет';
+ const feminine=partner.actor==='Диана';
+ card.textContent='🧘 Сегодня '+(count?(feminine?'медитировала ':'медитировал ')+formatDailyTime(minutes):(feminine?'не медитировала':'не медитировал'));
+ updateNudges();
 }
 async function refreshPartner(){
  const current=actorFromPage();if(!ACTORS.includes(current))return;
@@ -190,8 +221,24 @@ async function refreshPartner(){
  try{
   const data=await request('overview');
   partner={actor:actor==='Рустам'?'Диана':'Рустам',...(data.summary?.[actor==='Рустам'?'Диана':'Рустам']||{})};
-  updatePartner();
+  todayProgress=data.summary||{};
+  updatePartner();updateNudges();
  }catch{}
+}
+function updateNudges(){
+ if(document.body.dataset.appTab!=='home')return;
+ for(const who of ACTORS){
+  const tile=$(who==='Рустам'?'homeRustamTile':'homeDianaTile');if(!tile?.parentElement)continue;
+  const moodButton=$(who===actorFromPage()?'moodCurrentButton':'partnerMoodValue');
+  const mood=String(moodButton?.dataset.mood||'');const progress=todayProgress[who];
+  let notice=$(who==='Рустам'?'meditationMoodNudgeRustam':'meditationMoodNudgeDiana');
+  const show=Boolean(progress)&&SAD_MOODS.has(mood)&&Number(progress.todaySessions||0)===0;
+  if(!show){if(notice)notice.hidden=true;continue;}
+  if(!notice){notice=document.createElement('div');notice.id=who==='Рустам'?'meditationMoodNudgeRustam':'meditationMoodNudgeDiana';notice.className='meditation-mood-nudge';}
+  notice.textContent='🧘 Сегодня настроение не самое лучшее. Попробуй уделить 5–10 минут медитации — это может помочь успокоиться.';
+  notice.hidden=false;
+  if(notice.parentElement!==tile.parentElement||notice.nextElementSibling!==tile)tile.parentElement.insertBefore(notice,tile);
+ }
 }
 function reconcile(){
  const current=actorFromPage();
@@ -206,9 +253,10 @@ function reconcile(){
   fasting.insertAdjacentElement('afterend',button);
   button.addEventListener('click',open);
  }
- if(document.body.dataset.appTab==='home'){updatePartner();void refreshPartner()}
+ if(document.body.dataset.appTab==='home'){updatePartner();updateNudges();void refreshPartner()}
 }
-window.RudiMeditation={open,close,reconcile};
+window.RudiMeditation={open,close,reconcile,updateNudges};
+window.addEventListener('rudi:mood-updated',updateNudges);
 window.addEventListener('rudi:profile-ready',()=>{reconcile();void refreshPartner()});
 window.addEventListener('rudi:app-tab-change',event=>{
  if(event.detail?.tab==='home'){reconcile();void refreshPartner()}

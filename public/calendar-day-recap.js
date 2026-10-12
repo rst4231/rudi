@@ -130,6 +130,18 @@
         [format(item.startedAt,fullLabel),item.endedAt?format(item.endedAt,fullLabel):'продолжается'].filter(Boolean).join(' – ')));
     }
 
+    const medRows=data.meditation?.sessions||[];
+    const meditation=section('Медитация',medRows.length?medRows.length+' сеанс(ов)':'');
+    if(!missing(meditation,data.meditation)){
+      if(!medRows.length)empty(meditation,'Сегодня медитаций не было');
+      else{
+        line(meditation,'Всего за день',minutes(data.meditation.totalMinutes),
+          data.meditation.stars?('+'+String(data.meditation.stars).replace('.',',')+' ⭐'):'');
+        medRows.forEach((item,index)=>line(meditation,'Сеанс '+(index+1),minutes(item.durationMinutes),
+          [format(item.endedAt,timeLabel),item.rewardPoints?('+'+String(item.rewardPoints).replace('.',',')+' ⭐'):''].filter(Boolean).join(' · ')));
+      }
+    }
+
     const mood=section('Среднее настроение');
     if(!missing(mood,data.mood)){
       if(data.mood.averageMood){
@@ -165,7 +177,7 @@
       if(!response.ok||!data.ok)throw new Error(data.error||'unavailable');
       if(requestRevision===revision){
         cache.set(key,{at:Date.now(),data});
-        const complete=Object.values(data.days||{}).every(day=>['expenses','habits','fasting','mood','supplements'].every(source=>day?.[source]?.available!==false));
+        const complete=Object.values(data.days||{}).every(day=>['expenses','habits','fasting','mood','supplements','meditation'].every(source=>day?.[source]?.available!==false));
         if(complete)saveStored(month,data);
         while(cache.size>4)cache.delete(cache.keys().next().value);
       }

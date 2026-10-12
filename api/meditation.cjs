@@ -2,6 +2,9 @@
 const {authorizeRequest}=require('./partner-message.js');
 const store=require('./meditation-store.cjs');
 const {dailyQuote}=require('./meditation-quote.cjs');
+const scoreStore=require('./score-store.cjs');
+const REWARD_TIERS=[[60,5],[30,4],[20,3],[10,2],[5,1]];
+function meditationRewardUnits(seconds){const minutes=Math.floor(Math.max(0,Number(seconds)||0)/60);return REWARD_TIERS.find(([goal])=>minutes>=goal)?.[1]||0;}
 
 async function handler(req,res,options={}){
  res.setHeader?.('Cache-Control','no-store, no-cache, must-revalidate');
@@ -31,8 +34,23 @@ async function handler(req,res,options={}){
   }
   if(operation==='finish'){
    const result=await store.finish(actor,body.activeId,body.auto===true,options);
-   return res.status(200).json({ok:true,actor,session:result.session,alreadyFinished:result.alreadyFinished,
-     meditation:{...result.state,stats:store.stats(result.state)}});
+   let session=result.session,meditation=result.state;
+   const rewardUnits=session?meditationRewardUnits(session.durationSeconds):0;
+   if(rewardUnits){
+    const day=store.moscowDay(session.endedAt),dedupeKey='score:meditation:'+actor+':'+day;
+    const reward=await scoreStore.awardScore(actor,rewardUnits,{
+     dedupeKey,label:'Медитация · '+Math.floor(session.durationSeconds/60)+' мин',
+     detail:'Сеанс '+session.id,icon:'🧘'
+    },{...options,now:Date.parse(session.endedAt)});
+    const credited=reward.awardedUnits>0?reward.awardedUnits/10:
+     (reward.state.history.find(row=>row.dedupeKey===dedupeKey&&row.detail==='Сеанс '+session.id)?.units||0)/10;
+    if(credited>0){
+     meditation=await store.recordReward(actor,session.id,credited,options);
+     session=meditation.history.find(row=>row.id===session.id)||session;
+    }
+   }
+   return res.status(200).json({ok:true,actor,session,alreadyFinished:result.alreadyFinished,
+     meditation:{...meditation,stats:store.stats(meditation)}});
   }
   return res.status(400).json({ok:false,error:'meditation-operation-invalid'});
  }catch(error){

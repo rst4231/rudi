@@ -1813,7 +1813,7 @@
   }
 
   function installDynamicExtras(){
-    installSearchButton();
+    byId('rudiSearchButton')?.remove();
     installHealthSettings();
     removeRetiredQuickAdd();
     setupSavesPage();
