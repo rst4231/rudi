@@ -14536,9 +14536,20 @@
         return true;
       }
 
+      function calendarPersonalTaskEditorContext(task){
+        return {
+          initData:telegramInitData(),
+          refresh:()=>refreshAfterTickTickTaskChange({preserveExpanded:false}),
+          openTickTick:()=>calendarOpenPersonalTickTickTask(task)
+        };
+      }
       function calendarOpenSearchResult(task){
         if(!calendarValidDateKey(task?.date))return;
-        if(calendarOpenPersonalTickTickTask(task)){calendarCloseSearch();return}
+        if(task?.personal===true&&currentActor==='Рустам'){
+          calendarCloseSearch();
+          window.RUDIPersonalTaskEditor?.open(task,calendarPersonalTaskEditorContext(task));
+          return;
+        }
         calendarCloseSearch();calendarDateCursor=task.date;currentSelectedWorkDate=task.date;
         calendarSaveView();currentWorkCalendarRenderSignature='';
         loadWorkCalendar('month',{silent:true}).catch(()=>{});
@@ -15020,20 +15031,22 @@
             row.classList.add('calendar-external-task');
             row.style.cursor='pointer';
             row.tabIndex=0;
-            row.setAttribute('role','link');
-            row.setAttribute('aria-label','Открыть в TickTick: '+String(task.title||'Дело'));
+            row.setAttribute('role','button');
+            row.setAttribute('aria-label','Редактировать: '+String(task.title||'Дело'));
+            const ctx=calendarPersonalTaskEditorContext(task);
             row.addEventListener('click',event=>{
               if(event.target===checkbox||checkbox.contains(event.target))return;
-              calendarOpenPersonalTickTickTask(task);
+              window.RUDIPersonalTaskEditor?.open(task,ctx);
             });
             row.addEventListener('keydown',event=>{
               if(event.target!==row||(event.key!=='Enter'&&event.key!==' '))return;
-              event.preventDefault();calendarOpenPersonalTickTickTask(task);
+              event.preventDefault();window.RUDIPersonalTaskEditor?.open(task,ctx);
             });
+            window.RUDIPersonalTaskEditor?.bind(row,task,ctx);
           }
         };
         // Weekly timeline shows tasks, shifts and obligations; holidays remain in month view.
-        for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':' · К оплате'),'','');
+        for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':''),'','');
         for(const item of tasks)put('task',String(item.title||'Задача'),item.allDay?'':item.startTime,item.endTime,item);
         if(calendarScope==='shared'||currentActor==='Диана'){
           for(const event of workEvents){
@@ -15108,7 +15121,8 @@
             block.appendChild(owner);
           }
           attachCompletion(block,event.task);
-          calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable);
+          // Personal long-press opens TickTick; dragging must not steal the gesture.
+          if(event.task?.personal!==true)calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable);
           track.appendChild(block);
         }
         if(dateKey===todayState().key){
@@ -15394,7 +15408,7 @@
                 taskCopy.className='calendar-task-copy';
                 const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&event?.canEdit===false&&Boolean(calendarTickTickTaskWebUrl(event));
                 taskCopy.disabled=!event?.id||(!opensInTickTick&&(payload?.ticktickWritable===false||event?.canEdit===false));
-                taskCopy.setAttribute('aria-label',(opensInTickTick?'Открыть в TickTick: ':'Редактировать: ')+String(event.title||'Дело'));
+                taskCopy.setAttribute('aria-label','Редактировать: '+String(event.title||'Дело'));
                 const start=String(event.startTime||'').trim();
                 const end=String(event.endTime||'').trim();
                 const range=event.allDay?'':(start&&end&&start===end?start:[start,end].filter(Boolean).join('–'));
@@ -15413,9 +15427,14 @@
                 taskCopy.addEventListener('click',clickEvent=>{
                   clickEvent.stopPropagation();
                   if(taskCopy.disabled)return;
-                  if(opensInTickTick){calendarOpenPersonalTickTickTask(event);return}
+                  if(opensInTickTick){
+                    window.RUDIPersonalTaskEditor?.open(event,calendarPersonalTaskEditorContext(event));return;
+                  }
                   openTickTickTaskForEditing?.(event);
                 });
+                if(opensInTickTick){
+                  window.RUDIPersonalTaskEditor?.bind(taskCopy,event,calendarPersonalTaskEditorContext(event));
+                }
                   group.appendChild(row);
                 }
               }
@@ -15426,7 +15445,7 @@
               const group=document.createElement('div');
               group.className='calendar-selected-group calendar-selected-obligations';
               const groupTitle=document.createElement('b');
-              groupTitle.textContent='Обязательные расходы';
+              groupTitle.textContent='Счета на оплату';
               group.appendChild(groupTitle);
               for(const obligation of obligations){
                 const row=document.createElement('div');
@@ -15445,7 +15464,7 @@
                 const label=document.createElement('span');label.className='calendar-obligation-title';
                 label.textContent=String(obligation.title||'Платёж');
                 const amount=document.createElement('small');amount.className='calendar-obligation-amount';
-                amount.textContent=financeOverviewMoney(obligation.amount)+(obligation.paid?' · Оплачено':' · К оплате');
+                amount.textContent=financeOverviewMoney(obligation.amount)+(obligation.paid?' · Оплачено':'');
                 copy.append(label,amount);row.append(complete,copy);group.appendChild(row);
               }
               details.appendChild(group);
