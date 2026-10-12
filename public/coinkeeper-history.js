@@ -230,8 +230,8 @@
           if(data.nextOffset<=offset)throw Error('Не удалось продолжить удаление');
           offset=data.nextOffset;
         }
-        setStatus('Удалено '+removed+' операций последней загрузки CoinKeeper. Текущие финансы RUDI не изменены.');
         await showMonth();
+        setStatus('Удалено '+removed+' операций последней загрузки CoinKeeper. Текущие финансы RUDI не изменены.');
       }catch(error){
         setStatus('Удаление прервалось: '+String(error.message||error)+'. Нажми «Удалить последний импорт» ещё раз, чтобы продолжить.');
       }finally{busy=false;button.disabled=false;}
