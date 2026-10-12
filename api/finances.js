@@ -277,6 +277,18 @@ async function handler(req, res) {
       const result=await coinKeeperHistory.deleteLastImport(actor,body.importId,body.offset);
       return res.status(200).json({ok:true,result});
     }
+    if(operation==='budget-status'){
+      // Lightweight home badge: exactly the same current-month category limits and
+      // live expenses as the Finance budget line, without shipping the full ledger.
+      const month=moscowDateKey().slice(0,7);
+      const state=await readFinanceState(),view=viewState(state,actor);
+      const plannedLimit=(view.categories||[]).reduce((sum,row)=>sum+Math.max(0,Number(row.monthlyLimit||0)),0);
+      const actualSpent=(view.personalExpenses||[])
+        .filter(row=>String(row.month||'')===month)
+        .reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0);
+      const spentPercent=plannedLimit>0?Math.max(0,actualSpent/plannedLimit*100):(actualSpent>0?100:0);
+      return res.status(200).json({ok:true,actor,month,plannedLimit,spentPercent});
+    }
     if (operation === 'list') {
       const state = await readFinanceState();
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
