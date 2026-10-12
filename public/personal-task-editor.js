@@ -190,10 +190,21 @@ async function useQuick(id,fromMenu){
   }
   if(fromMenu){
     const task=active.task,ctx=active.ctx;
-    open(task,ctx);f('date').value=date;syncTime();
-    closeMenu();
-    // Keep quick changes safe: show the editor for confirmation before saving.
-    f('date').focus();return;
+    closeMenu();busy=true;
+    try{
+      await request('personal-task-edit',{
+        operation:'save',taskId:task.id,projectId:task.projectId,
+        targetProjectId:task.projectId,
+        title:task.title,date,time:task.allDay?'':String(task.startTime||''),
+        description:String(task.description||'')
+      });
+      active=null;
+      await Promise.resolve(ctx.refresh?.()).catch(()=>{});
+    }catch(e){
+      busy=false;open(task,ctx);f('date').value=date;syncTime();
+      message(errorText(e));
+    }finally{busy=false}
+    return;
   }
   f('date').value=date;if(date&&f('time').disabled)f('time').value='';
   syncTime();
