@@ -284,6 +284,19 @@
     }
     host.replaceChildren(...facts.map(t=>{const p=document.createElement('p');p.textContent=t;return p}));
   }
+  // Values for every calendar month: compact enough for a 12-column mobile chart.
+  // Exact amounts remain in the selected-month summary and accessibility labels.
+  const yearCompactValue=(rubAmount,ctx)=>{
+    const value=currencyValue(rubAmount,ctx);
+    if(value===null)return '—';
+    const abs=Math.abs(value);
+    const number=(n,digits=0)=>new Intl.NumberFormat('ru-RU',{maximumFractionDigits:digits}).format(n);
+    if(abs>=1e9)return number(value/1e9,1)+'мд';
+    if(abs>=1e6)return number(value/1e6,1)+'м';
+    if(abs>=1e3)return number(value/1e3,1)+'к';
+    if(abs>0&&abs<1)return number(value,1);
+    return number(value);
+  };
   function renderWeeklyExpenses(){
     const host=id('rudiWeeklyBars'),range=id('rudiWeeklyRange');
     if(!host||!snapshot)return;
@@ -316,7 +329,10 @@
       const incomeValue=hidden?'••••':displayMoney(income,ctx);
       const incomeHeight=income>0&&maximum?Math.max(4,Math.round(income/maximum*74)):0;
       const bars=isYear
-        ?'<span class="rudi-year-pair" aria-hidden="true">'+
+        ?'<span class="rudi-year-values" aria-hidden="true">'+
+          '<span class="is-expense">'+html(hidden?'•••':yearCompactValue(bucket.total,ctx))+'</span>'+
+          '<span class="is-income">'+html(hidden?'•••':yearCompactValue(income,ctx))+'</span>'+
+          '</span><span class="rudi-year-pair" aria-hidden="true">'+
           '<span class="rudi-year-bar is-expense" style="--rudi-week-height:'+height+'%"></span>'+
           '<span class="rudi-year-bar is-income" style="--rudi-week-height:'+incomeHeight+'%"></span></span>'
         :(filled?'<span class="rudi-weekly-bar" style="--rudi-week-height:'+height+'%">'+
@@ -333,7 +349,94 @@
     let legend=id('rudiExpenseYearLegend');
     if(!legend){legend=document.createElement('p');legend.id='rudiExpenseYearLegend';
       legend.className='rudi-year-legend';host.insertAdjacentElement('afterend',legend);}
-    legend.innerHTML='<span class="is-expense">Расходы</span><span class="is-income">Доходы</span>';
+    legend.innerHTML='<span class="is-expense">Расходы</span><span class="is-income">Доходы</span>'+
+      '<span class="rudi-year-unit">'+html(ctx.displayCurrency==='USD'?'
+    legend.hidden=!isYear;
+    let info=id('rudiExpenseSelectedDetail');
+    if(!info){info=document.createElement('p');info.id='rudiExpenseSelectedDetail';
+      info.className='rudi-expense-selected';legend.insertAdjacentElement('afterend',info);}
+    const selectedBucket=buckets[selected];
+    info.textContent=selectedBucket
+      ?(isYear
+        ?selectedBucket.label+' · Расходы: '+(hidden?'••••':displayMoney(selectedBucket.total,ctx))+
+         ' · Доходы: '+(hidden?'••••':displayMoney(selectedBucket.income||0,ctx))
+        :selectedBucket.label+': '+(hidden?'••••':displayMoney(selectedBucket.total,ctx)))
+      :'Расходов за период нет';
+    info.hidden=!isYear;
+    host.setAttribute('aria-label',hidden?'Суммы скрыты':
+      (isYear?'Расходы и доходы за год, расходы '+displayMoney(data.total,ctx)+
+       ', доходы '+displayMoney(data.incomeTotal,ctx):
+       'Расходы за '+titles[expenseChartPeriod]+', всего '+displayMoney(data.total,ctx)));
+  }
+  function render(){
+    if(!snapshot||!mount())return;
+    renderWeeklyExpenses();
+    id('rudiAlertList').innerHTML=list(core.detectIssues(snapshot,nowMoscow()),'Сигналов по текущей истории не найдено. Это не означает, что лишних трат нет.');
+    const g=core.goal(snapshot,nowMoscow(),{rates:currencyContext().rates});
+    if(document.activeElement!==id('rudiGoalDeadline'))id('rudiGoalDeadline').value=g.deadline||'';
+    if(document.activeElement!==id('rudiGoalMonthly'))id('rudiGoalMonthly').value=g.monthly||'';
+    if(document.activeElement!==id('rudiGoalReserve'))id('rudiGoalReserve').value=g.reserve||'';
+    renderGoal(true);
+  }
+  async function saveGoal(){
+    const button=id('rudiGoalSave'),status=id('rudiGoalStatus'),deadline=id('rudiGoalDeadline').value;
+    const monthly=Number(id('rudiGoalMonthly').value||0),reserve=Number(id('rudiGoalReserve').value||0);
+    if((deadline&&!/^\d{4}-\d{2}-\d{2}$/.test(deadline))||![monthly,reserve].every(v=>Number.isFinite(v)&&v>=0&&v<=100000000)){status.textContent='Проверь дату и суммы.';return}
+    button.disabled=true;status.textContent='Сохраняю…';
+    try{
+      snapshot=await request('save-plan',{goalDeadline:deadline,goalMonthlyContribution:monthly,reserve});
+      loadedAt=Date.now();render();document.dispatchEvent(new CustomEvent('rudi-finance-plan-saved'));status.textContent='План сохранён.';
+    }catch(_){status.textContent='Не удалось сохранить план. Проверь подключение.'}
+    finally{button.disabled=false}
+  }
+  async function refresh(force=false){
+    if(working)return;
+    if(!mount())return;
+    if(snapshot&&!force&&Date.now()-loadedAt<30000)return;
+    working=true;
+    try{snapshot=await request('list');loadedAt=Date.now();render()}
+    catch(_){const host=id('rudiAlertList');if(host)host.textContent='Не удалось загрузить финансовые данные. Открой РуДи в Telegram или попробуй позже.'}
+    finally{working=false}
+  }
+  const init=()=>{
+    if(!mount())return;
+    refresh().catch(()=>{});
+    document.addEventListener('click',e=>{
+      if(e.target.closest?.('#financeProfileButton,[data-app-tab="finances"],[data-finance-tab="personal"],#financeWalletSaveButton,#financeExpenseComposerSave,#financeIncomeSaveButton,#financeObligationSaveButton'))setTimeout(()=>refresh(true),900);
+    },true);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh(true)});
+    // The overview eye button changes privacy mode without re-fetching finance data.
+    id('financeBalanceEyeButton')?.addEventListener('click',()=>setTimeout(renderWeeklyExpenses,0));
+    document.addEventListener('rudi-finances-updated',event=>{
+      if(document.body?.dataset.rudiActor!=='Рустам')coinKeeperChartArchive=null;
+      if(event.detail?.plan){snapshot=event.detail;loadedAt=Date.now();render()}
+    });
+    document.addEventListener('rudi-coinkeeper-overview-loaded',event=>{
+      coinKeeperChartArchive=document.body?.dataset.rudiActor==='Рустам'?event.detail:null;
+      if(snapshot)renderWeeklyExpenses();
+    });
+    document.addEventListener('rudi-coinkeeper-updated',()=>{
+      coinKeeperChartArchive=null;
+      if(snapshot)renderWeeklyExpenses();
+    });
+    id('rudiAlertList')?.addEventListener('click',event=>{
+      const button=event.target.closest?.('button[data-alert-category]');
+      if(!button)return;
+      document.dispatchEvent(new CustomEvent('rudi-finance-open-category-history',{detail:{
+        categoryId:button.dataset.alertCategory,from:button.dataset.alertFrom,to:button.dataset.alertTo
+      }}));
+    });
+    document.addEventListener('rudi-finance-currency-changed',()=>{syncScenarioCurrency();if(snapshot)render()});
+    document.addEventListener('rudi-finance-rates-changed',()=>{
+      if(snapshot)render();
+      const result=id('rudiScenarioResult');
+      if(result&&!result.hidden)runScenario();
+    });
+    document.dispatchEvent(new Event('rudi-finance-decisions-mounted'));
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
+})();
+:'₽')+'</span>';
     legend.hidden=!isYear;
     let info=id('rudiExpenseSelectedDetail');
     if(!info){info=document.createElement('p');info.id='rudiExpenseSelectedDetail';
