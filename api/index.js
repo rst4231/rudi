@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
 const { handleWalletLogo } = require('./wallet-logo.cjs');
 const handleCalendarDaySummary = require('./calendar-day-summary.cjs');
 const { stripStagePriceLines, compactEventTelegramRequest } = require('./event-text-sanitizer.cjs');
@@ -353,7 +354,7 @@ async function handler(req, res) {
   }
 }
 
-module.exports = handler;
+module.exports = withD1ReadCoalescing(handler);
 module.exports.runRuntime = runRuntime;
 module.exports.runHealthWithoutCouple = runHealthWithoutCouple;
 module.exports.publishDailyLaborArticle = publishDailyLaborArticle;

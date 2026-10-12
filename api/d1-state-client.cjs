@@ -1,3 +1,13 @@
+const { AsyncLocalStorage } = require('node:async_hooks');
+// In-flight reads only: never cache a settled response or share across HTTP requests.
+const scopedD1Reads = new AsyncLocalStorage();
+function withD1ReadCoalescing(handler) {
+  if(typeof handler!=='function')throw TypeError('rudi-d1-handler-required');
+  return function d1ScopedHandler(...args) {
+    const invoke=()=>handler(...args);
+    return scopedD1Reads.getStore()?invoke():scopedD1Reads.run(new Map(),invoke);
+  };
+}
 const DEFAULT_D1_API_URL='https://rudi-db-api.cpateammail.workers.dev';
 const DEFAULT_TIMEOUT_MS=5000;
 
@@ -70,22 +80,46 @@ function createD1StateClient(options={}){
     throw lastError||new Error('rudi-d1-request-failed');
   }
 
+  function flightKey(namespace,key){
+    return JSON.stringify([baseUrl,secret,timeoutMs,String(namespace||''),String(key||'')]);
+  }
+  function forgetFlights(namespace,key){
+    const pending=scopedD1Reads.getStore()?.get(fetchImpl);
+    if(!pending)return;
+    if(key===undefined){pending.clear();return;}
+    pending.delete(flightKey(namespace,key));
+  }
   async function health(){return request('/health',undefined,{auth:false,method:'GET',retries:1})}
   async function getRecord(namespace,key){
-    const data=await request('/get',{namespace:String(namespace||''),key:String(key||'')},{allow404:true,retries:1});
-    if(!data||data.ok===false)return null;
-    return{
-      namespace:String(namespace||''),
-      key:String(key||''),
-      value:data.value,
-      tags:normalizeTags(data.tags),
-      expires_at:data.expiresAt?String(data.expiresAt):null,
-      updated_at:data.updatedAt?String(data.updatedAt):'',
+    const ns=String(namespace||''),recordKey=String(key||'');
+    const read=async()=>{
+      const data=await request('/get',{namespace:ns,key:recordKey},{allow404:true,retries:1});
+      if(!data||data.ok===false)return null;
+      return{
+        namespace:ns,key:recordKey,value:data.value,tags:normalizeTags(data.tags),
+        expires_at:data.expiresAt?String(data.expiresAt):null,
+        updated_at:data.updatedAt?String(data.updatedAt):'',
+      };
     };
+    const scope=scopedD1Reads.getStore();
+    if(!scope)return read();
+    let pending=scope.get(fetchImpl);
+    if(!pending){pending=new Map();scope.set(fetchImpl,pending);}
+    const id=flightKey(ns,recordKey);
+    let flight=pending.get(id);
+    if(!flight){flight=read();pending.set(id,flight);}
+    try{
+      const row=await flight;
+      // Prevent one consumer from mutating data seen by another caller.
+      return row===null?null:structuredClone(row);
+    }finally{
+      if(pending.get(id)===flight)pending.delete(id);
+    }
   }
   async function setRecord(row){
     const namespace=String(row?.namespace||''),key=String(row?.key||'');
     if(!namespace||!key)throw new Error('rudi-d1-key-invalid');
+    forgetFlights(namespace,key);
     const data=await request('/set',{
       namespace,key,value:row?.value,
       tags:normalizeTags(row?.tags),
@@ -103,6 +137,7 @@ function createD1StateClient(options={}){
     });
   }
   async function setIfAbsent(namespace,key,value,cacheOptions={}){
+    forgetFlights(namespace,key);
     const data=await request('/set-if-absent',{
       namespace:String(namespace||''),key:String(key||''),value,
       tags:normalizeTags(cacheOptions.tags),
@@ -113,6 +148,7 @@ function createD1StateClient(options={}){
     return data.inserted;
   }
   async function remove(namespace,key){
+    forgetFlights(namespace,key);
     const data=await request('/delete',{namespace:String(namespace||''),key:String(key||'')});
     if(data?.ok===false||(data?.ok!==true&&!Object.prototype.hasOwnProperty.call(data||{},'deleted')))
       throw new Error('rudi-d1-write-unconfirmed');
@@ -130,6 +166,7 @@ function createD1StateClient(options={}){
     }));
   }
   async function expireTag(namespace,tag){
+    forgetFlights(namespace);
     const data=await request('/expire-tag',{namespace:String(namespace||''),tag:String(tag||'')});
     if(data?.ok===false||!Number.isFinite(Number(data?.deleted)))
       throw new Error('rudi-d1-write-unconfirmed');
@@ -156,4 +193,4 @@ function createD1NamespaceStore(namespace,options={}){
     expireTag:tag=>client.expireTag(ns,tag),
   };
 }
-module.exports={DEFAULT_D1_API_URL,normalizeTags,expiresAtFromOptions,createD1StateClient,createD1NamespaceStore};
+module.exports={DEFAULT_D1_API_URL,normalizeTags,expiresAtFromOptions,createD1StateClient,createD1NamespaceStore,withD1ReadCoalescing};
