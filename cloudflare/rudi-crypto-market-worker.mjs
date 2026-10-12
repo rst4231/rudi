@@ -29,7 +29,7 @@ function parsedRequest(requestUrl){
 }
 async function upstream(path){
   const response=await fetch(ORIGIN+path,{headers:{accept:'application/json'},
-    signal:AbortSignal.timeout(9000),redirect:'error'});
+    signal:AbortSignal.timeout(9000),redirect:'manual'});
   if(!response.ok)throw Error('okx-http-'+response.status);
   const data=await response.json();
   if(String(data.code)!=='0'||!Array.isArray(data.data))throw Error('okx-invalid-result');
