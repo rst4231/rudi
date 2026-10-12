@@ -401,10 +401,31 @@ async function sendStarGiftNotification(result, options = {}) {
     const from=String(result?.from||'');
     const to=String(result?.to||'');
     const points=Number(result?.points||0);
+    if(!['Рустам','Диана'].includes(from)||!['Рустам','Диана'].includes(to)||from===to
+      ||!Number.isInteger(points)||points<1||points>5)return [];
     const verb=from==='Диана'?'подарила':'подарил';
-    const toDative=to==='Диана'?'Диане':to==='Рустам'?'Рустаму':to;
-    const text='⭐ <b>'+escapeTelegramHtml(from+' '+verb+' '+toDative+' '+points+' '+starGiftWord(points))+'</b>';
-    return await sendToAllRecipients(text,options);
+    const toDative=to==='Диана'?'Диане':'Рустаму';
+    const text='⭐ '+from+' '+verb+' '+toDative+' '+points+' '+starGiftWord(points);
+    // The score mutation already has a durable unique transaction ID.
+    // Reusing it prevents repeated journal rows on request retries.
+    const giftId=result?.state?.history?.find(row=>row?.kind==='gift-out'&&row?.actor===from)?.id
+      ||String(options.clientEventId||'').slice(0,90);
+    const dedupeKey=giftId?'score-gift:'+giftId:'';
+    const notice={
+      type:'partner-message', actor:from, visibleTo:to, text, icon:'⭐',
+      targetTab:'score', ...(dedupeKey?{dedupeKey}:{}),
+    };
+    const stored=await recordActivity(notice,options);
+    if(!stored)console.warn('RUDI_STAR_GIFT_JOURNAL_WARN','notification-not-saved');
+    const sendPush=options.sendPushNotificationImpl||sendPushNotification;
+    const delivered=await sendPush(to,{
+      title:'⭐ Подарок звёзд',
+      body:from+' '+verb+' тебе '+points+' '+starGiftWord(points),
+      tag:dedupeKey||'score-gift',
+      ...(giftId?{id:giftId}:{}),
+      url:'/?tab=score',
+    },options);
+    return [{recipient:to,recorded:Boolean(stored),push:Boolean(delivered?.sent),delivered:delivered?.delivered||0}];
   } catch (error) {
     console.warn('RUDI_STAR_GIFT_NOTIFICATION_WARN',String(error?.message||error));
     return [];
