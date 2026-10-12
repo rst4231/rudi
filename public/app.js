@@ -2275,7 +2275,7 @@
           coinKeeperRows.set(month,rows);
           if(financeCategoryHistoryId&&document.getElementById('financeCategoryHistoryMonthInput')?.value===month)renderFinanceCategoryHistory();
           if(document.getElementById('financePersonalMonthInput')?.value===month){
-            renderFinanceOperations();
+            if(document.getElementById('financeExpenseHistoryPage')?.hidden===false)renderFinanceOperations();
             if(document.getElementById('financeExpenseComposer')?.getAttribute('aria-hidden')==='false'&&financeExpenseCategoryId)
               renderFinanceExpenseComposerHistory(month,financeExpenseCategoryId);
           }
@@ -2944,12 +2944,15 @@
             if(q&&!financeOperationSearchText({kind:'expense',row}).includes(q))return false;
             return true;
           })
-          .sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')))
-          .slice(0,500);
+          .sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')));
+        const allMatchingRows=rows.length,visibleRows=rows.slice(0,1000);
         list.replaceChildren();
         const total=rows.reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0);
-        if(count)count.textContent=String(rows.length);
-        if(summary)summary.textContent='Фактические расходы '+financeMoney(total)+' · '+rows.length+' операций';
+        const unknownRub=rows.filter(row=>row.unconverted).length;
+        if(count)count.textContent=String(allMatchingRows);
+        if(summary)summary.textContent='Фактические расходы '+financeMoney(total)+' · '+allMatchingRows+' операций'+
+          (unknownRub?' · '+unknownRub+' без исторического RUB-курса':'')+
+          (allMatchingRows>1000?' · показаны первые 1000':'');
         const totalHost=document.getElementById('financeExpenseHistoryTotal');
         if(totalHost)totalHost.textContent=financeMoney(total);
         const monthHost=document.getElementById('financeExpenseHistoryMonth');
@@ -2962,7 +2965,7 @@
         const todayKey=now.year+'-'+now.month+'-'+now.day;
         const yesterdayKey=financeDateTimeLabel(new Date(new Date(todayKey+'T12:00:00+03:00').getTime()-86400000)).key;
         const groups=new Map();
-        for(const row of rows){
+        for(const row of visibleRows){
           const meta=financeDateTimeLabel(row.occurredAt||row.createdAt),key=meta.key||'unknown';
           if(!groups.has(key))groups.set(key,[]);
           groups.get(key).push({row,meta});
@@ -5585,6 +5588,10 @@
         document.dispatchEvent(new CustomEvent('rudi-finances-updated',{detail:data}));
         if(currentActor==='Рустам')loadCoinKeeperOverview().catch(()=>{});
       }
+      document.addEventListener('rudi-finance-decisions-mounted',()=>{
+        if(currentActor==='Рустам'&&coinKeeperOverview)
+          document.dispatchEvent(new CustomEvent('rudi-coinkeeper-overview-loaded',{detail:coinKeeperOverview}));
+      });
       document.addEventListener('rudi-coinkeeper-updated',()=>{
         coinKeeperOverview=null;coinKeeperRows.clear();coinKeeperInFlight.clear();
         if(currentActor==='Рустам'){
