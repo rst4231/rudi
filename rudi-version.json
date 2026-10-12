@@ -1,20 +1,17 @@
 {
-  "current": "v4.178",
+  "current": "v4.179",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.177",
+  "basedOnProduction": "v4.178",
   "notes": [
-    "Removed the explanatory paragraph below the Uniswap commissions block.",
-    "Removed duplicate Bybit wallet name beside the refresh button while keeping the source header and refresh action.",
-    "Added owner-protected read-only Bybit spot execution-history API probe; returns no trade details or secrets.",
-    "Added a manual access-check control on the Bybit card to verify current key permissions without orders, balance mutation, or deployment after each check.",
-    "Both Telegram @ne_investor and RUDI virtual short algorithms are scheduled via a proven 15-minute GitHub Actions workflow without adding another scheduled job.",
-    "Bounded public Bybit scanning to 15 ranked symbols plus live paper positions; author backfills at most one page and checks two signals per run.",
-    "Failed provider requests persist a visible diagnostic without inventing profit, trades, or successful sync dates.",
-    "No live exchange orders; existing Read-only Bybit history permission probe and finance UI cleanups included in the same release."
+    "Fix blocked public Bybit market HTTP 403 with allowlisted Cloudflare market gateway; market sources configured via RUDI_BYBIT_PUBLIC_API_URL, including Artemyev candles and funding.",
+    "Move virtual monitors to quarter-hourly Cloudflare Worker Cron using an isolated shared secret; retire unreliable GitHub crypto schedule step, leaving Lulu unchanged.",
+    "Show provider errors, never fabricate trading fills, history, PNL or provider-sourced prices.",
+    "Preserve three independent forward-only paper portfolios and existing records.",
+    "Add source diagnostics and regression tests for both scanners."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
