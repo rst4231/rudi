@@ -9944,9 +9944,8 @@
 
         const partnerLastExpense=document.createElement('div');
         partnerLastExpense.id='homePartnerLastExpense';
-        partnerLastExpense.className='home-partner-last-expense';
+        partnerLastExpense.className='home-partner-last-expense meditation-partner-summary';
         partnerLastExpense.hidden=true;
-        renderHomePartnerLastExpense(homeDashboardState.partnerLastExpense);
 
         const makeSupplementIntakeBlock=(actor)=>{
           const block=document.createElement('article');
@@ -9977,6 +9976,7 @@
         dianaCard.details.appendChild(dianaSupplementBlock);
         // Expense precedes the partner meditation summary.
         partnerCard.details.appendChild(partnerLastExpense);
+        renderHomePartnerLastExpense(homeDashboardState.partnerLastExpense);
         const partnerHabitSummary=document.createElement('div');
         partnerHabitSummary.id='homePartnerHabitsSummary';
         partnerHabitSummary.className='profile-partner-habits-summary';
@@ -15382,7 +15382,9 @@
           }
           const events=Array.isArray(day.events)?day.events:[];
           const tasks=(Array.isArray(tickDays.get(String(day.date))?.events)?tickDays.get(String(day.date)).events:[])
-            .filter(event=>!event?.completed&&!tickTickTaskRecentlyCompleted(event?.id));
+            .filter(event=>!event?.completed&&!tickTickTaskRecentlyCompleted(event?.id))
+            // Each occurrence gets the day shown on its calendar card.
+            .map(event=>({...event,date:String(day.date)}));
           const holidays=(Array.isArray(holidayDays.get(String(day.date))?.items)?holidayDays.get(String(day.date)).items:[])
             .slice(0,5)
             .filter(Boolean);
@@ -19805,23 +19807,38 @@
             }
           }finally{fastingQuickBusy=false}
         };
-        profileButton?.addEventListener('pointerdown',event=>{
-          if((event.pointerType==='mouse'&&event.button!==0)||event.isPrimary===false)return;
-          clearFastingHold();
-          fastingHoldStart={id:event.pointerId,x:event.clientX,y:event.clientY};
+        const beginFastingHold=(id,x,y)=>{
+          clearFastingHold();fastingHoldStart={id,x,y};
           fastingHoldTimer=setTimeout(()=>{
             if(!fastingHoldStart)return;
-            fastingSuppressClickUntil=Date.now()+1500;clearFastingHold();
+            fastingSuppressClickUntil=Date.now()+1600;clearFastingHold();
             void quickStartFasting();
             try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
           },550);
+        };
+        // On iOS, touch long-press can cancel pointer events via the native callout.
+        profileButton?.addEventListener('touchstart',event=>{
+          if(event.touches.length!==1)return;
+          const t=event.touches[0];beginFastingHold(t.identifier,t.clientX,t.clientY);
+        },{passive:true});
+        profileButton?.addEventListener('touchmove',event=>{
+          const t=event.touches[0];
+          if(fastingHoldStart&&t&&t.identifier===fastingHoldStart.id&&
+            Math.hypot(t.clientX-fastingHoldStart.x,t.clientY-fastingHoldStart.y)>12)clearFastingHold();
+        },{passive:true});
+        profileButton?.addEventListener('touchend',clearFastingHold,{passive:true});
+        profileButton?.addEventListener('touchcancel',clearFastingHold,{passive:true});
+        profileButton?.addEventListener('pointerdown',event=>{
+          if(event.pointerType==='touch'||(event.pointerType==='mouse'&&event.button!==0)||event.isPrimary===false)return;
+          beginFastingHold(event.pointerId,event.clientX,event.clientY);
         });
         profileButton?.addEventListener('pointermove',event=>{
+          if(event.pointerType==='touch')return;
           if(fastingHoldStart&&event.pointerId===fastingHoldStart.id&&
             Math.hypot(event.clientX-fastingHoldStart.x,event.clientY-fastingHoldStart.y)>12)clearFastingHold();
         });
-        profileButton?.addEventListener('pointerup',clearFastingHold);
-        profileButton?.addEventListener('pointercancel',clearFastingHold);
+        profileButton?.addEventListener('pointerup',event=>{if(event.pointerType!=='touch')clearFastingHold()});
+        profileButton?.addEventListener('pointercancel',event=>{if(event.pointerType!=='touch')clearFastingHold()});
         profileButton?.addEventListener('contextmenu',event=>event.preventDefault());
         profileButton?.addEventListener('click',event=>{
           if(Date.now()<fastingSuppressClickUntil){

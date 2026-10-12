@@ -242,7 +242,7 @@ function updatePartner(){
  const id=partner.actor==='Рустам'?'homeRustamDetails':'homeDianaDetails';
  const detail=$(id);if(!detail)return;
  let card=detail.querySelector('#meditationPartnerSummary');
- if(!card){card=document.createElement('div');card.id='meditationPartnerSummary';card.className='meditation-partner-summary';const expense=detail.querySelector('#homePartnerLastExpense');const supplements=detail.querySelector('.profile-supplement-intakes');if(expense)expense.insertAdjacentElement('afterend',card);else if(supplements)supplements.insertAdjacentElement('afterend',card);else detail.appendChild(card)}
+ if(!card){card=document.createElement('div');card.id='meditationPartnerSummary';card.className='meditation-partner-summary';const expense=detail.querySelector('#homePartnerLastExpense');const supplements=detail.querySelector('.profile-supplement-intakes');const anchor=expense||supplements;if(anchor)anchor.insertAdjacentElement('afterend',card);else detail.appendChild(card)}
  const count=Number(partner.todaySessions||0),minutes=Number(partner.todayMinutes||0);
  const feminine=partner.actor==='Диана';
  card.textContent='🧘 Сегодня '+(count?(feminine?'медитировала ':'медитировал ')+formatDailyTime(minutes):(feminine?'не медитировала':'не медитировал'));
@@ -298,21 +298,35 @@ function reconcile(){
   fasting.insertAdjacentElement('afterend',button);
   let holdTimer=0,press=null,suppressClickUntil=0;
   const clearHold=()=>{clearTimeout(holdTimer);holdTimer=0;press=null;};
-  button.addEventListener('pointerdown',event=>{
-   if((event.pointerType==='mouse'&&event.button!==0)||event.isPrimary===false)return;
-   clearHold();press={id:event.pointerId,x:event.clientX,y:event.clientY};
+  const beginHold=(id,x,y)=>{
+   clearHold();press={id,x,y};
    holdTimer=setTimeout(()=>{
     if(!press)return;
-    suppressClickUntil=Date.now()+1500;clearHold();
+    suppressClickUntil=Date.now()+1600;clearHold();
     void quickStart();
     try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('medium')}catch{}
    },550);
+  };
+  // Native callouts can cancel pointer events on iPhone. Use touch events there.
+  button.addEventListener('touchstart',event=>{
+   if(event.touches.length!==1)return;
+   const t=event.touches[0];beginHold(t.identifier,t.clientX,t.clientY);
+  },{passive:true});
+  button.addEventListener('touchmove',event=>{
+   const t=event.touches[0];
+   if(press&&t&&t.identifier===press.id&&Math.hypot(t.clientX-press.x,t.clientY-press.y)>12)clearHold();
+  },{passive:true});
+  button.addEventListener('touchend',clearHold,{passive:true});
+  button.addEventListener('touchcancel',clearHold,{passive:true});
+  button.addEventListener('pointerdown',event=>{
+   if(event.pointerType==='touch'||(event.pointerType==='mouse'&&event.button!==0)||event.isPrimary===false)return;
+   beginHold(event.pointerId,event.clientX,event.clientY);
   });
   button.addEventListener('pointermove',event=>{
-   if(press&&event.pointerId===press.id&&Math.hypot(event.clientX-press.x,event.clientY-press.y)>12)clearHold();
+   if(event.pointerType!=='touch'&&press&&event.pointerId===press.id&&Math.hypot(event.clientX-press.x,event.clientY-press.y)>12)clearHold();
   });
-  button.addEventListener('pointerup',clearHold);
-  button.addEventListener('pointercancel',clearHold);
+  button.addEventListener('pointerup',event=>{if(event.pointerType!=='touch')clearHold()});
+  button.addEventListener('pointercancel',event=>{if(event.pointerType!=='touch')clearHold()});
   button.addEventListener('contextmenu',event=>event.preventDefault());
   button.addEventListener('click',event=>{
    if(Date.now()<suppressClickUntil){event.preventDefault();event.stopImmediatePropagation();return;}

@@ -35,3 +35,7 @@
  .rudi-personal-quick-actions button svg{width:20px;height:20px}
 }
 @media(max-width:350px){.rudi-personal-quick-actions button svg{width:18px;height:18px}}
+
+/* Keep scrolling but disable native text menu on task holds. */
+.calendar-task-copy,.calendar-external-task,.calendar-search-result{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+.calendar-task-copy,.calendar-search-result{touch-action:pan-y}

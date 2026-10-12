@@ -168,3 +168,6 @@ body[data-app-tab="home"] #homeTileHost > .meditation-mood-nudge + .profile-pers
 .profile-person-card :is(.identity-self,.identity-partner) > .person > :is(.profile-work-status,.profile-cycle-mood,.profile-rhythm-status){
  margin:0!important;padding:0!important;
 }
+
+/* iOS: avoid native context menus that interrupt 550-ms icon holds. */
+#fastingProfileButton,#meditationProfileButton{touch-action:manipulation;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}

@@ -258,39 +258,48 @@ function showMenu(task,ctx,event){
   menu.querySelector('[data-personal-date-action]')?.focus({preventScroll:true});
 }
 function bind(element,task,ctx){
-  if(!task?.personal||!element||element.dataset.personalTaskBound==='1')return;
-  element.dataset.personalTaskBound='1';
-  let start=null,suppressUntil=0,holdTimer=0;
-  const reset=()=>{clearTimeout(holdTimer);holdTimer=0;start=null;element.classList.remove('rudi-personal-holding')};
-  element.addEventListener('pointerdown',event=>{
-    const control=event.target?.closest?.('input,button');
-    if(event.pointerType==='mouse'||event.button!==0||(control&&control!==element))return;
-    reset();
-    start={x:event.clientX,y:event.clientY,id:event.pointerId};
-    element.classList.add('rudi-personal-holding');
-    // iOS can cancel pointerup for its native context menu: open while finger is held.
-    holdTimer=setTimeout(()=>{
-      if(!start)return;
-      suppressUntil=Date.now()+1300;reset();
-      ctx.openTickTick?.();
-    },550);
-  },true);
-  element.addEventListener('pointermove',event=>{
-    if(!start||event.pointerId!==start.id)return;
-    if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>12)reset();
-  },true);
-  element.addEventListener('pointerup',reset,true);
-  element.addEventListener('pointercancel',reset,true);
-  element.addEventListener('contextmenu',event=>{
-    event.preventDefault();event.stopPropagation();
-    if(event.pointerType==='touch'||start||Date.now()<suppressUntil)return;
-    showMenu(task,ctx,event);
-  });
-  element.addEventListener('click',event=>{
-    if(Date.now()<suppressUntil){
-      event.preventDefault();event.stopImmediatePropagation();
-    }
-  },true);
+ if(!task?.personal||!element||element.dataset.personalTaskBound==='1')return;
+ element.dataset.personalTaskBound='1';
+ let start=null,suppressUntil=0,holdTimer=0;
+ const reset=()=>{clearTimeout(holdTimer);holdTimer=0;start=null;element.classList.remove('rudi-personal-holding')};
+ const blocked=target=>{const control=target?.closest?.('input,button,a,textarea,select');return control&&control!==element};
+ const beginHold=(id,x,y)=>{
+  reset();start={id,x,y};element.classList.add('rudi-personal-holding');
+  holdTimer=setTimeout(()=>{
+   if(!start)return;
+   suppressUntil=Date.now()+1600;reset();
+   ctx.openTickTick?.();
+  },550);
+ };
+ // On iOS, touch events survive native pointercancel during a long press.
+ element.addEventListener('touchstart',event=>{
+  if(event.touches.length!==1||blocked(event.target))return;
+  const t=event.touches[0];beginHold(t.identifier,t.clientX,t.clientY);
+ },{passive:true,capture:true});
+ element.addEventListener('touchmove',event=>{
+  const t=event.touches[0];
+  if(start&&t&&t.identifier===start.id&&Math.hypot(t.clientX-start.x,t.clientY-start.y)>12)reset();
+ },{passive:true,capture:true});
+ element.addEventListener('touchend',reset,{passive:true,capture:true});
+ element.addEventListener('touchcancel',reset,{passive:true,capture:true});
+ element.addEventListener('pointerdown',event=>{
+  if(event.pointerType==='touch'||(event.pointerType==='mouse'&&event.button!==0)||event.isPrimary===false||blocked(event.target))return;
+  beginHold(event.pointerId,event.clientX,event.clientY);
+ },true);
+ element.addEventListener('pointermove',event=>{
+  if(event.pointerType==='touch')return;
+  if(start&&event.pointerId===start.id&&Math.hypot(event.clientX-start.x,event.clientY-start.y)>12)reset();
+ },true);
+ element.addEventListener('pointerup',event=>{if(event.pointerType!=='touch')reset()},true);
+ element.addEventListener('pointercancel',event=>{if(event.pointerType!=='touch')reset()},true);
+ element.addEventListener('contextmenu',event=>{
+  event.preventDefault();event.stopPropagation();
+  if(start||Date.now()<suppressUntil)return;
+  if(event.pointerType==='mouse')showMenu(task,ctx,event);
+ });
+ element.addEventListener('click',event=>{
+  if(Date.now()<suppressUntil){event.preventDefault();event.stopImmediatePropagation()}
+ },true);
 }
 window.RUDIPersonalTaskEditor={open,create,bind,showMenu};
 })();
