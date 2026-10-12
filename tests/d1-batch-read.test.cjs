@@ -71,7 +71,7 @@ test('writes stay unbatched and later reads see the new value',async()=>{
   const fetchImpl=async(url,init)=>{
     calls.push(url);
     if(url.endsWith('/set')){value=JSON.parse(init.body).value;return response(200,{ok:true,updatedAt:'now'});}
-    if(url.endsWith('/batch-get'))return response(200,{ok:true,items:[{ok:true,value}]});
+    if(url.endsWith('/get'))return response(200,{ok:true,value});
     throw Error('unexpected '+url);
   };
   const client=createClient(fetchImpl);
@@ -102,5 +102,5 @@ test('batch transport failure falls back safely to original reads',async()=>{
   });
   const list=await withD1ReadCoalescing(()=>Promise.all([c.getRecord('n','a'),c.getRecord('n','b')]))();
   assert.deepEqual(list.map(x=>x.value.key),['a','b']);
-  assert.deepEqual(calls,['/batch-get','/get','/get']);
+  assert.deepEqual(calls,['/batch-get','/batch-get','/get','/get']);
 });
