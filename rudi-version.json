@@ -1,16 +1,17 @@
 {
-  "current": "v4.183",
+  "current": "v4.184",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.182",
+  "basedOnProduction": "v4.183",
   "notes": [
-    "Archive CoinKeeper expenses and transfers from 2016-09 to 2026-09-30 in monthly D1 records, separated from live finances.",
-    "Require mapping to existing expense categories; never create categories or wallets and never change current wallet balances.",
-    "Prevent September 2026 duplicates, preserve original currencies and conversion values, and show historical summaries in finances.",
-    "Review before import, support safe resume with stable row identifiers and tests."
+    "Restore opaque, high-contrast CoinKeeper import dialog and readable selections in light and dark UI.",
+    "Explain CSV recipient 'В' as probably Vika, without auto-classifying as a RUDI expense category.",
+    "Allow the owner to delete the last imported CoinKeeper CSV by one confirmed action, even if the upload only partially completed.",
+    "Deletion only removes matching entries from the isolated historical archive; live categories, wallets, balances and expenses are unchanged.",
+    "Add automated regression coverage for archive rollback and UI accessibility."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

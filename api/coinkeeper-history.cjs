@@ -5,6 +5,7 @@ const {readFinanceState}=require('./finance-store.cjs');
 const NS='rudi-coinkeeper-history-v1';
 const CUTOFF='2026-10-01';
 const TTL=10*365*24*60*60;
+const LAST_IMPORT_KEY='rustam:last-import';
 function keyOf(value){return String(value||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/\s+/g,' ')}
 function dateOnly(value){
  const s=String(value||'');
@@ -45,7 +46,8 @@ function contextFromState(state){
 }
 async function context(opts={}){
  const state=await (opts.state||readFinanceState(opts.stateOptions||{}));
- return contextFromState(state);
+ const last=await cacheOf(opts).get(LAST_IMPORT_KEY);
+ return {...contextFromState(state),lastImport:last&&typeof last==='object'?{importId:last.importId,months:last.months?.length||0,updatedAt:last.updatedAt}:null};
 }
 function normalizeRow(raw,validCategories,validWallets){
  const type=String(raw?.type||'').toLowerCase();
@@ -103,6 +105,18 @@ async function importBatch(actor,rows,opts={}){
   }
  }
  const cache=cacheOf(opts);
+ // Register the upload before writing any monthly data. Even a partially
+ // interrupted import can be fully rolled back using its stable file hash.
+ if(grouped.size){
+  const importIds=new Set([...grouped.values()].flat().map(row=>row.importKey.split(':')[1]));
+  if(importIds.size!==1)throw Error('coinkeeper-mixed-imports');
+  const importId=[...importIds][0];
+  const previous=await cache.get(LAST_IMPORT_KEY);
+  const months=previous?.importId===importId?new Set(previous.months||[]):new Set();
+  for(const month of grouped.keys())months.add(month);
+  const manifest={importId,months:[...months].sort(),updatedAt:new Date().toISOString()};
+  await cache.set(LAST_IMPORT_KEY,manifest,{ttl:TTL,tags:['coinkeeper-history'],name:LAST_IMPORT_KEY});
+ }
  for(const [month,add] of grouped){
   const key='rustam:'+month,old=(await cache.get(key))||[];
   if(!Array.isArray(old))throw Error('coinkeeper-archive-corrupt');
@@ -121,6 +135,29 @@ async function importBatch(actor,rows,opts={}){
   result.months.push(month);
  }
  return result;
+}
+async function deleteLastImport(actor,importId,offset=0,opts={}){
+ if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
+ const cache=cacheOf(opts),manifest=await cache.get(LAST_IMPORT_KEY);
+ if(!manifest)return {deleted:0,totalMonths:0,nextOffset:0,done:true};
+ if(typeof importId!=='string'||manifest.importId!==importId)throw Error('coinkeeper-import-mismatch');
+ const months=Array.isArray(manifest.months)?manifest.months:[];
+ const start=Number(offset);
+ if(!Number.isInteger(start)||start<0||start>months.length)throw Error('coinkeeper-offset-invalid');
+ const end=Math.min(months.length,start+8),prefix='ckhistory:'+importId+':';
+ let deleted=0;
+ for(const month of months.slice(start,end)){
+  const key='rustam:'+month,old=await cache.get(key);
+  if(!Array.isArray(old)||!old.length)continue;
+  const remaining=old.filter(row=>!String(row?.importKey||'').startsWith(prefix));
+  if(remaining.length===old.length)continue;
+  deleted+=old.length-remaining.length;
+  if(remaining.length)await cache.set(key,remaining,{ttl:TTL,tags:['coinkeeper-history'],name:key});
+  else await cache.delete(key);
+ }
+ const done=end>=months.length;
+ if(done)await cache.delete(LAST_IMPORT_KEY);
+ return {deleted,totalMonths:months.length,nextOffset:end,done};
 }
 async function readMonth(actor,month,opts={}){
  if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
@@ -143,4 +180,4 @@ async function readMonth(actor,month,opts={}){
   unknownRub:amountUnknown,categories:expenseTotals,currencies:currencyTotals
  }};
 }
-module.exports={NS,CUTOFF,keyOf,dateOnly,normalizeRow,context,contextFromState,dedupeExisting,importBatch,readMonth};
+module.exports={NS,CUTOFF,keyOf,dateOnly,normalizeRow,context,contextFromState,dedupeExisting,importBatch,readMonth,deleteLastImport};

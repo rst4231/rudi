@@ -5,6 +5,9 @@
   const CUT='2026-10-01';
   const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const norm=value=>String(value??'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/\s+/g,' ');
+  // Raw CSV destination 'В' is a person/recipient label, likely 'Вика',
+  // not a trusted expense category. Keep the original key for manual mapping.
+  const categoryLabel=value=>norm(value)==='в'?'В (вероятно, Вика)':String(value??'');
   const num=value=>{
     const raw=String(value??'').replace(/\s/g,'').replace(',','.');
     const n=Number(raw);return Number.isFinite(n)&&n>=0?n:NaN;
@@ -110,20 +113,28 @@
   function style(){
     if(document.getElementById('ckHistoryStyle'))return;
     const s=document.createElement('style');s.id='ckHistoryStyle';s.textContent=
-      '.ckh-box{margin:14px 0;padding:14px;border:1px solid var(--border-color,#68686866);border-radius:16px;color:inherit;background:rgba(110,120,160,.055)}'+
-      '.ckh-box button,.ckh-dialog button{cursor:pointer;padding:9px 13px;border-radius:10px;border:1px solid #8585a055;background:rgba(110,130,180,.12);color:inherit;font:inherit}'+
-      '.ckh-box button:disabled,.ckh-dialog button:disabled{opacity:.5;cursor:not-allowed}'+
-      '.ckh-box input,.ckh-dialog select{color:inherit;font:inherit;border:1px solid #8585a055;background:var(--card-bg,#262933);padding:8px;border-radius:10px;max-width:100%}'+
-      '.ckh-row{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:9px 0}'+
-      '.ckh-status{font-size:13px;line-height:1.6;white-space:pre-wrap;opacity:.86}'+
-      '.ckh-list{max-height:390px;overflow:auto;font-size:13px}'+
+      '.ckh-box{margin:14px 0;padding:16px;border:1px solid #a9afb9;border-radius:16px;color:#1b1e25;background:#f1f2f5;font-size:14px}'+
+      '.ckh-box button,.ckh-dialog button{cursor:pointer;padding:10px 14px;border-radius:10px;border:1px solid #adb7c8;background:#e1e6ef;color:#191f29;font:inherit}'+
+      '.ckh-box button:disabled,.ckh-dialog button:disabled{opacity:.55;cursor:not-allowed}'+
+      '.ckh-box input{color:#181d25!important;background:#fff!important;font:inherit;border:1px solid #adb7c8;padding:9px;border-radius:10px;max-width:100%;color-scheme:light}'+
+      '.ckh-row{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:10px 0}'+
+      '.ckh-status{font-size:13px;line-height:1.55;white-space:pre-wrap;opacity:1}'+
+      '.ckh-list{max-height:400px;overflow:auto;font-size:13px}'+
       '.ckh-item{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #9993;padding:10px 2px}'+
-      '.ckh-item span{display:block;opacity:.68;font-size:12px}'+
-      '.ckh-dialog{position:fixed;inset:0;z-index:999999;margin:auto;width:min(95vw,650px);max-height:90dvh;overflow:auto;padding:18px;color:var(--text-color,#f6f6f6);background:var(--surface,#181c25);border:1px solid #9995;border-radius:18px;box-shadow:0 10px 60px #0008}'+
-      '.ckh-dialog::backdrop{background:#000b}'+
-      '.ckh-map{display:grid;grid-template-columns:minmax(115px,1fr) minmax(130px,1fr);gap:9px;align-items:center;margin:6px 0}'+
-      '.ckh-map select{width:100%}'+
-      '.ckh-box strong,.ckh-dialog strong{font-weight:650}';
+      '.ckh-item span{display:block;opacity:.7;font-size:12px}'+
+      'body .ckh-dialog{position:fixed!important;inset:0!important;z-index:999999!important;margin:auto!important;width:min(94vw,660px)!important;max-width:660px!important;max-height:88dvh!important;overflow:auto!important;box-sizing:border-box!important;padding:20px!important;background:#1b2230!important;color:#f6f8fc!important;opacity:1!important;filter:none!important;backdrop-filter:none!important;border:1px solid #626c80!important;border-radius:17px!important;box-shadow:0 20px 85px #000a!important;color-scheme:dark!important}'+
+      'body .ckh-dialog::backdrop{background:rgba(0,0,0,.78)!important;backdrop-filter:blur(3px)!important}'+
+      'body .ckh-dialog h3{font-size:20px;line-height:1.25;color:#fff!important;margin:0 0 13px!important}'+
+      'body .ckh-dialog p,body .ckh-dialog .ckh-status,body .ckh-dialog .ckh-map{color:#e4eaf5!important;opacity:1!important}'+
+      'body .ckh-dialog .ckh-list{max-height:min(43dvh,420px);overflow:auto;padding-right:3px}'+
+      'body .ckh-dialog button{color:#111827!important;background:#edf1f8!important;border:1px solid #c0ccdc!important}'+
+      'body .ckh-dialog select{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box;background:#303a4d!important;color:#fff!important;opacity:1!important;appearance:auto!important;padding:10px;border:1px solid #8794aa;border-radius:10px;font:inherit;color-scheme:dark}'+
+      'body .ckh-dialog select option{background:#303a4d;color:#fff}'+
+      'body .ckh-dialog .ckh-map span{color:#f2f5fc!important;overflow-wrap:anywhere}'+
+      '.ckh-map{display:grid;grid-template-columns:minmax(100px,1fr) minmax(135px,1fr);gap:12px;align-items:center;margin:7px 0;padding:4px 0}'+
+      '.ckh-box strong,.ckh-dialog strong{font-weight:650}'+
+      '.ckh-box #ckhDelete{border-color:#cb7b7b;color:#a02a35;background:#fff1f1}'+
+      '@media(max-width:400px){.ckh-map{grid-template-columns:1fr;gap:5px}body .ckh-dialog{padding:15px!important}}';
     document.head.appendChild(s);
   }
   function setup(){
@@ -136,6 +147,7 @@
     block.innerHTML='<strong>История CoinKeeper · 2016–2026</strong>'+
       '<p class="ckh-status">Архив операций до 1 октября 2026 года. Текущие кошельки, их балансы и категории не меняются.</p>'+
       '<div class="ckh-row"><button type="button" id="ckhChoose">Импортировать историю CSV</button>'+
+      '<button type="button" id="ckhDelete">Удалить последний импорт</button>'+
       '<input type="file" id="ckhFile" accept=".csv,text/csv" hidden></div>'+
       '<div class="ckh-row"><input id="ckhMonth" type="month" min="2016-09" max="2026-09" value="2026-09">'+
       '<button type="button" id="ckhShow">Показать месяц</button></div>'+
@@ -145,6 +157,7 @@
     const modal=document.createElement('dialog');modal.id='ckhDialog';modal.className='ckh-dialog';
     modal.innerHTML='<h3>Проверка импорта CoinKeeper</h3><p class="ckh-status" id="ckhInfo"></p>'+
       '<p>Сопоставьте категории с существующими категориями RUDI. Новые не создаются.</p>'+
+      '<p class="ckh-status">В файле «В» предположительно означает Вику. Это название получателя, а не подтверждённая категория расходов: выбери категорию вручную.</p>'+
       '<div class="ckh-list" id="ckhMappings"></div>'+
       '<p class="ckh-status" id="ckhPreview"></p>'+
       '<div class="ckh-row"><button type="button" id="ckhConfirm">Импортировать</button>'+
@@ -180,7 +193,7 @@
           .concat(context.categories.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>')).join('');
         const displayedCategories=[...currentFile.categories].sort((a,b)=>b[1]-a[1]);
         document.getElementById('ckhMappings').innerHTML=displayedCategories.map(([name,count],i)=>
-          '<label class="ckh-map"><span>'+esc(name)+' ('+count+')</span>'+
+          '<label class="ckh-map"><span>'+esc(categoryLabel(name))+' ('+count+')</span>'+
           '<select data-ckh-cat="'+i+'" aria-label="Категория '+esc(name)+'">'+options+'</select></label>').join('');
         [...document.querySelectorAll('[data-ckh-cat]')].forEach(select=>{
           const name=displayedCategories[Number(select.dataset.ckhCat)]?.[0];
@@ -195,6 +208,33 @@
         modal.showModal();
         setStatus('CSV проверен. Подтверди сопоставление категорий.');
       }catch(error){setStatus('Ошибка чтения: '+String(error.message||error));currentFile=null;}
+    });
+    document.getElementById('ckhDelete').addEventListener('click',async()=>{
+      if(busy)return;
+      let latest;
+      try{
+        const result=await request('ck-context');
+        latest=result.lastImport;
+      }catch(error){setStatus('Не удалось проверить последний импорт: '+String(error.message||error));return;}
+      if(!latest?.importId){setStatus('Загрузок CoinKeeper для удаления пока нет.');return;}
+      if(!window.confirm('Удалить только последнюю загрузку CoinKeeper? Остальные операции RUDI, категории и балансы кошельков останутся без изменений.'))return;
+      busy=true;
+      const button=document.getElementById('ckhDelete');
+      button.disabled=true;let offset=0,removed=0;
+      try{
+        while(true){
+          const data=(await request('ck-delete-last',{importId:latest.importId,offset})).result;
+          removed+=Number(data.deleted||0);
+          setStatus('Удаляю последний импорт CoinKeeper: проверено '+data.nextOffset+' из '+data.totalMonths+' месяцев…');
+          if(data.done)break;
+          if(data.nextOffset<=offset)throw Error('Не удалось продолжить удаление');
+          offset=data.nextOffset;
+        }
+        await showMonth();
+        setStatus('Удалено '+removed+' операций последней загрузки CoinKeeper. Текущие финансы RUDI не изменены.');
+      }catch(error){
+        setStatus('Удаление прервалось: '+String(error.message||error)+'. Нажми «Удалить последний импорт» ещё раз, чтобы продолжить.');
+      }finally{busy=false;button.disabled=false;}
     });
     document.getElementById('ckhCancel').addEventListener('click',()=>{if(!busy)modal.close()});
     modal.addEventListener('cancel',event=>{if(busy)event.preventDefault()});

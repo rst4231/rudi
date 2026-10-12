@@ -266,6 +266,11 @@ async function handler(req, res) {
       if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
       return res.status(200).json({ok:true,...await coinKeeperHistory.readMonth(actor,body.month)});
     }
+    if(operation==='ck-delete-last') {
+      if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
+      const result=await coinKeeperHistory.deleteLastImport(actor,body.importId,body.offset);
+      return res.status(200).json({ok:true,result});
+    }
     if (operation === 'list') {
       const state = await readFinanceState();
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });

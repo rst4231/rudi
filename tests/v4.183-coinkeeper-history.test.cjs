@@ -16,7 +16,8 @@ function state(){
 function cache(){
  const map=new Map();
  return {map,async get(key){return structuredClone(map.get(key)||null)},
-   async set(key,value){map.set(key,structuredClone(value))}};
+   async set(key,value){map.set(key,structuredClone(value))},
+   async delete(key){map.delete(key)}};
 }
 const row=(values={})=>({type:'expense',date:'2016-09-24',amount:122,currency:'THB',
  convertedAmount:245.73881964,convertedCurrency:'RUB',fromName:'Баты',toName:'Транспорт',
@@ -33,7 +34,7 @@ test('historical archive accepts 2016 and preserves original foreign amount and 
  assert.equal(history.rows[0].fromName,'Баты');
  assert.equal(history.summary.totalRub,245.74);
  assert.equal(JSON.stringify(s),original,'live wallets, expenses and categories remain unchanged');
- assert.equal(c.map.size,1,'history is stored in a separate monthly record');
+ assert.equal(c.map.size,2,'history is stored in a separate monthly record plus a last-upload rollback manifest');
 });
 test('archive remains idempotent, preserves duplicate CSV lines with different row IDs',async()=>{
  const s=state(),c=cache();
@@ -100,5 +101,50 @@ test('UI provides a review step and does not use the old balance-mutating import
  assert.match(js,/parseCsv\(/);
  assert.doesNotMatch(js,/import-expenses/);
  const html=fs.readFileSync('public/index.html','utf8');
- assert.match(html,/coinkeeper-history\.js\?v=4\.183/);
+ assert.match(html,/coinkeeper-history\.js\?v=4\.184/);
+});
+test('last CoinKeeper upload can be deleted without changing RUDI state, preserving older upload',async()=>{
+ const s=state(),original=JSON.stringify(s),storage=cache();
+ const older=row({date:'2017-09-01',importKey:'ckhistory:older:1',categoryId:'shop'});
+ const newest=row({date:'2017-09-01',importKey:'ckhistory:newer:1',categoryId:'food'});
+ await mod.importBatch('Рустам',[older],{state:s,cache:storage});
+ await mod.importBatch('Рустам',[newest],{state:s,cache:storage});
+ const context=await mod.context({state:s,cache:storage});
+ assert.equal(context.lastImport.importId,'newer');
+ assert.equal((await mod.readMonth('Рустам','2017-09',{cache:storage})).rows.length,2);
+ await assert.rejects(()=>mod.deleteLastImport('Рустам','older',0,{cache:storage}),/import-mismatch/);
+ const deleted=await mod.deleteLastImport('Рустам','newer',0,{cache:storage});
+ assert.equal(deleted.deleted,1);
+ assert.equal(deleted.done,true);
+ const history=await mod.readMonth('Рустам','2017-09',{cache:storage});
+ assert.equal(history.rows.length,1);
+ assert.equal(history.rows[0].importKey,'ckhistory:older:1');
+ assert.equal((await mod.context({state:s,cache:storage})).lastImport,null);
+ assert.equal(JSON.stringify(s),original);
+});
+test('deleting partially imported CoinKeeper session works across many months in bounded chunks',async()=>{
+ const s=state(),storage=cache();
+ const rows=Array.from({length:15},(_,i)=>row({
+  date:new Date(Date.UTC(2020, i, 15)).toISOString().slice(0,10),
+  importKey:'ckhistory:somefile:'+(i+1)
+ }));
+ await mod.importBatch('Рустам',rows,{state:s,cache:storage});
+ const first=await mod.deleteLastImport('Рустам','somefile',0,{cache:storage});
+ assert.equal(first.deleted,8);assert.equal(first.done,false);assert.equal(first.nextOffset,8);
+ const second=await mod.deleteLastImport('Рустам','somefile',8,{cache:storage});
+ assert.equal(second.deleted,7);assert.equal(second.done,true);
+ assert.equal((await mod.readMonth('Рустам','2020-01',{cache:storage})).rows.length,0);
+ assert.equal((await mod.readMonth('Рустам','2021-03',{cache:storage})).rows.length,0);
+});
+test('CoinKeeper v4.184 UI has fully opaque readable dialog and accessible delete action',()=>{
+ const js=fs.readFileSync('public/coinkeeper-history.js','utf8');
+ assert.match(js,/background:#1b2230!important/);
+ assert.match(js,/color:#f6f8fc!important/);
+ assert.match(js,/color-scheme:dark!important/);
+ assert.match(js,/ckhDelete/);
+ assert.match(js,/request\('ck-delete-last'/);
+ assert.match(js,/В \(вероятно, Вика\)/);
+ assert.doesNotMatch(js,/\bimport-expenses\b/);
+ const html=fs.readFileSync('public/index.html','utf8');
+ assert.match(html,/coinkeeper-history\.js\?v=4\.184/);
 });
