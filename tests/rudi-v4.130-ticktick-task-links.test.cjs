@@ -69,12 +69,22 @@ test('shared tasks, non-personal calendars and other users do not open personal 
   assert.equal(context.openPersonalTask({...ownedTask,canEdit:true}),false);
 });
 
-test('calendar month, week and search route only eligible personal tasks into TickTick',()=>{
-  assert.ok(app.includes('if(calendarOpenPersonalTickTickTask(task)){calendarCloseSearch();return}'));
+test('calendar personal task clicks edit, long press opens TickTick, right click shows actions',()=>{
+  const editor=fs.readFileSync('public/personal-task-editor.js','utf8');
+  const html=fs.readFileSync('public/index.html','utf8');
   assert.ok(app.includes("const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&event?.canEdit===false"));
-  assert.ok(app.includes("if(opensInTickTick){calendarOpenPersonalTickTickTask(event);return}"));
-  assert.ok(app.includes("row.setAttribute('role','link')"));
-  assert.ok(app.includes("row.addEventListener('keydown',event=>{"));
+  assert.ok(app.includes('window.RUDIPersonalTaskEditor?.open(event,calendarPersonalTaskEditorContext(event))'));
+  assert.ok(app.includes('window.RUDIPersonalTaskEditor?.bind(taskCopy,event,calendarPersonalTaskEditorContext(event))'));
+  assert.ok(app.includes('window.RUDIPersonalTaskEditor?.bind(row,task,ctx)'));
+  assert.ok(app.includes("row.setAttribute('role','button')"));
+  assert.ok(app.includes('if(event.task?.personal!==true)calendarAttachTaskTimeDrag'));
+  assert.ok(app.includes('openTickTick:()=>calendarOpenPersonalTickTickTask(task)'));
+  assert.ok(editor.includes("element.addEventListener('contextmenu'"));
+  assert.ok(editor.includes("element.addEventListener('pointerup'"));
+  assert.ok(editor.includes("event.pointerType==='mouse'"));
+  assert.ok(editor.includes('rudiPersonalTaskProject'));
+  assert.ok(!editor.includes('rudiPersonalTaskResponsible'));
+  assert.ok(html.includes('personal-task-editor.js?v=4.188'));
   assert.ok(app.includes('completeCalendarTickTickTask(task,row,checkbox,writable)'));
   assert.ok(app.includes('completeCalendarTickTickTask(event,row,complete,taskWritable)'));
 });
