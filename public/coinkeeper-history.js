@@ -138,6 +138,9 @@
     document.head.appendChild(s);
   }
   function setup(){
+    // The owner identity is set only after RUDI successfully authenticates.
+    // Never mount the archive on Diana's account, not even briefly.
+    if(document.body?.dataset.rudiActor!=='Рустам')return;
     const anchor=document.getElementById('financeExportButton');
     const panel=document.getElementById('financePersonalPanel');
     if(!panel||document.getElementById('ckhHistory'))return;
@@ -301,6 +304,26 @@
     }
     document.getElementById('ckhShow').addEventListener('click',showMonth);
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setup,{once:true});
-  else setup();
+  function syncArchiveOwnerVisibility(){
+    if(document.body?.dataset.rudiActor==='Рустам'){
+      setup();
+      return;
+    }
+    // This is also safe if the same browser switches to a different account.
+    const dialog=document.getElementById('ckhDialog');
+    if(dialog?.open)dialog.close();
+    dialog?.remove();
+    document.getElementById('ckhHistory')?.remove();
+    document.getElementById('ckHistoryStyle')?.remove();
+  }
+  function startOwnerVisibility(){
+    syncArchiveOwnerVisibility();
+    // A successful RUDI login updates this attribute after app startup.
+    new MutationObserver(syncArchiveOwnerVisibility).observe(document.body,{
+      attributes:true,attributeFilter:['data-rudi-actor']
+    });
+    document.addEventListener('rudi-finances-updated',syncArchiveOwnerVisibility);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',startOwnerVisibility,{once:true});
+  else startOwnerVisibility();
 })();

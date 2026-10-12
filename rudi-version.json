@@ -1,17 +1,15 @@
 {
-  "current": "v4.184",
+  "current": "v4.185",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.183",
+  "basedOnProduction": "v4.184",
   "notes": [
-    "Restore opaque, high-contrast CoinKeeper import dialog and readable selections in light and dark UI.",
-    "Explain CSV recipient 'В' as probably Vika, without auto-classifying as a RUDI expense category.",
-    "Allow the owner to delete the last imported CoinKeeper CSV by one confirmed action, even if the upload only partially completed.",
-    "Deletion only removes matching entries from the isolated historical archive; live categories, wallets, balances and expenses are unchanged.",
-    "Add automated regression coverage for archive rollback and UI accessibility."
+    "Show historical CoinKeeper archive only on Rustam's authenticated account, never on Diana's.",
+    "React safely to delayed authentication and account switching without showing archive on non-owner accounts.",
+    "Keep all Cloudflare historical records, current RUDI finances, categories, and wallet balances unchanged."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
