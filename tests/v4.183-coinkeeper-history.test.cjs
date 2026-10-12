@@ -44,15 +44,23 @@ test('archive remains idempotent, preserves duplicate CSV lines with different r
  assert.equal(next.imported,0);assert.equal(next.duplicates,2);
  assert.equal((await mod.readMonth('Рустам','2016-09',{cache:c})).rows.length,2);
 });
-test('existing September RUDI spend is not duplicated; a genuine second charge survives',async()=>{
+test('all overlapping September day/category entries are blocked, including split expenses and rounding',async()=>{
  const s=state(),c=cache();
- const a=row({date:'2026-09-25',amount:4.24,currency:'USD',convertedAmount:360,convertedCurrency:'RUB',
-   categoryId:'food',duplicateOrdinal:1,importKey:'ckhistory:sept:1'});
- const b={...a,importKey:'ckhistory:sept:2',duplicateOrdinal:2};
- const result=await mod.importBatch('Рустам',[a,b],{state:s,cache:c});
- assert.equal(result.matchedSeptember,1);assert.equal(result.imported,1);
+ s.personalExpenses.push({actor:'Рустам',month:'2026-09',categoryId:'shop',rubAmount:1124,
+  occurredAt:'2026-09-03T10:00:00Z'});
+ const a=row({date:'2026-09-25',amount:4.24,currency:'USD',convertedAmount:360,
+   convertedCurrency:'RUB',categoryId:'food',importKey:'ckhistory:sept:1'});
+ const b={...a,importKey:'ckhistory:sept:2',convertedAmount:360.09};
+ const c1=row({date:'2026-09-03',amount:550,currency:'RUB',categoryId:'shop',
+   importKey:'ckhistory:sept:3'});
+ const c2={...c1,amount:574,importKey:'ckhistory:sept:4'};
+ const newDay=row({date:'2026-09-04',amount:99,currency:'RUB',
+   categoryId:'shop',importKey:'ckhistory:sept:5'});
+ const result=await mod.importBatch('Рустам',[a,b,c1,c2,newDay],{state:s,cache:c});
+ assert.equal(result.matchedSeptember,4);
+ assert.equal(result.imported,1);
  const rows=(await mod.readMonth('Рустам','2026-09',{cache:c})).rows;
- assert.equal(rows.length,1);assert.equal(rows[0].importKey,'ckhistory:sept:2');
+ assert.equal(rows.length,1);assert.equal(rows[0].importKey,'ckhistory:sept:5');
 });
 test('cutoff strictly excludes Oct 1 and all later dates, other people cannot import',async()=>{
  const s=state(),c=cache();
