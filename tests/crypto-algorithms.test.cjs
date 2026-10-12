@@ -56,7 +56,7 @@ test('intrabar ambiguous SL and TP uses conservative SL',()=>{
 test('favorable short closes with PNL after both sides fees and slippage',()=>{
   const p=a.initial(NOW).portfolios.pump;
   a.openPosition(p,{strategy:'pump',symbol:'BTCUSDT',at:NOW,price:100,score:75,indicators:{}},NOW,{BTCUSDT:100});
-  a.updatePositions(p,{}, {BTCUSDT:90}, NOW+300000);
+  a.updatePositions(p,{BTCUSDT:[{at:NOW,high:101,low:97,close:98}]}, {BTCUSDT:90}, NOW+300000);
   assert.equal(p.positions.length,0);
   assert.equal(p.trades[0].exitReason,'TP · котировка');
   assert.ok(p.trades[0].pnlUsd>0);
