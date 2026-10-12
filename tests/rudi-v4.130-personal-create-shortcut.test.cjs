@@ -53,7 +53,9 @@ test('personal + button is next to Today, blue and exactly equal height',()=>{
   assert.ok(css.includes('#calendarPersonalCreateTask[hidden]'));
   assert.ok(css.includes('body[data-calendar-scope="personal"][data-personal-ticktick-connected="true"]'));
   assert.ok(css.includes('height:38px!important;max-height:38px!important'));
-  assert.ok(app.includes("document.getElementById('calendarPersonalCreateTask')?.addEventListener('click',calendarOpenPersonalTickTickComposer)"));
+  assert.ok(app.includes("window.RUDIPersonalTaskEditor?.create({"));
+  assert.ok(app.includes("personalPlus.addEventListener('pointerdown'"));
+  assert.ok(app.includes("calendarOpenPersonalTickTickComposer();"));
 });
 
 test('personal + is controlled by confirmed personal OAuth connectivity and owner',()=>{
