@@ -305,15 +305,15 @@ async function recordPersonalCycle(){
 }
 function updateReportButton(){
  const button=$('pcGenerateReport');if(!button)return;
- button.hidden=who!=='Рустам';
+ button.hidden=!['Рустам','Диана'].includes(who);
  if(button.hidden)return;
- const current=report?.date===dayKey()&&report?.slot==='morning';
- button.disabled=manualLoading;
- button.textContent=manualLoading?'Анализирую…':current?(report?.model==='deterministic'?'Повторить AI-анализ':'Обновить AI-анализ'):'Получить AI-сводку';
+ const current=report?.date===dayKey()&&report?.slot==='morning'&&report?.model!=='deterministic'&&Boolean(report?.narrative);
+ button.disabled=manualLoading||Boolean(current);
+ button.textContent=manualLoading?'Анализирую…':'Обновить анализ';
  button.setAttribute('aria-busy',manualLoading?'true':'false');
 }
 async function requestDailyReport(){
- if(who!=='Рустам'||manualLoading)return;
+ if(!['Рустам','Диана'].includes(who)||manualLoading||$('pcGenerateReport')?.disabled)return;
  manualLoading=true;updateReportButton();
  try{
   // The initial read may still be running. Wait before deciding whether AI is needed.
@@ -333,7 +333,7 @@ async function requestDailyReport(){
   if(result.status==='unavailable'){
    setStatus('AI пока не ответил. Предыдущая сводка сохранена, можно повторить позже.');return;
   }
-  setStatus(report?.model==='deterministic'?'AI пока недоступен. Нажми «Повторить AI-анализ» немного позже.':
+  setStatus(report?.model==='deterministic'?'AI пока недоступен. Нажми «Обновить анализ» немного позже.':
    result.status==='upgraded'?'Полноценный AI-анализ готов!':
    result.status==='regenerated'?'AI-сводка обновлена!':
    result.status==='created'?'Сводка за сегодня готова':'Сегодняшняя сводка уже сохранена');
@@ -415,7 +415,7 @@ function sheet(name){
         }
       }else{
         html+=section('Эта сводка создана в прежнем формате',who==='Рустам'
-          ?'Новый глубокий анализ пока не сохранён. Вернись на личную страницу и нажми «Обновить AI-анализ».'
+          ?'Новый глубокий анализ пока не сохранён. Вернись на личную страницу и нажми «Обновить анализ».'
           :'Новый глубокий анализ появится после следующего автоматического формирования сводки.');
       }
     }
