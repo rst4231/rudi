@@ -96,12 +96,12 @@
         loading=(async()=>{
           if(!document.querySelector('[data-rudi-finance-decisions-css]')){
             const style=document.createElement('link');style.rel='stylesheet';
-            style.href='/finance-decisions.css?v=4.187';
+            style.href='/finance-decisions.css?v=4.188';
             style.dataset.rudiFinanceDecisionsCss='1';
             document.head.appendChild(style);
           }
           await loadScript('/finance-decisions-core.js?v=4.187');
-          await loadScript('/finance-decisions-ui.js?v=4.187');
+          await loadScript('/finance-decisions-ui.js?v=4.188');
         })().catch(error=>{loading=null;console.warn('RUDI_LAZY_FINANCE_WARN',String(error?.message||error))});
         return loading;
       };

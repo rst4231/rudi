@@ -1,17 +1,16 @@
 {
-  "current": "v4.187",
+  "current": "v4.188",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.186",
+  "basedOnProduction": "v4.187",
   "notes": [
-    "Include safely archived CoinKeeper expenses in the main Expenses ledger, searchable monthly history, and per-category expense composer, without touching live balances or categories.",
-    "Repair separate Finance Decisions week/month/year graph data source to overlay historical CoinKeeper RUB amounts on the correct original dates.",
-    "Show paired expense and actual recorded-income columns for each month in Year mode; title changes to «Расходы/Доходы за год», other tabs retain their headings.",
-    "Exclude archived CoinKeeper transfers from income and expenses; display foreign expenses without historical RUB conversion in source currency without fabricated rates.",
-    "Share already loaded CoinKeeper overview with lazily mounted graph and batch the archive-history rerenders."
+    "Bring back permanently visible compact expense and income amounts above both annual chart bars for each month, including zero months.",
+    "Use compact k/m notation for 12-month mobile width, with exact amount in month selection and accessibility labels.",
+    "Keep separate colours, annual legend and currency indicator, and hide all values with the existing privacy control.",
+    "Do not alter other chart periods, archive operations, financial records, wallets, categories or balances."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
