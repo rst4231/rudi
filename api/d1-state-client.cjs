@@ -144,7 +144,15 @@ function createD1StateClient(options={}){
     return JSON.stringify([baseUrl,secret,timeoutMs,String(namespace||''),String(key||'')]);
   }
   function forgetFlights(namespace,key){
-    const pending=scopedD1Reads.getStore()?.get(fetchImpl);
+    // Start already-requested reads before issuing a mutation. This keeps
+    // pre-write reads from accidentally observing post-write state merely
+    // because the batching microtask had not yet run.
+    const scoped=scopedD1Reads.getStore();
+    const queues=scoped?.get(BATCH_SCOPE_KEY)?.get(fetchImpl);
+    if(queues)for(const queue of queues.values()){
+      if(queue.jobs.length)void flushQueuedReads(queue);
+    }
+    const pending=scoped?.get(fetchImpl);
     if(!pending)return;
     if(key===undefined){pending.clear();return;}
     pending.delete(flightKey(namespace,key));
