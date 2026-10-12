@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.194';
+const CACHE_NAME='rudi-shell-v4.195';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -21,8 +21,8 @@ const PRECACHE=[
   "/profile-supplements.css?v=4.149",
   "/supplement-advanced.css?v=4.149",
   "/app.js?v=4.194",
-  "/meditation.js?v=4.194",
-  "/meditation.css?v=4.194",
+  "/meditation.js?v=4.195",
+  "/meditation.css?v=4.195",
   "/calendar-day-recap.js?v=4.194",
   "/wallet-brand-icons.js?v=4.149",
   "/finance-bank.js?v=4.149",
