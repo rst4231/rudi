@@ -147,7 +147,7 @@ test('CoinKeeper v4.184 UI has fully opaque readable dialog and accessible delet
  assert.match(js,/В \(вероятно, Вика\)/);
  assert.doesNotMatch(js,/\bimport-expenses\b/);
  const html=fs.readFileSync('public/index.html','utf8');
- assert.match(html,/coinkeeper-history\.js\?v=4\.184/);
+ assert.match(html,/coinkeeper-history\.js\?v=4\.185/);
 });
 
 test('CoinKeeper owner-only UI does not mount for Diana, waits for Rustam auth, and removes on switch',()=>{
