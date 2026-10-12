@@ -5,7 +5,7 @@ const {REWARDS,scoreView,redeemReward,completeReward,resetMutationQueueForTests}
 const expected=[
   [
     "movie",
-    "Выбрать фильм или сериал",
+    "Выбрать фильм",
     3
   ],
   [
