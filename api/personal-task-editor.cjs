@@ -76,7 +76,11 @@ async function editPersonalTask(input,deps={}){
     const readback=await (deps.fetchTask||fetchTask)(token.accessToken,targetId,newId,input.options||{});
     verified=String(readback?.id||'')===newId&&String(readback?.projectId||'')===targetId&&String(readback?.title||'')===changes.title;
   }catch(_){}
-  if(!verified)throw Error('ticktick-personal-move-unconfirmed');
+  if(!verified){
+    // Never delete the source; remove a possible unconfirmed copy when possible.
+    await (deps.deleteTickTickTask||deleteTickTickTask)(token.accessToken,targetId,newId,input.options||{}).catch(()=>{});
+    throw Error('ticktick-personal-move-unconfirmed');
+  }
   try{
     await (deps.deleteTickTickTask||deleteTickTickTask)(token.accessToken,projectId,taskId,input.options||{});
   }catch(error){
