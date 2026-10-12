@@ -175,9 +175,11 @@ async function handler(req, res) {
         const links=await cryptoWallets.list(actor);
         return res.status(200).json({ok:true,actor,...await calculatePnl24h(links)});
       }
-      if (operation === 'crypto-algo-report') {
-        return res.status(200).json({ok:true,actor,
-          ...(await cryptoAlgorithms.readReport())});
+      if (operation === 'crypto-algo-report' || operation === 'crypto-algo-sync') {
+        // Explicit owner sync shares the same 15m budget as scheduled checks.
+        const result=operation==='crypto-algo-sync'
+          ? await cryptoAlgorithms.scan() : await cryptoAlgorithms.readReport();
+        return res.status(200).json({ok:true,actor,...result});
       }
       if (operation === 'crypto-signal-report') {
         const [signals,config]=await Promise.all([readSignals(),virtualSignals.settings()]);

@@ -58,12 +58,15 @@ function draw(){
     overview.append(item);
   }
   const positions=$('cryptoAlgoPositions');positions.replaceChildren();
-  for(const t of p.positions||[]){
-    positions.append(infoRow(t.symbol+' · SHORT',signed(t.unrealizedPnl),
-      'Вход '+Number(t.entry).toPrecision(6)+' · TP '+t.take+' · SL '+t.stop+' · '+t.leverage+'×',
-      t.unrealizedPnl));
+  // Open positions are global, even when the selected strategy has none.
+  for(const algorithm of data.algorithms||[]){
+    for(const t of data.portfolios?.[algorithm.id]?.positions||[]){
+      positions.append(infoRow(algorithm.name+' · '+t.symbol+' · SHORT',signed(t.unrealizedPnl),
+        'Вход '+Number(t.entry).toPrecision(6)+' · TP '+t.take+' · SL '+t.stop+' · '+t.leverage+'×',
+        t.unrealizedPnl));
+    }
   }
-  if(!positions.children.length)positions.textContent='Открытых виртуальных позиций нет.';
+  if(!positions.children.length)positions.textContent='Открытых виртуальных позиций ни у одного алгоритма нет.';
   const trades=$('cryptoAlgoTrades');trades.replaceChildren();
   for(const t of p.trades||[]){
     const node=infoRow(t.symbol+' · SHORT',signed(t.pnlUsd),
@@ -80,27 +83,31 @@ function draw(){
   if(!trades.children.length)trades.textContent='Закрытых сделок пока нет. История начинается только после запуска сканера.';
   const updated=$('cryptoAlgoUpdated');
   const old=data.updatedAt?Date.now()-Date.parse(data.updatedAt):Infinity;
-  updated.textContent=data.updatedAt?'Обновлено '+new Date(data.updatedAt).toLocaleString('ru-RU')+
-    (old>15*60000?' · данные устарели':''):'Ожидаем первый запуск сканера';
+  updated.textContent=data.updatedAt?'Успешный расчёт '+new Date(data.updatedAt).toLocaleString('ru-RU')+
+    (old>20*60000?' · СКАНЕР НЕ ОБНОВЛЯЕТСЯ':''):'Нет успешных расчётов';
   const status=$('cryptoAlgoStatus');status.textContent=
-    (data.error?'Проблема получения данных: '+data.error+'. ':'')+
+    (data.error?'Ошибка последней попытки: '+data.error+'. ':'')+
+    (data.warning?data.warning+'. ':'')+
+    (data.lastAttemptAt?'Последняя попытка: '+new Date(data.lastAttemptAt).toLocaleString('ru-RU')+'. ':'')+
     'Отслеживается до '+(data.marketCount||0)+' ликвидных фьючерсных пар Bybit. '+
     'Каждый алгоритм имеет отдельные виртуальные 10 000 $. Результаты не суммируются. '+
     'Реальных ордеров нет; funding и точные ликвидации не учтены. '+
     'График и сделки строятся только после запуска, без придуманной истории.';
 }
-async function load(){
-  if(busy)return;busy=true;const button=$('cryptoAlgoRefresh');if(button)button.disabled=true;
+async function load(recalculate=false){
+  if(busy)return;busy=true;const button=$('cryptoAlgoRefresh');
+  if(button){button.disabled=true;if(recalculate)button.textContent='Проверяем алгоритмы…';}
   try{
     await Promise.resolve(window.__rudiTelegramSdkReady).catch(()=>{});
     const res=await fetch('/api/finances',{method:'POST',cache:'no-store',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({operation:'crypto-algo-report',initData:window.Telegram?.WebApp?.initData||''})});
+      body:JSON.stringify({operation:recalculate?'crypto-algo-sync':'crypto-algo-report',
+        initData:window.Telegram?.WebApp?.initData||''})});
     const json=await res.json().catch(()=>({}));
     if(!res.ok||!json.ok)throw Error(String(json.error||'Не удалось загрузить данные'));
     data=json;draw();
   }catch(e){$('cryptoAlgoStatus').textContent='Ошибка загрузки: '+e.message;}
-  finally{busy=false;if(button)button.disabled=false;}
+  finally{busy=false;if(button){button.disabled=false;button.textContent='Проверить алгоритмы';}}
 }
 function show(open){
   const panel=$('financeCryptoAlgoPanel'),main=$('financeCryptoMain'),history=$('financeCryptoHistory');
@@ -113,7 +120,7 @@ function show(open){
 function boot(){
   $('financeCryptoAlgoOpen')?.addEventListener('click',()=>show(true));
   $('financeCryptoAlgoBack')?.addEventListener('click',()=>show(false));
-  $('cryptoAlgoRefresh')?.addEventListener('click',()=>void load());
+  $('cryptoAlgoRefresh')?.addEventListener('click',()=>void load(true));
   $('cryptoAlgoTabs')?.addEventListener('click',e=>{
     const button=e.target.closest('[data-crypto-algo]');
     if(!button)return;selected=button.dataset.cryptoAlgo;draw();

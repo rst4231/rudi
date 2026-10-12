@@ -17,7 +17,8 @@ function initial(now=Date.now()){
   for(const a of STRATEGIES)portfolios[a.id]={
     id:a.id,startedAt:date(now),cash:INITIAL,positions:[],trades:[],equityCurve:[{at:date(now),usd:INITIAL}],
     seen:{},lastEquity:INITIAL,peakEquity:INITIAL,maxDrawdownPct:0};
-  return {version:1,createdAt:date(now),updatedAt:null,lastScanAt:null,error:null,marketCount:0,portfolios};
+  return {version:1,createdAt:date(now),updatedAt:null,lastScanAt:null,lastAttemptAt:null,
+    error:null,warning:null,marketCount:0,portfolios};
 }
 function adapt(input,now=Date.now()){
   const base=initial(now),state=input&&typeof input==='object'?input:base;
@@ -120,6 +121,8 @@ function settle(portfolio,p,price,at,reason){
 function updatePositions(portfolio,barsBySymbol,prices,now){
   for(const p of [...portfolio.positions]){
     const bars=barsBySymbol[p.symbol]||[];
+    // Never close a position using remembered prices when current candles failed.
+    if(!bars.length||!(num(prices[p.symbol])>0))continue;
     const relevant=bars.filter(b=>b.at+INTERVAL> Date.parse(p.entryAt)&&b.at>num(p.lastBarAt||0));
     let closed=false;
     for(const candle of relevant){
@@ -192,8 +195,9 @@ function summarize(p){
 function report(state){
   const s=adapt(state);
   return {algorithms:STRATEGIES,initialUsd:INITIAL,exchange:'Bybit USDT Perpetual',
-    updatedAt:s.updatedAt,lastScanAt:s.lastScanAt,createdAt:s.createdAt,
-    marketCount:s.marketCount||0,error:s.error||null,
+    updatedAt:s.updatedAt,lastScanAt:s.lastScanAt,lastAttemptAt:s.lastAttemptAt||null,
+    createdAt:s.createdAt,marketCount:s.marketCount||0,error:s.error||null,
+    warning:s.warning||null,
     assumptions:{leverage:LEV,feeRate:FEE,slippageRate:SLIPPAGE,
       riskPct:1,maxPositions:2,stopPct:3.5,takePct:6,maxHoldHours:8,
       note:'Только paper trading: вход по котировке после закрытого 5м бара; SL при двусмысленной свече исполняется первым. Нет реальных ордеров. Funding и реальные ликвидации не учтены.'},
@@ -211,7 +215,9 @@ async function scan(options={}){
     const client=options.client||createRudiStateClient(options),now=options.now??Date.now();
     const existing=await client.getRecord(NS,KEY);
     const state=adapt(existing?.value||initial(now),now);
-    if(state.lastScanAt&&now-Date.parse(state.lastScanAt)<SCAN_INTERVAL-30000)return report(state);
+    const previousAttempt=Date.parse(state.lastAttemptAt||state.lastScanAt||'');
+    if(Number.isFinite(previousAttempt)&&now-previousAttempt<SCAN_INTERVAL-30000)return report(state);
+    state.lastAttemptAt=date(now);
     let markets=[],failed=0;
     try{
       const tickerResponse=await bybit('/v5/market/tickers?category=linear',options.fetchImpl);
@@ -232,11 +238,14 @@ async function scan(options={}){
         if(!prices[position.symbol])prices[position.symbol]=position.lastPrice;
       const barsBySymbol={},ideas=[];
       // Stagger Bybit requests in bounded groups; continue despite an individual symbol outage.
-      for(let offset=0;offset<markets.length;offset+=6){
-        const batch=await Promise.allSettled(markets.slice(offset,offset+6).map(async m=>{
+      for(let offset=0;offset<markets.length;offset+=4){
+        const batch=await Promise.allSettled(markets.slice(offset,offset+4).map(async m=>{
           const data=await bybit('/v5/market/kline?category=linear&symbol='+
             encodeURIComponent(m.symbol)+'&interval=5&limit=120',options.fetchImpl);
-          return {m,bars:parseBars(data,now)};
+          const bars=parseBars(data,now);
+          if(bars.length<38||now-(bars.at(-1).at+INTERVAL)>12*60000)
+            throw Error('bybit-candles-stale-or-insufficient:'+m.symbol);
+          return {m,bars};
         }));
         for(const item of batch){
           if(item.status!=='fulfilled'){failed++;continue;}
@@ -245,23 +254,20 @@ async function scan(options={}){
           ideas.push(...found);
         }
       }
-      // Never fill/close on unknown OHLC. Existing open trades are updated only
-      // when their symbol has fresh exchange evidence, not a fabricated price.
-      const hasPrice=Object.fromEntries(Object.keys(barsBySymbol)
-        .map(s=>[s,prices[s]]));
+      const validMarkets=Object.keys(barsBySymbol).length;
+      if(validMarkets<Math.min(5,markets.length))
+        throw Error('bybit-insufficient-fresh-candles:'+validMarkets+'/'+markets.length);
+      // Preserve ALL open positions. Missing symbols keep last known marks but
+      // never generate fabricated exits; equity is consistent with the curve.
+      const freshPrices=Object.fromEntries(Object.keys(barsBySymbol).map(s=>[s,prices[s]]));
       for(const p of Object.values(state.portfolios)){
-        const validPositions=p.positions.filter(x=>Boolean(barsBySymbol[x.symbol]));
-        const stalePositions=p.positions.filter(x=>!barsBySymbol[x.symbol]);
-        p.positions=validPositions;
-        advance(p,barsBySymbol,hasPrice,ideas.filter(x=>x.strategy===p.id).sort((a,b)=>b.score-a.score),now);
-        p.positions.push(...stalePositions);
-        p.lastEquity=mark(p,prices);
+        advance(p,barsBySymbol,freshPrices,
+          ideas.filter(x=>x.strategy===p.id).sort((x,y)=>y.score-x.score),now);
       }
-      const validMarkets=Object.keys(barsBySymbol).filter(s=>barsBySymbol[s]?.length>=38).length;
-      if(!validMarkets)throw Error('bybit-no-valid-candles');
-      state.error=failed?'Недоступны свечи по '+failed+' из '+markets.length+' монет':null;
-      state.marketCount=validMarkets;state.updatedAt=date(now);state.lastScanAt=date(now);
-    }catch(e){state.error=String(e?.message||e).slice(0,180);state.lastScanAt=date(now);console.warn('RUDI_CRYPTO_ALGO_SOURCE_WARN',state.error);}
+      state.warning=failed?'Часть пар недоступна: '+failed+' из '+markets.length:null;
+      state.error=null;state.marketCount=validMarkets;
+      state.updatedAt=date(now);state.lastScanAt=date(now);
+    }catch(e){state.error=String(e?.message||e).slice(0,180);console.warn('RUDI_CRYPTO_ALGO_SOURCE_WARN',state.error);}
     await client.setRecord({namespace:NS,key:KEY,value:state,tags:['rudi-crypto-algorithms'],updated_at:date(now),expires_at:null});
     return report(state);
   })();

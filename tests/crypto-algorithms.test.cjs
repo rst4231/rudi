@@ -86,3 +86,21 @@ test('scanner persists on client and repeated scans inside interval do not doubl
   assert.equal(first.initialUsd,10000);
   assert.ok(calls>=2);
 });
+
+test('unavailable market evidence never closes or removes an open paper position',()=>{
+ const p=a.initial(NOW).portfolios.pump;
+ a.openPosition(p,{strategy:'pump',symbol:'ALTUSDT',at:NOW,price:4,score:77,indicators:{}},NOW,{ALTUSDT:4});
+ a.advance(p,{}, {},[],NOW+300000);
+ assert.equal(p.positions.length,1);assert.equal(p.trades.length,0);
+ assert.equal(p.equityCurve.at(-1).usd,p.lastEquity);
+});
+test('failed scan saves last attempt without fabricating successful scan',async()=>{
+ let state=null,fetches=0;
+ const client={getRecord:async()=>state?{value:state}:null,setRecord:async row=>{state=row.value;}};
+ const fetchImpl=async()=>{fetches++;return {ok:false,status:503}};
+ const first=await a.scan({client,fetchImpl,now:NOW});
+ assert.equal(first.lastScanAt,null);assert.equal(first.updatedAt,null);
+ assert.equal(first.error,'bybit-http-503');
+ assert.equal(first.lastAttemptAt,new Date(NOW).toISOString());
+ await a.scan({client,fetchImpl,now:NOW+60000});assert.equal(fetches,1);
+});

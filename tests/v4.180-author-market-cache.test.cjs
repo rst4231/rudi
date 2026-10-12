@@ -3,12 +3,12 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const worker=fs.readFileSync('cloudflare/rudi-crypto-market-worker.mjs','utf8');
-test('the author cache preloads bounded hourly candle, mark and funding paths before evaluation',()=>{
+test('bounded author cache helpers remain available, scanner never waits for warming',()=>{
   assert.match(worker,/function authorTargets\(/);
   assert.match(worker,/slice\(0,Math\.min\(2,/);
   assert.match(worker,/async function primeAuthor\(/);
-  assert.match(worker,/const authorPrime=await primeAuthor\(env,now\)/);
-  assert.match(worker,/status\.authorPrefetch=authorPrime/);
+  assert.doesNotMatch(worker,/const fresh=await primeMarket\(env\)/);
+  assert.match(worker,/status\.scanRequested=true/);
   assert.match(worker,/BASE\+'kline\?'/);
   assert.match(worker,/BASE\+'mark-price-kline\?'/);
   assert.match(worker,/BASE\+'funding\/history\?'/);

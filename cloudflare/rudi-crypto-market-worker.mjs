@@ -6,7 +6,7 @@
 const HOSTS=['https://api.bybit.com','https://api.bytick.com'];
 const SYMBOL=/^[A-Z0-9]{2,25}USDT$/;
 const DIGITS=/^\d{10,16}$/;
-const CACHE_TTL={tickers:20*60000,candle5:25*60000,candle60:19*60000,funding:2*3600000};
+const CACHE_TTL={tickers:90*1000,candle5:6*60000,candle60:19*60000,funding:2*3600000};
 const BASE='/v5/market/';
 function verifiedMarketPath(rawUrl){
   const u=new URL(rawUrl),p=u.searchParams,route=u.pathname;
@@ -58,13 +58,6 @@ async function persist(env,key,body,now=Date.now()){
     'INSERT INTO rudi_crypto_market_cache(cache_key,body,fetched_at) VALUES(?,?,?) '+
     'ON CONFLICT(cache_key) DO UPDATE SET body=excluded.body,fetched_at=excluded.fetched_at'
   ).bind(key,body,now).run();
-  if(!key.startsWith('__')){
-    const entry={body,fetchedAt:now};
-    await env.MARKET_DB.prepare(
-      "INSERT INTO rudi_state(namespace,key,value,tags,expires_at,updated_at) VALUES('rudi-crypto-market-cache-v1',?,?, '[]',NULL,?) "+
-      "ON CONFLICT(namespace,key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at"
-    ).bind(key,JSON.stringify(entry),new Date(now).toISOString()).run();
-  }
 }
 function reply(body,fetchedAt,hit){
   return new Response(body,{headers:{
@@ -241,36 +234,41 @@ async function primeAuthor(env,now=Date.now()){
 }
 
 async function scheduledRun(env){
-  const now=Date.now(),previous=await cachedRow(env,'__cron_status');
+  const now=Date.now();
+  let previous=null;
+  try{previous=await cachedRow(env,'__cron_status');}
+  catch(error){console.warn('RUDI_CRYPTO_STATUS_READ_WARN',String(error?.message||error));}
   let prev=null;try{prev=JSON.parse(previous?.body||'null')}catch{}
-  if(prev?.ok&&now-Date.parse(prev.at)<12*60000)return;
-  const status={at:new Date(now).toISOString(),ok:false,source:'Bybit'};
+  if(prev?.ok&&now-Date.parse(prev.at)<12*60000)return prev;
+  const status={at:new Date(now).toISOString(),ok:false,source:'Bybit',scanRequested:false};
+  // Launch the real scanner before cache warming: the prefetch must never block it.
   try{
-    const fresh=await primeMarket(env);
-    Object.assign(status,fresh);
-    const authorPrime=await primeAuthor(env,now);
-    status.authorPrefetch=authorPrime;
-    const r=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-monitor-cron',{
+    const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-monitor-cron',{
       headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json'},
-      signal:AbortSignal.timeout(130000)});
-    status.httpStatus=r.status;
-    if(!r.ok)throw Error('rudi-monitor-http-'+r.status);
-    const payload=await r.json();
-    status.algorithms=payload?.algorithms;
-    status.author={priceError:payload?.author?.priceError||null,
-      sourceError:payload?.author?.sourceError||null};
-    status.ok=Boolean(payload?.ok);
-    if(!status.ok)throw Error('rudi-monitor-partial');
-  }catch(error){
-    status.error=String(error?.message||error).slice(0,170);
-    console.warn('RUDI_CRYPTO_CACHED_CRON_WARN',status.error);
-  }finally{await writeStatus(env,status);}
+      signal:AbortSignal.timeout(110000)});
+    status.scanRequested=true;
+    status.httpStatus=response.status;
+    const payload=await response.json().catch(()=>null);
+    status.algorithms=payload?.algorithms||null;
+    status.author=payload?.author||null;
+    status.algorithmHealthy=Boolean(payload?.algorithms?.updatedAt&&!payload.algorithms.error);
+    status.ok=Boolean(response.ok&&payload?.ok);
+    if(!status.ok)status.error='rudi-monitor-http-'+response.status+
+      (payload?.algorithms?.error?': '+String(payload.algorithms.error).slice(0,85):'');
+  }catch(error){status.error=String(error?.message||error).slice(0,170);}
+  if(!status.ok)console.warn('RUDI_CRYPTO_MONITOR_WARN',status.error);
+  // Failure to write diagnostics must not produce an unhandled Worker exception.
+  try{await writeStatus(env,status);}
+  catch(error){console.error('RUDI_CRYPTO_STATUS_WRITE_ERROR',String(error?.message||error));}
+  return status;
 }
 export default {
   async fetch(req,env){
     const u=new URL(req.url);
     if(u.pathname==='/health'){
-      const last=env.MARKET_DB?await cachedRow(env,'__cron_status'):null;
+      let last=null;
+      try{if(env.MARKET_DB)last=await cachedRow(env,'__cron_status');}
+      catch(error){console.warn('RUDI_CRYPTO_HEALTH_READ_WARN',String(error?.message||error));}
       let stat=null;try{stat=JSON.parse(last?.body||'null')}catch{}
       return Response.json({ok:true,service:'rudi-crypto-market',
         source:'Bybit',database:Boolean(env.MARKET_DB),scheduled:Boolean(env.CRON_SECRET),
@@ -283,7 +281,8 @@ export default {
     return resultResponse(env,path);
   },
   async scheduled(event,env,ctx){
-    if(!env.CRON_SECRET||!env.MARKET_DB)throw Error('crypto-market-bindings-missing');
-    await scheduledRun(env);
+    if(!env.CRON_SECRET||!env.MARKET_DB){console.error('RUDI_CRYPTO_BINDINGS_MISSING');return;}
+    try{await scheduledRun(env);}
+    catch(error){console.error('RUDI_CRYPTO_SCHEDULE_ERROR',String(error?.message||error));}
   }
 };
