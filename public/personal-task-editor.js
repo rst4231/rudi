@@ -42,7 +42,7 @@ function init(){
       '<div class="ticktick-task-field-row ticktick-task-date-time-row">'+
        '<label class="ticktick-task-field"><span>Дата</span><input id="rudiPersonalTaskDate" type="date"></label>'+
        '<label class="ticktick-task-field"><span>Время</span><input id="rudiPersonalTaskTime" type="time"></label></div>'+
-      '<div class="rudi-personal-quick-actions" role="group" aria-label="Быстро изменить дату">'+quickHtml()+'</div>'+
+
       '<label class="ticktick-task-field"><span>Список TickTick</span><select id="rudiPersonalTaskProject"><option value="">Загружаю списки…</option></select></label>'+
       '<label class="ticktick-task-field"><span>Описание</span><textarea id="rudiPersonalTaskDescription" maxlength="5000" rows="3" placeholder="Необязательно"></textarea></label>'+
       '<p class="rudi-personal-repeat-note" id="rudiPersonalRepeatNote" hidden>Повторение сохранится. Для сложных правил используйте TickTick.</p>'+
@@ -59,7 +59,7 @@ function init(){
   modal.querySelectorAll('[data-personal-close]').forEach(b=>b.addEventListener('click',close));
   byId('rudiPersonalTaskForm').addEventListener('submit',submit);
   byId('rudiPersonalTaskDelete').addEventListener('click',remove);
-  modal.querySelectorAll('[data-personal-date-action]').forEach(b=>b.addEventListener('click',()=>useQuick(b.dataset.personalDateAction,false)));
+  // Date shortcuts remain available in the right-click context menu only.
   menu.querySelectorAll('[data-personal-date-action]').forEach(b=>b.addEventListener('click',()=>useQuick(b.dataset.personalDateAction,true)));
   f('date').addEventListener('change',syncTime);
   document.addEventListener('pointerdown',event=>{
@@ -111,8 +111,10 @@ async function projects(){
     if(!active||active.task!==task)return;
     select.replaceChildren();
     for(const row of data.lists||[])select.add(new Option(row.name,row.id));
-    if(![...select.options].some(o=>o.value===task.projectId))select.add(new Option(task.projectName||'Текущий список',task.projectId));
-    select.value=task.projectId;select.disabled=!data.writable;
+    if(!active.creating&&!([...select.options].some(o=>o.value===task.projectId)))select.add(new Option(task.projectName||'Текущий список',task.projectId));
+    if(task.projectId&&[...select.options].some(o=>o.value===task.projectId))select.value=task.projectId;
+    else select.selectedIndex=select.options.length?0:-1;
+    select.disabled=!data.writable||select.options.length===0;
     listed=true;if(!data.writable)message('Для редактирования подключите TickTick с правом записи');
   }catch(e){
     if(!active||active.task!==task)return;
@@ -123,7 +125,7 @@ async function projects(){
 }
 function open(task,ctx={}){
   if(!task?.id||!task?.personal)return;
-  init();closeMenu();active={task:{...task},ctx};
+  init();closeMenu();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
   f('date').value=String(task.date||'');
   f('time').value=task.allDay?'':String(task.startTime||'');
@@ -131,6 +133,8 @@ function open(task,ctx={}){
   f('project').replaceChildren(new Option(task.projectName||'Текущий список',task.projectId||''));
   f('project').value=task.projectId||'';
   byId('rudiPersonalRepeatNote').hidden=!String(task.repeatFlag||'').trim();
+  byId('rudiPersonalTaskHeading').textContent=task.isNew?'Новое дело':'Редактировать дело';
+  byId('rudiPersonalTaskDelete').hidden=Boolean(task.isNew);
   syncTime();message('');enabled(true);
   modal.hidden=false;modal.setAttribute('aria-hidden','false');
   document.body.classList.add('ticktick-task-modal-open');
@@ -142,11 +146,12 @@ async function persist(data,options={}){
   const saved=active,task=saved.task;
   enabled(false);message('Сохраняю…');
   try{
-    if(data.targetProjectId!==task.projectId&&!options.skipMoveConfirm&&
+    if(!saved.creating&&data.targetProjectId!==task.projectId&&!options.skipMoveConfirm&&
       !window.confirm('Перенести дело в другой список TickTick?')){enabled(true);message('');return false;}
-    const payload=await request('personal-task-edit',{
-      operation:'save',taskId:task.id,projectId:task.projectId,...data
-    });
+    if(saved.creating&&!data.date){message('Выбери дату');return false;}
+    const payload=saved.creating?
+      await request('personal-task-create',{...data}):
+      await request('personal-task-edit',{operation:'save',taskId:task.id,projectId:task.projectId,...data});
     closeForced();
     await Promise.resolve(saved.ctx.refresh?.()).catch(()=>{});
     return payload;
@@ -209,6 +214,11 @@ async function useQuick(id,fromMenu){
   f('date').value=date;if(date&&f('time').disabled)f('time').value='';
   syncTime();
 }
+function create(ctx={}){
+  const date=/^20\d\d-\d\d-\d\d$/.test(String(ctx.date||''))?String(ctx.date):today();
+  open({id:'new',personal:true,isNew:true,title:'',date,startTime:String(ctx.time||''),description:'',
+    allDay:!ctx.time,projectId:'',projectName:'Выбери список'},ctx);
+}
 function showMenu(task,ctx,event){
   if(!task?.personal)return;
   init();
@@ -223,31 +233,29 @@ function showMenu(task,ctx,event){
 function bind(element,task,ctx){
   if(!task?.personal||!element||element.dataset.personalTaskBound==='1')return;
   element.dataset.personalTaskBound='1';
-  let start=null,suppressUntil=0;
-  const reset=()=>{start=null;element.classList.remove('rudi-personal-holding')};
+  let start=null,suppressUntil=0,holdTimer=0;
+  const reset=()=>{clearTimeout(holdTimer);holdTimer=0;start=null;element.classList.remove('rudi-personal-holding')};
   element.addEventListener('pointerdown',event=>{
-    if(event.pointerType==='mouse'||event.button!==0)return;
-    start={x:event.clientX,y:event.clientY,at:Date.now(),id:event.pointerId};
+    if(event.pointerType==='mouse'||event.button!==0||event.target?.closest?.('input,button'))return;
+    reset();
+    start={x:event.clientX,y:event.clientY,id:event.pointerId};
     element.classList.add('rudi-personal-holding');
+    // iOS can cancel pointerup for its native context menu: open while finger is held.
+    holdTimer=setTimeout(()=>{
+      if(!start)return;
+      suppressUntil=Date.now()+1300;reset();
+      ctx.openTickTick?.();
+    },550);
   },true);
   element.addEventListener('pointermove',event=>{
     if(!start||event.pointerId!==start.id)return;
-    if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>11)reset();
+    if(Math.hypot(event.clientX-start.x,event.clientY-start.y)>12)reset();
   },true);
-  element.addEventListener('pointerup',event=>{
-    if(!start||event.pointerId!==start.id)return;
-    const long=Date.now()-start.at>=580;reset();
-    if(long){
-      suppressUntil=Date.now()+1000;
-      event.preventDefault();
-      // Allow week-agenda drag cleanup to receive pointerup as well.
-      ctx.openTickTick?.();
-    }
-  },true);
+  element.addEventListener('pointerup',reset,true);
   element.addEventListener('pointercancel',reset,true);
   element.addEventListener('contextmenu',event=>{
     event.preventDefault();event.stopPropagation();
-    if(event.pointerType==='touch'||start)return;
+    if(event.pointerType==='touch'||start||Date.now()<suppressUntil)return;
     showMenu(task,ctx,event);
   });
   element.addEventListener('click',event=>{
@@ -256,5 +264,5 @@ function bind(element,task,ctx){
     }
   },true);
 }
-window.RUDIPersonalTaskEditor={open,bind,showMenu};
+window.RUDIPersonalTaskEditor={open,create,bind,showMenu};
 })();
