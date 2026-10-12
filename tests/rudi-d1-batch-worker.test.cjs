@@ -11,22 +11,23 @@ function mockEnv(seed=new Map()){
   const db={
     prepare(sql){
       return {bind(...args){
-        return {
+        if(/SELECT/.test(sql))return {
           async all(){
-            assert.match(sql,/SELECT/);
             calls.selects++;
             const [ns,key]=args;
             const row=seed.get(ns+'|'+key);
             return {success:true,results:row?[{namespace:ns,key,...row}]:[]};
-          },
+          }
+        };
+        if(/DELETE/.test(sql))return {
           async run(){
-            assert.match(sql,/DELETE/);
             calls.deletes++;
             const [ns,key]=args;
             seed.delete(ns+'|'+key);
             return {success:true};
           }
         };
+        throw new Error('unexpected SQL');
       }};
     },
     async batch(statements){
