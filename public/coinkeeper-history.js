@@ -89,7 +89,7 @@
   }
   function knownWallet(name,wallets,currency){
     const clean=norm(name),aliases={'озон карта':'ozon','cashinout':'cashinout',
-      'тнф инвест':'тнф инвест','юмоней':'юмoней'};
+      'тнф инвест':'тнф инвест'};
     const normalized=aliases[clean]||clean;
     const possible=wallets.filter(w=>norm(w.name)===normalized&&w.currency===currency);
     return possible.length===1?possible[0].id:'';
@@ -141,7 +141,7 @@
       '<button type="button" id="ckhShow">Показать месяц</button></div>'+
       '<div id="ckhReport" class="ckh-status" role="status"></div>'+
       '<div id="ckhLedger" class="ckh-list"></div>';
-    (anchor?.parentElement||panel).appendChild(block);
+    panel.appendChild(block);
     const modal=document.createElement('dialog');modal.id='ckhDialog';modal.className='ckh-dialog';
     modal.innerHTML='<h3>Проверка импорта CoinKeeper</h3><p class="ckh-status" id="ckhInfo"></p>'+
       '<p>Сопоставьте категории с существующими категориями RUDI. Новые не создаются.</p>'+
@@ -178,12 +178,12 @@
         for(const name of currentFile.categories.keys())mappings.set(name,autoCategory(name,context.categories));
         const options=['<option value="">Не сопоставлено</option>']
           .concat(context.categories.map(c=>'<option value="'+esc(c.id)+'">'+esc(c.name)+'</option>')).join('');
-        document.getElementById('ckhMappings').innerHTML=[...currentFile.categories]
-          .sort((a,b)=>b[1]-a[1]).map(([name,count],i)=>
+        const displayedCategories=[...currentFile.categories].sort((a,b)=>b[1]-a[1]);
+        document.getElementById('ckhMappings').innerHTML=displayedCategories.map(([name,count],i)=>
           '<label class="ckh-map"><span>'+esc(name)+' ('+count+')</span>'+
           '<select data-ckh-cat="'+i+'" aria-label="Категория '+esc(name)+'">'+options+'</select></label>').join('');
         [...document.querySelectorAll('[data-ckh-cat]')].forEach(select=>{
-          const name=[...currentFile.categories][Number(select.dataset.ckhCat)]?.[0];
+          const name=displayedCategories[Number(select.dataset.ckhCat)]?.[0];
           select.value=mappings.get(name)||'';
           select.addEventListener('change',()=>{mappings.set(name,select.value);preview()});
         });
