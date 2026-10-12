@@ -9,7 +9,8 @@
   "notes": [
     "Home bootstrap returns changed sections only when previous hashes are known.",
     "Home cards skip unchanged DOM re-renders; manual refresh and offline sync preserved.",
-    "Refresh app.js browser and service-worker cache version, fix outdated script-order regression test."
+    "Refresh app.js browser and service-worker cache version, fix outdated script-order regression test.",
+    "Production release marker: enable the verified v4.192 selective home refresh build."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
