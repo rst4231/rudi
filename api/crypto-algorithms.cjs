@@ -72,7 +72,8 @@ async function bybit(path,fetchImpl=globalThis.fetch){
   const ctrl=typeof AbortController==='function'?new AbortController():null;
   const timer=ctrl?setTimeout(()=>ctrl.abort(),9500):null;
   try{
-    const r=await fetchImpl('https://api.bybit.com'+path,{...(ctrl?{signal:ctrl.signal}:{}),
+    const endpoint=String(process.env.RUDI_BYBIT_PUBLIC_API_URL||'https://api.bybit.com').replace(/\/+$/,'');
+    const r=await fetchImpl(endpoint+path,{...(ctrl?{signal:ctrl.signal}:{}),
       headers:{Accept:'application/json'}});
     if(!r.ok)throw Error('bybit-http-'+r.status);
     const json=await r.json();
