@@ -1,17 +1,16 @@
 {
-  "current": "v4.179",
+  "current": "v4.180",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.178",
+  "basedOnProduction": "v4.179",
   "notes": [
-    "Fix blocked public Bybit market HTTP 403 with allowlisted Cloudflare market gateway; market sources configured via RUDI_BYBIT_PUBLIC_API_URL, including Artemyev candles and funding.",
-    "Move virtual monitors to quarter-hourly Cloudflare Worker Cron using an isolated shared secret; retire unreliable GitHub crypto schedule step, leaving Lulu unchanged.",
-    "Show provider errors, never fabricate trading fills, history, PNL or provider-sourced prices.",
-    "Preserve three independent forward-only paper portfolios and existing records.",
-    "Add source diagnostics and regression tests for both scanners."
+    "Show clear reasons when 24h/month unadjusted crypto valuation is unavailable: incomplete Bybit account coverage, Uniswap LP discovery, Trust Wallet coverage, too-short or partial history, stale sync, or missing month opening snapshot.",
+    "Preserve original history, balances and strict no-fabricated PNL policy; expose recorded hours and count of affected sources.",
+    "Add regression tests for 13h history, partial snapshots and missing first-of-month baseline.",
+    "Front-end cache-bust finance crypto JS to v4.180. No DB data migration."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
