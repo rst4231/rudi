@@ -159,3 +159,26 @@ test('v4.188 year chart labels show each month expense and income amount permane
  assert.match(html,/finance-decisions-ui\.js\?v=4\.188/);
  assert.match(html,/finance-decisions\.css\?v=4\.188/);
 });
+
+test('year value is a tappable picker for every calendar year 2016 through the present',()=>{
+ const fs=require('node:fs');
+ const ui=fs.readFileSync('public/finance-decisions-ui.js','utf8');
+ const css=fs.readFileSync('public/finance-decisions.css','utf8');
+ assert.match(ui,/id="rudiExpenseChartYear"/);
+ assert.match(ui,/aria-label="Выбрать год расходов и доходов"/);
+ assert.match(ui,/id\('rudiExpenseChartYear'\)\?\.addEventListener\('change'/);
+ assert.match(ui,/for\(let year=currentYear;year>=2016;year--\)/);
+ assert.match(ui,/yearPicker\.value=String\(chosenYear\)/);
+ assert.match(ui,/isYear\?new Date\(chosenYear,0,1,12\):today/);
+ assert.match(ui,/expenseChartSelected=-1;renderWeeklyExpenses\(\)/);
+ assert.match(css,/\.rudi-weekly-head \.rudi-year-picker/);
+ assert.match(css,/\.rudi-weekly-head \.rudi-year-picker\[hidden\]/);
+ const older=core.expensePeriod({personalExpenses:[
+  {occurredAt:'2016-10-05T12:00:00Z',rubAmount:400},
+  {occurredAt:'2026-10-05T12:00:00Z',rubAmount:999}
+ ]},new Date(2016,0,1,12),'year');
+ assert.equal(older.from,'2016-01-01');
+ assert.equal(older.to,'2016-12-31');
+ assert.equal(older.total,400);
+ assert.equal(older.buckets[9].total,400);
+});
