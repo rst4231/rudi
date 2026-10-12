@@ -1,15 +1,16 @@
 {
-  "current": "v4.182",
+  "current": "v4.183",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.181",
+  "basedOnProduction": "v4.182",
   "notes": [
-    "Skip unchanged notification-recipient writes on bootstrap and backup refresh.",
-    "Coalesce only simultaneous D1 reads inside each server request; invalidate on mutations, never cache settled data.",
-    "Skip duplicate unchanged crypto history observations within the same five-minute slot."
+    "Archive CoinKeeper expenses and transfers from 2016-09 to 2026-09-30 in monthly D1 records, separated from live finances.",
+    "Require mapping to existing expense categories; never create categories or wallets and never change current wallet balances.",
+    "Prevent September 2026 duplicates, preserve original currencies and conversion values, and show historical summaries in finances.",
+    "Review before import, support safe resume with stable row identifiers and tests."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

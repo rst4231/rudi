@@ -1,4 +1,5 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
+const coinKeeperHistory=require('./coinkeeper-history.cjs');
 const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
 const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan, setFinanceObligationPaid,
@@ -251,6 +252,20 @@ async function handler(req, res) {
       throw new Error('finance-operation-invalid');
     }
 
+    // Isolated history storage: never touches the live wallet/category/expense state.
+    if(operation==='ck-context') {
+      if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
+      return res.status(200).json({ok:true,...await coinKeeperHistory.context()});
+    }
+    if(operation==='ck-import') {
+      if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
+      const result=await coinKeeperHistory.importBatch(actor,body.rows);
+      return res.status(200).json({ok:true,result});
+    }
+    if(operation==='ck-month') {
+      if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
+      return res.status(200).json({ok:true,...await coinKeeperHistory.readMonth(actor,body.month)});
+    }
     if (operation === 'list') {
       const state = await readFinanceState();
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
