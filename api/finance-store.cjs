@@ -174,6 +174,8 @@ function cleanAnalystReport(value = {}) {
 function cleanPlan(value = {}) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const analystLastDate = /^\d{4}-\d{2}-\d{2}$/.test(String(source.analystLastDate || '')) ? String(source.analystLastDate) : '';
+  const analystDailyCount = Math.min(2, Math.max(0, Math.trunc(Number(source.analystDailyCount ?? (analystLastDate && source.analystLastReport?.summary ? 1 : 0)) || 0)));
+
   return {
     reserve: cleanMoney(source.reserve || 0),
     goalTitle: cleanText(source.goalTitle, 80),
@@ -186,6 +188,7 @@ function cleanPlan(value = {}) {
     plannedMonthlyVariableExpenses: source.plannedMonthlyVariableExpenses === undefined || source.plannedMonthlyVariableExpenses === null || source.plannedMonthlyVariableExpenses === '' ? null : cleanMoney(source.plannedMonthlyVariableExpenses),
     obligations: cleanObligations(source.obligations),
     analystLastDate,
+    analystDailyCount,
     analystLastReport: cleanAnalystReport(source.analystLastReport),
     updatedAt: String(source.updatedAt || ''),
   };

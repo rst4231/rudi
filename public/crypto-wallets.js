@@ -187,6 +187,28 @@
           const name=document.createElement('strong');name.textContent='Uniswap '+pos.version+' · '+pos.pair+' · #'+pos.tokenId;
           const state=document.createElement('small');state.textContent=rangeState==='in-range'?'В диапазоне':rangeState==='out-of-range'?'Вне диапазона':'Диапазон не определён';
           title.append(name,state);box.append(title);
+          // Uniswap returns raw ticks as 'range'; display human-readable
+          // token1/token0 spot and bounds from the validated pool snapshot.
+          const lpQuote=String(pos.priceQuoteSymbol||pos.pair?.split('/')?.[1]||'').trim();
+          const lpBase=String(pos.priceBaseSymbol||pos.pair?.split('/')?.[0]||'').trim();
+          const nicePrice=value=>{
+            const n=Number(value);
+            if(!Number.isFinite(n)||n<=0)return '—';
+            return n.toLocaleString('ru-RU',{maximumFractionDigits:n<0.0001?12:n<1?8:2});
+          };
+          if(Array.isArray(pos.priceRange)&&pos.priceRange.length===2&&lpQuote&&lpBase){
+            const bounds=document.createElement('div');bounds.className='finance-crypto-lp-row';
+            const label=document.createElement('span');label.textContent='Диапазон';
+            const value=document.createElement('b');
+            value.textContent=nicePrice(pos.priceRange[0])+'–'+nicePrice(pos.priceRange[1])+' '+lpQuote+' / '+lpBase;
+            bounds.append(label,value);box.append(bounds);
+          }
+          if(Number.isFinite(Number(pos.currentPrice))&&Number(pos.currentPrice)>0&&lpQuote&&lpBase){
+            const spot=document.createElement('div');spot.className='finance-crypto-lp-row';
+            const label=document.createElement('span');label.textContent='Сейчас 1 '+lpBase;
+            const value=document.createElement('b');value.textContent=nicePrice(pos.currentPrice)+' '+lpQuote;
+            spot.append(label,value);box.append(spot);
+          }
           for(const [label,value] of [['Ликвидность',pos.liquidityUsd],[pos.claimableIncludesPrincipal?'К получению (возможна ликвидность)':'Всего комиссии',pos.feesUsd]]){
             const row=document.createElement('div');row.className='finance-crypto-lp-row';
             const name=document.createElement('span');name.textContent=label;

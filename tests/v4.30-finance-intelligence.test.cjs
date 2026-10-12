@@ -86,3 +86,19 @@ test('finance UI contains literacy, analyst and autosaved categories without per
   assert.ok(css.includes('.finance-page[data-finance-tone="debts"]'));
   assert.ok(css.includes('.finance-analyst-card'));
 });
+
+
+test('financial analyst supports two reports per Moscow day and legacy one-report plans',()=>{
+ const { cleanPlan } = require('../api/finance-store.cjs');
+ const legacy=cleanPlan({analystLastDate:'2026-10-12',analystLastReport:{summary:'Старый первый анализ'}});
+ assert.equal(legacy.analystDailyCount,1);
+ const twice=cleanPlan({...legacy,analystDailyCount:2});
+ assert.equal(twice.analystDailyCount,2);
+ assert.equal(cleanPlan({...twice,analystDailyCount:99}).analystDailyCount,2);
+ const handler=fs.readFileSync('api/finances.js','utf8');
+ assert.match(handler,/runNumber: used \+ 1/);
+ assert.match(handler,/nextCount >= 2/);
+ assert.match(handler,/analyst-already-running/);
+ const ui=fs.readFileSync('public/index.html','utf8');
+ assert.match(ui,/Лимит: 2 анализа в сутки/);
+});

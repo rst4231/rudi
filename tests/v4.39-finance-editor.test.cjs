@@ -47,3 +47,22 @@ test('v4.39 finance UI contains wallet reorder, iPhone fixes and remaining plan 
   assert.ok(app.includes('function syncFinanceTemporalControl('));
   assert.ok(css.includes('.finance-wallet-list.is-editing'));
 });
+
+
+test('v4.181 category-history rows open existing expense editor with functional labels and save',()=>{
+ const html=fs.readFileSync(path.join(__dirname,'..','public/index.html'),'utf8');
+ assert.match(html,/findCategoryExpense/);
+ assert.match(html,/#financeCategoryHistoryPage \.finance-category-history-row/);
+ assert.match(html,/active\.label=String\(chip\.textContent/);
+ assert.match(html,/financeExpenseComposerSave/);
+ assert.match(html,/label:active\.label\|\|''/);
+ assert.match(html,/save\.disabled=false/);
+});
+
+
+test('expense editor always re-enables save after native composer state changes',()=>{
+ const html=fs.readFileSync(path.join(__dirname,'..','public/index.html'),'utf8');
+ assert.match(html,/expenseSaveButton=new MutationObserver|expenseSaveButton\)new MutationObserver/);
+ assert.match(html,/saving=true;button\.disabled=true/);
+ assert.match(html,/finally\{saving=false;\}/);
+});

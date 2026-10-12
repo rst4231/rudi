@@ -18,7 +18,7 @@ const DAILY_EXPENSE_SCORE_UNITS = 2;
 const ACTORS = ['Рустам', 'Диана'];
 
 const REWARDS = Object.freeze([
-  { id:"movie", label:"Выбрать фильм или сериал", description:"Ты выбираешь фильм или сериал для совместного просмотра.", icon:"🎬", costUnits:30 },
+  { id:"movie", label:"Выбрать фильм", description:"Ты выбираешь фильм для совместного просмотра.", icon:"🎬", costUnits:30 },
   { id:"dessert", label:"Десерт или вкусняшка до 300 ₽", description:"Партнёр покупает для тебя выбранный десерт или вкусняшку стоимостью до 300 ₽.", icon:"🍰", costUnits:100 },
   { id:"telegram-premium", label:"Telegram Premium на месяц", description:"Партнёр дарит подписку Telegram Premium на 1 месяц.", icon:"⭐", costUnits:110 },
   { id:"breakfast", label:"Завтрак в постель", description:"Партнёр готовит и приносит завтрак в постель.", icon:"🥐", costUnits:200 },

@@ -6,6 +6,7 @@ const {
   saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, viewState, cryptoOperationKey, classifyCryptoOperation,
 } = require('./finance-store.cjs');
 const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport, moscowDateKey } = require('./finance-ai.cjs');
+const { createRudiStateClient } = require('./rudi-state-client.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 const cryptoWallets = require('./crypto-wallets.cjs');
 const {calculatePnl24h}=require('./crypto-pnl.cjs');
@@ -520,29 +521,55 @@ async function handler(req, res) {
     }
     if (operation === 'analyst') {
       const month = String(body.month || '').trim();
-      const state = await readFinanceState();
-      const view = viewState(state, actor);
       const today = moscowDateKey();
-      if (view.plan?.analystLastDate === today && view.plan?.analystLastReport?.summary) {
-        return res.status(200).json({ ok: true, report: view.plan.analystLastReport, analystDate: today, cached: true, limitReached: true });
+      const lockClient = createRudiStateClient();
+      const lockNamespace = 'rudi-finance-analyst-lock-v1';
+      const lockKey = actor + ':' + today;
+      const acquired = await lockClient.setIfAbsent(lockNamespace, lockKey, { at: new Date().toISOString() }, { ttl: 100, tags: ['rudi-finance-analyst'] });
+      if (!acquired) return res.status(409).json({ ok: false, error: 'analyst-already-running' });
+      try {
+        // Read AFTER acquiring the lock, so simultaneous requests cannot
+        // spend the same daily allowance or return a duplicate report.
+        const state = await readFinanceState();
+        const view = viewState(state, actor);
+        const lastDate = String(view.plan?.analystLastDate || '');
+        const previousReport = view.plan?.analystLastReport || null;
+        const used = lastDate === today
+          ? Math.min(2, Math.max(0, Number(view.plan?.analystDailyCount || (previousReport?.summary ? 1 : 0))))
+          : 0;
+        if (used >= 2) return res.status(200).json({
+          ok: true, report: previousReport, analystDate: today,
+          cached: true, limitReached: true, analystDailyCount: used, remaining: 0,
+        });
+        const row = (view.personalMonths || []).find((item) => item.month === month) || { income: 0, expenses: 0, balance: 0 };
+        const literacy = await getDailyLiteracyArticle().catch(() => null);
+        const report = await getFinancialAnalystReport({
+          actor, month, version: view.version, runNumber: used + 1,
+          income: row.income, expenses: row.expenses, balance: row.balance,
+          reserve: view.plan?.reserve || 0,
+          goalTitle: view.plan?.goalTitle || '',
+          goalCurrent: view.plan?.goalCurrent || 0,
+          goalTarget: view.plan?.goalTarget || 0,
+          categories: categorySummary(view, month),
+          debts: view.debts || [],
+          literacy,
+        });
+        // Provider failures do not consume a paid daily run.
+        if (report.degraded) return res.status(200).json({
+          ok: true, report, analystDate: today, cached: false,
+          limitReached: false, degraded: true, analystDailyCount: used, remaining: 2-used,
+        });
+        const nextCount = used + 1;
+        await saveFinancePlan(actor, {
+          analystLastDate: today, analystLastReport: report, analystDailyCount: nextCount,
+        });
+        return res.status(200).json({
+          ok: true, report, analystDate: today, cached: false,
+          limitReached: nextCount >= 2, analystDailyCount: nextCount, remaining: 2-nextCount,
+        });
+      } finally {
+        await lockClient.remove(lockNamespace, lockKey).catch(() => {});
       }
-      const row = (view.personalMonths || []).find((item) => item.month === month) || { income: 0, expenses: 0, balance: 0 };
-      const literacy = await getDailyLiteracyArticle().catch(() => null);
-      const report = await getFinancialAnalystReport({
-        actor, month, version: view.version,
-        income: row.income, expenses: row.expenses, balance: row.balance,
-        reserve: view.plan?.reserve || 0,
-        goalTitle: view.plan?.goalTitle || '',
-        goalCurrent: view.plan?.goalCurrent || 0,
-        goalTarget: view.plan?.goalTarget || 0,
-        categories: categorySummary(view, month),
-        debts: view.debts || [],
-        literacy,
-      });
-      // A temporary provider failure must not consume the daily AI report allowance.
-      if (report.degraded) return res.status(200).json({ ok: true, report, analystDate: today, cached: false, limitReached: false, degraded: true });
-      await saveFinancePlan(actor, { analystLastDate: today, analystLastReport: report });
-      return res.status(200).json({ ok: true, report, analystDate: today, cached: false, limitReached: true });
     }
     if (operation === 'save-debt') {
       const state = await saveDebt(actor, body);

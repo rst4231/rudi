@@ -905,6 +905,7 @@
   }
 
   function renderHealthCheck(payload){
+    if(String(document.body?.dataset?.rudiActor||'')!=='Рустам') return;
     const summary=byId('rudiHealthSummary');
     const list=byId('rudiHealthList');
     const updated=byId('rudiHealthUpdated');
@@ -936,6 +937,8 @@
   }
 
   async function runHealthCheck(){
+    // UI protection supplements server-side actor authorization (HTTP 403).
+    if(String(document.body?.dataset?.rudiActor||'')!=='Рустам') return;
     const button=byId('rudiHealthRun');
     const list=byId('rudiHealthList');
     const summary=byId('rudiHealthSummary');
@@ -967,8 +970,14 @@
 
   function installHealthSettings(){
     const panel=byId('homeSettingsPanel');
-    if(!panel||byId('rudiHealthSettings')) return false;
-    if(String(document.body?.dataset?.rudiActor||'')!=='Рустам') return false;
+    const existing=byId('rudiHealthSettings');
+    // The actor may change without a full reload; never leave an owner-only
+    // diagnostics card visible when the authenticated partner is active.
+    if(String(document.body?.dataset?.rudiActor||'')!=='Рустам'){
+      existing?.remove();
+      return false;
+    }
+    if(!panel||existing) return false;
     const group=document.createElement('section');
     group.id='rudiHealthSettings';
     group.className='settings-group rudi-health-settings';

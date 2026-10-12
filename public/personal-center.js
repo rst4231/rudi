@@ -60,8 +60,12 @@ function attach(){
  const tryStatus=()=>{if(!document.body.classList.contains('auth-pending')){void checkStatus();return true;}return false;};
  if(window.visualViewport){window.visualViewport.addEventListener('resize',syncSheetViewport,{passive:true});window.visualViewport.addEventListener('scroll',syncSheetViewport,{passive:true});}
  if(!tryStatus()){const observer=new MutationObserver(()=>{if(tryStatus())observer.disconnect();});observer.observe(document.body,{attributes:true,attributeFilter:['class']});}
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)void checkStatus();});
- window.addEventListener('focus',()=>void checkStatus());
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)void checkStatus(true);});
+ window.addEventListener('focus',()=>void checkStatus(true));
+ // Immediately clear a previous account's halo after switching actors
+ // within the PWA, before loading the next account's unread state.
+ new MutationObserver(()=>{lastStatus=0;markHalo(false);void checkStatus(true);})
+   .observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
  installCenterPullRefresh();
  installCenterSwipeBack();
 }
@@ -81,7 +85,7 @@ async function fetchOverview(force=false){
  if(!force&&who&&data&&Date.now()-overviewAt<90000){draw();return true;}
  overviewPromise=(async()=>{
   const res=await call('overview',{knownVersion:data?.version??-1,knownReportId:report?.id||'',knownReportUpdatedAt:report?.updatedAt||report?.createdAt||'',knownEmotionVersion:data?.emotions?.version||''});
-  if(res.unchanged){overviewAt=Date.now();setStatus('');return true;}
+  if(res.unchanged){overviewAt=Date.now();markHalo(false);if(report?.id)void call('read-report').catch(()=>{});setStatus('');return true;}
   who=res.actor;data=res.data;report=res.report;cycleInfo=res.cycle||null;overviewAt=Date.now();draw();
   try{sessionStorage.setItem(cacheKey(),JSON.stringify({data,report,cycleInfo}));}catch(_){}
   markHalo(false);setStatus('');
@@ -305,15 +309,15 @@ async function recordPersonalCycle(){
 }
 function updateReportButton(){
  const button=$('pcGenerateReport');if(!button)return;
- button.hidden=who!=='Рустам';
+ button.hidden=!['Рустам','Диана'].includes(who);
  if(button.hidden)return;
- const current=report?.date===dayKey()&&report?.slot==='morning';
- button.disabled=manualLoading;
- button.textContent=manualLoading?'Анализирую…':current?(report?.model==='deterministic'?'Повторить AI-анализ':'Обновить AI-анализ'):'Получить AI-сводку';
+ const current=report?.date===dayKey()&&report?.slot==='morning'&&report?.model!=='deterministic'&&Boolean(report?.narrative);
+ button.disabled=manualLoading||Boolean(current);
+ button.textContent=manualLoading?'Анализирую…':'Обновить анализ';
  button.setAttribute('aria-busy',manualLoading?'true':'false');
 }
 async function requestDailyReport(){
- if(who!=='Рустам'||manualLoading)return;
+ if(!['Рустам','Диана'].includes(who)||manualLoading||$('pcGenerateReport')?.disabled)return;
  manualLoading=true;updateReportButton();
  try{
   // The initial read may still be running. Wait before deciding whether AI is needed.
@@ -333,7 +337,7 @@ async function requestDailyReport(){
   if(result.status==='unavailable'){
    setStatus('AI пока не ответил. Предыдущая сводка сохранена, можно повторить позже.');return;
   }
-  setStatus(report?.model==='deterministic'?'AI пока недоступен. Нажми «Повторить AI-анализ» немного позже.':
+  setStatus(report?.model==='deterministic'?'AI пока недоступен. Нажми «Обновить анализ» немного позже.':
    result.status==='upgraded'?'Полноценный AI-анализ готов!':
    result.status==='regenerated'?'AI-сводка обновлена!':
    result.status==='created'?'Сводка за сегодня готова':'Сегодняшняя сводка уже сохранена');
@@ -415,7 +419,7 @@ function sheet(name){
         }
       }else{
         html+=section('Эта сводка создана в прежнем формате',who==='Рустам'
-          ?'Новый глубокий анализ пока не сохранён. Вернись на личную страницу и нажми «Обновить AI-анализ».'
+          ?'Новый глубокий анализ пока не сохранён. Вернись на личную страницу и нажми «Обновить анализ».'
           :'Новый глубокий анализ появится после следующего автоматического формирования сводки.');
       }
     }

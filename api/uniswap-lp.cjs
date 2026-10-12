@@ -100,6 +100,28 @@ function liquidityAmounts(liquidity,sqrtCurrent,lower,upper) {
   if(P>=B)return [0n,L*(B-A)/Q96];
   return [L*(B-P)*Q96/B/P,L*(P-A)/Q96];
 }
+// Prices are token1 per ONE token0, not raw sqrt ticks. Use the same
+// on-chain pool snapshot as liquidity valuation: zero extra RPC requests.
+function lpQuotePriceFromSqrt(sqrtPriceX96, decimals0, decimals1){
+  const ratio=Number(sqrtPriceX96)/Number(Q96);
+  const quote=ratio*ratio*Math.pow(10,Number(decimals0)-Number(decimals1));
+  return Number.isFinite(quote)&&quote>0?quote:null;
+}
+function lpQuotePriceFromTick(tick,decimals0,decimals1){
+  const quote=Math.pow(1.0001,Number(tick))*Math.pow(10,Number(decimals0)-Number(decimals1));
+  return Number.isFinite(quote)&&quote>0?quote:null;
+}
+function lpPriceDetails(sqrtPriceX96,lower,upper,token0,token1){
+  const decimals0=token0.decimals,decimals1=token1.decimals;
+  const low=lpQuotePriceFromTick(lower,decimals0,decimals1);
+  const high=lpQuotePriceFromTick(upper,decimals0,decimals1);
+  return {
+    priceBaseSymbol:token0.symbol,
+    priceQuoteSymbol:token1.symbol,
+    currentPrice:lpQuotePriceFromSqrt(sqrtPriceX96,decimals0,decimals1),
+    priceRange:low!==null&&high!==null?[Math.min(low,high),Math.max(low,high)]:null,
+  };
+}
 function decimal(raw,decimals){const q=10n**BigInt(decimals);return Number(raw/q)+Number(raw%q)/Number(q);}
 function val(raw,tok,prices) {
   const price=prices[tok.symbol];
@@ -198,6 +220,7 @@ async function snapshotV3(owner,id,prices,ctx) {
   const feesUsd=val(claim0,t0,prices)+val(claim1,t1,prices);
   return {version:'v3',tokenId:id,pair:t0.symbol+'/'+t1.symbol,feeTier:fee/1e4,
     range:[low,high],inRange:slot.tick>=low&&slot.tick<high,
+    ...lpPriceDetails(slot.sqrt,low,high,t0,t1),
     liquidityUsd,feesUsd,claimableIncludesPrincipal:owed0>0n||owed1>0n,
     liquidity:[{symbol:t0.symbol,amount:decimal(amount0,t0.decimals)},{symbol:t1.symbol,amount:decimal(amount1,t1.decimals)}],
     fees:[{symbol:t0.symbol,amount:decimal(claim0,t0.decimals)},{symbol:t1.symbol,amount:decimal(claim1,t1.decimals)}]};
@@ -223,6 +246,7 @@ async function snapshotV4(owner,id,prices,ctx) {
   const feesUsd=val(owed0,t0,prices)+val(owed1,t1,prices);
   return {version:'v4',tokenId:id,pair:t0.symbol+'/'+t1.symbol,feeTier:Number(fee)/1e4,
     range:[lower,upper],inRange:slot[0]>sqrtTick(lower)&&slot[0]<sqrtTick(upper),
+    ...lpPriceDetails(slot[0],lower,upper,t0,t1),
     liquidityUsd,feesUsd,claimableIncludesPrincipal:false,
     liquidity:[{symbol:t0.symbol,amount:decimal(amount0,t0.decimals)},{symbol:t1.symbol,amount:decimal(amount1,t1.decimals)}],
     fees:[{symbol:t0.symbol,amount:decimal(owed0,t0.decimals)},{symbol:t1.symbol,amount:decimal(owed1,t1.decimals)}]};
@@ -255,4 +279,4 @@ async function readLpPositions(owner,prices,{rpc,options={}}) {
   if(!Number.isFinite(liquidityUsd+feesUsd)||liquidityUsd+feesUsd>1e12)throw new Error('crypto-lp-amount-invalid');
   return {positions,liquidityUsd,feesUsd,incomplete:Boolean(v4Error),v4Error};
 }
-module.exports={V3,V4,STATE_VIEW,NETWORKS,selector,keccak256,sqrtTick,liquidityAmounts,readLpPositions,snapshotV3,snapshotV4};
+module.exports={V3,V4,STATE_VIEW,NETWORKS,selector,keccak256,sqrtTick,liquidityAmounts,lpQuotePriceFromSqrt,lpQuotePriceFromTick,lpPriceDetails,readLpPositions,snapshotV3,snapshotV4};

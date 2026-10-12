@@ -119,7 +119,7 @@
     })();
   </script>
 
-  <script defer src="/pwa-extras.js?v=4.149"></script>
+  <script defer src="/pwa-extras.js?v=4.181"></script>
   <script defer src="/weather.js?v=4.149"></script>
   <script defer src="/smart-home.js?v=4.149"></script>
   <script defer src="/car.js?v=4.149"></script>
@@ -1058,7 +1058,7 @@
       <div id="financeLiteracyPanel" class="finance-tab-panel finance-literacy-panel" data-finance-panel="literacy" hidden>
         <article class="finance-analyst-card" aria-labelledby="financeAnalystTitle">
           <h2 id="financeAnalystTitle">Финансовый аналитик</h2>
-          <div class="finance-analyst-limit">Лимит: 1 анализ в сутки</div>
+          <div class="finance-analyst-limit">Лимит: 2 анализа в сутки</div>
           <button id="financeAnalystButton" class="finance-analyst-button" type="button">Получить анализ</button>
           <div id="financeAnalystStatus" class="finance-status" role="status" aria-live="polite"></div>
           <div id="financeAnalystResult" class="finance-analyst-result" hidden></div>
@@ -2567,7 +2567,7 @@
   <!-- v2.137 production release marker -->
 <script data-v468-expense-editor>
 (()=>{
-let active=null,cache=null,cacheAt=0;
+let active=null,cache=null,cacheAt=0,saving=false;
 const tg=window.Telegram?.WebApp;
 const req=async(operation,payload={})=>{
  const res=await fetch('/api/finances',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'});
@@ -2586,6 +2586,10 @@ const modal=()=>document.getElementById('financeExpenseComposer');
 const ensureTopLayer=()=>{const m=modal();if(m&&m.parentElement!==document.body)document.body.appendChild(m)};
 ensureTopLayer();
 const closeEdit=()=>{active=null};
+const expenseSaveButton=document.getElementById('financeExpenseComposerSave');
+if(expenseSaveButton)new MutationObserver(()=>{
+ if(active&&!saving&&expenseSaveButton.disabled)expenseSaveButton.disabled=false;
+}).observe(expenseSaveButton,{attributes:true,attributeFilter:['disabled']});
 document.getElementById('financeExpenseComposerClose')?.addEventListener('click',closeEdit,true);
 document.getElementById('financeExpenseComposerBackdrop')?.addEventListener('click',closeEdit,true);
 const open=async expense=>{
@@ -2598,7 +2602,7 @@ const open=async expense=>{
  const currencySymbol={RUB:'₽',USD:'$',EUR:'€',BTC:'₿',ETH:'Ξ',USDT:'₮'}[inputCurrency]||inputCurrency;
  if(title)title.textContent='Редактировать · '+(cat?.name||'Расход');
  if(icon)icon.textContent=cat?.icon||'💳';
- if(amount)amount.value=String(Number(expense.sourceAmount||expense.amount||0)).replace('.',',');
+ if(amount)amount.value=String(Number(expense.sourceAmount??expense.amount??0)).replace('.',',');
  if(currency)currency.textContent=currencySymbol;
  if(switcher)switcher.hidden=true;
  if(conversion)conversion.hidden=true;
@@ -2607,11 +2611,21 @@ const open=async expense=>{
  if(time){time.value=st.time;sync(time)}
  if(source){source.hidden=!wallet;source.textContent=wallet?'Источник: '+wallet.name:''}
  const labels=document.getElementById('financeExpenseLabelList');
- if(labels){[...labels.children].forEach(b=>{const value=String(b.textContent||'').trim();b.classList.toggle('is-active',value===String(expense.label||''));b.setAttribute('aria-selected',value===String(expense.label||'')?'true':'false')})}
+ if(labels){labels.querySelectorAll('button.finance-expense-label-chip').forEach(b=>{const value=String(b.textContent||'').trim();b.classList.toggle('is-active',value===String(expense.label||''));b.setAttribute('aria-selected',value===String(expense.label||'')?'true':'false')})}
+ const save=document.getElementById('financeExpenseComposerSave');if(save)save.disabled=false;
+ const status=document.getElementById('financeExpenseComposerStatus');if(status)status.textContent='';
  m.hidden=false;m.setAttribute('aria-hidden','false');document.body.classList.add('finance-coin-modal-open')
 };
 document.addEventListener('click',async e=>{
- const chip=e.target.closest('#financeExpenseLabelList button');if(active&&chip){active.label=String(chip.textContent||'').trim();return}
+ const chip=e.target.closest('#financeExpenseLabelList .finance-expense-label-chip');if(active&&chip){
+   e.preventDefault();e.stopImmediatePropagation();
+   active.label=String(chip.textContent||'').trim();
+   document.querySelectorAll('#financeExpenseLabelList .finance-expense-label-chip').forEach(b=>{
+     const chosen=b===chip;b.classList.toggle('is-active',chosen);b.setAttribute('aria-selected',chosen?'true':'false');
+   });
+   const save=document.getElementById('financeExpenseComposerSave');if(save)save.disabled=false;
+   return;
+ }
  if(e.target.closest('button,select,input,a'))return;
  const row=e.target.closest('#financeOperationList .finance-operation-row.is-expense');if(!row)return;
  const all=[...document.querySelectorAll('#financeOperationList .finance-operation-row.is-expense')],idx=all.indexOf(row);if(idx<0)return;
@@ -2621,9 +2635,54 @@ document.getElementById('financeExpenseComposerSave')?.addEventListener('click',
  if(!active)return;
  e.preventDefault();e.stopImmediatePropagation();
  const button=e.currentTarget,amountEl=document.getElementById('financeExpenseComposerAmount'),date=document.getElementById('financeExpenseComposerDate')?.value,time=document.getElementById('financeExpenseComposerTime')?.value,note=document.getElementById('financeExpenseComposerNote')?.value||'';
- const amount=Number(String(amountEl?.value||'').replace(/\s/g,'').replace(',','.'));if(!amount||!date||!time)return;
- button.disabled=true;
- try{await req('save-expense',{id:active.id,month:date.slice(0,7),categoryId:active.categoryId,amount,inputCurrency:active.sourceCurrency||'RUB',walletId:active.walletId||'',occurredAt:new Date(date+'T'+time+':00+03:00').toISOString(),label:active.label||'',note});document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));active=null;cache=null;location.reload()}catch(_){button.disabled=false;const s=document.getElementById('financeExpenseComposerStatus');if(s)s.textContent='Не удалось сохранить изменения'}
+ const amount=Number(String(amountEl?.value||'').replace(/\s/g,'').replace(',','.'));
+ const status=document.getElementById('financeExpenseComposerStatus');
+ if(!Number.isFinite(amount)||amount<=0||!date||!time){if(status)status.textContent='Укажи сумму, дату и время расхода';return;}
+ const occurredAt=new Date(date+'T'+time+':00+03:00');
+ if(Number.isNaN(occurredAt.getTime())){if(status)status.textContent='Проверь дату и время';return;}
+ saving=true;button.disabled=true;if(status)status.textContent='Сохраняю…';
+ try{
+   await req('save-expense',{id:active.id,month:date.slice(0,7),categoryId:active.categoryId,amount,inputCurrency:active.sourceCurrency||'RUB',walletId:active.walletId||'',occurredAt:occurredAt.toISOString(),label:active.label||'',note});
+   document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));active=null;cache=null;location.reload();
+ }catch(error){
+   saving=false;button.disabled=false;
+   if(status)status.textContent=String(error?.message||'').includes('rate')
+     ?'Не удалось получить курс валют, попробуй позже'
+     :'Не удалось сохранить изменения: '+String(error?.message||'ошибка');
+ }finally{saving=false;}
+},true);
+// Editing from category history reuses the existing composer, not a new modal.
+const normalizeRowText=v=>String(v||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/\s+/g,' ');
+const findCategoryExpense=(row,data)=>{
+ const directId=row.dataset.expenseId||row.dataset.id||row.querySelector('[data-expense-id]')?.dataset.expenseId||'';
+ if(directId){
+   const exact=(data.personalExpenses||[]).find(x=>String(x.id)===String(directId));
+   if(exact)return exact;
+ }
+ const title=normalizeRowText(document.querySelector('#financeCategoryHistoryPage .finance-category-history-title h2')?.textContent);
+ const category=(data.categories||[]).find(c=>normalizeRowText(c.name)===title);
+ const heading=normalizeRowText(row.closest('.finance-category-history-day')?.querySelector('.finance-category-history-day-head strong')?.textContent);
+ const label=normalizeRowText(row.querySelector('.finance-category-history-copy strong')?.textContent);
+ const extra=normalizeRowText(row.querySelector('.finance-category-history-copy small')?.textContent);
+ const amountMatch=String(row.querySelector(':scope > b')?.textContent||'').match(/[0-9\s,\.]+/);
+ const amount=Math.abs(Number(String(amountMatch?.[0]||'').replace(/\s/g,'').replace(',','.')));
+ let candidates=(data.personalExpenses||[]).filter(x=>!x.manualAdjustment&&(!category||x.categoryId===category.id));
+ if(heading){const sameDay=candidates.filter(x=>normalizeRowText(new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'Europe/Moscow'}).format(new Date(x.occurredAt||x.createdAt)))===heading);if(sameDay.length)candidates=sameDay;}
+ if(label){const sameLabel=candidates.filter(x=>normalizeRowText(x.note)===label||normalizeRowText(x.label)===label);if(sameLabel.length)candidates=sameLabel;}
+ if(Number.isFinite(amount)&&amount>0){const sameAmount=candidates.filter(x=>Math.abs(Number(x.sourceAmount??x.amount??0)-amount)<0.005||Math.abs(Number(x.amount||0)-amount)<0.005);if(sameAmount.length)candidates=sameAmount;}
+ if(extra){const sameTime=candidates.filter(x=>extra.includes(stamp(x.occurredAt||x.createdAt).time));if(sameTime.length)candidates=sameTime;}
+ candidates.sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')));
+ if(candidates.length===1)return candidates[0];
+ const index=[...(row.parentElement?.querySelectorAll(':scope > .finance-category-history-row')||[])].indexOf(row);
+ return candidates[Math.max(0,index)]||candidates[0]||null;
+};
+document.addEventListener('click',async e=>{
+ const row=e.target.closest('#financeCategoryHistoryPage .finance-category-history-row');
+ if(!row||e.target.closest('button,a,input,select,textarea'))return;
+ e.preventDefault();e.stopPropagation();
+ try{const data=await getState(true),expense=findCategoryExpense(row,data);
+   if(expense)await open(expense);else console.warn('RUDI_FINANCE_CATEGORY_EDIT_NOT_FOUND');
+ }catch(error){console.warn('RUDI_FINANCE_CATEGORY_EDIT_WARN',String(error?.message||error));}
 },true);
 const back=document.getElementById('financeExpenseHistoryBack');
 back?.addEventListener('click',e=>{const m=modal();if(active&&m&&!m.hidden){e.preventDefault();e.stopImmediatePropagation();m.hidden=true;m.setAttribute('aria-hidden','true');document.body.classList.remove('finance-coin-modal-open');active=null}},true);
@@ -2632,5 +2691,83 @@ new MutationObserver(()=>cleanTrend()).observe(document.getElementById('financeC
 })();
 </script>
 <!-- RUDI v4.138 contact spacing release -->
+<script data-v4181-financial-analyst-limit>
+
+(()=>{
+'use strict';
+const button=document.getElementById('financeAnalystButton');
+if(!button)return;
+const status=document.getElementById('financeAnalystStatus');
+const output=document.getElementById('financeAnalystResult');
+const limitText=document.querySelector('.finance-analyst-limit');
+const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+let count=null,busy=false,loadedAt=0;
+const request=async(operation,payload={})=>{
+ try{await Promise.resolve(window.__rudiTelegramSdkReady)}catch(_){}
+ const res=await fetch('/api/finances',{
+   method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({initData:String(window.Telegram?.WebApp?.initData||''),operation,...payload})
+ });
+ const body=await res.json().catch(()=>({}));
+ if(!res.ok||!body.ok)throw new Error(String(body.error||'finance-request-failed'));
+ return body;
+};
+const used=plan=>plan?.analystLastDate===today()
+ ?Math.min(2,Math.max(0,Number(plan?.analystDailyCount??(plan?.analystLastReport?.summary?1:0))||0)):0;
+const sync=()=>{
+ if(count===null)return;
+ const shouldDisable=busy||count>=2;
+ if(button.disabled!==shouldDisable)button.disabled=shouldDisable;
+ if(limitText)limitText.textContent='Лимит: 2 анализа в сутки · осталось '+Math.max(0,2-count);
+};
+const renderReport=report=>{
+ if(!output||!report?.summary)return;
+ const element=(tag,text)=>{const row=document.createElement(tag);row.textContent=String(text||'');return row;};
+ output.replaceChildren();output.hidden=false;
+ output.append(element('p',report.summary));
+ for(const [heading,rows] of [['Сильные стороны',report.strengths],['Риски',report.risks]]){
+   if(!Array.isArray(rows)||!rows.length)continue;
+   output.append(element('h3',heading));
+   const list=document.createElement('ul');
+   rows.forEach(row=>list.append(element('li',row)));output.append(list);
+ }
+};
+const refresh=async(force=false)=>{
+ if(busy||(!force&&Date.now()-loadedAt<20000))return;
+ try{
+   const data=await request('list');count=used(data.plan);loadedAt=Date.now();sync();
+ }catch(_){}
+};
+new MutationObserver(sync).observe(button,{attributes:true,attributeFilter:['disabled']});
+// The legacy runtime consumes the first daily report as the whole allowance;
+// capture analyst clicks here and let the server enforce its two-call quota.
+window.addEventListener('click',event=>{
+ if(!event.target.closest?.('#financeAnalystButton'))return;
+ event.preventDefault();event.stopImmediatePropagation();
+ if(busy||count>=2){sync();return;}
+ busy=true;sync();if(status)status.textContent='Готовлю анализ…';
+ const month=String(document.getElementById('financePersonalMonthInput')?.value||today().slice(0,7));
+ void request('analyst',{month}).then(data=>{
+   if(data.report&&!data.degraded)renderReport(data.report);
+   count=Math.min(2,Math.max(0,Number(data.analystDailyCount??count??0)));
+   if(status)status.textContent=data.degraded?'AI временно недоступен, попытка не потрачена.'
+      :data.cached?'Лимит на сегодня исчерпан.':'Анализ готов. Осталось '+Math.max(0,2-count)+' из 2.';
+   loadedAt=Date.now();
+ }).catch(error=>{
+   if(status)status.textContent=String(error.message).includes('already-running')
+     ?'Анализ уже создаётся, подожди немного.':'Не удалось получить анализ. Попробуй позже.';
+ }).finally(()=>{busy=false;sync()});
+},true);
+// No extra finance API request on home startup.
+document.addEventListener('click',event=>{
+ if(event.target.closest?.('[data-finance-tab="literacy"],#financeAnalystTitle'))
+    setTimeout(()=>void refresh(true),150);
+},true);
+const isAnalystOpen=()=>document.querySelector('#financeLiteracyPanel')?.hidden===false;
+const boot=()=>{if(isAnalystOpen())void refresh(true);};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+else boot();
+})();
+</script>
 </body>
 </html>

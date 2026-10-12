@@ -46,8 +46,8 @@ test('v4.57 requested finance UI changes are wired',()=>{
   assert.ok(app.includes('function openFinanceMonthPicker(input)'));
   assert.ok(html.includes('id="financeWalletHistoryWrap"'));
   assert.ok(app.includes("if(historyWrap)historyWrap.hidden=!wallet"));
-  assert.ok(html.includes('Лимит: 1 анализ в сутки'));
-  assert.ok(api.includes("view.plan?.analystLastDate === today"));
+  assert.ok(html.includes('Лимит: 2 анализа в сутки'));
+  assert.ok(api.includes("lastDate === today"));
   assert.ok(html.includes('id="financeBalanceProgressBar"'));
   assert.ok(html.includes('id="financeBalanceProgressPercent"'));
   assert.ok(app.includes("progressPercent.textContent=financePercent(spentPercent)"));
@@ -166,7 +166,7 @@ test('v4.74 removes redundant finance helper copy',()=>{
     'Анализирует доходы, расходы, бюджеты, обязательные платежи и долги и даёт краткий разбор.'
   ].forEach(text=>assert.ok(!html.includes(text)));
   assert.ok(!app.includes("Сохраняем дневные снимки общего баланса"));
-  assert.ok(html.includes('Лимит: 1 анализ в сутки'));
+  assert.ok(html.includes('Лимит: 2 анализа в сутки'));
   assert.ok(app.includes('Запланированных ежемесячных расходов нет'));
   assert.ok(html.includes('Расходов за выбранный месяц нет'));
   assert.ok(html.includes('Доходов за выбранный месяц нет'));
@@ -247,6 +247,6 @@ test('v4.75 removes remaining decorative finance labels and gaps',()=>{
   assert.ok(app.includes("if(summary)summary.hidden=false"));
   assert.ok(css.includes("RUDI v4.75 — compact finance headers after helper-copy cleanup"));
   assert.ok(css.includes(".finance-capital-summary[hidden]"));
-  assert.ok(html.includes('Лимит: 1 анализ в сутки'));
+  assert.ok(html.includes('Лимит: 2 анализа в сутки'));
   assert.ok(html.includes('Добавь цель, чтобы видеть прогресс'));
 });

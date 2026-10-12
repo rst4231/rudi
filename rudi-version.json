@@ -1,17 +1,16 @@
 {
-  "current": "v4.180",
+  "current": "v4.181",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.179",
+  "basedOnProduction": "v4.180",
   "notes": [
-    "Show clear reasons when 24h/month unadjusted crypto valuation is unavailable: incomplete Bybit account coverage, Uniswap LP discovery, Trust Wallet coverage, too-short or partial history, stale sync, or missing month opening snapshot.",
-    "Preserve original history, balances and strict no-fabricated PNL policy; expose recorded hours and count of affected sources.",
-    "Add regression tests for 13h history, partial snapshots and missing first-of-month baseline.",
-    "Front-end cache-bust finance crypto JS to v4.180. No DB data migration.",
-    "When the Personal Finance overview switches to USD, show RUB wallet tiles as native rubles plus a dollar equivalent in parentheses using the existing USD/RUB ticker; switch back without changing recorded balances, and skip conversion if no valid rate is available."
+    "Hide the 'Работа РуДи' diagnostic panel for Diana's account, including immediate removal when changing active account without a full page reload. Keep authenticated server-side owner-only 403 enforcement.",
+    "Move gifted stars notification to recipient-only push and private notification bell event, with deduplication; stop broadcasting gift notification to all Telegram recipients.",
+    "Rename 3-star movie reward to 'Выбрать фильм' while preserving reward ID, cost and prior redemption compatibility.",
+    "Maintain live Cloudflare public Bybit author hourly/mark/funding D1 cache without changing the Vercel production deployment for the cache itself."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

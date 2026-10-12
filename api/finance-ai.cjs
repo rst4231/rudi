@@ -256,7 +256,8 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
   const month = compact(context.month, 10);
   const version = Math.max(0, Number(context.version || 0));
   const literacyDate = compact(context.literacy?.date, 20);
-  const key = ['analyst-v4', actor, month, version, literacyDate || 'none'].join(':');
+  const runNumber = Math.min(2, Math.max(1, Math.trunc(Number(context.runNumber) || 1)));
+  const key = ['analyst-v4', actor, month, version, literacyDate || 'none', runNumber].join(':');
   const cache = cacheOf(options);
   const existing = await cache.get(key);
   if (existing?.summary) return existing;
@@ -273,6 +274,7 @@ async function getFinancialAnalystReport(context = {}, options = {}) {
   const prompt = [
     'Ты — финансовый аналитик внутри приложения РуДи.',
     'Сделай персональный разбор финансов пользователя на русском языке на основе его фактических доходов, расходов по категориям, цели и долгов.',
+    'Это анализ № ' + runNumber + ' за сегодня. Каждый запуск составляй по текущим фактам, не копируй предыдущий отчёт.',
     'Всегда обращайся к пользователю на «вы»: «у вас», «ваши расходы», «вам стоит». Никогда не упоминай имя пользователя в готовом ответе и не пиши «у Рустама» или «у Дианы».',
     'Месяц в тексте склоняй естественно: например, «у вас в октябре», а не «в октября».',
     'Используй здравые принципы личных финансов из качественной литературы: The Psychology of Money, The Millionaire Next Door, Your Money or Your Life, The Little Book of Common Sense Investing, A Random Walk Down Wall Street, I Will Teach You to Be Rich и других.',
