@@ -12,7 +12,7 @@
     return new Date(values.year,values.month-1,values.day,12,0,0);
   };
   let snapshot=null,loadedAt=0,working=false,activeMode='purchase';
-  let expenseChartPeriod='week',expenseChartSelected=-1;
+  let expenseChartPeriod='week',expenseChartSelected=-1,expenseChartYear=null;
   let coinKeeperChartArchive=null;
   const request=async(operation,payload={})=>{
     try{await window.__rudiTelegramSdkReady}catch(_){}
@@ -64,6 +64,7 @@
           <div class="rudi-weekly-head">
             <h2 id="rudiWeeklyHeading">Расходы за неделю</h2>
             <span id="rudiWeeklyRange"></span>
+            <select id="rudiExpenseChartYear" class="rudi-year-picker" aria-label="Выбрать год расходов и доходов" hidden></select>
           </div>
           <div id="rudiExpensePeriods" class="rudi-expense-periods" role="group" aria-label="Период расходов">
             <button type="button" data-rudi-expense-period="week" aria-pressed="true">Неделя</button>
@@ -111,6 +112,11 @@
         const button=event.target.closest?.('button[data-rudi-expense-period]');
         if(!button||button.dataset.rudiExpensePeriod===expenseChartPeriod)return;
         expenseChartPeriod=button.dataset.rudiExpensePeriod;expenseChartSelected=-1;renderWeeklyExpenses();
+      });
+      id('rudiExpenseChartYear')?.addEventListener('change',event=>{
+        const year=Number(event.target.value),currentYear=nowMoscow().getFullYear();
+        if(!Number.isInteger(year)||year<2016||year>currentYear)return;
+        expenseChartYear=year;expenseChartSelected=-1;renderWeeklyExpenses();
       });
       id('rudiWeeklyBars')?.addEventListener('click',event=>{
         const button=event.target.closest?.('button[data-rudi-expense-index]');
@@ -300,16 +306,39 @@
   function renderWeeklyExpenses(){
     const host=id('rudiWeeklyBars'),range=id('rudiWeeklyRange');
     if(!host||!snapshot)return;
-    const base=core.expensePeriod(snapshot,nowMoscow(),expenseChartPeriod);
+    const today=nowMoscow(),isYear=expenseChartPeriod==='year';
+    const currentYear=today.getFullYear();
+    const chosenYear=Number.isInteger(expenseChartYear)&&expenseChartYear>=2016&&expenseChartYear<=currentYear
+      ?expenseChartYear:currentYear;
+    const base=core.expensePeriod(snapshot,isYear?new Date(chosenYear,0,1,12):today,expenseChartPeriod);
     // Do not mutate the live finance snapshot or turn CoinKeeper transfers into income.
     const archive=document.body?.dataset.rudiActor==='Рустам'?coinKeeperChartArchive?.days||{}:{};
     const data=core.overlayExpensePeriod(base,archive,snapshot.walletIncomes||[]);
-    const ctx=currencyContext(),isYear=expenseChartPeriod==='year';
+    const ctx=currencyContext();
     const dateText=key=>new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'})
       .format(new Date(key+'T12:00:00Z'));
     const titles={week:'неделю',month:'месяц',year:'год'},title=id('rudiWeeklyHeading');
     if(title)title.textContent=isYear?'Расходы/Доходы за год':'Расходы за '+titles[expenseChartPeriod];
-    if(range)range.textContent=isYear?data.from.slice(0,4):dateText(data.from)+' – '+dateText(data.to);
+    if(range){
+      range.hidden=isYear;
+      range.textContent=isYear?'':dateText(data.from)+' – '+dateText(data.to);
+    }
+    const yearPicker=id('rudiExpenseChartYear');
+    if(yearPicker){
+      yearPicker.hidden=!isYear;
+      if(isYear){
+        if(yearPicker.options.length!==currentYear-2016+1){
+          yearPicker.replaceChildren();
+          for(let year=currentYear;year>=2016;year--){
+            const option=document.createElement('option');
+            option.value=String(year);
+            option.textContent=String(year);
+            yearPicker.appendChild(option);
+          }
+        }
+        yearPicker.value=String(chosenYear);
+      }
+    }
     document.querySelectorAll('[data-rudi-expense-period]').forEach(button=>
       button.setAttribute('aria-pressed',String(button.dataset.rudiExpensePeriod===expenseChartPeriod)));
     const hidden=id('financeBalanceEyeButton')?.getAttribute('aria-pressed')==='true';
