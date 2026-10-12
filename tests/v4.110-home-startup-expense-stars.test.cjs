@@ -67,7 +67,7 @@ test('per-actor startup options valid, car restricted, preference persists throu
   assert.equal(first.startupTab,'car');
   const next=await saveUiPreferences('Диана',{startupTab:'car'},{uiPreferencesCache:memoryCache()});
   assert.equal(next.startupTab,'home');
-  assert.match(prefsSource,/syncSchemaVersion: 10/);
+  assert.match(prefsSource,/syncSchemaVersion: 11/);
 });
 test('scripts are parseable',()=>{
   assert.doesNotThrow(()=>new Function(app));

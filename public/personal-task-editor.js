@@ -40,8 +40,8 @@ function init(){
     '<form id="rudiPersonalTaskForm" class="ticktick-task-form">'+
       '<label class="ticktick-task-field"><span>Что сделать</span><input id="rudiPersonalTaskTitle" maxlength="500" required autocomplete="off"></label>'+
       '<div class="ticktick-task-field-row ticktick-task-date-time-row">'+
-       '<label class="ticktick-task-field"><span>Дата</span><input id="rudiPersonalTaskDate" type="date"></label>'+
-       '<label class="ticktick-task-field"><span>Время</span><input id="rudiPersonalTaskTime" type="time"></label></div>'+
+       '<label class="ticktick-task-field"><span>Дата</span><span class="rudi-personal-temporal-control"><span class="rudi-personal-temporal-value" data-personal-temporal-value="date" aria-hidden="true"></span><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 10h18"/></svg><input id="rudiPersonalTaskDate" type="date" class="rudi-personal-temporal-native" aria-label="Дата дела"></span></label>'+
+       '<label class="ticktick-task-field"><span>Время</span><span class="rudi-personal-temporal-control"><span class="rudi-personal-temporal-value" data-personal-temporal-value="time" aria-hidden="true"></span><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><input id="rudiPersonalTaskTime" type="time" class="rudi-personal-temporal-native" aria-label="Время дела"></span></label></div>'+
 
       '<label class="ticktick-task-field"><span>Список TickTick</span><select id="rudiPersonalTaskProject"><option value="">Загружаю списки…</option></select></label>'+
       '<label class="ticktick-task-field"><span>Описание</span><textarea id="rudiPersonalTaskDescription" maxlength="5000" rows="3" placeholder="Необязательно"></textarea></label>'+
@@ -67,7 +67,32 @@ function init(){
   document.addEventListener('scroll',closeMenu,true);
   document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeMenu();if(!modal.hidden)close()}});
 }
-function syncTime(){if(f('time'))f('time').disabled=!f('date').value}
+function temporalDisplay(type){
+  if(!modal)return null;
+  return modal.querySelector('[data-personal-temporal-value="'+type+'"]');
+}
+function updateTemporalDisplay(type){
+  const display=temporalDisplay(type),input=f(type);
+  if(!display||!input)return;
+  const v=String(input.value||'');
+  if(type==='time'){
+    display.textContent=v||'Без времени';
+  }else{
+    if(/^20\d\d-\d\d-\d\d$/.test(v)){
+      const timestamp=new Date(v+'T12:00:00Z');
+      display.textContent=Number.isFinite(timestamp.getTime())
+        ?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(timestamp)
+        :'Выбрать дату';
+    }else display.textContent='Выбрать дату';
+  }
+  display.classList.toggle('is-placeholder',!v);
+}
+function syncTime(){
+  const date=f('date'),time=f('time');
+  if(time)time.disabled=!date?.value;
+  updateTemporalDisplay('date');
+  updateTemporalDisplay('time');
+}
 function closeMenu(){if(menu)menu.hidden=true}
 function close(){
   if(busy)return;
@@ -155,8 +180,11 @@ function replaceTemporalInputs(){
     const fresh=document.createElement('input');
     fresh.id=previous.id;
     fresh.type=type;
+    fresh.className='rudi-personal-temporal-native';
+    fresh.setAttribute?.('aria-label',type==='date'?'Дата дела':'Время дела');
     previous.replaceWith(fresh);
-    if(type==='date')fresh.addEventListener('change',syncTime);
+    fresh.addEventListener('change',type==='date'?syncTime:()=>updateTemporalDisplay('time'));
+    fresh.addEventListener('input',type==='date'?syncTime:()=>updateTemporalDisplay('time'));
   }
 }
 function open(task,ctx={}){

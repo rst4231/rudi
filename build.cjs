@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { PNG } = require('pngjs');
 
-const WEB_ASSETS = ['personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'rudi-effects.js', 'rudi-effects.css', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js'];
+const WEB_ASSETS = ['personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'personal-task-editor.js', 'personal-task-editor.css', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'rudi-effects.js', 'rudi-effects.css', 'personal-task-editor.js', 'personal-task-editor.css', 'meditation.js', 'meditation.css', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -124,7 +124,7 @@ function syncWebVersion(env = process.env) {
     const pattern = new RegExp('/assets/' + stem + '\\.[a-f0-9]{12}\\' + ext, 'g');
     html = html.replace(pattern, '/' + name + '?v=' + assetVersion);
   }
-  for(const name of ['crypto-wallets.css','crypto-wallets.js','crypto-signals.css','crypto-signals.js','crypto-algorithms.css','crypto-algorithms.js']){
+  for(const name of ['crypto-wallets.css','crypto-wallets.js','crypto-signals.css','crypto-signals.js','crypto-algorithms.css','crypto-algorithms.js','personal-task-editor.js','personal-task-editor.css','meditation.js','meditation.css']){
     const escaped=name.replace(/\./g,'\\.');
     html=html.replace(new RegExp('/'+escaped+'\\?v=[^"\\s]+','g'),'/'+name+'?v='+assetVersion);
   }
@@ -142,6 +142,10 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/smart-home\.css\?v=[^"]+/g, '/smart-home.css?v=' + assetVersion);
   html = html.replace(/\/car\.css\?v=[^"]+/g, '/car.css?v=' + assetVersion);
   html = html.replace(/\/app\.js\?v=[^"]+/g, '/app.js?v=' + assetVersion);
+  for (const name of ['personal-task-editor.js', 'personal-task-editor.css']) {
+    const escaped = name.replace(/\./g, '\\.');
+    html = html.replace(new RegExp('/' + escaped + '\\?v=[^"\\s]+', 'g'), '/' + name + '?v=' + assetVersion);
+  }
   html = html.replace(/\/calendar-day-recap\.js\?v=[^"]+/g, '/calendar-day-recap.js?v=' + assetVersion);
   html = html.replace(/\/wallet-brand-icons\.js\?v=[^"]+/g, '/wallet-brand-icons.js?v=' + assetVersion);
   html = html.replace(/\/finance-bank\.js\?v=[^"]+/g, '/finance-bank.js?v=' + assetVersion);

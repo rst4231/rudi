@@ -99,14 +99,14 @@ test('birthday modal shows once per birthday and requires authenticated actor',(
  assert.match(js,/birthday-greeting/);
  assert.match(app,/window\.RUDI_EFFECTS\?\.init\?\.\(\{actor:currentActor,birthdays:config\?\.birthdays/);
  const html=src('public/index.html');
- assert.ok(html.indexOf('/rudi-effects.js?v=4.200')>=0);
- assert.ok(html.indexOf('/rudi-effects.js?v=4.200')<html.indexOf('/app.js?v='));
+ assert.ok(html.indexOf('/rudi-effects.js?v='+JSON.parse(src('rudi-version.json')).current.slice(1))>=0);
+ assert.ok(html.indexOf('/rudi-effects.js?v='+JSON.parse(src('rudi-version.json')).current.slice(1))<html.indexOf('/app.js?v='));
 });
 test('decorative animations are non-interactive across every app screen and respect reduced motion',()=>{
  const css=src('public/rudi-effects.css'),js=src('public/rudi-effects.js'),sw=src('public/sw.js');
  assert.match(css,/\.rudi-effects-layer,\.rudi-effect\{[^}]*pointer-events:none!important/s);
  assert.match(css,/prefers-reduced-motion:reduce/);
  assert.match(js,/window\.matchMedia\?\./);
- assert.match(sw,/rudi-effects\.js\?v=4\.200/);
- assert.match(sw,/rudi-effects\.css\?v=4\.200/);
+ assert.ok(sw.includes('rudi-effects.js?v='+JSON.parse(src('rudi-version.json')).current.slice(1)));
+ assert.ok(sw.includes('rudi-effects.css?v='+JSON.parse(src('rudi-version.json')).current.slice(1)));
 });
