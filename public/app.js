@@ -1165,6 +1165,10 @@
         markUiPreferencesChanged({activityReadIds:ids});
       }
 
+      function weatherEffectSettingEnabled(kind){
+        const who=currentActor==='Диана'?'diana':'rustam';
+        try{return localStorage.getItem('rudi:weather-effects:'+kind+':'+who)!=='0'}catch(_){return true}
+      }
       function localUiPreferences(){
         let homeOrder=[];
         let blockStates={};
@@ -1211,7 +1215,7 @@
         try{luluWalkNotificationsEnabledValue=luluWalkNotificationsEnabled()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
-          syncSchemaVersion:10,
+          syncSchemaVersion:11,
           startupTab:startupTabValue,
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
@@ -1221,6 +1225,8 @@
           marketTickerEnabled:marketTickerEnabledValue,
           themeMode:themeModeValue,
           autoRefreshEnabled:autoRefreshEnabledValue,
+          rainAnimationEnabled:weatherEffectSettingEnabled('rain'),
+          snowAnimationEnabled:weatherEffectSettingEnabled('snow'),
           interfaceTextSize:interfaceTextSizeValue,
           contactTelegramUsername:contactTelegramUsernameValue,
           contactPhone:contactPhoneValue,
@@ -1252,6 +1258,8 @@
         const hasRemoteMarketTicker=Object.prototype.hasOwnProperty.call(remote,'marketTickerEnabled');
         const hasRemoteThemeMode=Object.prototype.hasOwnProperty.call(remote,'themeMode');
         const hasRemoteAutoRefresh=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'autoRefreshEnabled');
+        const hasRemoteRain=remoteSchema>=11&&Object.prototype.hasOwnProperty.call(remote,'rainAnimationEnabled');
+        const hasRemoteSnow=remoteSchema>=11&&Object.prototype.hasOwnProperty.call(remote,'snowAnimationEnabled');
         const hasRemoteTextSize=remoteSchema>=2&&Object.prototype.hasOwnProperty.call(remote,'interfaceTextSize');
         const hasRemoteStartupTab=remoteSchema>=10&&Object.prototype.hasOwnProperty.call(remote,'startupTab');
         const hasRemoteTelegram=remoteSchema>=8&&Object.prototype.hasOwnProperty.call(remote,'contactTelegramUsername');
@@ -1315,6 +1323,11 @@
           if(hasRemoteAutoRefresh){
             localStorage.setItem(autoRefreshStorageKey(),remote.autoRefreshEnabled===false?'0':'1');
           }
+          const effectsWho=currentActor==='Диана'?'diana':'rustam';
+          if(hasRemoteRain)localStorage.setItem('rudi:weather-effects:rain:'+effectsWho,remote.rainAnimationEnabled===false?'0':'1');
+          if(hasRemoteSnow)localStorage.setItem('rudi:weather-effects:snow:'+effectsWho,remote.snowAnimationEnabled===false?'0':'1');
+          if(hasRemoteRain||hasRemoteSnow){window.RUDI_EFFECTS?.installSettings?.();window.RUDI_EFFECTS?.tick?.()}
+
           if(hasRemoteTextSize){
             const size=['small','normal','large'].includes(String(remote.interfaceTextSize||''))?String(remote.interfaceTextSize):'normal';
             localStorage.setItem(interfaceTextSizeStorageKey(),size);
@@ -1349,11 +1362,13 @@
             localStorage.setItem(luluWalkNotificationsStorageKey(),remote.luluWalkNotificationsEnabled===false?'0':'1');
           }
           if(remoteStamp&&!keepLocalOrder) localStorage.setItem(uiPreferencesMetaKey(),remoteStamp);
-          if(keepLocalOrder||remoteSchema<10||migrateLocalTelegram||migrateLocalPhone){
+          if(keepLocalOrder||remoteSchema<11||migrateLocalTelegram||migrateLocalPhone){
             if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
             const structural=localUiPreferences();
             markUiPreferencesChanged({
-              syncSchemaVersion:10,
+              syncSchemaVersion:11,
+              rainAnimationEnabled:structural.rainAnimationEnabled,
+              snowAnimationEnabled:structural.snowAnimationEnabled,
               startupTab:structural.startupTab,
               homeOrder:structural.homeOrder,
               blockStates:structural.blockStates,
@@ -21273,6 +21288,10 @@
         ensureAppSurface({restoreTab:true});
         const config=await configPromise;
         currentConfig=config;
+        window.RUDI_EFFECTS?.init?.({actor:currentActor,birthdays:config?.birthdays,weatherEnabled:config?.weather?.enabled});
+        if(window.RUDI_EFFECTS)window.RUDI_EFFECTS.onSettingChanged=(kind,value)=>{
+          if(currentActor)markUiPreferencesChanged({syncSchemaVersion:11,[kind==='rain'?'rainAnimationEnabled':'snowAnimationEnabled']:Boolean(value)});
+        };
         if(config?.weather) loadWeather(config.weather).catch(()=>{});
         renderMalePsychologyFact(malePsychologyFactFromConfig(config));
         setupKitchenSwitcher();

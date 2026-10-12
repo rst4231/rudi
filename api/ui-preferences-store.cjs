@@ -65,6 +65,8 @@ function normalizeUiPreferencesState(value) {
   const autoRefreshEnabled = Object.prototype.hasOwnProperty.call(source, 'autoRefreshEnabled')
     ? Boolean(source.autoRefreshEnabled)
     : true;
+  const rainAnimationEnabled=Object.prototype.hasOwnProperty.call(source,'rainAnimationEnabled')?Boolean(source.rainAnimationEnabled):true;
+  const snowAnimationEnabled=Object.prototype.hasOwnProperty.call(source,'snowAnimationEnabled')?Boolean(source.snowAnimationEnabled):true;
   const startupTabAllowed=['home','finances','supplements','habits','car','schedule','feed','products','photos','fasting'];
   const requestedStartupTab=String(source.startupTab||'home').trim();
   const startupTab=startupTabAllowed.includes(requestedStartupTab)?requestedStartupTab:'home';
@@ -118,6 +120,8 @@ function normalizeUiPreferencesState(value) {
     marketTickerEnabled,
     themeMode,
     autoRefreshEnabled,
+    rainAnimationEnabled,
+    snowAnimationEnabled,
     interfaceTextSize,
     startupTab,
     contactTelegramUsername,
@@ -165,7 +169,7 @@ async function saveUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
-      syncSchemaVersion: 10,
+      syncSchemaVersion: 11,
       startupTab: has('startupTab')?(actor==='Диана'&&incoming.startupTab==='car'?'home':incoming.startupTab):current.startupTab,
       homeOrder: has('homeOrder') ? incoming.homeOrder : current.homeOrder,
       blockStates: has('blockStates')
@@ -181,6 +185,8 @@ async function saveUiPreferences(actor, value, options = {}) {
       marketTickerEnabled: has('marketTickerEnabled') ? incoming.marketTickerEnabled : current.marketTickerEnabled,
       themeMode: has('themeMode') ? incoming.themeMode : current.themeMode,
       autoRefreshEnabled: has('autoRefreshEnabled') ? incoming.autoRefreshEnabled : current.autoRefreshEnabled,
+      rainAnimationEnabled: has('rainAnimationEnabled') ? incoming.rainAnimationEnabled : current.rainAnimationEnabled,
+      snowAnimationEnabled: has('snowAnimationEnabled') ? incoming.snowAnimationEnabled : current.snowAnimationEnabled,
       interfaceTextSize: has('interfaceTextSize') ? incoming.interfaceTextSize : current.interfaceTextSize,
       contactTelegramUsername: has('contactTelegramUsername')
         ? (incoming.contactTelegramUsername || current.contactTelegramUsername)
@@ -215,6 +221,8 @@ async function seedUiPreferences(actor, value, options = {}) {
       || incoming.activityReadIds.length
       || has('marketTickerEnabled')
       || has('themeMode')
+      || has('rainAnimationEnabled')
+      || has('snowAnimationEnabled')
       || has('autoRefreshEnabled')
       || has('interfaceTextSize')
       || has('startupTab')
@@ -232,7 +240,7 @@ async function seedUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
-      syncSchemaVersion: 10,
+      syncSchemaVersion: 11,
       startupTab: actor==='Диана'&&incoming.startupTab==='car'?'home':incoming.startupTab,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
@@ -242,6 +250,8 @@ async function seedUiPreferences(actor, value, options = {}) {
       marketTickerEnabled: incoming.marketTickerEnabled,
       themeMode: incoming.themeMode,
       autoRefreshEnabled: incoming.autoRefreshEnabled,
+      rainAnimationEnabled: incoming.rainAnimationEnabled,
+      snowAnimationEnabled: incoming.snowAnimationEnabled,
       interfaceTextSize: incoming.interfaceTextSize,
       contactTelegramUsername: incoming.contactTelegramUsername,
       contactPhone: incoming.contactPhone,

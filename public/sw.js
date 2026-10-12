@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.197';
+const CACHE_NAME='rudi-shell-v4.199';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -20,7 +20,9 @@ const PRECACHE=[
   "/car.css?v=4.149",
   "/profile-supplements.css?v=4.149",
   "/supplement-advanced.css?v=4.149",
-  "/app.js?v=4.197",
+  "/rudi-effects.css?v=4.199",
+  "/rudi-effects.js?v=4.199",
+  "/app.js?v=4.199",
   "/meditation.js?v=4.197",
   "/personal-task-editor.js?v=4.197",
   "/meditation.css?v=4.197",
