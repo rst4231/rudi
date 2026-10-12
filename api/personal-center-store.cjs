@@ -41,7 +41,7 @@ function reportKey(a,d,slot){if(!validDate(d)||!['morning','evening'].includes(s
 function latestKey(a){return 'latest:'+actorOf(a);}
 function seenKey(a){return 'seen:'+actorOf(a);}
 async function latest(a,o={}){return (await client(o).getRecord(NS,latestKey(a)))?.value||null;}
-async function unread(a,o={}){const c=client(o),[r,seen]=await Promise.all([c.getRecord(NS,latestKey(a)),c.getRecord(NS,seenKey(a))]);const value=r?.value;return {unread:Boolean(value?.id&&seen?.value?.id!==value.id),id:value?.id||'',date:value?.date||'',slot:value?.slot||''};}
+async function unread(a,o={}){const c=client(o),[r,seen]=await Promise.all([c.getRecord(NS,latestKey(a)),c.getRecord(NS,seenKey(a))]);const value=r?.value;return {unread:Boolean(value?.id&&value.model!=='deterministic'&&seen?.value?.id!==value.id),id:value?.id||'',date:value?.date||'',slot:value?.slot||''};}
 async function seen(a,o={}){const c=client(o),r=await latest(a,o);if(!r?.id)return null;await c.set(NS,seenKey(a),{id:r.id,at:new Date().toISOString()},{tags:['personal-ai',a]});return r.id;}
 async function saveReport(a,date,slot,result,o={}){const c=client(o),id=reportKey(a,date,slot),r={...result,id,date,slot,createdAt:new Date(o.now||Date.now()).toISOString()};const inserted=await c.setIfAbsent(NS,id,r,{tags:['personal-ai',a]});if(!inserted)return {created:false,report:(await c.getRecord(NS,id))?.value||null};await c.set(NS,latestKey(a),r,{tags:['personal-ai',a]});return {created:true,report:r};}
 // Explicit owner-only regeneration replaces the current day's report without creating duplicate history.
