@@ -5,8 +5,9 @@ const app=fs.readFileSync('public/app.js','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
 const css=fs.readFileSync('public/calendar.css','utf8');
 test('calendar has only week/month, neither day nor list',()=>{
- // The month/week switch icon was intentionally removed from the header.
- assert.ok(!html.includes('id="calendarModeSwitch"'));
+ // Restored: explicit button makes the existing hourly timeline accessible.
+ assert.ok(html.includes('id="calendarModeSwitch"'));
+ assert.match(app,/modeSwitch\.dataset\.calendarMode=nextMode/);
  assert.ok(app.includes("calendarDisplayMode=['week','month']"));
  for(const mode of ['day','list'])assert.ok(!html.includes('data-calendar-mode="'+mode+'"'));
  assert.doesNotMatch(app,/calendarDisplayMode==='list'/);
