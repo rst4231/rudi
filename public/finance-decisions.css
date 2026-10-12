@@ -197,3 +197,16 @@
 @media(max-width:400px){
   .rudi-weekly-chart.is-year .rudi-year-values{font-size:8px;letter-spacing:-.055em}
 }
+
+/* v4.188: year is an actual picker (2016 through current year). */
+.rudi-weekly-head .rudi-year-picker{
+  flex:none;max-width:105px;min-height:34px;
+  padding:5px 8px;border:1px solid var(--line);
+  border-radius:10px;background:var(--surface);color:var(--muted);
+  font:inherit;font-size:13px;font-weight:700;
+  font-variant-numeric:tabular-nums;cursor:pointer;
+}
+.rudi-weekly-head .rudi-year-picker[hidden]{display:none!important}
+.rudi-weekly-head .rudi-year-picker:focus-visible{
+  outline:2px solid #28bc92;outline-offset:2px;
+}
