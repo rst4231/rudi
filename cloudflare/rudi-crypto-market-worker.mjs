@@ -33,7 +33,7 @@ async function market(path){
   let status=502;
   for(const host of HOSTS){
     try{
-      const r=await fetch(host+path,{headers:{Accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(8500)});
+      const r=await fetch(host+path,{headers:{Accept:'application/json'},redirect:'manual',signal:AbortSignal.timeout(8500)});
       status=r.status;
       if(!r.ok)continue;
       const txt=await r.text();
