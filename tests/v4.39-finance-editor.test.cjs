@@ -58,3 +58,11 @@ test('v4.181 category-history rows open existing expense editor with functional 
  assert.match(html,/label:active\.label\|\|''/);
  assert.match(html,/save\.disabled=false/);
 });
+
+
+test('expense editor always re-enables save after native composer state changes',()=>{
+ const html=fs.readFileSync(path.join(__dirname,'..','public/index.html'),'utf8');
+ assert.match(html,/expenseSaveButton=new MutationObserver|expenseSaveButton\)new MutationObserver/);
+ assert.match(html,/saving=true;button\.disabled=true/);
+ assert.match(html,/finally\{saving=false;\}/);
+});
