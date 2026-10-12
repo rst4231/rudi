@@ -181,7 +181,7 @@ function replaceTemporalInputs(){
     fresh.id=previous.id;
     fresh.type=type;
     fresh.className='rudi-personal-temporal-native';
-    fresh.setAttribute('aria-label',type==='date'?'Дата дела':'Время дела');
+    fresh.setAttribute?.('aria-label',type==='date'?'Дата дела':'Время дела');
     previous.replaceWith(fresh);
     fresh.addEventListener('change',type==='date'?syncTime:()=>updateTemporalDisplay('time'));
     fresh.addEventListener('input',type==='date'?syncTime:()=>updateTemporalDisplay('time'));
