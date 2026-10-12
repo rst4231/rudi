@@ -21,5 +21,5 @@ test('Uniswap pool uses per-position green/red halo; unknown status stays neutra
   assert.match(css,/\.finance-crypto-lp\.finance-crypto-lp--out-of-range\{/);
   assert.match(css,/box-shadow:0 0 0 1px rgba\(36,186,112/);
   assert.match(css,/box-shadow:0 0 0 1px rgba\(232,78,94/);
-  assert.match(html,/crypto-wallets\.css\?v=4\.179/);
+  assert.match(html,/crypto-wallets\.css\?v=4\.180/);
 });
