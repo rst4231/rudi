@@ -88,3 +88,18 @@ html[data-theme="dark"] .meditation-secondary{color:var(--med-ink);background:#2
 
 /* Prevent native long-press selection from interrupting calendar gesture timers. */
 #calendarPersonalCreateTask,.calendar-task-copy,.calendar-agenda-task{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none}
+
+/* Monthly budget line and profile halo share one progress value and status. */
+.finance-balance-progress.is-budget-low .finance-balance-progress-track i{background:#35a875!important}
+.finance-balance-progress.is-budget-mid .finance-balance-progress-track i{background:#e0aa2f!important}
+.finance-balance-progress.is-budget-full .finance-balance-progress-track i,
+.finance-balance-progress.is-over .finance-balance-progress-track i{background:#d94b55!important}
+#financeProfileButton.has-budget{position:relative!important;isolation:isolate;--finance-home-budget-color:#35a875}
+#financeProfileButton.has-budget.is-budget-mid{--finance-home-budget-color:#e0aa2f}
+#financeProfileButton.has-budget.is-budget-full{--finance-home-budget-color:#d94b55}
+#financeProfileButton.has-budget::after{
+ content:"";position:absolute;inset:-4px;border-radius:50%;pointer-events:none;
+ background:conic-gradient(var(--finance-home-budget-color) var(--finance-home-budget-progress,0%),color-mix(in srgb,var(--line) 65%,transparent) 0);
+ -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3.3px),#000 calc(100% - 2.6px));
+ mask:radial-gradient(farthest-side,transparent calc(100% - 3.3px),#000 calc(100% - 2.6px));
+}
