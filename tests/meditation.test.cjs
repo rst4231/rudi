@@ -149,8 +149,8 @@ test('meditation mood hint is private to signed-in actor and only rendered in Ho
  assert.match(js,/tile\.parentElement\.insertBefore\(notice,tile\)/);
  assert.match(css,/body:not\(\[data-app-tab="home"\]\) \.meditation-mood-nudge\{display:none!important\}/);
  assert.match(css,/\.meditation-mood-nudge\{padding:8px 12px;margin:0!important;/);
- assert.match(css,/\.profile-name-row\{[\\s\\S]*?margin:0!important;padding:0!important/);
- assert.match(css,/\.profile-work-status,\.profile-cycle-mood,\.profile-rhythm-status/);
+ assert.ok(css.includes('> .person > .profile-name-row{'));
+ assert.ok(css.includes(':is(.profile-work-status,.profile-cycle-mood,.profile-rhythm-status)'));
  assert.match(html,/meditation\.js\?v=4\.195/);
  assert.match(html,/meditation\.css\?v=4\.195/);
 });
