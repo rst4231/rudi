@@ -82,12 +82,17 @@ async function importBatch(actor,rows,opts={}){
  const cats=new Set((state.categories?.['Рустам']||[]).filter(c=>!c.archived).map(c=>c.id));
  const wallets=new Map((state.wallets?.['Рустам']||[]).filter(w=>!w.archived).map(w=>[w.id,w]));
  const existing=dedupeExisting(state.personalExpenses);
+ // Some pre-existing RUDI September totals combine several CoinKeeper lines,
+ // and historical currency conversion can differ by a few kopecks.
+ // Conservatively quarantine the entire day/category overlap instead of
+ // inventing a partial-match correction or duplicating an old expense.
+ const protectedSeptemberGroups=new Set([...existing.keys()].map(key=>key.slice(0,key.lastIndexOf('|'))));
  const grouped=new Map(),result={imported:0,duplicates:0,matchedSeptember:0,unmapped:0,invalid:0,unknownRub:0,transfers:0,months:[]};
  for(const raw of rows){
   try{
    const row=normalizeRow(raw,cats,wallets);
-   if(row.type==='expense'&&row.month==='2026-09'&&row.rubAmount!==null &&
-       row.duplicateOrdinal>0&&row.duplicateOrdinal<=Number(existing.get(signature(row))||0)){
+   if(row.type==='expense'&&row.month==='2026-09'&&
+       protectedSeptemberGroups.has(row.date+'|'+row.categoryId)){
     result.matchedSeptember++;continue;
    }
    if(!grouped.has(row.month))grouped.set(row.month,[]);
