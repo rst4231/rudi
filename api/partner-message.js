@@ -4925,3 +4925,4 @@ module.exports.refreshFeedFromPreviewIfNeeded = refreshFeedFromPreviewIfNeeded;
 module.exports.correctRecipientsForSession = correctRecipientsForSession;
 module.exports.authorizeRequest = authorizeRequest;
 module.exports.sendShopUnlockNotification = sendShopUnlockNotification;
+module.exports.sendStarGiftNotification = sendStarGiftNotification;
