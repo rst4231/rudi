@@ -1,16 +1,15 @@
 {
-  "current": "v4.181",
+  "current": "v4.182",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-10-11",
-  "basedOnProduction": "v4.180",
+  "createdAt": "2026-10-12",
+  "basedOnProduction": "v4.181",
   "notes": [
-    "Hide the 'Работа РуДи' diagnostic panel for Diana's account, including immediate removal when changing active account without a full page reload. Keep authenticated server-side owner-only 403 enforcement.",
-    "Move gifted stars notification to recipient-only push and private notification bell event, with deduplication; stop broadcasting gift notification to all Telegram recipients.",
-    "Rename 3-star movie reward to 'Выбрать фильм' while preserving reward ID, cost and prior redemption compatibility.",
-    "Maintain live Cloudflare public Bybit author hourly/mark/funding D1 cache without changing the Vercel production deployment for the cache itself."
+    "Skip unchanged notification-recipient writes on bootstrap and backup refresh.",
+    "Coalesce only simultaneous D1 reads inside each server request; invalidate on mutations, never cache settled data.",
+    "Skip duplicate unchanged crypto history observations within the same five-minute slot."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }

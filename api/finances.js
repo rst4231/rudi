@@ -1,4 +1,5 @@
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
+const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
 const {
   readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan, setFinanceObligationPaid,
   saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
@@ -595,8 +596,8 @@ async function handler(req, res) {
     return res.status(status).json({ ok: false, error: code });
   }
 }
-module.exports = handler;
-module.exports.handler = handler;
+module.exports = withD1ReadCoalescing(handler);
+module.exports.handler = module.exports;
 module.exports.statusFor = statusFor;
 module.exports.categorySummary = categorySummary;
 module.exports.resolveExpenseConversion = resolveExpenseConversion;

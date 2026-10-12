@@ -62,6 +62,7 @@ test('actor mutation observer reapplies hide, health fetch & result also check R
  assert.match(backend,/code==='rudi-health-owner-only'\?403/);
 });
 test('new settings Javascript is cache-busted without changing other script versions',()=>{
- assert.match(html,/src="\/pwa-extras\.js\?v=4\.181"/);
- assert.equal(fs.readFileSync('VERSION','utf8').trim(),'v4.181');
+ const release=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current;
+ assert.ok(html.includes('src="/pwa-extras.js?v='+release.slice(1)+'"'));
+ assert.equal(fs.readFileSync('VERSION','utf8').trim(),release);
 });

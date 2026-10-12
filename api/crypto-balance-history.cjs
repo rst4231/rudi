@@ -34,12 +34,18 @@ async function capture(walletId,amount,{partial=false,at=Date.now(),...options}=
   const date=dateKey(at),stored=await readStored(id,options);
   const points=stored.points.filter(p=>/^\d{4}-\d\d-\d\d$/.test(p.date)&&Number.isFinite(p.usd));
   const next={date,usd:Math.round(n*1e8)/1e8,partial:Boolean(partial)};
+  const timestamp=now.toISOString(),bucket=Math.floor(now.getTime()/300000);
+  const previousDaily=points.find(p=>p.date===date);
+  const previousSlot=stored.intraday.find(p=>validTimed(p)&&
+    Math.floor(Date.parse(p.at)/300000)===bucket&&Date.parse(p.at)<=now.getTime());
+  // Never skip new periods, changed amounts or changed partial/full status.
+  if(previousDaily?.usd===next.usd&&Boolean(previousDaily.partial)===next.partial
+    &&previousSlot?.usd===next.usd&&Boolean(previousSlot.partial)===next.partial)return next;
   const index=points.findIndex(p=>p.date===date);
   if(index>=0)points[index]=next;else points.push(next);
   points.sort((a,b)=>a.date.localeCompare(b.date));
   // Keep recent real observations, no extra provider requests; a five-minute
   // slot stores only its latest successful sync, to control database writes.
-  const timestamp=now.toISOString(),bucket=Math.floor(now.getTime()/300000);
   let intraday=stored.intraday.filter(validTimed).filter(p=>{
     const ms=Date.parse(p.at);
     return ms>=now.getTime()-36*3600000&&ms<=now.getTime();

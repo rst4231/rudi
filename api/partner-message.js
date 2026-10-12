@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
 const { decorateSharedTaskTitle } = require('./shared-task-emoji.cjs');
 const { waitUntil } = require('@vercel/functions');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
@@ -1350,6 +1351,9 @@ function correctRecipientsForSession(recipients, actor, userId) {
   }
 
   return normalizeRecipients(result);
+}
+function recipientsNeedUpdate(live,corrected){
+  return ['Рустам','Диана'].some(actor=>Number(live?.[actor]||0)!==Number(corrected?.[actor]||0));
 }
 
 function moscowDateKey(now = Date.now()) {
@@ -3458,9 +3462,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         actor,
         user?.id
       );
-      const recipientsChanged = ['Рустам','Диана'].some((name) =>
-        Number(liveRecipients?.[name] || 0) !== Number(recipients?.[name] || 0)
-      );
+      const recipientsChanged = recipientsNeedUpdate(liveRecipients,recipients);
       const backupUiPreferences = normalizeUiPreferences(previousSnapshot?.uiPreferences)?.[actor] || null;
       let sharedUiPreferences = await readUiPreferences(actor, options).catch(() => null);
       if (!sharedUiPreferences?.initialized && backupUiPreferences) {
@@ -3480,12 +3482,12 @@ async function handleRudiAction(req, res, action, options = {}) {
         uiPreferences: effectiveUiPreferences ? { [actor]: effectiveUiPreferences } : null,
       });
       try {
-        if (recipients?.['Рустам'] && recipients?.['Диана']) {
+        if (recipientsChanged && recipients?.['Рустам'] && recipients?.['Диана']) {
           await saveRecipients(recipients, {
             ...options,
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
           });
-        } else if (user?.id) {
+        } else if (recipientsChanged && user?.id) {
           await saveRecipient(actor, user?.id, {
             ...options,
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
@@ -3637,21 +3639,18 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor, user } = authorizeRequest(req, body.initData, options);
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
-      const correctedRecipients = correctRecipientsForSession(
-        mergedRecipientsWithBackup(
-          await readRecipients(options).catch(() => null),
-          previousSnapshot
-        ),
-        actor,
-        user?.id
+      const liveRecipients=await readRecipients(options).catch(()=>null);
+      const correctedRecipients=correctRecipientsForSession(
+        mergedRecipientsWithBackup(liveRecipients,previousSnapshot),actor,user?.id
       );
+      const recipientsChanged=recipientsNeedUpdate(liveRecipients,correctedRecipients);
       try {
-        if (correctedRecipients?.['Рустам'] && correctedRecipients?.['Диана']) {
+        if (recipientsChanged && correctedRecipients?.['Рустам'] && correctedRecipients?.['Диана']) {
           await saveRecipients(correctedRecipients, {
             ...options,
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
           });
-        } else if (user?.id) {
+        } else if (recipientsChanged && user?.id) {
           await saveRecipient(actor, user?.id, {
             ...options,
             cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
@@ -4894,7 +4893,7 @@ async function handler(req, res, options = {}) {
   }
 }
 
-module.exports = handler;
+module.exports = withD1ReadCoalescing(handler);
 module.exports.validateTelegramInitData = validateTelegramInitData;
 module.exports.normalizeMessageText = normalizeMessageText;
 module.exports.statusForError = statusForError;
@@ -4923,6 +4922,7 @@ module.exports.feedPreviewBaseUrl = feedPreviewBaseUrl;
 module.exports.refreshFeedFromPreviewIfNeeded = refreshFeedFromPreviewIfNeeded;
 
 module.exports.correctRecipientsForSession = correctRecipientsForSession;
+module.exports.recipientsNeedUpdate = recipientsNeedUpdate;
 module.exports.authorizeRequest = authorizeRequest;
 module.exports.sendShopUnlockNotification = sendShopUnlockNotification;
 module.exports.sendStarGiftNotification = sendStarGiftNotification;
