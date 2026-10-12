@@ -1,16 +1,16 @@
 {
-  "current": "v4.192",
+  "current": "v4.193",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.191",
+  "basedOnProduction": "v4.192",
   "notes": [
-    "Home bootstrap returns changed sections only when previous hashes are known.",
-    "Home cards skip unchanged DOM re-renders; manual refresh and offline sync preserved.",
-    "Refresh app.js browser and service-worker cache version, fix outdated script-order regression test.",
-    "Production release marker: enable the verified v4.192 selective home refresh build."
+    "Meditation timer 5, 10, 20, 30, 60 min for Rustam and Diana, with partial session history, per-person stats, breathing halo and light/dark theme.",
+    "Durable Groq-selected daily verified spiritual quotation; meditation progress in partner expanded profile card.",
+    "Personal TickTick calendar: plus creates task in-app, long hold opens TickTick, editor quick-date row removed and calendar view icon hidden.",
+    "Unified slightly smaller mood emoji for both partners. No production deployment until explicit user confirmation."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
