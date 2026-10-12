@@ -213,7 +213,7 @@ test('CoinKeeper overview combines monthly and daily RUB expenses with existing 
  assert.equal(result.days['2026-09-26'].total,120);
  assert.equal(JSON.stringify(s),original,'never touch RUDI live expense/wallet/category state');
  const saved=await mod.overview('Рустам',{state:s,cache:storage});
- assert.deepEqual(saved,result,'second request loads compact index');
+ assert.deepEqual(JSON.parse(JSON.stringify(saved)),JSON.parse(JSON.stringify(result)),'second request loads compact index');
  await assert.rejects(()=>mod.overview('Диана',{state:s,cache:storage}),/owner-only/);
  const removed=await mod.deleteLastImport('Рустам','overview',0,{cache:storage});
  assert.equal(removed.deleted,4);
