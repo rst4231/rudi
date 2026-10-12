@@ -1,0 +1,88 @@
+/* RUDI meditation: airy scene, same page header rhythm as vitamins */
+.rudi-meditation-page{
+ --med-ink:#264754;--med-mist:#e2f3f8;--med-surface:rgba(255,255,255,.77);--med-line:rgba(52,127,153,.15);
+ position:fixed;inset:0;z-index:1310;overflow-y:auto;overscroll-behavior:contain;
+ background:radial-gradient(ellipse at 53% 12%,#f9fdff 2%,transparent 54%),linear-gradient(164deg,#e4f5fb 0%,#eff7f4 55%,#e7eef9 100%);
+ color:var(--med-ink);padding:calc(14px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-left)) calc(34px + env(safe-area-inset-bottom));
+}
+.rudi-meditation-page[hidden]{display:none!important}
+body.meditation-page-open{overflow:hidden!important}
+body.meditation-page-open #appTabBar{display:none!important}
+.rudi-meditation-page .meditation-head{max-width:760px;margin:0 auto 22px;display:flex;align-items:center;gap:13px}
+.rudi-meditation-page .meditation-head h1{margin:0;font-size:clamp(23px,4vw,32px);letter-spacing:-.035em}
+.rudi-meditation-page .meditation-head small,.rudi-meditation-page .section-eyebrow{color:var(--med-ink);opacity:.57}
+.rudi-meditation-page .meditation-head .fasting-back-button{
+ background:var(--med-surface);color:var(--med-ink);border:1px solid var(--med-line);
+ box-shadow:0 8px 22px rgba(65,122,143,.1);border-radius:15px;flex:0 0 auto;
+}
+.meditation-scroll{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+.meditation-intro{text-align:center;padding:12px 14px 0}
+.meditation-overline{text-transform:uppercase;letter-spacing:.22em;font-size:10px;font-weight:800;opacity:.55}
+.meditation-intro h2{font-weight:760;letter-spacing:-.04em;font-size:clamp(26px,5vw,36px);line-height:1.14;margin:8px auto}
+.meditation-intro p{font-size:14px;margin:0;opacity:.6}
+.meditation-quote{position:relative;padding:19px 25px;margin:0;border-radius:22px;background:var(--med-surface);border:1px solid var(--med-line);
+ text-align:center;box-shadow:0 10px 35px rgba(78,135,150,.09)}
+.meditation-quote-mark{position:absolute;left:16px;top:10px;font:italic 44px Georgia,serif;opacity:.24}
+.meditation-quote blockquote{margin:0 auto;max-width:550px;font:italic 18px/1.5 Georgia,serif}
+.meditation-quote figcaption{font-size:11px;margin-top:9px;font-weight:700;opacity:.57}
+.meditation-timer-panel{background:var(--med-surface);border:1px solid var(--med-line);border-radius:28px;padding:22px 20px;text-align:center}
+.meditation-orbit{width:min(62vw,304px);aspect-ratio:1;position:relative;display:grid;place-items:center;margin:8px auto 26px;
+ border-radius:50%;isolation:isolate}
+.meditation-orbit-glow{position:absolute;inset:3.5%;border-radius:50%;z-index:-1;
+ background:conic-gradient(from 150deg,#a6e3ed,#89ceda,#eaf8fc,#b3d7ed,#a6e3ed);
+ box-shadow:0 0 22px 6px rgba(135,215,237,.24),0 0 66px 26px rgba(119,202,223,.15),inset 0 0 30px #fff7;opacity:.84}
+.meditation-orbit.is-active .meditation-orbit-glow{animation:meditationBreath 7s ease-in-out infinite alternate}
+.meditation-orbit-core{width:85%;height:85%;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:50%;
+ background:radial-gradient(circle at 50% 25%,rgba(255,255,255,.85),rgba(215,244,250,.87) 76%);
+ box-shadow:inset 0 1px 20px #fff8,0 4px 28px rgba(36,105,128,.11)}
+.meditation-orbit-core strong{display:block;font-size:clamp(44px,9vw,68px);font-weight:670;letter-spacing:-.06em;font-variant-numeric:tabular-nums;margin:5px 0}
+.meditation-orbit-core span{font-size:12px;opacity:.62}
+@keyframes meditationBreath{0%{transform:scale(.93);filter:brightness(.95);box-shadow:0 0 17px 7px rgba(130,205,234,.19)}100%{transform:scale(1.085);filter:brightness(1.12);box-shadow:0 0 40px 22px rgba(134,211,236,.37)}}
+.meditation-durations{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+.meditation-durations button{padding:11px 2px;min-height:45px;background:rgba(234,247,251,.8);border:1px solid var(--med-line);border-radius:13px;color:inherit;font:inherit;font-size:13px;font-weight:750;cursor:pointer}
+.meditation-durations button[aria-pressed="true"]{background:#70b9c9;color:#10313a;border-color:#70b9c9;box-shadow:0 5px 18px rgba(82,174,198,.22)}
+.meditation-durations button:disabled{opacity:.5}
+.meditation-primary,.meditation-secondary{width:100%;min-height:50px;margin-top:14px;border:0;border-radius:15px;font:inherit;font-weight:790;font-size:15px;cursor:pointer}
+.meditation-primary{background:#317f92;color:#fff;box-shadow:0 10px 22px rgba(42,132,154,.22)}
+.meditation-secondary{background:rgba(44,97,111,.1);color:var(--med-ink);border:1px solid var(--med-line)}
+.meditation-primary:disabled,.meditation-secondary:disabled{opacity:.55;cursor:wait}
+.meditation-sound{display:flex;align-items:center;justify-content:center;gap:9px;font-size:12px;margin:15px 0 0;opacity:.77}
+.meditation-sound input{width:17px;height:17px;accent-color:#4eacc3}
+.meditation-status{font-size:12px;min-height:18px;margin:10px 0 0;opacity:.72}
+.meditation-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.meditation-stats>div{min-height:86px;border-radius:18px;background:var(--med-surface);border:1px solid var(--med-line);padding:15px 8px;text-align:center;display:grid;gap:5px}
+.meditation-stats span{font-size:11px;opacity:.65}.meditation-stats strong{font-size:20px}
+.meditation-history-card{background:var(--med-surface);border:1px solid var(--med-line);border-radius:21px;padding:0 17px;margin-bottom:25px}
+.meditation-history-card summary{cursor:pointer;list-style:none;padding:18px 2px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.meditation-history-card summary::-webkit-details-marker{display:none}
+.meditation-history-card summary>span:first-child{display:grid;gap:4px}
+.meditation-history-card summary strong{font-size:15px}.meditation-history-card summary small{font-size:11px;opacity:.57}
+.meditation-history-card[open] summary>span:last-child{transform:rotate(180deg)}
+.meditation-history-list{border-top:1px solid var(--med-line);padding:10px 0 16px}
+.meditation-history-list>p{font-size:12px;opacity:.62;padding:14px 0;text-align:center}
+.meditation-history-row{padding:11px 2px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-bottom:1px solid var(--med-line)}
+.meditation-history-row:last-child{border-bottom:0}
+.meditation-history-row>span{display:grid;gap:4px}.meditation-history-row b{font-size:12px}.meditation-history-row small{font-size:11px;opacity:.6}
+.meditation-history-row>strong{font-size:14px;font-variant-numeric:tabular-nums}
+.meditation-profile-button .mood-emoji{font-size:inherit!important}
+.meditation-partner-summary{padding:10px 12px;margin-top:9px;border-radius:12px;border:1px solid rgba(132,202,219,.22);background:rgba(126,188,207,.09);font-size:12px;font-weight:680}
+#homeRustamTile .mood-current-button .mood-emoji,#homeRustamTile .partner-avatar-mood-badge .mood-emoji,
+#homeDianaTile .mood-current-button .mood-emoji,#homeDianaTile .partner-avatar-mood-badge .mood-emoji{
+ font-size:19px!important;line-height:1!important;transform:scale(.94)}
+html[data-theme="dark"] .rudi-meditation-page{
+ --med-ink:#d8f2f9;--med-surface:rgba(22,45,60,.81);--med-line:rgba(180,226,237,.13);
+ background:radial-gradient(ellipse at 52% 5%,#234457 0%,transparent 55%),linear-gradient(154deg,#0f2634,#10202d 64%,#16293e);color:var(--med-ink)}
+html[data-theme="dark"] .meditation-orbit-glow{background:conic-gradient(from 150deg,#216a81,#76b5c1,#5e89a8,#238093)}
+html[data-theme="dark"] .meditation-orbit-core{background:radial-gradient(circle at 50% 28%,#30586a,#173749 85%)}
+html[data-theme="dark"] .meditation-durations button{background:#193e51;color:#cfe6ed}
+html[data-theme="dark"] .meditation-durations button[aria-pressed="true"]{background:#70b9c9;color:#112e36}
+html[data-theme="dark"] .meditation-secondary{color:var(--med-ink);background:#224152}
+@media(max-width:420px){
+ .rudi-meditation-page{padding-left:12px;padding-right:12px}
+ .meditation-timer-panel{padding:18px 12px}.meditation-intro h2{font-size:28px}
+ .meditation-orbit{width:min(71vw,290px)}
+ .meditation-quote blockquote{font-size:16px}
+ .meditation-durations button{font-size:12px;padding:10px 1px}
+ .meditation-stats strong{font-size:17px}
+}
+@media(prefers-reduced-motion:reduce){.meditation-orbit-glow{animation:none!important;box-shadow:0 0 15px 8px rgba(120,193,213,.15)}}
