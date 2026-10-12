@@ -2247,6 +2247,7 @@
           const data=await financeRequest('ck-overview');
           if(currentActor!=='Рустам')return;
           coinKeeperOverview={months:data.months||{},days:data.days||{},expenses:data.expenses||0,unknownRub:data.unknownRub||0};
+          document.dispatchEvent(new CustomEvent('rudi-coinkeeper-overview-loaded',{detail:coinKeeperOverview}));
           const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
           renderFinanceCategories(month);renderFinancePulse(month);renderFinanceAnalytics();
           if(financeCategoryHistoryId)renderFinanceCategoryHistory();
@@ -2273,6 +2274,11 @@
           if(currentActor!=='Рустам')return [];
           coinKeeperRows.set(month,rows);
           if(financeCategoryHistoryId&&document.getElementById('financeCategoryHistoryMonthInput')?.value===month)renderFinanceCategoryHistory();
+          if(document.getElementById('financePersonalMonthInput')?.value===month){
+            renderFinanceOperations();
+            if(document.getElementById('financeExpenseComposer')?.getAttribute('aria-hidden')==='false'&&financeExpenseCategoryId)
+              renderFinanceExpenseComposerHistory(month,financeExpenseCategoryId);
+          }
           return rows;
         })().catch(e=>{console.warn('RUDI_CK_MONTH_WARN',month,String(e?.message||e));return []})
           .finally(()=>coinKeeperInFlight.delete(month));
@@ -2774,7 +2780,7 @@
         const row=entry.row||{};
         if(entry.kind==='expense'){
           const category=financeAllCategoryById(row.categoryId),wallet=financeWalletById(row.walletId);
-          return [category?.name,row.label,row.note,wallet?.name,row.sourceCurrency,row.targetCurrency].filter(Boolean).join(' ').toLocaleLowerCase('ru-RU');
+          return [category?.name,row.label,row.note,wallet?.name,row.fromName,row.sourceCurrency,row.targetCurrency,row.sourceAmount].filter(Boolean).join(' ').toLocaleLowerCase('ru-RU');
         }
         if(entry.kind==='income'){
           const wallet=financeWalletById(row.walletId);
@@ -2802,7 +2808,7 @@
         if(labelSelect){
           const value=labelSelect.value;
           labelSelect.innerHTML='<option value="">Все метки</option>';
-          const labels=[...new Set((financeState.personalExpenses||[])
+          const labels=[...new Set([...(financeState.personalExpenses||[]),...(coinKeeperRows.get(financeSelectedPersonalMonth())||[])]
             .filter(row=>!row?.manualAdjustment&&String(row?.label||'').trim())
             .map(row=>String(row.label).trim()))]
             .sort((a,b)=>a.localeCompare(b,'ru'));
@@ -2907,7 +2913,25 @@
         const from=String(document.getElementById('financeOperationFrom')?.value||'');
         const to=String(document.getElementById('financeOperationTo')?.value||'');
         const explicitDateRange=Boolean(from||to);
-        const rows=(financeState.personalExpenses||[])
+        // Read-only archived rows are loaded lazily only for requested months.
+        // Bounded date-range loads avoid 121 simultaneous monthly API requests.
+        const startMonth=explicitDateRange?String(from||to).slice(0,7):selectedMonth;
+        const endMonth=explicitDateRange?String(to||from).slice(0,7):selectedMonth;
+        const desiredMonths=[];
+        if(currentActor==='Рустам'&&/^\d{4}-\d{2}$/.test(startMonth)&&/^\d{4}-\d{2}$/.test(endMonth)){
+          let key=startMonth;
+          while(key<=endMonth&&desiredMonths.length<24){
+            if(coinKeeperArchiveMonth(key))desiredMonths.push(key);
+            const [y,m]=key.split('-').map(Number);
+            key=(m===12?y+1:y)+'-'+String(m===12?1:m+1).padStart(2,'0');
+          }
+        }
+        const archiveRows=[];
+        for(const month of desiredMonths){
+          if(!coinKeeperRows.has(month))loadCoinKeeperMonth(month).catch(()=>{});
+          else archiveRows.push(...coinKeeperRows.get(month));
+        }
+        const rows=[...(financeState.personalExpenses||[]),...archiveRows]
           .filter(row=>{
             if(row?.manualAdjustment)return false;
             const date=financeDateTimeLabel(row.occurredAt||row.createdAt).key;
@@ -2960,12 +2984,16 @@
             const rowTitle=document.createElement('strong'),detail=document.createElement('small'),value=document.createElement('b');
             const category=financeAllCategoryById(row.categoryId),wallet=financeWalletById(row.walletId);
             rowTitle.textContent=(category?.name||'Расход')+(row.label?' · '+row.label:'');
-            detail.textContent=[wallet?.name,row.note,meta.time].filter(Boolean).join(' · ');
-            value.textContent='−'+financeMoney(row.rubAmount||row.amount);
+            detail.textContent=[row.historicalImport?'CoinKeeper':'',wallet?.name||row.fromName,row.note,meta.time].filter(Boolean).join(' · ');
+            value.textContent=row.unconverted
+              ?'−'+financeMoney(row.sourceAmount,row.sourceCurrency)+' · без курса RUB'
+              :'−'+financeMoney(row.rubAmount||row.amount);
             if(row.optimistic){item.classList.add('is-pending');detail.textContent=[wallet?.name,row.note,'Сохраняется…'].filter(Boolean).join(' · ')}
             const del=document.createElement('button');del.type='button';del.className='finance-operation-delete';
             del.textContent='×';del.setAttribute('aria-label','Удалить расход: '+(category?.name||'Расход'));
+            if(row.historicalImport){del.hidden=true;del.disabled=true;del.setAttribute('aria-hidden','true');}
             del.addEventListener('click',async event=>{
+              if(row.historicalImport)return;
               event.stopPropagation();
               if(financeExpenseMutationInFlight)return;
               const approved=await smartSaveConfirm('Удалить расход «'+(category?.name||'Расход')+'» на '+financeMoney(row.rubAmount||row.amount)+'?');
@@ -3629,7 +3657,8 @@
         const host=document.getElementById('financeExpenseComposerHistory');if(!host)return;
         host.replaceChildren();
         const category=financeAllCategoryById(categoryId);
-        const rows=financeExpensesForMonth(month)
+        if(currentActor==='Рустам'&&!coinKeeperRows.has(month)&&coinKeeperArchiveMonth(month))loadCoinKeeperMonth(month).catch(()=>{});
+        const rows=[...financeExpensesForMonth(month),...(coinKeeperRows.get(month)||[])]
           .filter(row=>row.categoryId===categoryId)
           .sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')))
           .slice(0,120);
@@ -3652,11 +3681,16 @@
             const sourceDiff=!row.manualAdjustment&&row.sourceCurrency&&row.sourceCurrency!==targetCurrency&&Number(row.sourceAmount||0)>0
               ?' · '+financeMoney(row.sourceAmount,row.sourceCurrency)+' → '+financeMoney(row.amount,targetCurrency)
               :'';
-            detail.textContent=meta.time+sourceDiff;
+            detail.textContent=(row.historicalImport?'CoinKeeper · ':'')+meta.time+sourceDiff;
             copy.append(title,detail);
-            const value=document.createElement('strong');value.textContent=row.manualAdjustment?financeMoney(row.rubAmount||row.amount,'RUB'):financeMoney(row.amount,category?.currency||'RUB');
+            const value=document.createElement('strong');
+            value.textContent=row.unconverted
+              ?financeMoney(row.sourceAmount,row.sourceCurrency)+' · без курса RUB'
+              :(row.historicalImport?financeMoney(row.rubAmount,'RUB'):row.manualAdjustment?financeMoney(row.rubAmount||row.amount,'RUB'):financeMoney(row.amount,category?.currency||'RUB'));
             const del=document.createElement('button');del.type='button';del.className='finance-expense-delete';del.textContent='×';del.setAttribute('aria-label',row.manualAdjustment?'Удалить корректировку':'Удалить расход');
+            if(row.historicalImport){del.hidden=true;del.disabled=true;del.setAttribute('aria-hidden','true');}
             del.addEventListener('click',async()=>{
+              if(row.historicalImport)return;
               del.disabled=true;
               try{
                 const data=await financeRequest('delete-expense',{id:row.id});
@@ -5553,7 +5587,10 @@
       }
       document.addEventListener('rudi-coinkeeper-updated',()=>{
         coinKeeperOverview=null;coinKeeperRows.clear();coinKeeperInFlight.clear();
-        if(currentActor==='Рустам')loadCoinKeeperOverview().catch(()=>{});
+        if(currentActor==='Рустам'){
+          loadCoinKeeperOverview().catch(()=>{});
+          loadCoinKeeperMonth(financeSelectedPersonalMonth()).catch(()=>{});
+        }
       });
       async function loadFinances({silent=false,month=''}={}){
         if(!currentActor)return null;if(financeLoadPromise)return financeLoadPromise;
