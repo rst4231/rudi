@@ -77,7 +77,7 @@ test('calendar personal task clicks edit, long press opens TickTick, right click
   assert.ok(app.includes('window.RUDIPersonalTaskEditor?.bind(taskCopy,event,calendarPersonalTaskEditorContext(event))'));
   assert.ok(app.includes('window.RUDIPersonalTaskEditor?.bind(row,task,ctx)'));
   assert.ok(app.includes("row.setAttribute('role','button')"));
-  assert.ok(app.includes('if(event.task?.personal!==true)calendarAttachTaskTimeDrag'));
+  assert.ok(app.includes('calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable)'));
   assert.ok(app.includes('openTickTick:()=>calendarOpenPersonalTickTickTask(task)'));
   assert.ok(editor.includes("element.addEventListener('contextmenu'"));
   assert.ok(editor.includes("element.addEventListener('pointerup'"));
