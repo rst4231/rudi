@@ -19804,10 +19804,10 @@
         profileButton?.addEventListener('contextmenu',event=>event.preventDefault());
         profileButton?.addEventListener('click',event=>{
           if(Date.now()<fastingSuppressClickUntil){
-            event.preventDefault();event.stopImmediatePropagation();return;
+            event.preventDefault();event.stopImmediatePropagation();
           }
-          navigateOwnFasting();
-        });
+        },true);
+        profileButton?.addEventListener('click',navigateOwnFasting);
 
         historyToggle?.addEventListener('click',()=>{
           const card=document.querySelector('.fasting-history-card');
