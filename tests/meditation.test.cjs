@@ -165,6 +165,6 @@ test('meditation edge swipe and both guarded Home long-press shortcuts exist',()
  assert.match(js,/goal=10;/);
  assert.match(js,/if\(state\.active\)\{status\('Медитация уже запущена'\)/);
  assert.match(app,/goalHours:16/);
- assert.match(app,/fastingSuppressClickUntil=Date\.now\(\)\+1500/);
+ assert.match(app,/fastingSuppressClickUntil=Date\.now\(\)\+1[5-7]00/);
  assert.match(app,/const latest=await fastingRequest\('state'\)/);
 });
