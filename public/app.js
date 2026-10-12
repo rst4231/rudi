@@ -2754,6 +2754,30 @@
       }
       function financeRowForMonth(month){return (financeState.months||[]).find(row=>String(row?.month||'')===String(month||''))||null}
       function financePersonalRowForMonth(month){return (financeState.personalMonths||[]).find(row=>String(row?.month||'')===String(month||''))||null}
+      let financeHomeBudgetLastFetch=0;
+      let financeHomeBudgetPending=null;
+      async function refreshFinanceHomeBudgetHalo(force=false){
+        if(currentActor!=='Рустам'||!document.getElementById('financeProfileButton'))return;
+        if(!force&&Date.now()-financeHomeBudgetLastFetch<5*60*1000)return;
+        if(financeHomeBudgetPending)return financeHomeBudgetPending;
+        financeHomeBudgetPending=(async()=>{
+          try{
+            const data=await financeRequest('budget-status');
+            if(currentActor!=='Рустам'||data.month!==financeCurrentMonthKey())return;
+            const control=document.getElementById('financeProfileButton');
+            if(!control)return;
+            const plannedLimit=Number(data.plannedLimit||0);
+            const spentPercent=Math.max(0,Number(data.spentPercent||0));
+            const budgetState=spentPercent>=100?'full':spentPercent>=50?'mid':'low';
+            for(const level of ['low','mid','full'])control.classList.toggle('is-budget-'+level,budgetState===level);
+            control.classList.toggle('has-budget',plannedLimit>0);
+            control.style.setProperty('--finance-home-budget-progress',Math.min(100,spentPercent)+'%');
+            control.setAttribute('aria-description',plannedLimit>0?'Использовано '+financePercent(spentPercent)+' бюджета':'Бюджет не задан');
+            financeHomeBudgetLastFetch=Date.now();
+          }catch(error){console.warn('RUDI_FINANCE_HALO_REFRESH',String(error.message||error))}
+        })().finally(()=>{financeHomeBudgetPending=null});
+        return financeHomeBudgetPending;
+      }
       function financeExpensesForMonth(month){
         return (financeState.personalExpenses||[]).filter(row=>String(row?.month||'')===String(month||''));
       }
@@ -5621,6 +5645,7 @@
         if(financeCategoryHistoryId)renderFinanceCategoryHistory();
         restartRudiMotion(document.querySelector('.finance-balance-card'),'rudi-data-refresh',360);
         document.dispatchEvent(new CustomEvent('rudi-finances-updated',{detail:data}));
+        financeHomeBudgetLastFetch=0;
         if(currentActor==='Рустам')loadCoinKeeperOverview().catch(()=>{});
       }
       document.addEventListener('rudi-finance-decisions-mounted',()=>{
@@ -6376,6 +6401,9 @@
         }
       }
 
+      window.addEventListener('rudi:app-tab-change',event=>{
+        if(event.detail?.tab==='home')void refreshFinanceHomeBudgetHalo();
+      });
       function playCalendarConfetti(){
         const host=document.getElementById('calendarConfetti');
         if(!host) return;
@@ -21128,7 +21156,10 @@
 
       function applyActorVisibility(){
         document.body.dataset.rudiActor=currentActor;
-        if(currentActor==='Рустам') return;
+        if(currentActor==='Рустам'){
+          setTimeout(()=>void refreshFinanceHomeBudgetHalo(),500);
+          return;
+        }
         document.getElementById('carTile')?.remove();
         document.getElementById('carPage')?.remove();
       }
