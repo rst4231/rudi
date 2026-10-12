@@ -1,8 +1,8 @@
 name: RUDI Personal AI Center
 
 on:
-  schedule:
-    - cron: '0 4 * * *'
+  # Manual diagnostic fallback only. Morning generation is now part of the
+  # existing Vercel Telegram cron at 06:00 Moscow, never a second schedule.
   workflow_dispatch:
 
 permissions:
