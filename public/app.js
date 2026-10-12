@@ -3453,6 +3453,24 @@
           loadCoinKeeperMonth(key).catch(()=>{});
         }
       }
+      // One renderer for the Finance budget line and the home finance halo.
+      function applyFinanceBudgetIndicator(spentPercent,plannedLimit){
+        if(!Number.isFinite(spentPercent))return;
+        const budgetLine=document.querySelector('.finance-balance-progress');
+        const profileMoney=document.getElementById('financeProfileButton');
+        const budgetState=spentPercent>=100?'full':spentPercent>=50?'mid':'low';
+        for(const control of [budgetLine,profileMoney]){
+          if(!control)continue;
+          for(const state of ['low','mid','full'])
+            control.classList.toggle('is-budget-'+state,state===budgetState);
+          control.classList.toggle('has-budget',plannedLimit>0);
+          control.style.setProperty('--finance-home-budget-progress',Math.min(100,spentPercent)+'%');
+        }
+        if(profileMoney)profileMoney.setAttribute('aria-description',
+          plannedLimit>0?'Использовано '+financePercent(spentPercent)+' месячного бюджета':'Бюджет по категориям не задан');
+        budgetLine?.classList.toggle('is-over',spentPercent>100);
+      }
+      window.RudiFinanceBudgetProgress=applyFinanceBudgetIndicator;
       function renderFinancePulse(month){
         const row=financePersonalRowForMonth(month)||{};
         const income=Math.max(0,Number(row.income||0));
@@ -3475,21 +3493,7 @@
         const spentPercent=plannedLimit>0?Math.max(0,actualSpent/plannedLimit*100):(actualSpent>0?100:0);
         if(progressBar)progressBar.style.width=Math.min(100,spentPercent)+'%';
         if(progressPercent)progressPercent.textContent=financePercent(spentPercent);
-        const budgetLine=document.querySelector('.finance-balance-progress');
-        const profileMoney=document.getElementById('financeProfileButton');
-        // Single source of truth: the home halo always mirrors this exact budget line.
-        const budgetState=spentPercent>=100?'full':spentPercent>=50?'mid':'low';
-        for(const control of [budgetLine,profileMoney]){
-          if(!control)continue;
-          control.classList.toggle('is-budget-low',budgetState==='low');
-          control.classList.toggle('is-budget-mid',budgetState==='mid');
-          control.classList.toggle('is-budget-full',budgetState==='full');
-          control.classList.toggle('has-budget',plannedLimit>0);
-          control.style.setProperty('--finance-home-budget-progress',Math.min(100,spentPercent)+'%');
-        }
-        if(profileMoney)profileMoney.setAttribute('aria-description',
-          plannedLimit>0?'Использовано '+financePercent(spentPercent)+' месячного бюджета':'Бюджет по категориям не задан');
-        budgetLine?.classList.toggle('is-over',spentPercent>100);
+        applyFinanceBudgetIndicator(spentPercent,plannedLimit);
         if(yesterdayTotal||todayTotal){
           const now=financeMoscowParts();
           const todayKey=now.year+'-'+now.month+'-'+now.day;
