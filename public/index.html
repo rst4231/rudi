@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.192">
+  <meta name="rudi-version" content="v4.193">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -73,8 +73,9 @@
   </script>
   <script defer src="/wallet-brand-icons.js?v=4.149"></script>
   <script defer src="/calendar-offline.js?v=4.149"></script>
-  <script defer src="/app.js?v=4.192"></script>
-  <script defer src="/personal-task-editor.js?v=4.190"></script>
+  <script defer src="/app.js?v=4.193"></script>
+  <script defer src="/personal-task-editor.js?v=4.193"></script>
+  <script defer src="/meditation.js?v=4.193"></script>
   <script defer src="/finance-wallet-currency.js?v=4.180"></script>
   <script defer src="/coinkeeper-history.js?v=4.187"></script>
   <script defer src="/product-extras.js?v=4.149"></script>
@@ -140,7 +141,8 @@
       white-space:normal;overflow:visible;text-align:center;line-height:1.14;font-size:8px;
     }
   </style>
-  <link rel="stylesheet" href="/personal-task-editor.css?v=4.190">
+  <link rel="stylesheet" href="/personal-task-editor.css?v=4.193">
+  <link rel="stylesheet" href="/meditation.css?v=4.193">
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -1842,7 +1844,6 @@
         <div class="work-calendar-head">
           <div class="calendar-header-actions" role="group" aria-label="Переключатели календаря">
             <button id="calendarScopeSwitch" class="calendar-header-control calendar-scope-switch" type="button" data-calendar-scope="shared" aria-label="Переключить на совместный календарь" title="Совместный календарь">Совместный</button>
-            <button id="calendarModeSwitch" class="calendar-header-control calendar-mode-switch" type="button" data-calendar-mode="week" aria-label="Показать неделю" title="Неделя"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3M3 13h18M3 17h18"/></svg></button>
             <button id="calendarSearchButton" class="calendar-header-control calendar-search-button" type="button" aria-label="Поиск по календарю" title="Найти дело" aria-expanded="false" aria-controls="calendarSearchPanel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4"/><path d="m15.5 15.5 5 5"/></svg></button>
             <button id="calendarFinanceShortcut" class="calendar-header-control calendar-finance-shortcut" data-finance-shortcut="overview" type="button" aria-label="Перейти в финансы" title="Открыть финансы"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="2.5"/><path d="M3 10h18"/><path d="M15 14h6v4h-6a2 2 0 0 1 0-4z"/><path d="M7 6V4.5A1.5 1.5 0 0 1 8.5 3H19"/></svg></button>
           <button id="calendarConnectionsGear" class="calendar-connections-gear calendar-header-control" type="button" aria-label="Подключения календаря" title="Подключения">
@@ -1863,7 +1864,7 @@
           <button type="button" id="calendarNext" aria-label="Следующий период">›</button>
           <button type="button" id="calendarToday" class="calendar-today">Сегодня</button>
           <button type="button" id="calendarCreateTask" class="calendar-create-task" aria-label="Создать совместное дело" title="Новое совместное дело" hidden>+</button>
-          <button type="button" id="calendarPersonalCreateTask" class="calendar-create-task calendar-personal-create-task" aria-label="Открыть TickTick, чтобы создать личную задачу" title="Создать задачу в личном TickTick" hidden>+</button>
+          <button type="button" id="calendarPersonalCreateTask" class="calendar-create-task calendar-personal-create-task" aria-label="Создать личное дело" title="Нажать — создать дело, удерживать — открыть TickTick" hidden>+</button>
         </div>
         <div id="workCalendarDays" class="work-calendar-days" aria-live="polite">
           <div class="work-calendar-skeleton"></div>
