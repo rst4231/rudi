@@ -12,7 +12,7 @@ test('both market scanners obey central configurable read-only Cloudflare market
 test('Worker only allows read-only public derivatives and Spot market URLs',()=>{
  const code=src('cloudflare/rudi-crypto-market-worker.mjs');
  assert.match(code,/verifiedMarketPath/);
- assert.match(code,/\/v5\/market\/tickers/);
+ assert.ok(code.includes("BASE+'tickers'"));
  assert.match(code,/\/v5\/market\/kline/);
  assert.match(code,/\/v5\/market\/mark-price-kline/);
  assert.match(code,/\/v5\/market\/funding\/history/);
