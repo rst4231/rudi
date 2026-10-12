@@ -12422,9 +12422,43 @@
         }
       }
 
+
+      // Reuse already fetched Telegram profile photos, without new API requests.
+      const sharedAgendaActorPhotos={rustam:'',diana:''};
+      function updateSharedAgendaAvatarPhoto(holder){
+        if(!holder)return;
+        const actor=String(holder.dataset.person||'');
+        const photo=String(sharedAgendaActorPhotos[actor]||'');
+        const img=holder.querySelector('.shared-agenda-avatar-photo');
+        if(!img)return;
+        if(!photo){
+          img.removeAttribute('src');
+          holder.classList.remove('has-photo');
+          return;
+        }
+        if(img.getAttribute('src')===photo){
+          if(img.complete&&img.naturalWidth>0)holder.classList.add('has-photo');
+          return;
+        }
+        holder.classList.remove('has-photo');
+        img.onload=()=>{
+          if(img.getAttribute('src')===photo&&img.naturalWidth>0)holder.classList.add('has-photo');
+        };
+        img.onerror=()=>holder.classList.remove('has-photo');
+        img.src=photo;
+        if(img.complete&&img.naturalWidth>0)holder.classList.add('has-photo');
+      }
+      function setSharedAgendaAvatarPhoto(actor,profile){
+        const id=actor==='Рустам'?'rustam':'diana';
+        sharedAgendaActorPhotos[id]=String(profile?.photoDataUrl||'').trim();
+        document.querySelectorAll('.shared-agenda-avatar[data-person="'+id+'"]')
+          .forEach(updateSharedAgendaAvatarPhoto);
+      }
+
       function setWishlistProfile(actor,profile){
         applyAvatarProfile(document.getElementById(actor==='Рустам'?'wishlistRustamAvatar':'wishlistDianaAvatar'),profile,actor);
         applyAvatarProfile(document.getElementById(actor==='Рустам'?'dailyQuestionRustamAvatar':'dailyQuestionDianaAvatar'),profile,actor);
+        setSharedAgendaAvatarPhoto(actor,profile);
       }
 
       function applyTelegramProfiles(selfProfile,partnerProfile){
@@ -13946,6 +13980,12 @@
             avatar.className='shared-agenda-avatar';
             avatar.dataset.person=name==='Д'?'diana':'rustam';
             avatar.textContent=name;
+            const photo=document.createElement('img');
+            photo.className='shared-agenda-avatar-photo';
+            photo.alt='';
+            photo.decoding='async';
+            avatar.appendChild(photo);
+            updateSharedAgendaAvatarPhoto(avatar);
             return avatar;
           }));
           complete.title=canComplete?'Отметить выполненным':ownerLabel;

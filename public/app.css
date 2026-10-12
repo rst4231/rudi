@@ -18335,3 +18335,16 @@ body[data-app-tab="home"] .priority-section .ticktick-today-complete.is-shared-a
   top:18px;left:2px
 }
 body[data-app-tab="home"] .priority-section .ticktick-today-task:has(.is-shared-avatar){min-height:97px}
+
+/* RUDI v4.203: actual profile pictures in the shared agenda (initials as fallback). */
+body[data-app-tab="home"] .priority-section .shared-agenda-avatar{
+  overflow:hidden;
+}
+body[data-app-tab="home"] .priority-section .shared-agenda-avatar-photo{
+  position:absolute;inset:0;display:none;
+  width:100%;height:100%;object-fit:cover;object-position:center;
+  border-radius:inherit;pointer-events:none;
+}
+body[data-app-tab="home"] .priority-section .shared-agenda-avatar.has-photo .shared-agenda-avatar-photo{
+  display:block;
+}

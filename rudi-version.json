@@ -1,11 +1,11 @@
 {
-  "current": "v4.202",
+  "current": "v4.203",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.201",
+  "basedOnProduction": "v4.202",
   "notes": [
     "Includes v4.198 prepared fixes: 100-star wishlist reward, updated earning guide, expense label, and native iOS date/time field refresh.",
     "Global rain and snow effects driven by live Open-Meteo current weather, individually toggleable and enabled by default with sync.",
@@ -19,7 +19,9 @@
     "Оформление совместных дел как таймлайн: вкладки Сегодня/Завтра, время, цветные точки и аватары участников.",
     "Задачи обоих дней возвращаются одним запросом TickTick, без дополнительных запросов при переключении.",
     "Существующие создание, редактирование, удаление, выполнение и Undo сохранены; кнопка Новое на Завтра выбирает завтрашнюю дату.",
-    "Добавлены проверки регрессий, адаптация к узким экранам и тёмной теме."
+    "Добавлены проверки регрессий, адаптация к узким экранам и тёмной теме.",
+    "v4.203: совместные дела используют реальные фотографии Рустама и Дианы из уже загруженных Telegram-профилей, включая обновление фото без новых запросов.",
+    "Сохранено отображение инициалов при отсутствии/ошибке загрузки фото; добавлены тесты рендеринга и обновлений."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
