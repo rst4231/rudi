@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
+const { homeSectionHashes, buildHomeDelta } = require('./home-bootstrap-delta.cjs');
 const { decorateSharedTaskTitle } = require('./shared-task-emoji.cjs');
 const { waitUntil } = require('@vercel/functions');
 const { resolveTelegramBotToken } = require('./products-bought.cjs');
@@ -3481,7 +3482,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeRequest(req, body.initData, options);
       const home = await buildHomeBootstrap(actor, null, options);
-      return res.status(200).json({ ok:true, actor, home });
+      const delta=buildHomeDelta(home,body.knownHomeHashes);
+      return res.status(200).json({ ok:true, actor, ...delta });
     } catch (error) {
       return res.status(statusForError(error)).json({ ok:false, error:String(error?.message || error) });
     }
@@ -3569,7 +3571,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         uiPreferences: effectiveUiPreferences || null,
         partnerUiPreferences: partnerUiPreferences?.initialized ? partnerUiPreferences : null,
         ...(backupToken ? { backupToken } : {}),
-        ...(includeHome && home ? { home } : {}),
+        ...(includeHome && home ? { home, homeHashes: homeSectionHashes(home) } : {}),
       });
       scheduleStateBackupRestore(body.backupToken, options);
       return response;

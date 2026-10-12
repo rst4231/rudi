@@ -58,6 +58,17 @@
       let homeBootstrapPromise = null;
       let homeBootstrapPayload = null;
       let homeBootstrapLoadedAt = 0;
+      let homeBootstrapLoadedDay = '';
+      let homeBootstrapActor = '';
+      let homeBootstrapHashes = null;
+      const homeSectionRenderSignatures = new Map();
+      function homeBootstrapSectionChanged(section,value,dynamicKey=''){
+        const key=String(currentActor||'')+':'+section;
+        const signature=todayState().key+'|'+dynamicKey+'|'+JSON.stringify(value??null);
+        if(homeSectionRenderSignatures.get(key)===signature)return false;
+        homeSectionRenderSignatures.set(key,signature);
+        return true;
+      }
       let homePartnerExpensePromise = null;
       let homePartnerExpenseLoadedAt = 0;
       const HOME_BOOTSTRAP_CACHE_MS = 5*60*1000;
@@ -9104,7 +9115,6 @@
 
         const today=document.getElementById('homeTodayRows');
         if(today){
-          today.replaceChildren();
           const tasks=homeDashboardState.tasks.filter(homeTaskForActor);
           const work=homeDashboardState.workDay;
           const eventCount=homeEventRows().length;
@@ -9114,12 +9124,17 @@
             ...(eventCount?[{icon:'🎙',text:eventCount+' '+(eventCount===1?'событие сегодня':eventCount<5?'события сегодня':'событий сегодня')}]:[]),
             ...(homeDashboardState.productCount>0?[{icon:'🛒',text:'Купить: '+homeDashboardState.productCount+' '+(homeDashboardState.productCount===1?'позиция':homeDashboardState.productCount<5?'позиции':'позиций')}]:[])
           ];
-          for(const row of rows){
+          const todaySignature=JSON.stringify(rows);
+          if(today.dataset.rudiRowsSignature!==todaySignature){
+            today.replaceChildren();
+            for(const row of rows){
             const el=document.createElement('div');
             el.className='home-today-row';
             el.innerHTML='<span>'+row.icon+'</span><strong></strong>';
             el.querySelector('strong').textContent=row.text;
             today.appendChild(el);
+            }
+            today.dataset.rudiRowsSignature=todaySignature;
           }
         }
 
@@ -9146,11 +9161,13 @@
         const nearest=document.getElementById('homeNearestRows');
         const nearestWrap=document.getElementById('homeNearestBlock');
         if(nearest&&nearestWrap){
-          nearest.replaceChildren();
           const rows=homeNearestRows();
           nearestWrap.dataset.homeEmpty=rows.length?'0':'1';
           nearestWrap.hidden=currentAppTab!=='home'||!rows.length;
-          for(const row of rows){
+          const nearestSignature=JSON.stringify(rows.map(row=>({icon:row.icon,label:row.label,time:row.time,href:row.href})));
+          if(nearest.dataset.rudiRowsSignature!==nearestSignature){
+            nearest.replaceChildren();
+            for(const row of rows){
             const isLink=/^https?:\/\//i.test(String(row.href||''));
             const el=document.createElement(isLink?'a':'div');
             el.className='home-nearest-row'+(isLink?' home-nearest-link':'');
@@ -9170,6 +9187,8 @@
             el.innerHTML='<span class="home-nearest-icon">'+row.icon+'</span><strong></strong>'+time;
             el.querySelector('strong').textContent=row.label;
             nearest.appendChild(el);
+            }
+            nearest.dataset.rudiRowsSignature=nearestSignature;
           }
         }
         renderHomeNew();
@@ -12021,48 +12040,53 @@
       }
 
       function applyHomeBootstrap(home){
-        if(!home||typeof home!=='object') return false;
+        if(!home||typeof home!=='object')return false;
         homeBootstrapPayload=home;
         homeBootstrapLoadedAt=Date.now();
-        if(home.activity) renderActivityJournal(home.activity);
-        if(home.mood){
+        homeBootstrapLoadedDay=todayState().key;
+        homeBootstrapActor=currentActor;
+        if(home.activity&&homeBootstrapSectionChanged('activity',home.activity))renderActivityJournal(home.activity);
+        if(home.mood&&homeBootstrapSectionChanged('mood',home.mood)){
           currentMoodDateKey=String(home.mood?.date||todayState().key);
           renderDailyMood(home.mood);
         }
-        if(home.dailyQuestion) renderDailyQuestion(home.dailyQuestion);
-        if(home.cycle&&typeof home.cycle==='object'){
+        if(home.dailyQuestion&&homeBootstrapSectionChanged('dailyQuestion',home.dailyQuestion))renderDailyQuestion(home.dailyQuestion);
+        if(home.cycle&&typeof home.cycle==='object'&&homeBootstrapSectionChanged('cycle',home.cycle)){
           renderDianaCycle(home.cycle.configured?home.cycle.cycle:null);
         }
-        if(Object.prototype.hasOwnProperty.call(home,'partnerMessage')){
-          if(partnerMessageBootstrapHandler) partnerMessageBootstrapHandler(home.partnerMessage||null);
+        if(Object.prototype.hasOwnProperty.call(home,'partnerMessage')&&homeBootstrapSectionChanged('partnerMessage',home.partnerMessage)){
+          if(partnerMessageBootstrapHandler)partnerMessageBootstrapHandler(home.partnerMessage||null);
           else renderPartnerMessage(home.partnerMessage||null);
         }
-        if(Object.prototype.hasOwnProperty.call(home,'workDay')){
+        if(Object.prototype.hasOwnProperty.call(home,'workDay')&&homeBootstrapSectionChanged('workDay',home.workDay,Math.floor(Date.now()/60000))){
           renderPartnerWorkStatus(home.workDay?[home.workDay]:[]);
         }
-        if(home.feed&&typeof home.feed==='object'){
+        if(home.feed&&typeof home.feed==='object'&&homeBootstrapSectionChanged('feed',home.feed)){
           homeDashboardState.feed=home.feed;
           homeDashboardState.feedResults=[];
           renderHomeDashboard();
           const feedVersion=String(home.feed?.version||'');
           setFeedBadge(Boolean(feedVersion&&feedVersion!==feedSeenVersion()&&currentAppTab!=='feed'));
         }
-        if(Object.prototype.hasOwnProperty.call(home,'partnerHabits')){
+        if(Object.prototype.hasOwnProperty.call(home,'partnerHabits')&&homeBootstrapSectionChanged('partnerHabits',home.partnerHabits)){
           homeDashboardState.partnerHabits=home.partnerHabits;
           renderHomePartnerHabits(homeDashboardState.partnerHabits);
         }
         const counts=home.counts&&typeof home.counts==='object'?home.counts:{};
-        if(Number.isFinite(Number(counts.wishlist))) homeDashboardState.wishlistCount=Math.max(0,Number(counts.wishlist));
-        if(Number.isFinite(Number(counts.photos))) homeDashboardState.photoCount=Math.max(0,Number(counts.photos));
-        if(Number.isFinite(Number(counts.products))) homeDashboardState.productCount=Math.max(0,Number(counts.products));
-        renderHomeNew();
+        if(homeBootstrapSectionChanged('counts',counts)){
+          if(Number.isFinite(Number(counts.wishlist)))homeDashboardState.wishlistCount=Math.max(0,Number(counts.wishlist));
+          if(Number.isFinite(Number(counts.photos)))homeDashboardState.photoCount=Math.max(0,Number(counts.photos));
+          if(Number.isFinite(Number(counts.products)))homeDashboardState.productCount=Math.max(0,Number(counts.products));
+          renderHomeNew();
+          renderHomeDashboard();
+        }
         loadHomePartnerLastExpense().catch(()=>{});
         return true;
       }
 
       async function loadHomeBootstrap({force=false}={}){
         if(!currentActor) return null;
-        if(!force&&homeBootstrapPayload&&Date.now()-homeBootstrapLoadedAt<HOME_BOOTSTRAP_CACHE_MS){
+        if(!force&&homeBootstrapPayload&&homeBootstrapActor===currentActor&&homeBootstrapLoadedDay===todayState().key&&Date.now()-homeBootstrapLoadedAt<HOME_BOOTSTRAP_CACHE_MS){
           applyHomeBootstrap(homeBootstrapPayload);
           return homeBootstrapPayload;
         }
@@ -12071,23 +12095,30 @@
           const response=await fetchWithTimeout('/api/partner-message?rudiAction=home-bootstrap',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:telegramInitData()}),
+            body:JSON.stringify({initData:telegramInitData(),...(homeBootstrapPayload&&homeBootstrapActor===currentActor&&homeBootstrapHashes?{knownHomeHashes:homeBootstrapHashes}:{})}),
             cache:'no-store'
           },10000);
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||!payload.ok) throw new Error(payload.error||'home-bootstrap');
           if(payload.actor&&String(payload.actor)!==currentActor) return null;
           if(payload.home){
-            appBootstrapPayload={...(appBootstrapPayload||{}),home:payload.home};
-            applyHomeBootstrap(payload.home);
+            const canMerge=payload.homePartial===true&&homeBootstrapPayload&&homeBootstrapActor===currentActor;
+            const home=canMerge?{...homeBootstrapPayload,...payload.home}:payload.home;
+            if(canMerge&&Array.isArray(payload.homeRemoved)){
+              for(const key of payload.homeRemoved)delete home[key];
+            }
+            homeBootstrapHashes=payload.homeHashes&&typeof payload.homeHashes==='object'?payload.homeHashes:null;
+            appBootstrapPayload={...(appBootstrapPayload||{}),home};
+            applyHomeBootstrap(home);
+            return home;
           }
-          return payload.home||null;
+          return null;
         })().finally(()=>{homeBootstrapPromise=null});
         return homeBootstrapPromise;
       }
 
       async function ensureHomeBootstrap({force=false}={}){
-        if(!force&&appBootstrapPayload?.home&&Date.now()-homeBootstrapLoadedAt<HOME_BOOTSTRAP_CACHE_MS){
+        if(!force&&appBootstrapPayload?.home&&homeBootstrapActor===currentActor&&homeBootstrapLoadedDay===todayState().key&&Date.now()-homeBootstrapLoadedAt<HOME_BOOTSTRAP_CACHE_MS){
           applyHomeBootstrap(appBootstrapPayload.home);
           return appBootstrapPayload.home;
         }
@@ -12130,7 +12161,10 @@
           appBootstrapPayload=payload;
           partnerContactPreferences=payload.partnerUiPreferences&&typeof payload.partnerUiPreferences==='object'?payload.partnerUiPreferences:null;
           syncProfileContactButtons();
-          if(payload.home) applyHomeBootstrap(payload.home);
+          if(payload.home){
+            homeBootstrapHashes=payload.homeHashes&&typeof payload.homeHashes==='object'?payload.homeHashes:null;
+            applyHomeBootstrap(payload.home);
+          }
           if(payload.selfProfile||payload.partnerProfile){
             const selfProfile=payload.selfProfile||cachedProfiles?.selfProfile||null;
             const partnerProfile=payload.partnerProfile||cachedProfiles?.partnerProfile||null;
