@@ -132,6 +132,7 @@ function normalizedEditorWhen(task){
   let time=validTime(task?.startTime)?String(task.startTime)
     :validTime(task?.endTime)?String(task.endTime):'';
   const raw=String(task?.originalStartDate||'').trim();
+  // Card occurrence date always wins over older TickTick timestamps.
   if(raw){
     const instant=new Date(raw);
     if(Number.isFinite(instant.getTime())){
@@ -150,9 +151,11 @@ function open(task,ctx={}){
   if(!task?.id||!task?.personal)return;
   init();closeMenu();byId('rudiPersonalTaskForm').reset();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
-  const {date,time}=normalizedEditorWhen(task);
+  const {date,time}=normalizedEditorWhen(active.task);
+  // Clear the previous task's temporal fields on iOS before every open.
+  f('date').value='';f('time').value='';
   f('date').value=date;
-  f('time').value=time;
+  f('time').value=date?time:'';
   f('description').value=String(task.description||'');
   f('project').replaceChildren(new Option(task.projectName||'Текущий список',task.projectId||''));
   f('project').value=task.projectId||'';

@@ -9946,7 +9946,6 @@
         partnerLastExpense.id='homePartnerLastExpense';
         partnerLastExpense.className='home-partner-last-expense';
         partnerLastExpense.hidden=true;
-        partnerCard.details.appendChild(partnerLastExpense);
         renderHomePartnerLastExpense(homeDashboardState.partnerLastExpense);
 
         const makeSupplementIntakeBlock=(actor)=>{
@@ -9976,6 +9975,8 @@
         const dianaSupplementBlock=makeSupplementIntakeBlock('Диана');
         rustamCard.details.appendChild(rustamSupplementBlock);
         dianaCard.details.appendChild(dianaSupplementBlock);
+        // Expense precedes the partner meditation summary.
+        partnerCard.details.appendChild(partnerLastExpense);
         const partnerHabitSummary=document.createElement('div');
         partnerHabitSummary.id='homePartnerHabitsSummary';
         partnerHabitSummary.className='profile-partner-habits-summary';
@@ -14555,7 +14556,7 @@
         return 'https://ticktick.com/webapp/#p/'+encodeURIComponent(projectId)+'/tasks/'+encodeURIComponent(taskId);
       }
       function calendarOpenPersonalTickTickTask(task){
-        if(currentActor!=='Рустам'||calendarScope!=='personal'||task?.personal!==true||task?.canEdit!==false)return false;
+        if(currentActor!=='Рустам'||calendarScope!=='personal'||task?.personal!==true)return false;
         const url=calendarTickTickTaskWebUrl(task);
         if(!url)return false;
         // Telegram's openLink delegates to the operating system; installed TickTick
@@ -14648,6 +14649,8 @@
             .format(dateFromKey(task.date))+(task.startTime?' · '+task.startTime:'')+
             (task.personal?' · Личный':task.together?' · Вместе':task.responsible?' · '+task.responsible:'');
           row.append(title,date);row.addEventListener('click',()=>calendarOpenSearchResult(task));
+          if(task.personal===true&&currentActor==='Рустам'&&calendarTickTickTaskWebUrl(task))
+            window.RUDIPersonalTaskEditor?.bind(row,task,calendarPersonalTaskEditorContext(task));
           list.appendChild(row);
         }
       }
@@ -15002,8 +15005,8 @@
         const maxStart=Math.max(0,Math.floor((1440-duration)/15)*15);
         const timeLabel=minutes=>String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');
         const HOLD_MS=420;
-        let gesture=null,holdTimer=null,busy=false,suppressClickUntil=0;
-        const clearHold=()=>{if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null}};
+        let gesture=null,holdTimer=null,longOpenTimer=null,busy=false,suppressClickUntil=0;
+        const clearHold=()=>{if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null}if(longOpenTimer!==null){clearTimeout(longOpenTimer);longOpenTimer=null}};
         const restorePreview=()=>{
           block.style.top=originalTop;
           stamp.textContent=originalTime;
@@ -15027,12 +15030,27 @@
             block.classList.add('is-dragging');
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           },HOLD_MS);
+          // Stationary hold opens the exact TickTick task; moving retains time-drag.
+          if(task.personal===true&&calendarScope==='personal'&&currentActor==='Рустам'&&calendarTickTickTaskWebUrl(task)){
+            longOpenTimer=setTimeout(()=>{
+              longOpenTimer=null;
+              const g=gesture;
+              if(!g||g.id!==pointerEvent.pointerId||g.scrolling||g.changed)return;
+              if(calendarOpenPersonalTickTickTask(task)){
+                suppressClickUntil=Date.now()+1300;
+                gesture=null;clearHold();restorePreview();
+                try{block.releasePointerCapture(g.id)}catch(_){}
+                try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+              }
+            },700);
+          }
         });
         block.addEventListener('pointermove',pointerEvent=>{
           const g=gesture;
           if(!g||g.id!==pointerEvent.pointerId)return;
           const movedY=pointerEvent.clientY-g.startY;
           const movedX=pointerEvent.clientX-g.startX;
+          if(Math.hypot(movedX,movedY)>10&&longOpenTimer!==null){clearTimeout(longOpenTimer);longOpenTimer=null}
           if(!g.dragging){
             if(Math.abs(movedY)>8||Math.abs(movedX)>8){
               clearHold();
@@ -15135,7 +15153,7 @@
             completeCalendarTickTickTask(task,row,checkbox,writable);
           });
           row.prepend(checkbox);
-          if(isPersonal&&calendarScope==='personal'&&task.canEdit===false&&calendarTickTickTaskWebUrl(task)){
+          if(isPersonal&&calendarScope==='personal'&&calendarTickTickTaskWebUrl(task)){
             row.classList.add('calendar-external-task');
             row.style.cursor='pointer';
             row.tabIndex=0;
@@ -15150,7 +15168,10 @@
               if(event.target!==row||(event.key!=='Enter'&&event.key!==' '))return;
               event.preventDefault();window.RUDIPersonalTaskEditor?.open(task,ctx);
             });
-            window.RUDIPersonalTaskEditor?.bind(row,task,ctx);
+            // Timed weekly events use their drag handler for long press;
+            // avoid a second timer that would open the same task twice.
+            if(!row.classList.contains('calendar-week-time-event')||task.canComplete===false)
+              window.RUDIPersonalTaskEditor?.bind(row,task,ctx);
           }
         };
         // Weekly timeline shows tasks, shifts and obligations; holidays remain in month view.
@@ -15514,7 +15535,7 @@
                 const taskCopy=document.createElement('button');
                 taskCopy.type='button';
                 taskCopy.className='calendar-task-copy';
-                const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&event?.canEdit===false&&Boolean(calendarTickTickTaskWebUrl(event));
+                const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&Boolean(calendarTickTickTaskWebUrl(event));
                 taskCopy.disabled=!event?.id||(!opensInTickTick&&(payload?.ticktickWritable===false||event?.canEdit===false));
                 taskCopy.setAttribute('aria-label','Редактировать: '+String(event.title||'Дело'));
                 const start=String(event.startTime||'').trim();

@@ -242,7 +242,7 @@ function updatePartner(){
  const id=partner.actor==='Рустам'?'homeRustamDetails':'homeDianaDetails';
  const detail=$(id);if(!detail)return;
  let card=detail.querySelector('#meditationPartnerSummary');
- if(!card){card=document.createElement('div');card.id='meditationPartnerSummary';card.className='meditation-partner-summary';const supplements=detail.querySelector('.profile-supplement-intakes');if(supplements)supplements.insertAdjacentElement('afterend',card);else detail.appendChild(card)}
+ if(!card){card=document.createElement('div');card.id='meditationPartnerSummary';card.className='meditation-partner-summary';const expense=detail.querySelector('#homePartnerLastExpense');const supplements=detail.querySelector('.profile-supplement-intakes');if(expense)expense.insertAdjacentElement('afterend',card);else if(supplements)supplements.insertAdjacentElement('afterend',card);else detail.appendChild(card)}
  const count=Number(partner.todaySessions||0),minutes=Number(partner.todayMinutes||0);
  const feminine=partner.actor==='Диана';
  card.textContent='🧘 Сегодня '+(count?(feminine?'медитировала ':'медитировал ')+formatDailyTime(minutes):(feminine?'не медитировала':'не медитировал'));

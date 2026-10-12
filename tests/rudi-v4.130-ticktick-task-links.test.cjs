@@ -66,13 +66,13 @@ test('shared tasks, non-personal calendars and other users do not open personal 
     assert.equal(actions.length,0);
   }
   const {context}=helpers();
-  assert.equal(context.openPersonalTask({...ownedTask,canEdit:true}),false);
+  assert.equal(context.openPersonalTask({...ownedTask,canEdit:true}),true);
 });
 
 test('calendar personal task clicks edit, long press opens TickTick, right click shows actions',()=>{
   const editor=fs.readFileSync('public/personal-task-editor.js','utf8');
   const html=fs.readFileSync('public/index.html','utf8');
-  assert.ok(app.includes("const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&event?.canEdit===false"));
+  assert.ok(app.includes("const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&Boolean"));
   assert.ok(app.includes('window.RUDIPersonalTaskEditor?.open(event,calendarPersonalTaskEditorContext(event))'));
   assert.ok(app.includes('window.RUDIPersonalTaskEditor?.bind(taskCopy,event,calendarPersonalTaskEditorContext(event))'));
   assert.ok(app.includes('window.RUDIPersonalTaskEditor?.bind(row,task,ctx)'));
@@ -88,4 +88,10 @@ test('calendar personal task clicks edit, long press opens TickTick, right click
   assert.ok(html.includes('personal-task-editor.js?v='+version));
   assert.ok(app.includes('completeCalendarTickTickTask(task,row,checkbox,writable)'));
   assert.ok(app.includes('completeCalendarTickTickTask(event,row,complete,taskWritable)'));
+});
+
+test('stationary long hold on a personal weekly task opens TickTick without disabling time drag',()=>{
+  assert.match(app,/longOpenTimer=setTimeout\(\(\)=>\{/);
+  assert.match(app,/calendarOpenPersonalTickTickTask\(task\)/);
+  assert.match(app,/Math\.hypot\(movedX,movedY\)>10/);
 });

@@ -64,7 +64,8 @@ body.meditation-page-open #appTabBar{display:none!important}
 .meditation-history-row:last-child{border-bottom:0}
 .meditation-history-row>span{display:grid;gap:4px}.meditation-history-row b{font-size:12px}.meditation-history-row small{font-size:11px;opacity:.6}
 .meditation-history-row>strong{font-size:14px;font-variant-numeric:tabular-nums}
-.meditation-partner-summary{padding:10px 12px;margin-top:9px;border-radius:12px;border:1px solid rgba(132,202,219,.22);background:rgba(126,188,207,.09);font-size:12px;font-weight:680}
+.meditation-partner-summary,.profile-person-card .home-partner-last-expense{padding:10px 12px;margin-top:0;border-radius:12px;border:1px solid rgba(132,202,219,.22);background:rgba(126,188,207,.09);font-size:12px;line-height:1.4;font-weight:680;color:var(--text)}
+.profile-person-card .home-partner-last-expense[hidden]{display:none!important}
 #homeRustamTile .mood-current-button .mood-emoji,#homeRustamTile .partner-avatar-mood-badge .mood-emoji,
 #homeDianaTile .mood-current-button .mood-emoji,#homeDianaTile .partner-avatar-mood-badge .mood-emoji{
  font-size:19px!important;line-height:1!important;transform:scale(.94)}

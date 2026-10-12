@@ -1,16 +1,16 @@
 {
-  "current": "v4.196",
+  "current": "v4.197",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.195",
+  "basedOnProduction": "v4.196",
   "notes": [
-    "Swipe right from the left edge of the meditation page to return to Home.",
-    "Use each personal calendar task card's date/time, ignoring timestamps from previous TickTick occurrences; reset editor state.",
-    "Long-press fasting on Home to start a 16-hour fast; no duplicate if one already runs.",
-    "Long-press meditation on Home to open and start a 10-minute session; preserve normal taps."
+    "Reset date and time fields for each selected personal TickTick task.",
+    "Long press any personal calendar task, including week grid and search, to open the precise TickTick task.",
+    "Move and restyle the partner last-expense row directly above meditation.",
+    "Existing fasting and meditation long-press actions remain unchanged."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
