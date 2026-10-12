@@ -2222,6 +2222,7 @@
       // Read-only overlay: never mix the 2016–2026 archive into mutable financeState.
       let coinKeeperOverview=null,coinKeeperOverviewPromise=null;
       const coinKeeperRows=new Map(),coinKeeperInFlight=new Map();
+      let coinKeeperLedgerRefreshQueued=false;
       function coinKeeperArchiveMonth(month){return /^\d{4}-(0[1-9]|1[0-2])$/.test(String(month||''))&&month>='2016-09'&&month<='2026-09'}
       function coinKeeperMonthly(month){return currentActor==='Рустам'?coinKeeperOverview?.months?.[month]||null:null}
       function coinKeeperRange(from,to){
@@ -2274,11 +2275,16 @@
           if(currentActor!=='Рустам')return [];
           coinKeeperRows.set(month,rows);
           if(financeCategoryHistoryId&&document.getElementById('financeCategoryHistoryMonthInput')?.value===month)renderFinanceCategoryHistory();
-          if(document.getElementById('financePersonalMonthInput')?.value===month){
-            if(document.getElementById('financeExpenseHistoryPage')?.hidden===false)renderFinanceOperations();
-            if(document.getElementById('financeExpenseComposer')?.getAttribute('aria-hidden')==='false'&&financeExpenseCategoryId)
-              renderFinanceExpenseComposerHistory(month,financeExpenseCategoryId);
+          if(document.getElementById('financeExpenseHistoryPage')?.hidden===false&&!coinKeeperLedgerRefreshQueued){
+            coinKeeperLedgerRefreshQueued=true;
+            setTimeout(()=>{
+              coinKeeperLedgerRefreshQueued=false;
+              if(document.getElementById('financeExpenseHistoryPage')?.hidden===false)renderFinanceOperations();
+            },50);
           }
+          if(document.getElementById('financePersonalMonthInput')?.value===month&&
+            document.getElementById('financeExpenseComposer')?.getAttribute('aria-hidden')==='false'&&financeExpenseCategoryId)
+            renderFinanceExpenseComposerHistory(month,financeExpenseCategoryId);
           return rows;
         })().catch(e=>{console.warn('RUDI_CK_MONTH_WARN',month,String(e?.message||e));return []})
           .finally(()=>coinKeeperInFlight.delete(month));
