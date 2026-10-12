@@ -151,10 +151,11 @@ async function handler(req, res) {
     if (req.query?.route === 'crypto-monitor-cron') {
       // Reuse the already active quarter-hourly GitHub Actions schedule.
       // Authentication is scoped to its exact workflow (not arbitrary callers).
-      const authorized=await isGitHubActionsRequestAuthorized(req,{
-        audience:'rudi-crypto-signals',
-        workflowRef:'rst4231/rudi/.github/workflows/lulu-toilet-alert.yml@refs/heads/main'
-      });
+      const authorized=isCronRequestAuthorized(req,process.env.RUDI_CRYPTO_CRON_SECRET)||
+        await isGitHubActionsRequestAuthorized(req,{
+          audience:'rudi-crypto-signals',
+          workflowRef:'rst4231/rudi/.github/workflows/lulu-toilet-alert.yml@refs/heads/main'
+        });
       if(!authorized)return res.status(401).json({ok:false,error:'not-authorized'});
       if(req.method!=='GET')return res.status(405).json({ok:false,error:'method-not-allowed'});
       // Run independently: an inaccessible Telegram/Bybit source cannot block
