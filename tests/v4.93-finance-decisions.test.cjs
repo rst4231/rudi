@@ -43,7 +43,7 @@ test('weekly finance chart mounts before where-money-goes and hides duplicate da
  const css=fs.readFileSync('public/finance-decisions.css','utf8');
  assert.ok(ui.indexOf('id="rudiWeeklyBars"')<ui.indexOf('id="rudiAlertsHeading"'));
  assert.match(ui,/renderWeeklyExpenses\(\)/);
- assert.match(ui,/core\.expensePeriod\(snapshot,nowMoscow\(\),expenseChartPeriod\)/);
+ assert.match(ui,/core\.expensePeriod\(snapshot,isYear\?new Date\(chosenYear,0,1,12\):today,expenseChartPeriod\)/);
  assert.match(ui,/financeBalanceEyeButton/);
  assert.doesNotMatch(html,/class="finance-category-yesterday"/);
  assert.match(css,/\.rudi-weekly-bar/);
