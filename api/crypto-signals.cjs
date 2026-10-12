@@ -3,6 +3,7 @@ const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const {linkUpdates}=require('./crypto-trade-events.cjs');
 const {tradeOutcome,screenLiquidationRisk}=require('./crypto-signal-outcome.cjs');
 const NS='rudi-crypto-signal-monitor-v1', KEY='ne_investor', PERIOD_MS=30*86400000, INTERVAL_MS=15*60000;
+const marketOrigin=()=>String(process.env.RUDI_BYBIT_PUBLIC_API_URL||'https://api.bybit.com').replace(/\/+$/,'');
 const cleanText=s=>String(s||'').slice(0,1800);
 function entities(text){
   return String(text||'').replace(/&#(x[0-9a-f]+|\d+);/gi,(_,n)=>{
@@ -165,7 +166,7 @@ async function candlesForSignal(signal,options={}){
   const symbol=signal.symbol+'USDT';
   const start=Math.floor((Date.parse(signal.at)+3600000)/3600000)*3600000;
   const end=Date.now();
-  const url='https://api.bybit.com/v5/market/'+(options.mark?'mark-price-kline':'kline')+'?'+new URLSearchParams({
+  const url=marketOrigin()+'/v5/market/'+(options.mark?'mark-price-kline':'kline')+'?'+new URLSearchParams({
     category:signal.market,symbol,interval:'60',start:String(start),end:String(end),limit:'1000'});
   const response=await fetcher(url,{signal:AbortSignal.timeout(9000),cache:'no-store'});
   if(!response.ok)throw Error('market-http-'+response.status);
@@ -178,7 +179,7 @@ async function fundingForSignal(signal,options={}){
   if(signal?.market!=='linear')return {rates:[],complete:true};
   const fetcher=options.fetchImpl||fetch;
   const start=Date.parse(signal.at),end=Number(options.now||Date.now());
-  const url='https://api.bybit.com/v5/market/funding/history?'+new URLSearchParams({
+  const url=marketOrigin()+'/v5/market/funding/history?'+new URLSearchParams({
     category:'linear',symbol:signal.symbol+'USDT',startTime:String(start),endTime:String(end),limit:'200'});
   const response=await fetcher(url,{cache:'no-store',signal:AbortSignal.timeout(9000)});
   if(!response.ok)throw Error('bybit-funding-http-'+response.status);
