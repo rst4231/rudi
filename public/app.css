@@ -18348,3 +18348,62 @@ body[data-app-tab="home"] .priority-section .shared-agenda-avatar-photo{
 body[data-app-tab="home"] .priority-section .shared-agenda-avatar.has-photo .shared-agenda-avatar-photo{
   display:block;
 }
+
+/* RUDI v4.203: shared agenda photo avatars and uncluttered tap-to-edit rows. */
+body[data-app-tab="home"] .priority-section .shared-agenda-avatar{overflow:hidden}
+body[data-app-tab="home"] .priority-section .shared-agenda-avatar img{
+  position:absolute;inset:0;width:100%;height:100%;
+  object-fit:cover;object-position:center;border-radius:inherit;
+  opacity:0;pointer-events:none;transition:opacity .16s ease
+}
+body[data-app-tab="home"] .priority-section .shared-agenda-avatar.has-photo img{opacity:1}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-copy{
+  cursor:pointer;padding-right:31px!important;min-height:42px
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-copy::after{
+  content:none!important
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task{
+  cursor:pointer
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-details-toggle{
+  position:absolute;top:15px;right:0;z-index:2;
+  display:grid;place-items:center;
+  width:32px;height:32px;min-width:32px;padding:0;
+  border:0;border-radius:10px;background:transparent;color:var(--muted);
+  cursor:pointer;-webkit-tap-highlight-color:transparent
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-details-toggle svg{
+  display:block;width:20px;height:20px;fill:none;stroke:currentColor;
+  stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+  transition:transform .16s ease
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-details-toggle[aria-expanded="true"] svg{
+  transform:rotate(180deg)
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task:not(:has(.ticktick-today-details-toggle))
+ .ticktick-today-copy{padding-right:6px!important}
+#ticktickTaskDeleteButton{
+  display:block;width:100%;min-height:44px;padding:11px 14px;
+  margin-top:3px;border:1px solid rgba(230,74,89,.27);
+  border-radius:13px;background:rgba(229,72,86,.09);
+  color:#df5265;font:inherit;font-size:13px;font-weight:750;
+  cursor:pointer;-webkit-tap-highlight-color:transparent
+}
+html[data-theme="dark"] #ticktickTaskDeleteButton{
+  background:rgba(240,84,103,.105);border-color:rgba(240,84,103,.30);
+  color:#ff8390
+}
+#ticktickTaskDeleteButton[hidden],#ticktickTaskSaveButton[hidden]{display:none!important}
+#ticktickTaskDeleteButton:disabled{opacity:.55;cursor:wait}
+.ticktick-task-form-actions.is-view-only{grid-template-columns:1fr}
+@media(max-width:370px){
+  body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-copy{padding-right:25px!important}
+  body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-details-toggle{
+    width:28px;height:30px;min-width:28px
+  }
+}
+@media(prefers-reduced-motion:reduce){
+  body[data-app-tab="home"] .priority-section .shared-agenda-avatar img,
+  body[data-app-tab="home"] .priority-section .ticktick-today-details-toggle svg{transition:none!important}
+}

@@ -13624,8 +13624,8 @@
 
       async function deleteTickTickTodayTask(task,row,button){
         if(!task?.id||!task?.canDelete||row?.dataset?.deleting==='1') return;
-        row.dataset.deleting='1';
-        row.classList.add('syncing');
+        if(row)row.dataset.deleting='1';
+        row?.classList.add('syncing');
         if(button) button.disabled=true;
         try{
           const payload=await requestTickTickTaskDelete(task.id);
@@ -13641,13 +13641,15 @@
               await refreshAfterTickTickTaskChange({preserveExpanded:false});
             },10000);
           }
+          return true;
         }catch(_){
           try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           const badge=document.getElementById('ticktickBadge');
           if(badge){badge.hidden=false;badge.textContent='Ошибка удаления'}
+          return false;
         }finally{
-          row.dataset.deleting='0';
-          row.classList.remove('syncing');
+          if(row)row.dataset.deleting='0';
+          row?.classList.remove('syncing');
           if(button?.isConnected) button.disabled=false;
         }
       }
@@ -13998,9 +14000,12 @@
           copy.type='button';
           copy.className='ticktick-today-copy';
           const hasDetails=Boolean(String(task?.description||'').trim()||(Array.isArray(task?.checklist)&&task.checklist.length));
-          copy.classList.toggle('has-details',hasDetails);
-          copy.disabled=!hasDetails;
-          copy.setAttribute('aria-expanded','false');
+          copy.disabled=false;
+          copy.setAttribute('aria-label',(task?.canDelete===true||task?.canEdit===true?'Редактировать дело: ':'Посмотреть дело: ')+String(task?.title||'Дело'));
+          copy.addEventListener('click',event=>{
+            event.stopPropagation();
+            openTickTickTaskForEditing?.(task);
+          });
 
           const taskTitle=document.createElement('div');
           taskTitle.className='ticktick-today-title';
@@ -14026,58 +14031,43 @@
             ?createTickTickInlineDetails(task,{writable:payload?.writable!==false})
             :null;
 
+          let detailsToggle=null;
           if(hasDetails){
-            copy.addEventListener('click',event=>{
+            detailsToggle=document.createElement('button');
+            detailsToggle.type='button';
+            detailsToggle.className='ticktick-today-details-toggle';
+            detailsToggle.setAttribute('aria-label','Показать описание и чек-лист: '+String(task?.title||'Дело'));
+            detailsToggle.setAttribute('aria-expanded','false');
+            detailsToggle.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+            detailsToggle.addEventListener('click',event=>{
               event.stopPropagation();
               const alreadyOpen=panel.dataset.openTaskId===String(task.id)&&inlineDetails&&!inlineDetails.hidden;
-              list.querySelectorAll('.ticktick-today-copy[aria-expanded="true"]').forEach(node=>{
+              list.querySelectorAll('.ticktick-today-details-toggle[aria-expanded="true"]').forEach(node=>{
                 node.setAttribute('aria-expanded','false');
-                const otherDetails=node.closest('.ticktick-today-task')?.querySelector('.ticktick-today-inline-details');
-                if(otherDetails) otherDetails.hidden=true;
+                const other=node.closest('.ticktick-today-task')?.querySelector('.ticktick-today-inline-details');
+                if(other)other.hidden=true;
               });
-              if(alreadyOpen){
-                panel.dataset.openTaskId='';
-                return;
-              }
-              panel.dataset.openTaskId=String(task.id);
-              copy.setAttribute('aria-expanded','true');
-              inlineDetails.hidden=false;
+              panel.dataset.openTaskId=alreadyOpen?'':String(task.id);
+              if(inlineDetails)inlineDetails.hidden=alreadyOpen;
+              detailsToggle.setAttribute('aria-expanded',alreadyOpen?'false':'true');
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
             });
           }
 
           row.append(timeRail,complete,copy);
-          if(task?.canDelete){
-            row.classList.add('has-delete');
-            const actions=document.createElement('div');actions.className='ticktick-today-actions';
-            const editButton=document.createElement('button');editButton.type='button';editButton.className='ticktick-today-edit';
-            editButton.setAttribute('aria-label','Редактировать задачу: '+String(task?.title||'Дело'));
-            editButton.title='Редактировать';editButton.disabled=payload?.writable===false;
-            editButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 20 4.5-1 10-10a2 2 0 0 0-3-3l-10 10L4 20z"/><path d="m13.5 7.5 3 3"/></svg>';
-            editButton.addEventListener('click',event=>{event.stopPropagation();openTickTickTaskForEditing?.(task)});
-            actions.appendChild(editButton);
-            const remove=document.createElement('button');
-            remove.type='button';
-            remove.className='ticktick-today-delete';
-            remove.setAttribute('aria-label','Удалить задачу: '+String(task?.title||'Дело'));
-            remove.title='Удалить';
-            remove.disabled=payload?.writable===false;
-            remove.textContent='×';
-            remove.addEventListener('click',event=>{
-              event.stopPropagation();
-              deleteTickTickTodayTask(task,row,remove);
-            });
-            actions.appendChild(remove);
-            row.appendChild(actions);
-          }
-          if(inlineDetails) row.appendChild(inlineDetails);
+          if(detailsToggle)row.appendChild(detailsToggle);
+          if(inlineDetails)row.appendChild(inlineDetails);
+          row.addEventListener('click',event=>{
+            if(event.target.closest('button,input,textarea,select,a,.ticktick-today-inline-details'))return;
+            openTickTickTaskForEditing?.(task);
+          });
           list.appendChild(row);
-          if(previousOpenTaskId&&String(task.id)===previousOpenTaskId&&hasDetails) reopenTask={task,copy,inlineDetails};
+          if(previousOpenTaskId&&String(task.id)===previousOpenTaskId&&hasDetails) reopenTask={task,detailsToggle,inlineDetails};
         }
 
         if(reopenTask){
           panel.dataset.openTaskId=String(reopenTask.task.id);
-          reopenTask.copy.setAttribute('aria-expanded','true');
+          reopenTask.detailsToggle?.setAttribute('aria-expanded','true');
           reopenTask.inlineDetails.hidden=false;
         }
         if(payload?.writable===false) showTickTickWritePermission();
@@ -14125,6 +14115,8 @@
         const repeatCountField=document.getElementById('ticktickTaskRepeatCountField');
         const repeatCountInput=document.getElementById('ticktickTaskRepeatCountInput');
         const save=document.getElementById('ticktickTaskSaveButton');
+        const deleteButton=document.getElementById('ticktickTaskDeleteButton');
+        const formActions=form?.querySelector('.ticktick-task-form-actions');
         const status=document.getElementById('ticktickTaskFormStatus');
         const heading=document.getElementById('ticktickTaskModalTitle');
         let editingTask=null;
@@ -14156,8 +14148,17 @@
           if(descriptionInput)descriptionInput.value=editingTask?.description||'';
           if(repeatInput)repeatInput.value=editingTask?.repeat||'none';
           if(repeatCountInput)repeatCountInput.value=String(editingTask?.repeatCount||1);
-          if(heading)heading.textContent=editingTask?'Редактировать дело':'Новое дело';
-          if(save)save.textContent=editingTask?'Сохранить':'Добавить';
+          const editable=!editingTask||editingTask.canDelete===true||editingTask.canEdit===true;
+          for(const control of [titleInput,dateInput,timeInput,responsibleInput,descriptionInput,repeatInput,repeatCountInput]){
+            if(control)control.disabled=!editable;
+          }
+          if(heading)heading.textContent=editingTask?(editable?'Редактировать дело':'Просмотр дела'):'Новое дело';
+          if(save){save.textContent=editingTask?'Сохранить':'Добавить';save.hidden=!editable;}
+          if(formActions)formActions.classList.toggle('is-view-only',!editable);
+          if(deleteButton){
+            deleteButton.hidden=!(editingTask?.canDelete===true);
+            deleteButton.disabled=false;
+          }
           syncRepeat();
           modal.hidden=false;
           modal.setAttribute('aria-hidden','false');
@@ -14174,6 +14175,21 @@
         openTickTickTaskForCreation=options=>open(null,options);
         closeButton?.addEventListener('click',close);
         cancelButton?.addEventListener('click',close);
+        deleteButton?.addEventListener('click',async()=>{
+          const task=editingTask;
+          if(!task?.id||task?.canDelete!==true||deleteButton.disabled)return;
+          if(!window.confirm('Удалить дело «'+String(task.title||'Дело')+'»?'))return;
+          deleteButton.disabled=true;
+          if(save)save.disabled=true;
+          if(status)status.textContent='Удаляю дело…';
+          const row=[...(document.querySelectorAll('#ticktickTodayList .ticktick-today-task'))]
+            .find(node=>node.dataset.taskId===String(task.id))||null;
+          const deleted=await deleteTickTickTodayTask(task,row,deleteButton);
+          if(deleted)close();
+          else if(status)status.textContent='Не удалось удалить дело. Попробуй ещё раз.';
+          if(deleteButton.isConnected)deleteButton.disabled=false;
+          if(save)save.disabled=false;
+        });
         backdrop?.addEventListener('click',close);
         repeatInput?.addEventListener('change',syncRepeat);
         document.addEventListener('keydown',event=>{

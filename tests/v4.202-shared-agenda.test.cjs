@@ -29,7 +29,7 @@ test('timeline retains completion, edit, delete, undo and inline details',()=>{
   assert.match(js,/row\.append\(timeRail,complete,copy\)/);
   assert.match(js,/completeTickTickTodayTask\(task,row,complete,payload\?\.writable!==false\)/);
   assert.match(js,/openTickTickTaskForEditing\?\.\(task\)/);
-  assert.match(js,/deleteTickTickTodayTask\(task,row,remove\)/);
+  assert.match(js,/deleteTickTickTodayTask\(task,row,deleteButton\)/);
   assert.match(js,/createTickTickInlineDetails\(task,\{writable:payload\?\.writable!==false\}\)/);
   assert.match(js,/showTickTickCompletionUndo\(task,payload\)/);
   assert.match(css,/\.ticktick-agenda-time::after/);
