@@ -16,7 +16,7 @@ test('calendar, kitchen and car show independent accessible finance shortcuts',(
   const kitchen=html.slice(html.indexOf('id="kitchenSwitcher"'),html.indexOf('</div>',html.indexOf('id="kitchenSwitcher"')));
   assert.equal((kitchen.match(/data-kitchen-view="/g)||[]).length,3);
   assert.ok(kitchen.indexOf('data-kitchen-view="saves"')<kitchen.indexOf('id="kitchenFinanceShortcut"'));
-  const calendar=html.slice(html.indexOf('id="calendarScopeSwitch"'),html.indexOf('id="calendarModeSwitch"'));
+  const calendar=html.slice(html.indexOf('id="calendarScopeSwitch"'),html.indexOf('</div>',html.indexOf('id="calendarScopeSwitch"')));
   assert.match(calendar,/calendarFinanceShortcut/);
   const car=html.slice(html.indexOf('id="carExpensesTitle"'),html.indexOf('id="carExpensesMeta"'));
   assert.match(car,/carTransportFinanceShortcut/);
