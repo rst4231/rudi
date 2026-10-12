@@ -1,16 +1,17 @@
 {
-  "current": "v4.186",
+  "current": "v4.187",
   "versionBranch": "",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-12",
-  "basedOnProduction": "v4.185",
+  "basedOnProduction": "v4.186",
   "notes": [
-    "Show already-imported 2016–September 2026 CoinKeeper expenses in existing RUDI monthly category totals, historical category lists and finance analytics.",
-    "Rebuild a compact daily/monthly category index from historical D1 archive without storing 17k operations in the live finance record.",
-    "Never change current balances or wallets, never create categories, never count transfers as expenses, retain original currencies and exclude missing RUB rates from RUB totals.",
-    "Preserve September deduplication, historic archive delete/reimport behavior, and owner-only access."
+    "Include safely archived CoinKeeper expenses in the main Expenses ledger, searchable monthly history, and per-category expense composer, without touching live balances or categories.",
+    "Repair separate Finance Decisions week/month/year graph data source to overlay historical CoinKeeper RUB amounts on the correct original dates.",
+    "Show paired expense and actual recorded-income columns for each month in Year mode; title changes to «Расходы/Доходы за год», other tabs retain their headings.",
+    "Exclude archived CoinKeeper transfers from income and expenses; display foreign expenses without historical RUB conversion in source currency without fabricated rates.",
+    "Share already loaded CoinKeeper overview with lazily mounted graph and batch the archive-history rerenders."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя."
 }
