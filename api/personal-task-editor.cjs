@@ -90,4 +90,24 @@ async function editPersonalTask(input,deps={}){
   }
   return {ok:true,moved:true,taskId:newId,projectId:targetId,date:String(input.date||'')};
 }
-module.exports={personalLists,dateTime,editable,editPersonalTask};
+
+async function createPersonalTask(input,deps={}){
+ if(String(input.actor||'')!=='Рустам')throw Error('ticktick-personal-owner-forbidden');
+ const token=input.token;
+ if(!token?.accessToken)throw Error('ticktick-personal-not-connected');
+ if((deps.tokenHasWriteScope||tokenHasWriteScope)(token)===false)throw Error('ticktick-personal-write-permission-required');
+ const projectId=String(input.targetProjectId||'').trim();
+ if(!/^[A-Za-z0-9_-]{1,200}$/.test(projectId))throw Error('ticktick-personal-project-invalid');
+ const lists=personalLists(await (deps.listTickTickProjects||listTickTickProjects)(token.accessToken,input.options||{}),input.sharedProjectId);
+ if(!lists.some(x=>x.id===projectId))throw Error('ticktick-personal-project-forbidden');
+ const date=String(input.date||'').trim();
+ if(!date)throw Error('ticktick-personal-date-required');
+ const changes=editable(input,{title:'',repeatFlag:'',desc:''});
+ const saved=await (deps.createTickTickTask||createTickTickTask)(token.accessToken,{
+  ...changes,projectId,assigneeUsername:''
+ },input.options||{});
+ const taskId=String(saved?.id||'');
+ if(!taskId)throw Error('ticktick-personal-create-unconfirmed');
+ return {ok:true,created:true,taskId,projectId,date};
+}
+module.exports={personalLists,dateTime,editable,editPersonalTask,createPersonalTask};
