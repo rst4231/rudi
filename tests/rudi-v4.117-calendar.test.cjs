@@ -10,7 +10,7 @@ const holiday=require('../api/holiday-calendar.cjs');
 test('personal/shared tabs, navigation and iPhone affordances',()=>{
  // RUDI switches scope and mode dynamically via one button per selector.
  assert.match(html,/id="calendarScopeSwitch"/);
- assert.doesNotMatch(html,/id="calendarModeSwitch"/);
+ assert.match(html,/id="calendarModeSwitch"/);
  assert.match(src,/document\.body\.dataset\.calendarScope=calendarScope/);
  assert.match(src,/calendarDisplayMode=\['week','month'\]/);
  for(const id of ['calendarPrev','calendarNext','calendarToday'])assert.ok(html.includes('id="'+id+'"'));
