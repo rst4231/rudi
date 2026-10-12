@@ -5,7 +5,7 @@ const vm=require('node:vm');
 const path=require('node:path');
 
 function fixture(){
-  const calls={finance:0,habits:0,fasting:0,mood:0,supplements:0,meditation:0,meditation:0};
+  const calls={finance:0,habits:0,fasting:0,mood:0,supplements:0,meditation:0};
   const expenses=[
     {id:'expense-1',categoryId:'food',amount:350,rubAmount:350,
       occurredAt:'2026-10-03T22:45:00Z',label:'Продукты',note:'Магазин'},
@@ -44,7 +44,7 @@ function fixture(){
       readSupplements:async()=>{calls.supplements++;return{
         items:[{name:'Магний',intakes:[{date:'2026-10-04',at:'2026-10-04T09:35:00+03:00'}]}]
       }}
-    ,
+    },
     './meditation-store.cjs':{
       read:async()=>{calls.meditation++;return{history:[{endedAt:'2026-10-04T09:00:00Z',durationSeconds:300,rewardPoints:.1,completed:true}]}},
       moscowDay:value=>new Date(value).toISOString().slice(0,10)

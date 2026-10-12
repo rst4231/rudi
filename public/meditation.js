@@ -76,7 +76,7 @@ function ensurePage(){
  return page;
 }
 async function syncWakeLock(){
- const needed=Boolean(state?.active)&&!document.hidden;
+ const needed=Boolean(state?.active)&&!document.hidden&&!page?.hidden;
  if(!needed){if(wakeLock){const lock=wakeLock;wakeLock=null;try{await lock.release()}catch{}}return;}
  if(wakeLock||wakeLockPending||!navigator.wakeLock?.request)return;
  wakeLockPending=true;
@@ -200,7 +200,7 @@ function open(){
  try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch{}
 }
 function close(){
- if(!page)return;page.hidden=true;document.body.classList.remove('meditation-page-open');updatePartner();
+ if(!page)return;page.hidden=true;document.body.classList.remove('meditation-page-open');void syncWakeLock();updatePartner();
 }
 function updatePartner(){
  if(!actor||!partner)return;
