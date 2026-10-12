@@ -415,6 +415,7 @@
       const result=id('rudiScenarioResult');
       if(result&&!result.hidden)runScenario();
     });
+    document.dispatchEvent(new Event('rudi-finance-decisions-mounted'));
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
