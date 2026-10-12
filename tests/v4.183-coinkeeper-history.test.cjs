@@ -2,6 +2,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
+const vm=require('node:vm');
 const mod=require('../api/coinkeeper-history.cjs');
 function state(){
  return {
@@ -101,7 +102,7 @@ test('UI provides a review step and does not use the old balance-mutating import
  assert.match(js,/parseCsv\(/);
  assert.doesNotMatch(js,/import-expenses/);
  const html=fs.readFileSync('public/index.html','utf8');
- assert.match(html,/coinkeeper-history\.js\?v=4\.184/);
+ assert.match(html,/coinkeeper-history\.js\?v=4\.185/);
 });
 test('last CoinKeeper upload can be deleted without changing RUDI state, preserving older upload',async()=>{
  const s=state(),original=JSON.stringify(s),storage=cache();
@@ -147,4 +148,42 @@ test('CoinKeeper v4.184 UI has fully opaque readable dialog and accessible delet
  assert.doesNotMatch(js,/\bimport-expenses\b/);
  const html=fs.readFileSync('public/index.html','utf8');
  assert.match(html,/coinkeeper-history\.js\?v=4\.184/);
+});
+
+test('CoinKeeper owner-only UI does not mount for Diana, waits for Rustam auth, and removes on switch',()=>{
+ const script=fs.readFileSync('public/coinkeeper-history.js','utf8');
+ const elements=new Map(),bindings=new Map(),calls={created:0,shown:0,removed:0,observer:null};
+ function node(id=''){
+  return {id,innerHTML:'',style:{},dataset:{},open:false,
+    addEventListener(type,fn){bindings.set(id+':'+type,fn)},
+    appendChild(child){if(child.id)elements.set(child.id,child);if(id==='financePersonalPanel'&&child.id==='ckhHistory')calls.shown++},
+    remove(){if(this.id)elements.delete(this.id);calls.removed++},
+    close(){this.open=false},showModal(){this.open=true}};
+ }
+ const panel=node('financePersonalPanel');elements.set(panel.id,panel);
+ for(const id of ['ckhChoose','ckhFile','ckhDelete','ckhShow','ckhMonth',
+   'ckhReport','ckhLedger','ckhInfo','ckhPreview','ckhProgress','ckhConfirm',
+   'ckhCancel','ckhMappings'])elements.set(id,node(id));
+ const body=node('body');body.dataset.rudiActor='Диана';
+ const doc={
+  readyState:'complete',body,head:node('head'),
+  getElementById:id=>elements.get(id)||null,
+  createElement:()=>{calls.created++;return node()},
+  addEventListener:(name,callback)=>bindings.set('document:'+name,callback),
+  querySelectorAll:()=>[]
+ };
+ class FakeMutationObserver{
+  constructor(fn){calls.observer=fn}
+  observe(element,options){assert.equal(element,body);assert.deepEqual([...options.attributeFilter],['data-rudi-actor'])}
+ }
+ vm.runInNewContext(script,{document:doc,window:{},MutationObserver:FakeMutationObserver});
+ assert.equal(calls.created,0,'Diana never sees any CoinKeeper markup');
+ assert.equal(calls.shown,0);
+ body.dataset.rudiActor='Рустам';calls.observer();
+ assert.equal(calls.shown,1,'Rustam sees archive after authentication');
+ assert.ok(elements.has('ckhHistory'));
+ body.dataset.rudiActor='Диана';calls.observer();
+ assert.equal(elements.has('ckhHistory'),false,'archive disappears on account switch');
+ assert.equal(elements.has('ckhDialog'),false);
+ assert.ok(calls.removed>=2);
 });
