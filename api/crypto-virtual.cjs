@@ -184,7 +184,7 @@ function simulateVirtual(signals,config,now=Date.now()){
     stats,reported,equityCurve:curve.slice(-600),
     calendar:Object.values(calendar).sort((a,b)=>b.date.localeCompare(a.date)),
     positions:all.slice().sort((a,b)=>Date.parse(b.entryAt)-Date.parse(a.entryAt)).slice(0,160),
-    note:'Смоделированные исполнения по свечам Bybit, без фактических ордеров. Учтены оценочные taker-комиссии (Spot 0,1%, USDT perpetual 0,055%) и проскальзывание 5 bps. Funding учитывается только при наличии подтверждённой истории; неточности, ликвидации и операции без объёма исключены. Изолированная маржа ограничивает потери залогом.',
+    note:'Смоделированные исполнения по свечам '+(process.env.RUDI_CRYPTO_MARKET_SOURCE||'Bybit')+' для сигналов автора о Bybit, без фактических ордеров. Учтены оценочные taker-комиссии (Spot 0,1%, USDT perpetual 0,055%) и проскальзывание 5 bps. Funding учитывается только при наличии подтверждённой истории; неточности, ликвидации и операции без объёма исключены. Изолированная маржа ограничивает потери залогом.',
     costAssumptions:{spotFeePct:0.1,linearFeePct:0.055,slippageBps:5},
     dataComplete:completeMarks,netIncludesFunding:stats.fundingMissing===0};
 }
