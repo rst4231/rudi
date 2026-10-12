@@ -76,3 +76,67 @@ test('financial insight cards use stable IDs and all three expense scales exist'
  assert.match(css,/#financePersonalPanel #rudiScenarioCard/);
  assert.doesNotMatch(css,/\.rudi-decision-card:(first-child|nth-child)/);
 });
+
+test('annual paired chart combines original CoinKeeper RUB expenses with actual RUDI incomes only',()=>{
+ const now=new Date(2026,9,12,12);
+ const s={personalExpenses:[
+  {occurredAt:'2026-09-12T12:00:00Z',rubAmount:50},
+  {occurredAt:'2026-10-03T12:00:00Z',rubAmount:200}
+ ],walletIncomes:[
+  {occurredAt:'2026-01-01T12:00:00Z',rubAmount:30000},
+  {occurredAt:'2026-09-28T12:00:00Z',rubAmount:10000},
+  {occurredAt:'2026-10-05T12:00:00Z',rubAmount:500}
+ ]};
+ const overview={days:{
+  '2026-01-20':{total:2500,count:3},
+  '2026-06-17':{total:12500,count:14},
+  '2026-09-12':{total:1100,count:2},
+  '2026-10-01':{total:0},
+  '2025-12-31':{total:999999}
+ }};
+ const base=core.expensePeriod(s,now,'year');
+ const result=core.overlayExpensePeriod(base,overview.days,s.walletIncomes);
+ assert.equal(result.total,16350);
+ assert.equal(result.incomeTotal,40500);
+ assert.equal(result.buckets[0].total,2500);
+ assert.equal(result.buckets[0].income,30000);
+ assert.equal(result.buckets[5].total,12500);
+ assert.equal(result.buckets[8].total,1150);
+ assert.equal(result.buckets[8].income,10000);
+ assert.equal(result.buckets[9].total,200);
+ assert.equal(result.buckets[9].income,500);
+ assert.equal(base.buckets[0].total,0,'do not mutate live expense period');
+ assert.equal(s.walletIncomes.length,3,'do not mutate live recorded incomes');
+});
+test('monthly and weekly graph display CoinKeeper expenses on historical dates without any fake income',()=>{
+ const now=new Date(2026,9,12,12);
+ const s={personalExpenses:[],walletIncomes:[]};
+ const days={'2026-10-12':{total:100},'2026-10-13':{total:45},'2026-09-12':{total:250}};
+ const week=core.overlayExpensePeriod(core.expensePeriod(s,now,'week'),days,[]);
+ assert.equal(week.total,145);
+ assert.equal(week.incomeTotal,0);
+ assert.equal(week.buckets[0].total,100);
+ const month=core.overlayExpensePeriod(core.expensePeriod(s,now,'month'),days,[]);
+ assert.equal(month.total,145);
+ assert.equal(month.incomeTotal,0);
+});
+test('paired yearly chart has explicit title, owner-only historical totals and accessible dual bars',()=>{
+ const fs=require('node:fs');
+ const ui=fs.readFileSync('public/finance-decisions-ui.js','utf8');
+ const css=fs.readFileSync('public/finance-decisions.css','utf8');
+ const app=fs.readFileSync('public/app.js','utf8');
+ const index=fs.readFileSync('public/index.html','utf8');
+ assert.match(ui,/Расходы\/Доходы за год/);
+ assert.match(ui,/core\.overlayExpensePeriod/);
+ assert.match(ui,/rudi-year-pair/);
+ assert.match(ui,/rudi-year-bar is-income/);
+ assert.match(ui,/rudi-year-bar is-expense/);
+ assert.match(ui,/coinKeeperChartArchive/);
+ assert.match(ui,/document\.body\?\.dataset\.rudiActor==='Рустам'/);
+ assert.match(ui,/rudi-finance-decisions-mounted/);
+ assert.match(css,/\.rudi-weekly-chart\.is-year \.rudi-year-pair/);
+ assert.match(css,/\.rudi-year-legend/);
+ assert.match(app,/rudi-coinkeeper-overview-loaded/);
+ assert.match(app,/rudi-finance-decisions-mounted/);
+ assert.match(index,/finance-decisions-ui\.js\?v=4\.187/);
+});
