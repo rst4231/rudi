@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
 const { handleWalletLogo } = require('./wallet-logo.cjs');
 const handleCalendarDaySummary = require('./calendar-day-summary.cjs');
+const handleMeditation = require('./meditation.cjs');
 const { stripStagePriceLines, compactEventTelegramRequest } = require('./event-text-sanitizer.cjs');
 const { maybeSendEventImages } = require('./event-images.cjs');
 const { runWithCronSecretHidden, installGlobalTelegramFetchGuard } = require('./runtime-guard.cjs');
@@ -225,6 +226,7 @@ async function handler(req, res) {
     }
     if (req.query?.route === 'wallet-logo') return handleWalletLogo(req, res);
     if (req.query?.route === 'calendar-day-summary') return handleCalendarDaySummary(req, res);
+    if (req.query?.route === 'meditation') return handleMeditation(req, res);
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
     if (req.query?.route === 'smart-home-humidity-cron') {
       const authorized = isCronRequestAuthorized(req) || await isGitHubActionsRequestAuthorized(req, {

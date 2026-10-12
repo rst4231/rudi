@@ -180,6 +180,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/meditation",
+      "destination": "/api/index?route=meditation"
+    },
+    {
       "source": "/api/crypto-signals-cron",
       "destination": "/api/index?route=crypto-signals-cron"
     },

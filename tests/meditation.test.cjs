@@ -78,3 +78,20 @@ test('UI exposes meditation timer and calendar edits without edit quick-action r
    assert.ok(css.includes('.finance-balance-progress.is-budget-'+state));
  }
 });
+
+test('meditation endpoint is routed through existing index function within Hobby limit',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const root=path.resolve(__dirname,'..');
+ const config=JSON.parse(fs.readFileSync(path.join(root,'vercel.json'),'utf8'));
+ const api=fs.readFileSync(path.join(root,'api/index.js'),'utf8');
+ const deployables=fs.readdirSync(path.join(root,'api')).filter(x=>x.endsWith('.js'));
+ assert.ok(deployables.length<=12,'exceeded function quota: '+deployables.length);
+ assert.ok(!deployables.includes('meditation.js'));
+ assert.ok(fs.existsSync(path.join(root,'api/meditation.cjs')));
+ assert.ok(api.includes("require('./meditation.cjs')"));
+ assert.ok(api.includes("req.query?.route === 'meditation'"));
+ assert.deepEqual(config.rewrites.find(r=>r.source==='/api/meditation'),{
+   source:'/api/meditation',destination:'/api/index?route=meditation'
+ });
+});
