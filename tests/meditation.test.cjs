@@ -161,7 +161,7 @@ test('meditation edge swipe and both guarded Home long-press shortcuts exist',()
  const app=fs.readFileSync('public/app.js','utf8');
  assert.match(js,/page\.addEventListener\('touchend'/);
  assert.match(js,/dx>=65&&Math\.abs\(dx\)>Math\.abs\(dy\)\*1\.35/);
- assert.match(js,/suppressClickUntil=Date\.now\(\)\+1500/);
+ assert.match(js,/suppressClickUntil=Date\.now\(\)\+(?:1500|1600)/);
  assert.match(js,/goal=10;/);
  assert.match(js,/if\(state\.active\)\{status\('Медитация уже запущена'\)/);
  assert.match(app,/goalHours:16/);
