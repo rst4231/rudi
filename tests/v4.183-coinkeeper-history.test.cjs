@@ -34,7 +34,7 @@ test('historical archive accepts 2016 and preserves original foreign amount and 
  assert.equal(history.rows[0].fromName,'Баты');
  assert.equal(history.summary.totalRub,245.74);
  assert.equal(JSON.stringify(s),original,'live wallets, expenses and categories remain unchanged');
- assert.equal(c.map.size,1,'history is stored in a separate monthly record');
+ assert.equal(c.map.size,2,'history is stored in a separate monthly record plus a last-upload rollback manifest');
 });
 test('archive remains idempotent, preserves duplicate CSV lines with different row IDs',async()=>{
  const s=state(),c=cache();
