@@ -236,7 +236,8 @@ function bind(element,task,ctx){
   let start=null,suppressUntil=0,holdTimer=0;
   const reset=()=>{clearTimeout(holdTimer);holdTimer=0;start=null;element.classList.remove('rudi-personal-holding')};
   element.addEventListener('pointerdown',event=>{
-    if(event.pointerType==='mouse'||event.button!==0||event.target?.closest?.('input,button'))return;
+    const control=event.target?.closest?.('input,button');
+    if(event.pointerType==='mouse'||event.button!==0||(control&&control!==element))return;
     reset();
     start={x:event.clientX,y:event.clientY,id:event.pointerId};
     element.classList.add('rudi-personal-holding');
