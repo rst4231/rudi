@@ -13,7 +13,7 @@
       "maxDuration": 300
     },
     "api/feed-notify-cron.js": {
-      "maxDuration": 60
+      "maxDuration": 300
     },
     "api/lulu-toilet-cron.js": {
       "maxDuration": 60
