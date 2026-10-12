@@ -103,3 +103,18 @@ html[data-theme="dark"] .meditation-secondary{color:var(--med-ink);background:#2
  -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3.3px),#000 calc(100% - 2.6px));
  mask:radial-gradient(farthest-side,transparent calc(100% - 3.3px),#000 calc(100% - 2.6px));
 }
+
+/* Meditation button copies existing fasting action geometry; mood stickers shrink evenly. */
+.profile-person-card #meditationProfileButton{
+ flex:0 0 30px!important;min-width:30px!important;min-height:30px!important;
+ width:30px!important;height:30px!important;padding:0!important;margin:0!important;
+ display:grid!important;place-items:center!important;position:relative!important;
+}
+.profile-person-card #meditationProfileButton .mood-emoji{
+ font-size:17px!important;line-height:1!important;
+}
+.profile-person-card .profile-name-row > #moodCurrentButton.avatar-mood-badge .mood-emoji,
+.profile-person-card .profile-name-row > #partnerMoodValue.avatar-mood-badge .mood-emoji,
+.profile-person-card .profile-name-row > #partnerMoodValue.avatar-mood-badge .partner-mood-icon .mood-emoji{
+ font-size:18px!important;line-height:1!important;
+}
