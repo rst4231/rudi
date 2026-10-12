@@ -340,7 +340,7 @@ function buildView(state,now=Date.now()){
   const avgChange=knownChange.length?Math.round(knownChange.reduce((s,r)=>s+r.priceChangePct,0)*100/knownChange.length)/100:null;
   const ids=messages.map(m=>Number(m.id)).filter(Number.isFinite).sort((a,b)=>a-b);
   const gapsEstimate=ids.reduce((n,id,i)=>i&&id>ids[i-1]+1?n+id-ids[i-1]-1:n,0);
-  return {channel:'@ne_investor',days:30,updatedAt:state.updatedAt||null,
+  return {channel:'@ne_investor',days:30,marketDataSource:process.env.RUDI_CRYPTO_MARKET_SOURCE||'Bybit',updatedAt:state.updatedAt||null,
     messagesCount:messages.length,oldestMessageAt:messages.length?messages[messages.length-1]?.at:null,
     gapsEstimate,scanComplete:Boolean(state.backfillComplete),
     backfillComplete:Boolean(state.backfillComplete),sourceError:state.sourceError||null,
