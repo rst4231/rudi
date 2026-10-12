@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "rudi-db-api",
-  "main": "worker.js",
+  "main": "batched-worker.js",
   "compatibility_date": "2026-10-03",
   "d1_databases": [
     {

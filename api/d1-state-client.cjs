@@ -1,6 +1,8 @@
 const { AsyncLocalStorage } = require('node:async_hooks');
 // In-flight reads only: never cache a settled response or share across HTTP requests.
 const scopedD1Reads = new AsyncLocalStorage();
+const BATCH_SCOPE_KEY = Symbol('rudi-d1-batch-scope');
+const MAX_READ_BATCH = 40;
 function withD1ReadCoalescing(handler) {
   if(typeof handler!=='function')throw TypeError('rudi-d1-handler-required');
   return function d1ScopedHandler(...args) {
@@ -80,6 +82,64 @@ function createD1StateClient(options={}){
     throw lastError||new Error('rudi-d1-request-failed');
   }
 
+
+  // Batch only reads initiated during the same HTTP request. No persisted or
+  // cross-request cache: changed values remain visible on the next request.
+  function readRecordData(namespace,key) {
+    const scope=scopedD1Reads.getStore();
+    if(!scope||options.batchReads===false||String(env.RUDI_D1_BATCH_READS||'1')==='0')
+      return request('/get',{namespace,key},{allow404:true,retries:1});
+    let perFetch=scope.get(BATCH_SCOPE_KEY);
+    if(!perFetch){perFetch=new Map();scope.set(BATCH_SCOPE_KEY,perFetch);}
+    let connections=perFetch.get(fetchImpl);
+    if(!connections){connections=new Map();perFetch.set(fetchImpl,connections);}
+    const connectionKey=JSON.stringify([baseUrl,secret,timeoutMs]);
+    let queue=connections.get(connectionKey);
+    if(!queue){queue={jobs:[],scheduled:false};connections.set(connectionKey,queue);}
+    return new Promise((resolve,reject)=>{
+      queue.jobs.push({namespace,key,resolve,reject});
+      if(!queue.scheduled){
+        queue.scheduled=true;
+        queueMicrotask(()=>flushQueuedReads(queue));
+      }
+    });
+  }
+
+  async function flushQueuedReads(queue){
+    const jobs=queue.jobs.splice(0,MAX_READ_BATCH);
+    if(queue.jobs.length)queueMicrotask(()=>flushQueuedReads(queue));
+    else queue.scheduled=false;
+    if(!jobs.length)return;
+    // A singleton read is cheaper through the original endpoint.
+    if(jobs.length===1){
+      const job=jobs[0];
+      try{job.resolve(await request('/get',{namespace:job.namespace,key:job.key},{allow404:true,retries:1}));}
+      catch(error){job.reject(error);}
+      return;
+    }
+    try{
+      const data=await request('/batch-get',{
+        keys:jobs.map(({namespace,key})=>({namespace,key}))
+      },{allow404:true,retries:1});
+      if(data?.ok===true&&Array.isArray(data.items)&&data.items.length===jobs.length){
+        for(let i=0;i<jobs.length;i++)jobs[i].resolve(data.items[i]);
+        return;
+      }
+      // Allows deploying the Vercel client independently of the Cloudflare Worker.
+      // An older Worker responds 404 and individual reads still work normally.
+      await Promise.all(jobs.map(async(job)=>{
+        try{job.resolve(await request('/get',{namespace:job.namespace,key:job.key},{allow404:true,retries:1}));}
+        catch(error){job.reject(error);}
+      }));
+    }catch(error){
+      // Preserve functionality when the batch endpoint is temporarily unavailable.
+      await Promise.all(jobs.map(async(job)=>{
+        try{job.resolve(await request('/get',{namespace:job.namespace,key:job.key},{allow404:true,retries:1}));}
+        catch(readError){job.reject(readError);}
+      }));
+    }
+  }
+
   function flightKey(namespace,key){
     return JSON.stringify([baseUrl,secret,timeoutMs,String(namespace||''),String(key||'')]);
   }
@@ -93,7 +153,7 @@ function createD1StateClient(options={}){
   async function getRecord(namespace,key){
     const ns=String(namespace||''),recordKey=String(key||'');
     const read=async()=>{
-      const data=await request('/get',{namespace:ns,key:recordKey},{allow404:true,retries:1});
+      const data=await readRecordData(ns,recordKey);
       if(!data||data.ok===false)return null;
       return{
         namespace:ns,key:recordKey,value:data.value,tags:normalizeTags(data.tags),
