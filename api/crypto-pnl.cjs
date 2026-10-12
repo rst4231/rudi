@@ -5,6 +5,26 @@ const {NS,dateKey}=require('./crypto-balance-history.cjs');
 const HOUR=3600000;
 const rounded=n=>Math.round(n*100)/100;
 
+function historyCoverage(points,now){
+  const observations=(Array.isArray(points)?points:[]).filter(p=>
+    p&&typeof p.at==='string'&&Number.isFinite(Date.parse(p.at))&&
+    Number.isFinite(p.usd)&&p.usd>=0&&Date.parse(p.at)<=now
+  ).sort((a,b)=>a.at.localeCompare(b.at));
+  const first=observations[0],last=observations.at(-1);
+  const age=first?Math.max(0,Math.floor((now-Date.parse(first.at))/HOUR)):0;
+  return {historyHours:Math.min(24,age),observations:observations.length,
+    completeObservations:observations.filter(p=>p.partial!==true).length,
+    firstAt:first?.at||null,lastAt:last?.at||null};
+}
+const knownIssues=new Set(['crypto-bybit-coverage-incomplete',
+  'crypto-trust-coverage-incomplete','crypto-lp-discovery-unavailable',
+  'crypto-refresh-deferred']);
+function safeIssue(link){
+  const error=String(link?.lastError||'');
+  return knownIssues.has(error)?error:'balance-incomplete';
+}
+
+
 // This is a portfolio valuation change, not verified trading PNL. External
 // deposits, withdrawals, yield transfers and fees cannot be inferred from
 // equity snapshots, so the API labels every non-empty result as an estimate.
@@ -13,16 +33,19 @@ function compare24h(points,now=Date.now()){
     p&&!p.partial&&typeof p.at==='string'&&Number.isFinite(Date.parse(p.at))&&
     Number.isFinite(p.usd)&&p.usd>=0&&Date.parse(p.at)<=now
   ).sort((a,b)=>a.at.localeCompare(b.at));
+  const info=historyCoverage(points,now);
+  const unavailable=reason=>({available:false,reason,...info});
   const target=now-24*HOUR;
   const base=valid.reduce((best,p)=>!best||Math.abs(Date.parse(p.at)-target)<
     Math.abs(Date.parse(best.at)-target)?p:best,null);
   const last=valid[valid.length-1];
-  if(!base||!last)return {available:false,reason:'no-history'};
-  if(Math.abs(Date.parse(base.at)-target)>20*60000)return {available:false,reason:'baseline-missing'};
-  if(now-Date.parse(last.at)>20*60000)return {available:false,reason:'last-sync-stale'};
-  if(last.at===base.at||last.usd===null||base.usd<=0)return {available:false,reason:'insufficient-history'};
+  if(!base||!last)return unavailable(info.observations?'partial-history':'no-history');
+  if(Math.abs(Date.parse(base.at)-target)>20*60000)
+    return unavailable(Date.parse(valid[0].at)>target+20*60000?'history-too-short':'baseline-missing');
+  if(now-Date.parse(last.at)>20*60000)return unavailable('last-sync-stale');
+  if(last.at===base.at||last.usd===null||base.usd<=0)return unavailable('insufficient-history');
   const delta=rounded(last.usd-base.usd),pct=rounded(delta/base.usd*100);
-  return {available:true,deltaUsd:delta,percent:pct,from:base.at,to:last.at,
+  return {available:true,...info,deltaUsd:delta,percent:pct,from:base.at,to:last.at,
     kind:'unadjusted-valuation-change',verifiedPnl:false,
     note:'Оценка изменения стоимости за 24 ч. Пополнения, выводы и внутренние переводы не вычтены.'};
 }
@@ -31,19 +54,21 @@ function compare24h(points,now=Date.now()){
 // a midnight mark or adjust for transfers: always report an estimate only.
 function compareMonth(points,intraday,now=Date.now()){
   const firstDay=dateKey(now).slice(0,7)+'-01';
+  const info=historyCoverage(intraday,now);
+  const unavailable=reason=>({available:false,reason,firstDay,...info});
   const baseline=(Array.isArray(points)?points:[]).find(p=>
     p?.date===firstDay&&p.partial!==true&&Number.isFinite(p.usd)&&p.usd>0);
-  if(!baseline)return {available:false,reason:'month-baseline-missing'};
+  if(!baseline)return unavailable('month-baseline-missing');
   const last=(Array.isArray(intraday)?intraday:[]).filter(p=>
     p&&!p.partial&&typeof p.at==='string'&&Number.isFinite(Date.parse(p.at))&&
     Number.isFinite(p.usd)&&p.usd>=0&&Date.parse(p.at)<=now)
     .sort((a,b)=>a.at.localeCompare(b.at)).at(-1);
   if(!last||now-Date.parse(last.at)>20*60000)
-    return {available:false,reason:'last-sync-stale'};
+    return unavailable('last-sync-stale');
   // A single day-1 aggregate is not enough to establish two observations.
-  if(dateKey(now)===firstDay)return {available:false,reason:'first-day-insufficient-history'};
+  if(dateKey(now)===firstDay)return unavailable('first-day-insufficient-history');
   const delta=rounded(last.usd-baseline.usd),pct=rounded(delta/baseline.usd*100);
-  return {available:true,deltaUsd:delta,percent:pct,from:firstDay,to:last.at,
+  return {available:true,firstDay,...info,deltaUsd:delta,percent:pct,from:firstDay,to:last.at,
     kind:'unadjusted-valuation-change',verifiedPnl:false,
     note:'Изменение стоимости с первого сохранённого дневного снимка месяца. Момент снимка не равен полуночи. Пополнения, выводы и переводы не вычтены.'};
 }
@@ -65,14 +90,18 @@ async function calculatePnl24h(connections,options={}){
   }));
   const anyIncomplete=links.some(c=>c.incomplete||c.lastError||!Number.isFinite(c.balanceUsd));
   const checked=(item,link)=>link&&(link.incomplete||link.lastError||!Number.isFinite(link.balanceUsd))
-    ?{id:item.id,available:false,reason:'incomplete-balance'}:item;
-  const blocked={id:'__portfolio__',available:false,reason:'incomplete-balance'};
+    ?{...item,available:false,underlyingReason:item.reason||null,
+      reason:'incomplete-balance',issue:safeIssue(link)}:item;
+  const blocked=(item)=>({...item,available:false,
+    underlyingReason:item.reason||null,reason:'incomplete-balance',
+    missingSources:links.filter(c=>c.incomplete||c.lastError||!Number.isFinite(c.balanceUsd)).length,
+    totalSources:links.length});
   return {periodHours:24,updatedAt:new Date(now).toISOString(),
-    total:anyIncomplete?blocked:values[0].day,
+    total:anyIncomplete?blocked(values[0].day):values[0].day,
     items:values.slice(1).map((v,i)=>checked(v.day,links[i])),
     month:{
       period:'month-to-date',
-      total:anyIncomplete?blocked:values[0].month,
+      total:anyIncomplete?blocked(values[0].month):values[0].month,
       items:values.slice(1).map((v,i)=>checked(v.month,links[i])),
     },
     method:'unadjusted-valuation-change',
