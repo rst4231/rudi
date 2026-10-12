@@ -199,7 +199,8 @@ function archiveOverviewFromRows(items){
 }
 async function overview(actor,opts={}){
  if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
- const cache=cacheOf(opts);
+ // A one-time 121-month reconstruction may be larger than a normal D1 read.
+ const cache=cacheOf({...opts,cacheOptions:{...opts.cacheOptions,timeoutMs:20000}});
  const saved=await cache.get(OVERVIEW_KEY);
  if(saved&&saved.months&&saved.days)return saved;
  // One-time rebuild of the compact index from the isolated monthly archive.
