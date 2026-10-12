@@ -262,6 +262,10 @@ async function handler(req, res) {
       const result=await coinKeeperHistory.importBatch(actor,body.rows);
       return res.status(200).json({ok:true,result});
     }
+    if(operation==='ck-overview') {
+      if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
+      return res.status(200).json({ok:true,...await coinKeeperHistory.overview(actor)});
+    }
     if(operation==='ck-month') {
       if(actor!=='Рустам')throw Error('coinkeeper-owner-only');
       return res.status(200).json({ok:true,...await coinKeeperHistory.readMonth(actor,body.month)});
