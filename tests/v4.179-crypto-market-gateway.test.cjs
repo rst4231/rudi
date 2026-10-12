@@ -13,9 +13,9 @@ test('Worker only allows read-only public derivatives and Spot market URLs',()=>
  const code=src('cloudflare/rudi-crypto-market-worker.mjs');
  assert.match(code,/verifiedMarketPath/);
  assert.ok(code.includes("BASE+'tickers'"));
- assert.match(code,/\/v5\/market\/kline/);
- assert.match(code,/\/v5\/market\/mark-price-kline/);
- assert.match(code,/\/v5\/market\/funding\/history/);
+ assert.ok(code.includes("BASE+'kline'"));
+ assert.ok(code.includes("BASE+'mark-price-kline'"));
+ assert.ok(code.includes("BASE+'funding'"));
  assert.doesNotMatch(code,/\/v5\/order\/create/);
  assert.match(code,/async scheduled\(/);
  assert.match(code,/Authorization:'Bearer '\+env\.CRON_SECRET/);
