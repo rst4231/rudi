@@ -60,8 +60,12 @@ function attach(){
  const tryStatus=()=>{if(!document.body.classList.contains('auth-pending')){void checkStatus();return true;}return false;};
  if(window.visualViewport){window.visualViewport.addEventListener('resize',syncSheetViewport,{passive:true});window.visualViewport.addEventListener('scroll',syncSheetViewport,{passive:true});}
  if(!tryStatus()){const observer=new MutationObserver(()=>{if(tryStatus())observer.disconnect();});observer.observe(document.body,{attributes:true,attributeFilter:['class']});}
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)void checkStatus();});
- window.addEventListener('focus',()=>void checkStatus());
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)void checkStatus(true);});
+ window.addEventListener('focus',()=>void checkStatus(true));
+ // Immediately clear a previous account's halo after switching actors
+ // within the PWA, before loading the next account's unread state.
+ new MutationObserver(()=>{lastStatus=0;markHalo(false);void checkStatus(true);})
+   .observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
  installCenterPullRefresh();
  installCenterSwipeBack();
 }
@@ -81,7 +85,7 @@ async function fetchOverview(force=false){
  if(!force&&who&&data&&Date.now()-overviewAt<90000){draw();return true;}
  overviewPromise=(async()=>{
   const res=await call('overview',{knownVersion:data?.version??-1,knownReportId:report?.id||'',knownReportUpdatedAt:report?.updatedAt||report?.createdAt||'',knownEmotionVersion:data?.emotions?.version||''});
-  if(res.unchanged){overviewAt=Date.now();setStatus('');return true;}
+  if(res.unchanged){overviewAt=Date.now();markHalo(false);if(report?.id)void call('read-report').catch(()=>{});setStatus('');return true;}
   who=res.actor;data=res.data;report=res.report;cycleInfo=res.cycle||null;overviewAt=Date.now();draw();
   try{sessionStorage.setItem(cacheKey(),JSON.stringify({data,report,cycleInfo}));}catch(_){}
   markHalo(false);setStatus('');
