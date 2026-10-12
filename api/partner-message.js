@@ -2190,6 +2190,49 @@ async function handleTickTick(req, res, action, options = {}) {
     }
   }
 
+
+  // Dedicated private editor and project picker. Shared token is never used.
+  if(action==='personal-task-projects'||action==='personal-task-edit'){
+    if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
+    let body,actor;
+    try{
+      body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      ({actor}=authorizeRequest(req,body.initData,options));
+    }catch(error){return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)})}
+    if(actor!=='Рустам')return res.status(403).json({ok:false,error:'ticktick-personal-owner-forbidden'});
+    if(!credentialsConfigured(options.env||process.env))return res.status(503).json({ok:false,error:'ticktick-not-configured'});
+    try{
+      const token=await readPersonalToken('Рустам',options);
+      if(!token?.accessToken)return res.status(401).json({ok:false,error:'ticktick-personal-not-connected'});
+      const config=await loadTickTickConfig(options);
+      if(!config.enabled)return res.status(409).json({ok:false,error:'ticktick-disabled'});
+      const {personalLists,editPersonalTask}=require('./personal-task-editor.cjs');
+      if(action==='personal-task-projects'){
+        const {listTickTickProjects}=require('./ticktick-client.cjs');
+        const lists=personalLists(await listTickTickProjects(token.accessToken,options),config.projectId);
+        return res.status(200).json({ok:true,lists,writable:tokenHasWriteScope(token)!==false});
+      }
+      const result=await editPersonalTask({
+        ...body,actor,token,sharedProjectId:config.projectId,options
+      });
+      return res.status(200).json(result);
+    }catch(error){
+      const code=String(error?.message||error);
+      if(code==='ticktick-token-invalid'){
+        await clearPersonalToken('Рустам',options).catch(()=>{});
+        return res.status(401).json({ok:false,error:'ticktick-personal-reconnect-required'});
+      }
+      if(code==='ticktick-personal-not-connected')return res.status(401).json({ok:false,error:code});
+      if(code.includes('forbidden')||code.includes('permission-required')||code==='ticktick-write-forbidden')
+        return res.status(403).json({ok:false,error:code});
+      if(code.includes('invalid')||code.includes('mismatch')||code.includes('title-required')||code.includes('repeat-date-required')||code.includes('task-completed'))
+        return res.status(400).json({ok:false,error:code});
+      if(code==='ticktick-task-not-found')return res.status(404).json({ok:false,error:code});
+      console.warn('RUDI_PERSONAL_TASK_EDITOR_ERROR',code);
+      return res.status(502).json({ok:false,error:code.includes('unconfirmed')?'ticktick-personal-move-unconfirmed':'ticktick-personal-edit-unavailable'});
+    }
+  }
+
   // Move a timed personal TickTick calendar block without changing shared tasks.
   if (action === 'personal-task-move') {
     if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
