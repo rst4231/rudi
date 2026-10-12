@@ -329,7 +329,7 @@
       const incomeValue=hidden?'••••':displayMoney(income,ctx);
       const incomeHeight=income>0&&maximum?Math.max(4,Math.round(income/maximum*74)):0;
       const bars=isYear
-        ?'<span class="rudi-year-values" aria-hidden="true">'+
+        ?'<span class="rudi-year-values" style="--rudi-year-peak:'+Math.max(height,incomeHeight)+'%" aria-hidden="true">'+
           '<span class="is-expense">'+html(hidden?'•••':yearCompactValue(bucket.total,ctx))+'</span>'+
           '<span class="is-income">'+html(hidden?'•••':yearCompactValue(income,ctx))+'</span>'+
           '</span><span class="rudi-year-pair" aria-hidden="true">'+
