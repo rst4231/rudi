@@ -2567,7 +2567,7 @@
   <!-- v2.137 production release marker -->
 <script data-v468-expense-editor>
 (()=>{
-let active=null,cache=null,cacheAt=0;
+let active=null,cache=null,cacheAt=0,saving=false;
 const tg=window.Telegram?.WebApp;
 const req=async(operation,payload={})=>{
  const res=await fetch('/api/finances',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'});
@@ -2586,6 +2586,10 @@ const modal=()=>document.getElementById('financeExpenseComposer');
 const ensureTopLayer=()=>{const m=modal();if(m&&m.parentElement!==document.body)document.body.appendChild(m)};
 ensureTopLayer();
 const closeEdit=()=>{active=null};
+const expenseSaveButton=document.getElementById('financeExpenseComposerSave');
+if(expenseSaveButton)new MutationObserver(()=>{
+ if(active&&!saving&&expenseSaveButton.disabled)expenseSaveButton.disabled=false;
+}).observe(expenseSaveButton,{attributes:true,attributeFilter:['disabled']});
 document.getElementById('financeExpenseComposerClose')?.addEventListener('click',closeEdit,true);
 document.getElementById('financeExpenseComposerBackdrop')?.addEventListener('click',closeEdit,true);
 const open=async expense=>{
@@ -2636,22 +2640,25 @@ document.getElementById('financeExpenseComposerSave')?.addEventListener('click',
  if(!Number.isFinite(amount)||amount<=0||!date||!time){if(status)status.textContent='Укажи сумму, дату и время расхода';return;}
  const occurredAt=new Date(date+'T'+time+':00+03:00');
  if(Number.isNaN(occurredAt.getTime())){if(status)status.textContent='Проверь дату и время';return;}
- button.disabled=true;if(status)status.textContent='Сохраняю…';
+ saving=true;button.disabled=true;if(status)status.textContent='Сохраняю…';
  try{
    await req('save-expense',{id:active.id,month:date.slice(0,7),categoryId:active.categoryId,amount,inputCurrency:active.sourceCurrency||'RUB',walletId:active.walletId||'',occurredAt:occurredAt.toISOString(),label:active.label||'',note});
    document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));active=null;cache=null;location.reload();
  }catch(error){
-   button.disabled=false;
+   saving=false;button.disabled=false;
    if(status)status.textContent=String(error?.message||'').includes('rate')
      ?'Не удалось получить курс валют, попробуй позже'
      :'Не удалось сохранить изменения: '+String(error?.message||'ошибка');
- }
+ }finally{saving=false;}
 },true);
 // Editing from category history reuses the existing composer, not a new modal.
 const normalizeRowText=v=>String(v||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/\s+/g,' ');
 const findCategoryExpense=(row,data)=>{
  const directId=row.dataset.expenseId||row.dataset.id||row.querySelector('[data-expense-id]')?.dataset.expenseId||'';
- if(directId)return(data.personalExpenses||[]).find(x=>String(x.id)===String(directId))||null;
+ if(directId){
+   const exact=(data.personalExpenses||[]).find(x=>String(x.id)===String(directId));
+   if(exact)return exact;
+ }
  const title=normalizeRowText(document.querySelector('#financeCategoryHistoryPage .finance-category-history-title h2')?.textContent);
  const category=(data.categories||[]).find(c=>normalizeRowText(c.name)===title);
  const heading=normalizeRowText(row.closest('.finance-category-history-day')?.querySelector('.finance-category-history-day-head strong')?.textContent);
