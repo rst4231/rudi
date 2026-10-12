@@ -84,7 +84,8 @@ test('calendar personal task clicks edit, long press opens TickTick, right click
   assert.ok(editor.includes("event.pointerType==='mouse'"));
   assert.ok(editor.includes('rudiPersonalTaskProject'));
   assert.ok(!editor.includes('rudiPersonalTaskResponsible'));
-  assert.ok(html.includes('personal-task-editor.js?v=4.193'));
+  const version=JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current.slice(1);
+  assert.ok(html.includes('personal-task-editor.js?v='+version));
   assert.ok(app.includes('completeCalendarTickTickTask(task,row,checkbox,writable)'));
   assert.ok(app.includes('completeCalendarTickTickTask(event,row,complete,taskWritable)'));
 });
