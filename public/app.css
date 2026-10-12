@@ -16283,6 +16283,7 @@ html[data-theme="dark"] .finance-literacy-card{
 .finance-category-history-day-list{display:grid;gap:6px}
 .finance-category-history-row{
   display:grid;grid-template-columns:minmax(0,1fr) auto 28px;align-items:center;gap:9px;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
   padding:10px 10px 10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)
 }
 .finance-category-history-copy{min-width:0;display:grid;gap:3px}
