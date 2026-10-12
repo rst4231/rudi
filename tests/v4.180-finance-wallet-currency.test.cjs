@@ -42,7 +42,7 @@ test('without trusted USD/RUB ticker, no made-up equivalent is shown',()=>{
   assert.equal(w.rubTile.textContent,'380 ₽');
 });
 test('finance enhancement has no extra network or writes and runs after base app script',()=>{
-  assert.match(html,/app\.js\?v=4\.149"\s*><\/script>\s*<script defer src="\/finance-wallet-currency\.js\?v=4\.180"/);
+  assert.match(html,/app\.js\?v=[0-9.]+"\s*><\/script>\s*<script defer src="\/finance-wallet-currency\.js\?v=4\.180"/);
   assert.doesNotMatch(script,/\bfetch\s*\(|XMLHttpRequest|localStorage|\.setRecord|\.balance\s*=/);
   assert.match(script,/financeWalletList/);
   assert.match(script,/rudi-wallet-usd-equivalent/);
