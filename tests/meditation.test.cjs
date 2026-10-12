@@ -70,4 +70,11 @@ test('UI exposes meditation timer and calendar edits without edit quick-action r
  assert.ok(editor.includes('holdTimer=setTimeout'));
  assert.ok(!html.includes('id="calendarModeSwitch"'));
  assert.ok(app.includes("window.RUDIPersonalTaskEditor?.create({"));
+ const css=fs.readFileSync('public/meditation.css','utf8');
+ assert.ok(app.includes("const budgetState=spentPercent>=100?'full':spentPercent>=50?'mid':'low'"));
+ assert.ok(app.includes("control.style.setProperty('--finance-home-budget-progress',Math.min(100,spentPercent)+'%')"));
+ assert.ok(css.includes('#financeProfileButton.has-budget::after'));
+ for(const state of ['low','mid','full']){
+   assert.ok(css.includes('.finance-balance-progress.is-budget-'+state));
+ }
 });
