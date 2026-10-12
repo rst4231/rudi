@@ -1,66 +1,92 @@
 'use strict';
-/* Public read-only market access for RUDI paper trading. Never proxies private Bybit endpoints. */
-const HOSTS=['https://api.bybit.com','https://api.bytick.com'];
+/* Explicitly sourced OKX public SWAP/Spot market reference for forward-only paper trades.
+ * Never forwards private Bybit endpoints and never places exchange orders. */
+const ORIGIN='https://www.okx.com';
 const SYMBOL=/^[A-Z0-9]{2,25}USDT$/;
 const DIGITS=/^\d{10,16}$/;
-function verifiedMarketPath(rawUrl){
-  const url=new URL(rawUrl),p=url.searchParams,route=url.pathname;
-  const keys=[...p.keys()];
-  const fields={};
-  if(route==='/v5/market/tickers'&&keys.length===1&&p.get('category')==='linear')
-    return '/v5/market/tickers?category=linear';
-  if(route==='/v5/market/kline'||route==='/v5/market/mark-price-kline'){
-    if(!['linear','spot'].includes(p.get('category'))||!SYMBOL.test(p.get('symbol')||''))return null;
-    if(route.includes('mark-price')&&p.get('category')!=='linear')return null;
-    if(!['5','60'].includes(p.get('interval'))||!['120','1000'].includes(p.get('limit')))return null;
-    if(!keys.every(k=>['category','symbol','interval','start','end','limit'].includes(k)))return null;
-    const start=p.get('start'),end=p.get('end');
-    if((start&&!DIGITS.test(start))||(end&&!DIGITS.test(end)))return null;
-    fields.category=p.get('category');fields.symbol=p.get('symbol');fields.interval=p.get('interval');
-    if(start)fields.start=start;if(end)fields.end=end;fields.limit=p.get('limit');
-    return route+'?'+new URLSearchParams(fields);
+function parsedRequest(requestUrl){
+  const u=new URL(requestUrl),p=u.searchParams,path=u.pathname;
+  if(path==='/v5/market/tickers'&&p.get('category')==='linear'&&[...p.keys()].every(k=>k==='category'))
+    return {kind:'tickers'};
+  if(['/v5/market/kline','/v5/market/mark-price-kline'].includes(path)&&
+      ['spot','linear'].includes(p.get('category'))&&SYMBOL.test(p.get('symbol')||'')&&
+      ['5','60'].includes(p.get('interval'))&&['120','1000'].includes(p.get('limit'))&&
+      [...p.keys()].every(k=>['category','symbol','interval','limit','start','end'].includes(k))&&
+      (!p.get('start')||DIGITS.test(p.get('start')))&&(!p.get('end')||DIGITS.test(p.get('end')))){
+    const coin=p.get('symbol').slice(0,-4);
+    if(path.includes('mark-price')&&p.get('category')!=='linear')return null;
+    return {kind:'candles',category:p.get('category'),mark:path.includes('mark-price'),
+      instId:coin+'-USDT'+(p.get('category')==='linear'?'-SWAP':''),
+      bar:p.get('interval')==='5'?'5m':'1H',
+      limit:p.get('interval')==='5'?120:100};
   }
-  if(route==='/v5/market/funding/history'){
-    if(p.get('category')!=='linear'||!SYMBOL.test(p.get('symbol')||'')||
-        !DIGITS.test(p.get('startTime')||'')||!DIGITS.test(p.get('endTime')||'')||
-        p.get('limit')!=='200'||!keys.every(k=>['category','symbol','startTime','endTime','limit'].includes(k)))return null;
-    return route+'?'+new URLSearchParams({category:'linear',symbol:p.get('symbol'),
-      startTime:p.get('startTime'),endTime:p.get('endTime'),limit:'200'});
-  }
+  if(path==='/v5/market/funding/history'&&p.get('category')==='linear'&&
+      SYMBOL.test(p.get('symbol')||'')&&DIGITS.test(p.get('startTime')||'')&&
+      DIGITS.test(p.get('endTime')||'')&&p.get('limit')==='200'&&
+      [...p.keys()].every(k=>['category','symbol','startTime','endTime','limit'].includes(k)))
+    return {kind:'funding',instId:p.get('symbol').slice(0,-4)+'-USDT-SWAP'};
   return null;
 }
-async function market(path){
-  let status=502;
-  for(const host of HOSTS){
-    try{
-      const r=await fetch(host+path,{headers:{Accept:'application/json'},redirect:'error',signal:AbortSignal.timeout(8500)});
-      status=r.status;
-      if(!r.ok)continue;
-      const txt=await r.text();
-      if(txt.length>3000000)continue;
-      const data=JSON.parse(txt);
-      if(Number(data.retCode)!==0||!Array.isArray(data.result?.list))continue;
-      return new Response(txt,{status:200,headers:{'content-type':'application/json;charset=utf-8','cache-control':'no-store'}});
-    }catch(_){}
+async function upstream(path){
+  const response=await fetch(ORIGIN+path,{headers:{accept:'application/json'},
+    signal:AbortSignal.timeout(9000),redirect:'error'});
+  if(!response.ok)throw Error('okx-http-'+response.status);
+  const data=await response.json();
+  if(String(data.code)!=='0'||!Array.isArray(data.data))throw Error('okx-invalid-result');
+  return data.data;
+}
+function quoteResponse(list){
+  return Response.json({retCode:0,retMsg:'OK',marketSource:'OKX',result:{list}},
+    {headers:{'cache-control':'no-store','x-rudi-market-source':'OKX'}});
+}
+async function handleMarket(config){
+  if(config.kind==='tickers'){
+    const data=await upstream('/api/v5/market/tickers?instType=SWAP');
+    return quoteResponse(data.filter(t=>/^([A-Z0-9]+)-USDT-SWAP$/.test(t.instId||''))
+      .map(t=>{
+        const last=Number(t.last),open=Number(t.open24h),vol=Number(t.volCcy24h);
+        return {symbol:t.instId.split('-')[0]+'USDT',lastPrice:t.last,
+          turnover24h:String(last*vol),price24hPcnt:open>0?String(last/open-1):'0'};
+      }).filter(x=>Number(x.lastPrice)>0&&Number(x.turnover24h)>=0));
   }
-  return Response.json({ok:false,error:'bybit-upstream-unavailable',status},{status:502,headers:{'cache-control':'no-store'}});
+  if(config.kind==='candles'){
+    const route=config.mark?'/api/v5/market/mark-price-candles':'/api/v5/market/candles';
+    const data=await upstream(route+'?'+new URLSearchParams({
+      instId:config.instId,bar:config.bar,limit:String(config.limit)}));
+    return quoteResponse(data.filter(row=>Array.isArray(row)&&row.length>=5&&
+      (row[8]===undefined||String(row[8])==='1')).map(row=>
+      [row[0],row[1],row[2],row[3],row[4],row[5]||'0']));
+  }
+  const data=await upstream('/api/v5/public/funding-rate-history?'+new URLSearchParams({
+    instId:config.instId,limit:'100'}));
+  return quoteResponse(data.map(row=>({
+    fundingRate:row.fundingRate,
+    fundingRateTimestamp:row.fundingTime,
+  })).filter(row=>Number.isFinite(Number(row.fundingRateTimestamp))));
 }
 export default {
- async fetch(req,env){
-  const u=new URL(req.url);
-  if(u.pathname==='/health')return Response.json({ok:true,service:'rudi-crypto-market',cronSecretPresent:Boolean(env.CRON_SECRET)});
-  if(req.method!=='GET')return new Response('method-not-allowed',{status:405});
-  const path=verifiedMarketPath(req.url);
-  return path?market(path):new Response('not-found',{status:404});
- },
- async scheduled(event,env,ctx){
-  if(!env.CRON_SECRET)throw Error('cron-secret-missing');
-  const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-monitor-cron',{
-    headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json'},
-    signal:AbortSignal.timeout(145000)
-  });
-  if(!response.ok)throw Error('rudi-monitor-http-'+response.status);
-  const body=await response.json();
-  if(body?.ok!==true)throw Error('rudi-monitor-incomplete');
- }
+  async fetch(request,env){
+    const url=new URL(request.url);
+    if(url.pathname==='/health')return Response.json({ok:true,service:'rudi-crypto-market',
+      marketSource:'OKX',cronSecretPresent:Boolean(env.CRON_SECRET)});
+    if(request.method!=='GET')return new Response('method-not-allowed',{status:405});
+    const config=parsedRequest(request.url);
+    if(!config)return new Response('not-found',{status:404});
+    try{return await handleMarket(config)}
+    catch(error){
+      return Response.json({ok:false,error:'market-data-unavailable',
+        reason:String(error?.message||error).slice(0,80)},
+        {status:502,headers:{'cache-control':'no-store'}});
+    }
+  },
+  async scheduled(event,env,ctx){
+    if(!env.CRON_SECRET)throw Error('cron-secret-missing');
+    const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-monitor-cron',{
+      headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json'},
+      signal:AbortSignal.timeout(145000),
+    });
+    if(!response.ok)throw Error('rudi-monitor-http-'+response.status);
+    const body=await response.json();
+    if(body?.ok!==true)throw Error('rudi-monitor-incomplete');
+  }
 };
