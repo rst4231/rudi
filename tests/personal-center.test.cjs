@@ -526,3 +526,11 @@ test('deterministic placeholder never creates a green halo and remains manually 
  const row=await cron.generateForActor('Диана','2026-10-12',{client:c,now,manual:true,generate:async()=>({model:'test',narrative:{overview:'ready'}})});
  assert.equal(row.status,'upgraded');assert.equal((await store.unread('Диана',{client:c})).unread,true);
 });
+
+
+test('personal AI halo refreshes after account switch and clears even for unchanged overview',()=>{
+ const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ assert.match(app,/attributeFilter:\['data-rudi-actor'\]/);
+ assert.match(app,/if\(res\.unchanged\)\{overviewAt=Date\.now\(\);markHalo\(false\)/);
+ assert.match(app,/visibilitychange.*checkStatus\(true\)/);
+});
