@@ -189,6 +189,31 @@
     }
     return {period,from,to,buckets,total:money(buckets.reduce((a,b)=>a+b.total,0))};
   }
+  // Non-mutating overlay for the graph. Historical archive contains expenses
+  // only; CoinKeeper transfers must never be treated as income.
+  function overlayExpensePeriod(period,archiveDays={},incomes=[]){
+    const buckets=(period?.buckets||[]).map(row=>({...row,income:0}));
+    if(!buckets.length)return {...period,buckets,incomeTotal:0};
+    for(const [date,info] of Object.entries(archiveDays||{})){
+      if(date<period.from||date>period.to)continue;
+      const value=Number(info?.total);
+      if(!Number.isFinite(value)||value<=0)continue;
+      const bucket=buckets.find(row=>date>=row.from&&date<=row.to);
+      if(bucket)bucket.total=money(bucket.total+value);
+    }
+    for(const row of rows(incomes)){
+      const date=moscowExpenseDate(row);
+      if(!date||date<period.from||date>period.to)continue;
+      const value=Number(row?.rubAmount);
+      // Only recorded RUB-equivalent incomes, not unknown foreign FX.
+      if(!Number.isFinite(value)||value<=0)continue;
+      const bucket=buckets.find(item=>date>=item.from&&date<=item.to);
+      if(bucket)bucket.income=money(bucket.income+value);
+    }
+    return {...period,buckets,
+      total:money(buckets.reduce((sum,row)=>sum+row.total,0)),
+      incomeTotal:money(buckets.reduce((sum,row)=>sum+row.income,0))};
+  }
   function detectIssues(state,now){
     const current=monthKey(now),last=addMonths(current,-1);
     const history=monthHistory(state,now);
@@ -301,5 +326,5 @@
     }
     return {main:null,secondary:null,explanation:'Выбери сценарий.',warning:''};
   }
-  return {forecast,detectIssues,weeklyExpenses,expensePeriod,goal,recommendations,simulate,dateKey,monthKey,monthHistory};
+  return {forecast,detectIssues,weeklyExpenses,expensePeriod,overlayExpensePeriod,goal,recommendations,simulate,dateKey,monthKey,monthHistory};
 });

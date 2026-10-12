@@ -103,7 +103,7 @@ test('UI provides a review step and does not use the old balance-mutating import
  assert.match(js,/parseCsv\(/);
  assert.doesNotMatch(js,/import-expenses/);
  const html=fs.readFileSync('public/index.html','utf8');
- assert.match(html,/coinkeeper-history\.js\?v=4\.186/);
+ assert.match(html,/coinkeeper-history\.js\?v=4\.187/);
 });
 test('last CoinKeeper upload can be deleted without changing RUDI state, preserving older upload',async()=>{
  const s=state(),original=JSON.stringify(s),storage=cache();
@@ -148,7 +148,7 @@ test('CoinKeeper v4.184 UI has fully opaque readable dialog and accessible delet
  assert.match(js,/В \(вероятно, Вика\)/);
  assert.doesNotMatch(js,/\bimport-expenses\b/);
  const html=fs.readFileSync('public/index.html','utf8');
- assert.match(html,/coinkeeper-history\.js\?v=4\.186/);
+ assert.match(html,/coinkeeper-history\.js\?v=4\.187/);
 });
 
 test('CoinKeeper owner-only UI does not mount for Diana, waits for Rustam auth, and removes on switch',()=>{

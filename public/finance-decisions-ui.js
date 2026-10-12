@@ -13,6 +13,7 @@
   };
   let snapshot=null,loadedAt=0,working=false,activeMode='purchase';
   let expenseChartPeriod='week',expenseChartSelected=-1;
+  let coinKeeperChartArchive=null;
   const request=async(operation,payload={})=>{
     try{await window.__rudiTelegramSdkReady}catch(_){}
     const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
@@ -286,41 +287,69 @@
   function renderWeeklyExpenses(){
     const host=id('rudiWeeklyBars'),range=id('rudiWeeklyRange');
     if(!host||!snapshot)return;
-    const data=core.expensePeriod(snapshot,nowMoscow(),expenseChartPeriod),ctx=currencyContext();
+    const base=core.expensePeriod(snapshot,nowMoscow(),expenseChartPeriod);
+    // Do not mutate the live finance snapshot or turn CoinKeeper transfers into income.
+    const archive=document.body?.dataset.rudiActor==='Рустам'?coinKeeperChartArchive?.days||{}:{};
+    const data=core.overlayExpensePeriod(base,archive,snapshot.walletIncomes||[]);
+    const ctx=currencyContext(),isYear=expenseChartPeriod==='year';
     const dateText=key=>new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',timeZone:'UTC'})
       .format(new Date(key+'T12:00:00Z'));
     const titles={week:'неделю',month:'месяц',year:'год'},title=id('rudiWeeklyHeading');
-    if(title)title.textContent='Расходы за '+titles[expenseChartPeriod];
-    if(range)range.textContent=expenseChartPeriod==='year'?data.from.slice(0,4):dateText(data.from)+' – '+dateText(data.to);
+    if(title)title.textContent=isYear?'Расходы/Доходы за год':'Расходы за '+titles[expenseChartPeriod];
+    if(range)range.textContent=isYear?data.from.slice(0,4):dateText(data.from)+' – '+dateText(data.to);
     document.querySelectorAll('[data-rudi-expense-period]').forEach(button=>
       button.setAttribute('aria-pressed',String(button.dataset.rudiExpensePeriod===expenseChartPeriod)));
     const hidden=id('financeBalanceEyeButton')?.getAttribute('aria-pressed')==='true';
-    const buckets=data.buckets,maximum=Math.max(0,...buckets.map(x=>x.total));
+    const buckets=data.buckets;
+    const maximum=Math.max(0,...buckets.map(x=>isYear?Math.max(x.total,x.income||0):x.total));
     if(expenseChartSelected>=buckets.length)expenseChartSelected=-1;
-    const selected=expenseChartSelected>=0?expenseChartSelected:buckets.findIndex(x=>x.total===maximum&&maximum>0);
+    const selected=expenseChartSelected>=0?expenseChartSelected:buckets.findIndex(x=>
+      (isYear?Math.max(x.total,x.income||0):x.total)===maximum&&maximum>0);
     host.classList.toggle('is-private',hidden);
-    host.classList.toggle('is-year',expenseChartPeriod==='year');
+    host.classList.toggle('is-year',isYear);
     host.style.setProperty('--rudi-week-count',String(buckets.length));
     host.innerHTML=buckets.map((bucket,index)=>{
       const filled=bucket.total>0,height=filled&&maximum?Math.max(4,Math.round(bucket.total/maximum*74)):0;
       const value=hidden?'••••':displayMoney(bucket.total,ctx);
-      const showValue=filled&&(expenseChartPeriod!=='year'||selected===index);
+      const showValue=filled&&!isYear;
+      const income=Number(bucket.income||0);
+      const incomeValue=hidden?'••••':displayMoney(income,ctx);
+      const incomeHeight=income>0&&maximum?Math.max(4,Math.round(income/maximum*74)):0;
+      const bars=isYear
+        ?'<span class="rudi-year-pair" aria-hidden="true">'+
+          '<span class="rudi-year-bar is-expense" style="--rudi-week-height:'+height+'%"></span>'+
+          '<span class="rudi-year-bar is-income" style="--rudi-week-height:'+incomeHeight+'%"></span></span>'
+        :(filled?'<span class="rudi-weekly-bar" style="--rudi-week-height:'+height+'%">'+
+          (showValue?'<span class="rudi-weekly-amount">'+html(value)+'</span>':'')+'</span>':
+          '<span class="rudi-weekly-zero" aria-hidden="true"></span>');
+      const label=isYear
+        ?bucket.label+': расходы '+value+', доходы '+incomeValue
+        :bucket.label+': '+value;
       return '<div class="rudi-weekly-day"><button type="button" data-rudi-expense-index="'+index+
         '" class="rudi-weekly-day-plot'+(selected===index?' is-selected':'')+
-        '" aria-label="'+html(bucket.label+': '+value)+'">'+
-        (filled?'<span class="rudi-weekly-bar" style="--rudi-week-height:'+height+'%">'+
-          (showValue?'<span class="rudi-weekly-amount">'+html(value)+'</span>':'')+'</span>':
-          '<span class="rudi-weekly-zero" aria-hidden="true"></span>')+
+        '" aria-label="'+html(label)+'">'+bars+
         '</button><span class="rudi-weekly-day-label">'+html(bucket.label)+'</span></div>';
     }).join('');
+    let legend=id('rudiExpenseYearLegend');
+    if(!legend){legend=document.createElement('p');legend.id='rudiExpenseYearLegend';
+      legend.className='rudi-year-legend';host.insertAdjacentElement('afterend',legend);}
+    legend.innerHTML='<span class="is-expense">Расходы</span><span class="is-income">Доходы</span>';
+    legend.hidden=!isYear;
     let info=id('rudiExpenseSelectedDetail');
     if(!info){info=document.createElement('p');info.id='rudiExpenseSelectedDetail';
-      info.className='rudi-expense-selected';host.insertAdjacentElement('afterend',info);}
+      info.className='rudi-expense-selected';legend.insertAdjacentElement('afterend',info);}
     const selectedBucket=buckets[selected];
-    info.textContent=selectedBucket?(selectedBucket.label+': '+(hidden?'••••':displayMoney(selectedBucket.total,ctx))):'Расходов за период нет';
-    info.hidden=expenseChartPeriod!=='year';
-    host.setAttribute('aria-label',hidden?'Суммы расходов скрыты':
-      'Расходы за '+titles[expenseChartPeriod]+', всего '+displayMoney(data.total,ctx));
+    info.textContent=selectedBucket
+      ?(isYear
+        ?selectedBucket.label+' · Расходы: '+(hidden?'••••':displayMoney(selectedBucket.total,ctx))+
+         ' · Доходы: '+(hidden?'••••':displayMoney(selectedBucket.income||0,ctx))
+        :selectedBucket.label+': '+(hidden?'••••':displayMoney(selectedBucket.total,ctx)))
+      :'Расходов за период нет';
+    info.hidden=!isYear;
+    host.setAttribute('aria-label',hidden?'Суммы скрыты':
+      (isYear?'Расходы и доходы за год, расходы '+displayMoney(data.total,ctx)+
+       ', доходы '+displayMoney(data.incomeTotal,ctx):
+       'Расходы за '+titles[expenseChartPeriod]+', всего '+displayMoney(data.total,ctx)));
   }
   function render(){
     if(!snapshot||!mount())return;
@@ -361,7 +390,18 @@
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh(true)});
     // The overview eye button changes privacy mode without re-fetching finance data.
     id('financeBalanceEyeButton')?.addEventListener('click',()=>setTimeout(renderWeeklyExpenses,0));
-    document.addEventListener('rudi-finances-updated',event=>{if(event.detail?.plan){snapshot=event.detail;loadedAt=Date.now();render()}});
+    document.addEventListener('rudi-finances-updated',event=>{
+      if(document.body?.dataset.rudiActor!=='Рустам')coinKeeperChartArchive=null;
+      if(event.detail?.plan){snapshot=event.detail;loadedAt=Date.now();render()}
+    });
+    document.addEventListener('rudi-coinkeeper-overview-loaded',event=>{
+      coinKeeperChartArchive=document.body?.dataset.rudiActor==='Рустам'?event.detail:null;
+      if(snapshot)renderWeeklyExpenses();
+    });
+    document.addEventListener('rudi-coinkeeper-updated',()=>{
+      coinKeeperChartArchive=null;
+      if(snapshot)renderWeeklyExpenses();
+    });
     id('rudiAlertList')?.addEventListener('click',event=>{
       const button=event.target.closest?.('button[data-alert-category]');
       if(!button)return;
@@ -375,6 +415,7 @@
       const result=id('rudiScenarioResult');
       if(result&&!result.hidden)runScenario();
     });
+    document.dispatchEvent(new Event('rudi-finance-decisions-mounted'));
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
