@@ -56,7 +56,7 @@ test('Rustam sees the health block once; switching to Diana instantly removes it
 });
 test('actor mutation observer reapplies hide, health fetch & result also check Rustam; server rejects partner',()=>{
  assert.match(source,/observer\.observe\(document\.body,\{childList:true,subtree:true,attributes:true,attributeFilter:\['data-rudi-actor'\]\}\)/);
- assert.match(source,/async function runHealthCheck\(\)\{\s*\/\/[^\\n]*\n\s*if\(String\(document\.body\?\.dataset\?\.rudiActor\|\|''\)!=='Рустам'\) return;/);
+ assert.match(source,/async function runHealthCheck\(\)\{\s*\/\/[^\n]*\n\s*if\(String\(document\.body\?\.dataset\?\.rudiActor\|\|''\)!=='Рустам'\) return;/);
  assert.match(source,/function renderHealthCheck\(payload\)\{\s*if\(String\(document\.body\?\.dataset\?\.rudiActor\|\|''\)!=='Рустам'\) return;/);
  assert.match(backend,/if\(actor!=='Рустам'\) throw new Error\('rudi-health-owner-only'\)/);
  assert.match(backend,/code==='rudi-health-owner-only'\?403/);
