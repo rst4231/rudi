@@ -138,7 +138,7 @@ test('paired yearly chart has explicit title, owner-only historical totals and a
  assert.match(css,/\.rudi-year-legend/);
  assert.match(app,/rudi-coinkeeper-overview-loaded/);
  assert.match(app,/rudi-finance-decisions-mounted/);
- assert.match(index,/finance-decisions-ui\.js\?v=4\.187/);
+ assert.match(index,/finance-decisions-ui\.js\?v=4\.188/);
 });
 
 test('v4.188 year chart labels show each month expense and income amount permanently with privacy masking',()=>{
