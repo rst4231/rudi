@@ -191,7 +191,8 @@ function summarize(p){
 }
 function report(state){
   const s=adapt(state);
-  return {algorithms:STRATEGIES,initialUsd:INITIAL,exchange:'Bybit USDT Perpetual',
+  return {algorithms:STRATEGIES,initialUsd:INITIAL,exchange:(s.marketSource||process.env.RUDI_CRYPTO_MARKET_SOURCE||'Bybit')+' USDT Perpetual (paper)',
+    marketDataSource:s.marketSource||process.env.RUDI_CRYPTO_MARKET_SOURCE||'Bybit',
     updatedAt:s.updatedAt,lastScanAt:s.lastScanAt,createdAt:s.createdAt,
     marketCount:s.marketCount||0,error:s.error||null,
     assumptions:{leverage:LEV,feeRate:FEE,slippageRate:SLIPPAGE,
@@ -215,6 +216,7 @@ async function scan(options={}){
     let markets=[],failed=0;
     try{
       const tickerResponse=await bybit('/v5/market/tickers?category=linear',options.fetchImpl);
+      state.marketSource=String(tickerResponse.marketSource||process.env.RUDI_CRYPTO_MARKET_SOURCE||'Bybit');
       markets=marketUniverse(tickerResponse);
       if(!markets.length)throw Error('bybit-empty-universe');
       // Open symbols must remain monitored even after leaving the top movers.
