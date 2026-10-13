@@ -18382,3 +18382,28 @@ body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today
 }
 .ticktick-task-delete-area #ticktickTaskDeleteButton[hidden]{display:none!important}
 .ticktick-task-delete-area #ticktickTaskDeleteButton:disabled{opacity:.55;cursor:default}
+
+
+/* v4.205: shared agenda keeps photos, but drops redundant actor names. */
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-meta{
+  display:none!important;
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task,
+body[data-app-tab="home"] .priority-section .ticktick-today-task.has-delete{
+  min-height:66px;
+  padding-block:12px!important;
+  align-items:center;
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-copy{
+  align-self:center;
+  padding-top:0;
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-complete{
+  align-self:center;
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-agenda-time{
+  align-self:center;
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task:has(.is-shared-avatar){
+  min-height:79px;
+}
