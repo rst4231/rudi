@@ -336,6 +336,10 @@
       "destination": "/api/index?route=habit-reminder-cron"
     },
     {
+      "source": "/api/shared-task-reminder-cron",
+      "destination": "/api/index?route=shared-task-reminder-cron"
+    },
+    {
       "source": "/api/storage-migrate",
       "destination": "/api/index?route=storage-migrate"
     }
