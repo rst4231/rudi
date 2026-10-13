@@ -318,7 +318,9 @@ test('remote saved home layout seeds a device that has no local order',async({pa
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await expect(page.locator('#smartHomeTile')).toBeAttached();
   const order=await page.locator('#homeTileHost > [data-home-tile]').evaluateAll(nodes=>nodes.map(node=>node.dataset.homeTile));
-  expect(order.slice(0,5)).toEqual(['smart-home','dashboard','priority','recommendations','partner']);
+  // Existing home layout is preserved; the new personal note sits above Smart Home.
+  expect(order.filter(tile=>tile!=='note').slice(0,5)).toEqual(['smart-home','dashboard','priority','recommendations','partner']);
+  expect(order.indexOf('note')).toBe(order.indexOf('smart-home')-1);
   expect(order).toContain('daily-question');
   await expect(page.locator('#smartHomeTile')).toHaveClass(/is-collapsed/);
 });
