@@ -27,7 +27,7 @@ function setup(storage=new Map()){
    if(q==='#financeLiteracyPanel .finance-literacy-card')return card;
    return null;
   },
-  createElement(tag){return {tagName:tag,hidden:false,disabled:false,textContent:'',className:'',listeners:{},addEventListener(type,fn){this.listeners[type]=fn},append(){}}},
+  createElement(tag){return {tagName:tag,hidden:false,disabled:false,textContent:'',className:'',listeners:{},setAttribute(k,v){this[k]=v},addEventListener(type,fn){this.listeners[type]=fn},append(){}}},
   addEventListener(type,fn){listeners.set('document:'+type,fn)}};
  const window={innerHeight:700,Telegram:null,addEventListener(type,fn){listeners.set('window:'+type,fn)}};
  const localStorage={getItem(k){return storage.has(k)?storage.get(k):null},setItem(k,v){storage.set(k,v)}};
