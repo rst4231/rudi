@@ -328,6 +328,10 @@
       "destination": "/api/index?route=smart-home-humidity-cron"
     },
     {
+      "source": "/api/shared-task-reminders-cron",
+      "destination": "/api/index?route=shared-task-reminders-cron"
+    },
+    {
       "source": "/api/habit-reminder-cron",
       "destination": "/api/index?route=habit-reminder-cron"
     },
