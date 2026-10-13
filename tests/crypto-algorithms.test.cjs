@@ -103,7 +103,10 @@ test('failed scan saves last attempt without fabricating successful scan',async(
  assert.equal(first.lastScanAt,null);assert.equal(first.updatedAt,null);
  assert.equal(first.error,'bybit-http-503');
  assert.equal(first.lastAttemptAt,new Date(NOW).toISOString());
- await a.scan({client,fetchImpl,now:NOW+60000});assert.equal(fetches,1);
+ const attemptedHosts=fetches;
+ assert.ok(attemptedHosts>=1);
+ await a.scan({client,fetchImpl,now:NOW+60000});
+ assert.equal(fetches,attemptedHosts);
 });
 
 test('503 at Cloudflare market gateway fails over to official Bybit and stays there',async()=>{
