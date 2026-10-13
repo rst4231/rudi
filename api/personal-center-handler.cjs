@@ -6,6 +6,7 @@ const {generateForActor}=require('./personal-center-cron-handler.cjs');
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const {readMoodHistory}=require('./daily-mood-store.cjs');
 const {computeEmotionSignals}=require('./personal-center-emotions.cjs');
+const {ensureRussianReport}=require('./personal-center-language.cjs');
 const {readCycleState,cycleViewForDate}=require('./cycle-store.cjs');
 const MUTATIONS=new Set(['weight','profile','symptom','symptom-status','delete-entry','clear-category']);
 module.exports=async function handler(req,res){
@@ -23,19 +24,22 @@ module.exports=async function handler(req,res){
       actor==='Диана'?readCycleState().catch(()=>null):Promise.resolve(null),
       readMoodHistory(actor).catch(()=>null),
     ]);
+    // No extra AI work for Russian reports. A legacy English report is repaired once in D1.
+    const localized=await ensureRussianReport(actor,latest,{client});
     const indicator={unread:Boolean(latest?.id&&latest.model!=='deterministic'&&latest.id!==seen?.value?.id)};
     const emotions=Array.isArray(mood)?computeEmotionSignals(mood):null;
     const knownVersion=Number(body.knownVersion),knownReportId=String(body.knownReportId||''),knownReportUpdatedAt=String(body.knownReportUpdatedAt||''),knownEmotionVersion=String(body.knownEmotionVersion||'');
     if(actor!=='Диана'&&knownVersion>=0&&knownVersion===data.version&&knownReportId===(latest?.id||'')&&knownReportUpdatedAt===(latest?.updatedAt||latest?.createdAt||'')&&knownEmotionVersion===(emotions?.version||'')){
       return res.status(200).json({ok:true,actor,unchanged:true});
     }
-    return res.status(200).json({ok:true,actor,data:{...data,emotions},report:latest,indicator,cycle:actor==='Диана'&&cycle?{...cycleViewForDate(cycle,state.moscowDate()),cycleLengthDays:cycle.cycleLengthDays}:null,whoSource:WHO_SOURCE});
+    return res.status(200).json({ok:true,actor,data:{...data,emotions},report:localized,indicator,cycle:actor==='Диана'&&cycle?{...cycleViewForDate(cycle,state.moscowDate()),cycleLengthDays:cycle.cycleLengthDays}:null,whoSource:WHO_SOURCE});
   }
   if(operation==='generate-report'){
     // The authenticated actor may generate only their own missing daily report.
     const now=Date.now(),result=await generateForActor(actor,state.moscowDate(now),{now,manual:true});
     if(result.status==='failed')return res.status(503).json({ok:false,error:'report-generation-failed'});
-    return res.status(200).json({ok:true,actor,status:result.status,report:result.report||null,
+    const localized=await ensureRussianReport(actor,result.report);
+    return res.status(200).json({ok:true,actor,status:result.status,report:localized,
       retryAfterSeconds:result.retryAfterSeconds||0});
   }
   if(operation==='read-report'){await state.seen(actor);return res.status(200).json({ok:true});}
