@@ -196,6 +196,10 @@
       "destination": "/api/index?route=crypto-monitor-cron"
     },
     {
+      "source": "/api/home-note",
+      "destination": "/api/index?route=home-note"
+    },
+    {
       "source": "/api/personal-center",
       "destination": "/api/index?route=personal-center"
     },
