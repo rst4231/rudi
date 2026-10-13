@@ -97,14 +97,16 @@ test('note expansion and text are isolated by actor',async()=>{
  assert.equal((await call('Рустам','get')).note.expanded,false);
  assert.equal((await call('Рустам','get')).note.text,'Моя запись');
 });
-test('note is a draggable tile; runtime defaults immediately above smart-home for each actor',()=>{
+test('note is draggable and defaults directly above Smart Home without moving other blocks',()=>{
  const html=fs.readFileSync('public/index.html','utf8');
- const build=fs.readFileSync('build.cjs','utf8');
+ const app=fs.readFileSync('public/app.js','utf8');
  assert.match(html,/id="homeNoteTile"[^>]*data-home-tile="note"/);
- assert.match(build,/function patchHomeNoteLayout/);
- assert.match(build,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home'/);
- assert.match(build,/return \['dashboard',\.\.\.people,'lulu','priority','recommendations','note','smart-home'/);
- assert.match(build,/if\(!requested\.includes\('note'\)\)/);
- assert.match(build,/const smartHomeIndex=valid\.indexOf\('smart-home'\)/);
- assert.match(build,/patchHomeNoteLayout\(patchRetiredRuntime/);
+ assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home'/);
+ assert.match(app,/return \['dashboard',\.\.\.people,'lulu','priority','recommendations','note','smart-home'/);
+ assert.match(app,/if\(!requested\.includes\('note'\)\)/);
+ assert.match(app,/const smartHomeIndex=valid\.indexOf\('smart-home'\)/);
+ const snippet=app.slice(app.indexOf('function normalizedHomeOrder('),app.indexOf('function homeTileRects('));
+ assert.match(snippet,/if\(!requested\.includes\('note'\)\)/);
+ assert.match(app,/function startHomeTileDrag/);
+ assert.match(app,/markUiPreferencesChanged\(\{homeOrder:order\}\)/);
 });
