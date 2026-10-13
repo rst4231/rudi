@@ -18,7 +18,7 @@
 #homeNoteTile .home-note-toggle{
  appearance:none;display:flex;align-items:center;gap:10px;
  min-width:0;flex:1;text-align:left;background:transparent;border:0;
- padding:5px 0;font:700 15px/1.3 inherit;font-family:inherit;
+ padding:5px 0;font-family:inherit;line-height:1.3;
  font-size:15px;font-weight:750;color:inherit;cursor:pointer;
 }
 #homeNoteTile .home-note-toggle:disabled{cursor:default;opacity:.75}
@@ -34,28 +34,28 @@
 #homeNoteTile.is-expanded .home-note-chevron{transform:rotate(180deg)}
 #homeNoteTile .home-note-edit{
  flex:none;background:rgba(145,105,25,.09);border:1px solid rgba(145,105,25,.16);
- border-radius:10px;padding:7px 11px;color:#805f1c;font:600 12px/1.2 inherit;
- font-family:inherit;font-size:12px;cursor:pointer;
+ border-radius:10px;padding:7px 11px;color:#805f1c;line-height:1.2;
+ font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;
 }
 #homeNoteTile .home-note-content{padding:0 15px 15px}
 #homeNoteTile .home-note-preview{
  display:block;width:100%;border:0;background:transparent;
  padding:1px 1px 2px;text-align:left;color:inherit;cursor:text;
- font:450 14px/1.55 inherit;font-family:inherit;font-size:14px;font-weight:450;
+ font-family:inherit;font-size:14px;line-height:1.55;font-weight:450;
  white-space:pre-wrap;overflow-wrap:anywhere;
 }
 #homeNoteTile .home-note-textarea{
  display:block;width:100%;box-sizing:border-box;min-height:100px;max-height:55vh;
  resize:vertical;border:1px solid rgba(147,115,45,.28);
  border-radius:12px;padding:13px;background:rgba(255,255,255,.55);
- color:inherit;font:450 14px/1.55 inherit;font-family:inherit;font-size:14px;
+ color:inherit;font-family:inherit;line-height:1.55;font-size:16px;
  outline:none;
 }
 #homeNoteTile .home-note-textarea:focus{border-color:#b28a2d;box-shadow:0 0 0 2px rgba(178,138,45,.12)}
 #homeNoteTile .home-note-actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px}
 #homeNoteTile .home-note-actions button{
- border:0;border-radius:10px;min-height:36px;padding:8px 12px;font:600 13px/1.2 inherit;
- font-family:inherit;font-size:13px;cursor:pointer;
+ border:0;border-radius:10px;min-height:36px;padding:8px 12px;line-height:1.2;
+ font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;
 }
 #homeNoteTile .home-note-cancel{background:rgba(101,83,45,.1);color:inherit}
 #homeNoteTile .home-note-save{background:#936e24;color:#fff}
