@@ -7,11 +7,16 @@ test('iPhone task editor shows exactly one native date and time, without duplica
  const markup=src.slice(src.indexOf("modal.innerHTML="),src.indexOf("document.body.appendChild(modal);"));
  assert.equal((markup.match(/id="rudiPersonalTaskDate"/g)||[]).length,1);
  assert.equal((markup.match(/id="rudiPersonalTaskTime"/g)||[]).length,1);
- assert.match(markup,/type="date" class="rudi-personal-native-datetime"/);
- assert.match(markup,/type="time" class="rudi-personal-native-datetime"/);
+ assert.match(markup,/id="rudiPersonalTaskDate" type="date"/);
+ assert.match(markup,/id="rudiPersonalTaskTime" type="time"/);
  assert.doesNotMatch(markup,/rudi-personal-temporal-(?:control|value)/);
  assert.doesNotMatch(css,/opacity:0!important/);
- assert.match(css,/\.rudi-personal-task-modal \.ticktick-task-field \.rudi-personal-native-datetime/);
+ assert.doesNotMatch(css,/rudi-personal-native-datetime|rudi-personal-temporal-control/);
+ const shared=fs.readFileSync('public/index.html','utf8');
+ assert.match(shared,/id="ticktickTaskDateInput" type="date"/);
+ assert.match(shared,/id="ticktickTaskTimeInput" type="time"/);
+ assert.match(src,/id="rudiPersonalTaskDate" type="date"/);
+ assert.match(src,/id="rudiPersonalTaskTime" type="time"/);
 });
 
 test('reopened tasks receive fresh pickers and correctly restore distinct native values',()=>{
@@ -37,7 +42,7 @@ test('reopened tasks receive fresh pickers and correctly restore distinct native
  assert.notEqual(elements.rudiPersonalTaskDate,oldDate);
  assert.equal(elements.rudiPersonalTaskDate.type,'date');
  assert.equal(elements.rudiPersonalTaskTime.type,'time');
- assert.equal(elements.rudiPersonalTaskDate.className,'rudi-personal-native-datetime');
+ assert.equal(elements.rudiPersonalTaskDate.className,'');
  elements.rudiPersonalTaskDate.value='2026-10-13';
  elements.rudiPersonalTaskTime.value='10:00';
  assert.equal(elements.rudiPersonalTaskDate.value,'2026-10-13');
