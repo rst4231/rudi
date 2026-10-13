@@ -1,4 +1,4 @@
-/* RUDI v4.212: five icon-only finance tabs and private unread-literacy status. */
+/* RUDI v4.215: finance tab icons and per-article unread state. */
 (()=>{'use strict';
 const ICONS={
  personal:'<circle cx="12" cy="8" r="3.4"/><path d="M5.4 20v-1.5a6.6 6.6 0 0 1 13.2 0V20"/>',
@@ -10,21 +10,49 @@ const ICONS={
 const LABELS={personal:'Личные',crypto:'Крипта',debts:'Долги',shared:'Совместные',literacy:'Грамотность'};
 const $=id=>document.getElementById(id);
 function actor(){return String(document.body?.dataset?.rudiActor||'Рустам')==='Диана'?'Диана':'Рустам'}
+
 function moscowToday(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
-function key(){return 'rudi-literacy-read-v1:'+actor()}
-function isRead(){try{return localStorage.getItem(key())===moscowToday()}catch{return false}}
+function legacyKey(){return 'rudi-literacy-read-v1:'+actor()}
+function readKey(){return 'rudi-literacy-read-v2:'+actor()}
+/* Track the article itself, not just the calendar day: unread appears only for NEW material. */
+function articleId(){
+ const title=$('financeLiteracyTitle')?.textContent?.trim()||'';
+ const body=$('financeLiteracyBody')?.textContent?.replace(/\s+/g,' ').trim()||'';
+ if(body.length<120||/недоступн|Готовлю|загружа/i.test(title+' '+body.slice(0,90)))return '';
+ let hash=2166136261;
+ const input=title+'\u0000'+body;
+ for(let i=0;i<input.length;i++)hash=Math.imul(hash^input.charCodeAt(i),16777619)>>>0;
+ return hash.toString(36)+'-'+body.length;
+}
+function storedRead(){
+ try{const value=JSON.parse(localStorage.getItem(readKey())||'null');return value&&typeof value==='object'?value:null}
+ catch{return null}
+}
+function isRead(){
+ try{
+  const record=storedRead(),current=articleId(),today=moscowToday();
+  if(current&&record?.articleId)return record.articleId===current;
+  if(current)return localStorage.getItem(legacyKey())===today;
+  return record?.day===today||localStorage.getItem(legacyKey())===today;
+ }catch{return false}
+}
 function updateBadge(){
  const btn=document.querySelector('#financeTabs [data-finance-tab="literacy"]');
  const badge=btn?.querySelector('.rudi-literacy-unread');
- if(badge){badge.hidden=isRead();btn.setAttribute('aria-label',LABELS.literacy+(isRead()?'':' · новая статья'))}
+ const read=isRead();
+ if(badge){badge.hidden=read;btn.setAttribute('aria-label',LABELS.literacy+(read?'':' · новая статья'))}
  const readButton=$('rudiLiteracyReadButton');
- if(readButton){readButton.textContent=isRead()?'Прочитано':'Отметить прочитанным';readButton.disabled=isRead()}
+ if(readButton){readButton.textContent=read?'Прочитано':'Отметить прочитанным';readButton.disabled=read}
 }
-function articleLoaded(){
- const title=$('financeLiteracyTitle')?.textContent?.trim()||'';
- const content=$('financeLiteracyBody')?.textContent?.trim()||'';
- return content.length>=500&&!/недоступн|Готовлю|загружа/i.test(title+' '+content.slice(0,90));
+function markRead(){
+ const id=articleId();if(!id)return;
+ try{
+  localStorage.setItem(readKey(),JSON.stringify({articleId:id,day:moscowToday()}));
+  localStorage.setItem(legacyKey(),moscowToday());
+ }catch{}
+ updateBadge();
 }
+function articleLoaded(){return Boolean(articleId())}
 function renderReadButton(){
  const card=document.querySelector('#financeLiteracyPanel .finance-literacy-card');
  if(!card||!articleLoaded())return;
@@ -34,13 +62,21 @@ function renderReadButton(){
    button.type='button';button.className='rudi-literacy-read-button';
    button.addEventListener('click',()=>{
      if(!articleLoaded())return;
-     try{localStorage.setItem(key(),moscowToday())}catch{}
-     updateBadge();
+     markRead();
      try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success')}catch{}
    });
    card.appendChild(button);
  }
  updateBadge();
+}
+/* Also recognize actual reading to the end; a tap on the tab alone never clears unread. */
+function onArticleScroll(){
+ if(document.hidden||document.body?.dataset?.appTab!=='finances'||isRead()||!articleLoaded())return;
+ const panel=$('financeLiteracyPanel'),card=panel?.querySelector('.finance-literacy-card');
+ if(!card||panel.hidden)return;
+ const rect=card.getBoundingClientRect();
+ const visibleEnd=(window.innerHeight||document.documentElement.clientHeight)-90;
+ if(rect.bottom>30&&rect.bottom<=visibleEnd&&rect.top<visibleEnd)markRead();
 }
 function init(){
  const nav=$('financeTabs');
@@ -63,7 +99,9 @@ function init(){
  nav.addEventListener('click',event=>{
    if(event.target.closest('[data-finance-tab="literacy"]'))setTimeout(renderReadButton,350);
  });
- const body=$('financeLiteracyBody');
+ document.addEventListener('scroll',onArticleScroll,{capture:true,passive:true});
+ window.addEventListener('scroll',onArticleScroll,{passive:true});
+  const body=$('financeLiteracyBody');
  if(body)new MutationObserver(()=>renderReadButton()).observe(body,{childList:true,subtree:true,characterData:true});
  new MutationObserver(()=>updateBadge()).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor','data-app-tab']});
  window.addEventListener('pageshow',()=>{updateBadge();renderReadButton()});

@@ -1,11 +1,11 @@
 {
-  "current": "v4.214",
-  "versionBranch": "feature/rudi-v4214-fixed-finance-duel-quick-access",
+  "current": "v4.215",
+  "versionBranch": "feature/rudi-v4215-literacy-read-badge-and-finance-icons",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-13",
-  "basedOnProduction": "v4.213",
+  "basedOnProduction": "v4.214",
   "notes": [
     "Includes v4.198 prepared fixes: 100-star wishlist reward, updated earning guide, expense label, and native iOS date/time field refresh.",
     "Global rain and snow effects driven by live Open-Meteo current weather, individually toggleable and enabled by default with sync.",
@@ -50,12 +50,13 @@
     "v4.213: убрано второе расписание push-напоминаний, удалены несуществующие ресурсы HTML и обновлена PWA-версия для iOS без очистки кэша.",
     "v4.214: вкладки финансов перенесены из анимированного раздела в body и закреплены у нижнего края, как основная навигация.",
     "v4.214: онлайн-крестики-нолики для Рустама и Дианы с проверкой очереди, блокировкой конкурирующих ходов и общим состоянием в Cloudflare D1.",
-    "v4.214: кнопка «Игры» перемещена из профиля в «Быстрый доступ»."
+    "v4.214: кнопка «Игры» перемещена из профиля в «Быстрый доступ».",
+    "v4.215: красный бейдж финансовой грамотности исчезает после отметки статьи прочитанной или дочитывания до конца; статус привязан к содержимому статьи отдельно для Рустама и Дианы.",
+    "v4.215: размеры нижних финансовых вкладок, иконок, отступов и активной кнопки приведены к нижней панели главной."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [
-    "Фиксированная нижняя навигация финансов",
-    "Онлайн-игра на двоих с общим полем",
-    "Кнопка «Игры» в быстром доступе"
+    "Исправлен статус прочтения статьи",
+    "Нижние финансовые иконки размером как на главной"
   ]
 }
