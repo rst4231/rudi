@@ -2,7 +2,7 @@
 // Read-only public market data; no private API keys or trading actions.
 // On transient gateway failure, retry on Bybit's official mainnet REST hosts.
 const OFFICIAL_HOSTS=['https://api.bybit.com','https://api.bytick.com'];
-const TRANSIENT_HTTP=new Set([502,503,504,520,521,522,523,524]);
+const TRANSIENT_HTTP=new Set([500,502,503,504,520,521,522,523,524]);
 const MARKET_PATH=/^\/v5\/market\/(?:tickers|kline|mark-price-kline|funding\/history)\?/;
 
 function createMarketRequest({fetchImpl=globalThis.fetch,
