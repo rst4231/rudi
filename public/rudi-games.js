@@ -156,7 +156,7 @@ function duelRender(){
  const cells=room.board.map((v,i)=>'<button type="button" data-duel-index="'+i+'" aria-label="Клетка '+(i+1)+(v?', '+(v==='X'?'крестик':'нолик'):'')+'" '+(!playing||!turn||!!v?'disabled':'')+' class="rudi-duel-cell '+(v==='X'?'is-x':v==='O'?'is-o':'')+'">'+(v==='X'?'×':v==='O'?'○':'')+'</button>').join('');
  section('<div class="rudi-game-work rudi-duel-work"><div class="rudi-duel-score"><span>Рустам <b>×</b></span><span>Раунд '+room.round+'</span><span><b>○</b> Диана</span></div>'+
    '<p class="rudi-duel-turn" role="status">'+safe(message)+'</p><div class="rudi-duel-board" role="group" aria-label="Поле 3 на 3">'+cells+'</div>'+
-   (room.status!=='playing'?'<button type="button" data-duel-action="start" class="rudi-game-primary" '+''+'>'+(room.round?'Новая партия':'Начать игру')+'</button>':'')+
+   (room.status!=='playing'?'<button type="button" data-duel-action="start" class="rudi-game-primary">'+(room.round?'Новая партия':'Начать игру')+'</button>':'')+
    '<p class="rudi-game-hint">Поле автоматически синхронизируется, когда игра открыта на двух устройствах. '+(duelMessage?safe(duelMessage):'Обновление каждые несколько секунд.')+'</p></div>');
 }
 function queueDuelPoll(delay=6500){
@@ -210,6 +210,9 @@ function ensurePage(){
    if(game==='memory'){level=1;memoryShow();return}
    if(game==='quiz'){quizStart();return}
    if(game==='market'){marketStart();return}
+   if(game==='duel'){duelStart();return}
+   const cell=e.target.closest('[data-duel-index]');if(cell){void duelAction('move',Number(cell.dataset.duelIndex));return}
+   const duel=e.target.closest('[data-duel-action]');if(duel){void duelAction(duel.dataset.duelAction);return}
    const answer=e.target.closest('[data-quiz-answer]');if(answer){quizAnswer(Number(answer.dataset.quizAnswer));return}
    const action=e.target.closest('[data-market-action]');if(action)marketAction(action.dataset.marketAction);
  });
