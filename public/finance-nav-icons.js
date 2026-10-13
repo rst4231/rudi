@@ -45,6 +45,8 @@ function renderReadButton(){
 function init(){
  const nav=$('financeTabs');
  if(!nav||nav.dataset.rudiIconsReady)return;
+ // Move outside the animated finance section so fixed positioning uses the viewport.
+ if(nav.parentElement!==document.body)document.body.appendChild(nav);
  nav.dataset.rudiIconsReady='1';nav.classList.add('rudi-finance-icon-nav');
  nav.querySelectorAll('[data-finance-tab]').forEach(btn=>{
    const name=btn.dataset.financeTab;
