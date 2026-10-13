@@ -40,47 +40,46 @@
 .calendar-task-copy,.calendar-external-task,.calendar-search-result{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 .calendar-task-copy,.calendar-search-result{touch-action:pan-y}
 
-/* iOS WebKit can draw native date/time content twice inside styled controls.
-   Show a single localized label; retain the real native picker as a full-size
-   transparent input for touch, keyboard, VoiceOver, and form submission. */
-.rudi-personal-task-modal .rudi-personal-temporal-control{
-  position:relative;display:grid;grid-template-columns:minmax(0,1fr) 18px;
-  align-items:center;gap:6px;width:100%;min-width:0;max-width:100%;
-  height:46px;padding:0 11px;box-sizing:border-box;overflow:hidden;
-  border:1px solid var(--line);border-radius:13px;background:var(--surface-strong);
-  color:var(--text);font-size:14px;font-weight:650;line-height:1.2;
+/* v4.205: use exactly one visible native iOS date/time control.
+   The previous custom label + transparent input rendered as two overlapping
+   controls in iPhone WebKit, including inside Telegram/PWA. */
+.rudi-personal-task-modal .ticktick-task-date-time-row{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  gap:10px;
 }
-.rudi-personal-task-modal .rudi-personal-temporal-value{
-  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-  font:inherit;color:inherit;pointer-events:none;
+.rudi-personal-task-modal .ticktick-task-field .rudi-personal-native-datetime{
+  display:block;
+  box-sizing:border-box!important;
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  height:46px;
+  min-height:44px;
+  padding:9px 10px!important;
+  border:1px solid var(--line);
+  border-radius:13px;
+  background:var(--surface-strong);
+  color:var(--text);
+  opacity:1;
+  font-size:16px!important;
+  font-weight:600;
+  line-height:1.2;
+  -webkit-appearance:auto;
+  appearance:auto;
+  overflow:hidden;
 }
-.rudi-personal-task-modal .rudi-personal-temporal-value.is-placeholder{color:var(--muted)}
-.rudi-personal-task-modal .rudi-personal-temporal-control svg{
-  width:18px;height:18px;pointer-events:none;color:var(--muted);
-  stroke-linecap:round;stroke-linejoin:round;
+.rudi-personal-task-modal .ticktick-task-field .rudi-personal-native-datetime::-webkit-date-and-time-value{
+  min-width:0;
+  text-align:left;
 }
-.rudi-personal-task-modal .rudi-personal-temporal-control:focus-within{
+.rudi-personal-task-modal .ticktick-task-field .rudi-personal-native-datetime:focus{
   border-color:color-mix(in srgb,#35d870 56%,var(--line));
-  box-shadow:0 0 0 3px rgba(53,216,112,.10)
+  box-shadow:0 0 0 3px rgba(53,216,112,.10);
 }
-.rudi-personal-task-modal .ticktick-task-field .rudi-personal-temporal-native{
-  position:absolute!important;inset:0!important;z-index:1;
-  width:100%!important;height:100%!important;min-height:0!important;
-  max-width:none!important;min-width:0!important;padding:0!important;
-  margin:0!important;border:0!important;border-radius:inherit!important;
-  outline:0!important;box-shadow:none!important;opacity:0!important;
-  -webkit-appearance:none!important;appearance:none!important;
-  cursor:pointer;font-size:16px!important;color:transparent!important;
-  -webkit-tap-highlight-color:transparent;
+.rudi-personal-task-modal .ticktick-task-field .rudi-personal-native-datetime:disabled{
+  opacity:.58;
 }
-.rudi-personal-task-modal .rudi-personal-temporal-native::-webkit-calendar-picker-indicator{
-  position:absolute!important;inset:0!important;width:100%!important;
-  height:100%!important;margin:0!important;padding:0!important;
-  opacity:0!important;cursor:pointer;
-}
-.rudi-personal-task-modal .rudi-personal-temporal-native:disabled{cursor:default}
-.rudi-personal-task-modal .rudi-personal-temporal-control:has(input:disabled){opacity:.58}
 @media(max-width:430px){
-  .rudi-personal-task-modal .rudi-personal-temporal-control{height:44px;padding:0 9px;font-size:13px}
-  .rudi-personal-task-modal .rudi-personal-temporal-control svg{width:16px;height:16px}
+  .rudi-personal-task-modal .ticktick-task-date-time-row{gap:8px}
+  .rudi-personal-task-modal .ticktick-task-field .rudi-personal-native-datetime{padding:7px 8px!important}
 }
