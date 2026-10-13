@@ -61,6 +61,6 @@ test('recommendations are wired to home tile, script and authenticated API',()=>
   const api=fs.readFileSync('api/index.js','utf8');
   assert.match(html,/id="rudiRecommendationsTile"/);
   assert.match(html,/\/recommendations\.js\?v=/);
-  assert.match(app,/recommendations','smart-home/);
+  assert.match(app,/recommendations','note','smart-home/);
   assert.match(api,/handleRecommendations\(req, res\)/);
 });
