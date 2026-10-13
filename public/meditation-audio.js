@@ -121,9 +121,10 @@ function tone(hz,sec,level=.09){
  if(!audioCtx||!master)return;
  const t=audioCtx.currentTime,osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
  osc.type='sine';osc.frequency.value=hz;gain.gain.setValueAtTime(.0001,t);
- gain.gain.exponentialRampToValueAtTime(Math.max(.001,level),t+.08);
- gain.gain.exponentialRampToValueAtTime(.0001,t+sec);
- osc.connect(gain);gain.connect(master);osc.start(t);osc.stop(t+sec+.04);
+ const length=Math.max(.12,sec),attack=Math.min(.08,length*.25);
+ gain.gain.exponentialRampToValueAtTime(Math.max(.001,level),t+attack);
+ gain.gain.exponentialRampToValueAtTime(.0001,t+length);
+ osc.connect(gain);gain.connect(master);osc.start(t);osc.stop(t+length+.04);
 }
 function clearSoundNodes(){
  cleanups.forEach(fn=>{try{fn()}catch{}});cleanups=[];
