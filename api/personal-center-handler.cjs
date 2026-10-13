@@ -6,7 +6,7 @@ const {generateForActor}=require('./personal-center-cron-handler.cjs');
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const {readMoodHistory}=require('./daily-mood-store.cjs');
 const {computeEmotionSignals}=require('./personal-center-emotions.cjs');
-const {ensureRussianReport}=require('./personal-center-language.cjs');
+const {ensureRussianReport,containsEnglishReport,pendingRussianReport}=require('./personal-center-language.cjs');
 const {readCycleState,cycleViewForDate}=require('./cycle-store.cjs');
 const MUTATIONS=new Set(['weight','profile','symptom','symptom-status','delete-entry','clear-category']);
 module.exports=async function handler(req,res){
@@ -24,8 +24,9 @@ module.exports=async function handler(req,res){
       actor==='Диана'?readCycleState().catch(()=>null):Promise.resolve(null),
       readMoodHistory(actor).catch(()=>null),
     ]);
-    // No extra AI work for Russian reports. A legacy English report is repaired once in D1.
-    const localized=await ensureRussianReport(actor,latest,{client});
+    // Return the initial overview immediately. Repair a legacy English report
+    // in a separate request so slow provider calls never block page opening.
+    const localized=latest&&containsEnglishReport(latest.narrative)?pendingRussianReport(latest):latest;
     const indicator={unread:Boolean(latest?.id&&latest.model!=='deterministic'&&latest.id!==seen?.value?.id)};
     const emotions=Array.isArray(mood)?computeEmotionSignals(mood):null;
     const knownVersion=Number(body.knownVersion),knownReportId=String(body.knownReportId||''),knownReportUpdatedAt=String(body.knownReportUpdatedAt||''),knownEmotionVersion=String(body.knownEmotionVersion||'');
@@ -33,6 +34,12 @@ module.exports=async function handler(req,res){
       return res.status(200).json({ok:true,actor,unchanged:true});
     }
     return res.status(200).json({ok:true,actor,data:{...data,emotions},report:localized,indicator,cycle:actor==='Диана'&&cycle?{...cycleViewForDate(cycle,state.moscowDate()),cycleLengthDays:cycle.cycleLengthDays}:null,whoSource:WHO_SOURCE});
+  }
+  if(operation==='translate-report'){
+    const client=createRudiStateClient();
+    const latest=await state.latest(actor,{client});
+    const report=await ensureRussianReport(actor,latest,{client});
+    return res.status(200).json({ok:true,actor,report});
   }
   if(operation==='generate-report'){
     // The authenticated actor may generate only their own missing daily report.
