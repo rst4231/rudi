@@ -1,0 +1,40 @@
+/* Guided meditation controls. Kept separate from legacy meditation styles. */
+.meditation-guide-panel{background:var(--med-surface);border:1px solid var(--med-line);border-radius:24px;padding:18px 15px;display:grid;gap:14px;box-shadow:0 9px 28px rgba(47,122,154,.06)}
+.meditation-guide-heading{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.meditation-guide-heading h3{font-size:16px;letter-spacing:-.025em;margin:0;font-weight:800}
+.meditation-guide-heading p{margin:0;font-size:11px;opacity:.64;line-height:1.45}
+.meditation-moods{display:flex;gap:8px;overflow-x:auto;padding:2px 1px 8px;scroll-snap-type:x proximity;scrollbar-width:none}
+.meditation-moods::-webkit-scrollbar,.meditation-practice-list::-webkit-scrollbar{display:none}
+.meditation-moods button{border-radius:18px;border:1px solid var(--med-line);background:color-mix(in srgb,var(--med-surface),#badde4 18%);padding:11px 13px;min-height:42px;white-space:nowrap;color:var(--med-ink);font-size:12px;font-weight:760;scroll-snap-align:start;cursor:pointer}
+.meditation-moods button[aria-pressed="true"]{background:#317f92;border-color:#317f92;color:white}
+.meditation-moods button:disabled{cursor:default;opacity:.62}
+.meditation-practice-list{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(155px,36%);gap:9px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:2px 1px 11px}
+.meditation-practice-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;min-height:128px;border-radius:17px;border:1px solid var(--med-line);background:color-mix(in srgb,var(--med-surface),#def1f4 32%);color:var(--med-ink);padding:12px;scroll-snap-align:start;cursor:pointer}
+.meditation-practice-card[aria-pressed="true"]{background:color-mix(in srgb,#8bcfdd,var(--med-surface) 57%);border-color:#68aab8;box-shadow:inset 0 0 0 1px rgba(66,142,160,.2)}
+.meditation-practice-card:disabled{cursor:default;opacity:.65}.meditation-practice-card[aria-pressed="true"]:disabled{opacity:1}
+.meditation-practice-card .meditation-practice-icon{font-size:22px;line-height:1.2;display:block}
+.meditation-practice-card strong{font-size:13px;font-weight:800;display:block;line-height:1.22}
+.meditation-practice-card small{font-size:11px;line-height:1.4;display:block;margin-top:5px;opacity:.68}
+.meditation-guide-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.meditation-guide-controls label{font-size:12px;font-weight:730;display:grid;gap:7px;min-width:0}
+.meditation-guide-controls select,.meditation-guide-program select{width:100%;min-width:0;min-height:46px;border-radius:12px;border:1px solid var(--med-line);background:color-mix(in srgb,var(--med-surface),#dfedf1 35%);color:var(--med-ink);font:inherit;font-size:12px;padding:8px}
+.meditation-volume-label{display:grid;grid-template-columns:1fr auto;gap:8px;font-size:12px;font-weight:730}
+.meditation-volume-label input{grid-column:1/-1;min-height:28px;width:100%;accent-color:#317f92}
+.meditation-guide-program{border-top:1px solid var(--med-line);padding-top:13px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;font-size:12px;font-weight:700}
+.meditation-guide-program select{width:113px;min-height:38px}
+.meditation-guide-program span{margin-left:auto;font-weight:600;opacity:.72}
+.meditation-audio-note{margin:0;font-size:11px;line-height:1.5;opacity:.72}
+.meditation-resume-audio{min-height:45px;border-radius:12px;border:1px solid #63a7bb;background:#28768a;color:white;font:inherit;font-size:13px;font-weight:790;padding:10px 12px;cursor:pointer}
+.meditation-resume-audio[hidden]{display:none!important}
+.meditation-orbit.is-guided.is-active .meditation-orbit-glow{animation:meditationGuidedBreath 10s ease-in-out infinite}
+@keyframes meditationGuidedBreath{0%{transform:scale(.92)}40%{transform:scale(1.065)}100%{transform:scale(.92)}}
+html[data-theme="dark"] .meditation-practice-card[aria-pressed="true"]{background:#265768;border-color:#67a6b8}
+html[data-theme="dark"] .meditation-moods button[aria-pressed="true"]{background:#327d91;color:white}
+@media(max-width:420px){
+ .meditation-guide-panel{padding:15px 12px;border-radius:20px;gap:12px}
+ .meditation-practice-list{grid-auto-columns:157px}
+ .meditation-guide-heading p{width:100%}
+ .meditation-guide-controls{gap:8px}
+ .meditation-guide-controls select{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){.meditation-orbit.is-guided.is-active .meditation-orbit-glow{animation:none!important}}
