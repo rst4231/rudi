@@ -2,9 +2,9 @@
 #financePage #financeTabs.rudi-finance-icon-nav{
  position:fixed!important;left:50%!important;bottom:max(8px,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px))!important;
  z-index:4210!important;transform:translateX(-50%)!important;
- width:min(calc(100% - 16px),560px)!important;box-sizing:border-box!important;
- min-height:84px!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
- gap:3px!important;padding:6px!important;border-radius:23px!important;
+ width:min(calc(100% - 24px),560px)!important;box-sizing:border-box!important;
+ min-height:64px!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;
+ gap:3px!important;padding:6px!important;border-radius:22px!important;
  border:1px solid color-mix(in srgb,var(--line) 78%,transparent)!important;
  background:color-mix(in srgb,var(--surface-strong) 88%,transparent)!important;
  box-shadow:0 16px 44px rgba(20,24,36,.18),inset 0 1px 0 rgba(255,255,255,.10)!important;
@@ -15,9 +15,9 @@
  grid-template-columns:repeat(4,minmax(0,1fr))!important;
 }
 #financePage #financeTabs.rudi-finance-icon-nav .finance-tab{
- position:relative!important;min-width:0!important;min-height:70px!important;
- border:0!important;border-radius:18px!important;display:grid!important;
- place-items:center!important;padding:7px 2px!important;background:transparent!important;
+ position:relative!important;min-width:0!important;min-height:52px!important;
+ border:0!important;border-radius:16px!important;display:grid!important;
+ place-items:center!important;padding:5px 2px!important;background:transparent!important;
  color:var(--muted)!important;box-shadow:none!important;cursor:pointer;
  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
 }
@@ -27,20 +27,20 @@
  color:var(--accent)!important;
 }
 #financePage #financeTabs.rudi-finance-icon-nav .rudi-finance-icon{
- width:33px;height:33px;display:grid;place-items:center;position:relative;border-radius:11px;
+ width:25px;height:25px;display:grid;place-items:center;position:relative;border-radius:9px;
 }
-#financePage #financeTabs.rudi-finance-icon-nav .rudi-finance-icon svg{width:25px;height:25px}
+#financePage #financeTabs.rudi-finance-icon-nav .rudi-finance-icon svg{width:20px;height:20px}
 #financePage #financeTabs.rudi-finance-icon-nav .finance-tab.is-active .rudi-finance-icon{
  background:color-mix(in srgb,var(--accent-soft) 86%,transparent)!important;
 }
 #financePage #financeTabs .rudi-literacy-unread{
- position:absolute;top:9px;right:clamp(6px,18%,22px);height:10px;width:10px;border-radius:50%;
+ position:absolute;top:6px;right:clamp(6px,17%,20px);height:10px;width:10px;border-radius:50%;
  background:#f4434e;border:2px solid var(--surface-strong);
  box-shadow:0 0 0 2px rgba(244,67,78,.13);
 }
 #financePage #financeTabs .rudi-literacy-unread[hidden]{display:none!important}
 body[data-primary-nav="hidden"][data-app-tab="finances"] .shell{
- padding-bottom:calc(112px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
+ padding-bottom:calc(90px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
 }
 body:not([data-app-tab="finances"]) #financeTabs.rudi-finance-icon-nav,
 #financePage:is(.is-personal-history,.is-category-history,.is-expense-history,.is-income-history,.is-capital-history) #financeTabs.rudi-finance-icon-nav{
@@ -57,8 +57,8 @@ html[data-theme="dark"] #financePage #financeTabs.rudi-finance-icon-nav{
  background:rgba(23,27,38,.88)!important;box-shadow:0 18px 46px rgba(0,0,0,.36),inset 0 1px 0 rgba(255,255,255,.05)!important;
 }
 @media(max-width:370px){
- #financePage #financeTabs.rudi-finance-icon-nav{gap:2px!important;padding:5px!important;min-height:76px!important}
- #financePage #financeTabs.rudi-finance-icon-nav .finance-tab{min-height:64px!important}
- #financePage #financeTabs.rudi-finance-icon-nav .rudi-finance-icon{width:31px;height:31px}
- #financePage #financeTabs.rudi-finance-icon-nav .rudi-finance-icon svg{width:23px;height:23px}
+ #financePage #financeTabs.rudi-finance-icon-nav{gap:2px!important;padding:5px!important;min-height:62px!important}
+ #financePage #financeTabs.rudi-finance-icon-nav .finance-tab{min-height:50px!important}
+ #financePage #financeTabs.rudi-finance-icon-nav .rudi-finance-icon{width:24px;height:24px}
+ #financePage #financeTabs.rudi-finance-icon-nav .rudi-finance-icon svg{width:19px;height:19px}
 }
