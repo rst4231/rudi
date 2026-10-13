@@ -17,6 +17,7 @@ function testStore(now=Date.parse('2026-10-13T08:00:00Z')){
  const code=pushSource.slice(begin,end);
  const context={crypto,Date,Number,Set,Map,String,Array,console,
   readAppState,writeAppState,ACTORS:new Set(['Рустам','Диана']),
+  normalizeActor:value=>['Рустам','Диана'].includes(String(value))?String(value):'',
   NOTIFICATIONS_KEY:'push:notifications:v1',INBOX_KEY:'push:inbox:v1',
   MAX_NOTIFICATIONS:24,MAX_INBOX_ITEMS:240,
   INBOX_RETENTION_MS:120*24*60*60*1000,NOTIFICATION_TTL_MS:24*60*60*1000};
