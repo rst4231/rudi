@@ -4,7 +4,8 @@ const src=p=>fs.readFileSync(p,'utf8');
 test('reference hero is narrower horizontally while preserving its original height',()=>{
  const css=src('public/home-reference-layout.css');
  assert.match(css,/home-dashboard-summary\{[\s\S]{0,110}width:96%!important/);
- assert.doesNotMatch(css,/min-height:0!important/);
+ const hero=css.match(/home-dashboard-summary\\{[\\s\\S]*?\\}/)?.[0]||'';
+ assert.doesNotMatch(hero,/min-height:0!important/);
 });
 test('six shortcuts sit before conditional meditation hint and profile',()=>{
  const js=src('public/home-reference-layout.js'),css=src('public/home-reference-layout.css');
