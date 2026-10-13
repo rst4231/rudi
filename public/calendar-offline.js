@@ -149,50 +149,164 @@
     if (k === 'move') return '/api/partner-message?ticktickAction=task-move';
     throw Error('calendar-offline-unsupported-action');
   }
-  async function flush(who, auth) {
-    if (syncing || !who || offlineNow()) return { sent: 0, pending };
-    syncing = true;
-    let sent = 0;
-    try {
-      const rows = (await all('outbox')).filter(row => row.actor === who)
-        .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id));
-      for (const row of rows) {
-        // An interrupted in-flight POST might have succeeded. Never blindly replay it.
-        if (row.state !== 'queued' || offlineNow()) break;
-        const details = row.details || {};
-        const { task, value, ...parameters } = details;
-        const body = { ...auth(), ...parameters, ...(value || {}) };
-        row.state = 'inflight';
-        await change('outbox', table => table.put(row));
-        try {
-          const response = await fetch(endpoint(row), {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body), cache: 'no-store'
+
+  // Do not replay an uncertain POST until a fresh TickTick read confirms
+  // whether the requested mutation already took effect.
+  let lastAuth=null;
+  const string=value=>String(value??'').trim();
+  function snapshotEvents(snapshot){
+    return (snapshot?.ticktickDays||[]).flatMap(day=>
+      (day.events||[]).map(task=>({...task,date:string(day.date)})));
+  }
+  async function reconcile(row,who,auth,reads){
+    const data=row.details||{}, value=data.value||{}, taskId=string(data.taskId);
+    const personal=row.kind.startsWith('personal-');
+    const scope=personal?'rustam':'shared';
+    const snapshots=(await all('snapshots')).filter(s=>
+      s.key.startsWith(who+'|')&&s.savedAt<=row.createdAt);
+    const historic=snapshots.flatMap(s=>snapshotEvents(s.payload));
+    const original=historic.find(e=>string(e.id)===taskId)||data.task||null;
+    const date=string(value.date||data.date||original?.date);
+    const months=[...new Set([date.slice(0,7),...snapshots.map(s=>s.key.slice(-7))])]
+      .filter(month=>/^\d{4}-\d{2}$/.test(month)).slice(0,8);
+    if(!months.length)return 'unknown';
+    let found=null,readable=0,allTasks=[];
+    for(const month of months){
+      const key=scope+'|'+month;
+      if(!reads.has(key)){
+        try{
+          const response=await fetch('/api/ticktick/calendar',{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({...auth(),view:'month',month,scope}),
+            cache:'no-store'
           });
-          const payload = await response.json().catch(() => ({}));
-          if (!response.ok || payload.ok !== true) {
-            // Explicit rejection is safe to retry only after a user resolves the cause.
-            row.state = 'blocked';
-            await change('outbox', table => table.put(row));
+          const value=await response.json().catch(()=>null);
+          reads.set(key,response.ok&&value?.ok!==false&&value?.stale!==true
+            &&value?.personalUnavailable!==true&&value?.sharedUnavailable!==true
+            &&Array.isArray(value?.days)?snapshotEvents({ticktickDays:value.days}):null);
+        }catch(_){reads.set(key,null)}
+      }
+      const tasks=reads.get(key);
+      if(!tasks)return 'unknown';
+      readable++;
+      allTasks.push(...tasks);
+      if(taskId){const match=tasks.find(t=>string(t.id)===taskId);if(match)found=match}
+    }
+    if(!readable)return 'unknown';
+    const age=Date.now()-row.createdAt;
+    if(row.kind==='create'){
+      const matches=allTasks.filter(task=>
+        string(task.title)===string(value.title)&&string(task.date)===string(value.date)
+        &&string(task.startTime)===string(value.time));
+      if(matches.length===1&&!historic.some(task=>string(task.id)===string(matches[0].id)))
+        return 'done';
+      // Cannot safely infer a failed create from absence alone.
+      return 'unknown';
+    }
+    if(row.kind==='complete'||row.kind==='personal-complete'||row.kind==='delete'){
+      if(row.kind!=='delete'&&found?.completed===true)return 'done';
+      if(!found&&original)return 'done';
+      if(found&&age>20000)return 'retry';
+      return 'unknown';
+    }
+    if(row.kind==='update'||row.kind==='move'||row.kind==='personal-move'){
+      const targetDate=string(value.date||data.date),targetTime=string(value.time??data.time);
+      if(found&&string(found.date)===targetDate&&string(found.startTime)===targetTime
+        &&(row.kind!=='update'||string(found.title)===string(value.title)))return 'done';
+      if(found&&age>20000)return 'retry';
+      return 'unknown';
+    }
+    return 'unknown';
+  }
+
+  async function flush(who, auth){
+    if(syncing||!who||offlineNow()||typeof auth!=='function')return {sent:0,pending};
+    lastAuth=auth;
+    syncing=true;
+    let sent=0;
+    const reads=new Map();
+    try{
+      const rows=(await all('outbox')).filter(row=>row.actor===who)
+        .sort((a,b)=>a.createdAt-b.createdAt||a.id.localeCompare(b.id));
+      for(const row of rows){
+        if(offlineNow())break;
+        const now=Date.now();
+        if(row.state==='blocked'){
+          if(now<Number(row.retryAt||0))break;
+          row.state='queued';
+        }else if(row.state!=='queued'){
+          if(now<Number(row.checkAt||0))break;
+          const decision=await reconcile(row,who,auth,reads);
+          if(decision==='done'){
+            await change('outbox',table=>table.delete(row.id));
+            sent++;
+            continue;
+          }
+          if(decision!=='retry'){
+            row.state='review';
+            row.checkAt=Date.now()+30000;
+            row.error='Не удалось подтвердить изменение на сервере';
+            await change('outbox',table=>table.put(row));
             break;
           }
-          await change('outbox', table => table.delete(row.id));
-          sent += 1;
-        } catch (_) {
-          // Unknown delivery status: preserve the operation for review instead of duplicating it.
-          row.state = 'review';
-          await change('outbox', table => table.put(row));
+          row.state='queued';
+        }
+        const {task,value,...parameters}=row.details||{};
+        const body={...auth(),...parameters,...(value||{})};
+        row.state='inflight';
+        row.attempts=(row.attempts||0)+1;
+        delete row.checkAt;
+        await change('outbox',table=>table.put(row));
+        try{
+          const response=await fetch(endpoint(row),{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(body),cache:'no-store'
+          });
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok||payload.ok!==true){
+            if(response.status>=500||response.status===408||response.status===504){
+              row.state='review'; // Unclear whether an upstream write committed.
+              row.checkAt=Date.now()+30000;
+            }else{
+              row.state='blocked'; // Explicit non-transient refusal.
+              row.retryAt=Date.now()+Math.min(600000,15000*2**Math.min(5,row.attempts-1));
+            }
+            row.error=response.status===401||response.status===403
+              ?'Подключи TickTick повторно'
+              :response.status===429?'Сервис ограничил частоту запросов'
+              :'Ответ сервера: '+response.status;
+            await change('outbox',table=>table.put(row));
+            break;
+          }
+          await change('outbox',table=>table.delete(row.id));
+          sent++;
+          reads.clear();
+        }catch(_){
+          row.state='review';
+          row.checkAt=Date.now()+30000;
+          row.error='Проверка доставки после обрыва связи';
+          await change('outbox',table=>table.put(row));
           break;
         }
       }
-      const state = await summary(who);
-      if (sent) root.dispatchEvent(new CustomEvent('rudi-calendar-synced', { detail: { sent, ...state } }));
-      return { sent, ...state };
-    } finally {
-      syncing = false;
+      const state=await summary(who);
+      if(sent)root.dispatchEvent(new CustomEvent('rudi-calendar-synced',{detail:{sent,...state}}));
+      return {sent,...state};
+    }finally{
+      syncing=false;
       root.dispatchEvent(new CustomEvent('rudi-calendar-flush-idle'));
     }
   }
+  // iOS PWA does not always emit "online". Retry only while calendar is in
+  // the foreground and there are local operations, never on an empty queue.
+  root.setInterval?.(()=>{
+    if(actor&&pending>0&&lastAuth&&!syncing&&
+      root.document?.visibilityState==='visible'&&
+      root.document?.body?.dataset?.appTab==='schedule'&&!offlineNow()){
+      flush(actor,lastAuth).catch(error=>console.warn(
+        'RUDI_CALENDAR_RECONCILE_WARN',String(error?.message||error)));
+    }
+  },20000);
   root.rudiCalendarOffline = {
     init, cached, capture, materialize, enqueue, flush, summary,
     hasPendingSync: () => pending > 0,
