@@ -8609,6 +8609,8 @@
         if(personalPushLoadedActor!==currentActor){
           homeDashboardState.personalPush=[];
           personalPushLastFetch=0;
+          // Never show the previous actor's private push while switching accounts.
+          renderActivityJournalItems(homeDashboardState.activity);
         }
         if(personalPushFetchPromise&&personalPushFetchActor===currentActor)return personalPushFetchPromise;
         if(!force&&Date.now()-personalPushLastFetch<90000)return null;
