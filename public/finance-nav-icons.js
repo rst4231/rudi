@@ -46,6 +46,10 @@ function init(){
  const nav=$('financeTabs');
  if(!nav||nav.dataset.rudiIconsReady)return;
  nav.dataset.rudiIconsReady='1';nav.classList.add('rudi-finance-icon-nav');
+ // financePage uses entry transforms: fixed children would scroll with that page.
+ // Move the existing node (keep listeners and tab state) beside the main nav.
+ document.body.appendChild(nav);
+
  nav.querySelectorAll('[data-finance-tab]').forEach(btn=>{
    const name=btn.dataset.financeTab;
    if(!ICONS[name])return;
