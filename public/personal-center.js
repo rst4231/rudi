@@ -10,7 +10,7 @@ function positiveShare(entry){
  const total=Number(entry?.total),positive=Number(entry?.positive);
  return Number.isFinite(total)&&total>0&&Number.isFinite(positive)?Math.round(100*positive/total):null;
 }
-let root=null,open=false,who='',data=null,report=null,lastStatus=0,loading=false,manualLoading=false,activeSheet='',cycleInfo=null,overviewAt=0,refreshing=false,overviewPromise=null,rhythmMode='habits';
+let root=null,open=false,who='',data=null,report=null,lastStatus=0,loading=false,manualLoading=false,activeSheet='',cycleInfo=null,overviewAt=0,refreshing=false,overviewPromise=null,rhythmMode='habits',translatingReportId='';
 const cachePrefix='rudi-personal-center-session:';
 function setStatus(t){if($('pcStatus'))$('pcStatus').textContent=String(t||'')}
 async function call(operation,extra={}){
@@ -80,13 +80,24 @@ function showOffline(){
  try{if(!who)return false;const stored=JSON.parse(sessionStorage.getItem(cacheKey())||'null');if(!stored)return false;data=stored.data;report=stored.report;cycleInfo=stored.cycleInfo||null;draw();setStatus('Нет сети · показаны сохранённые данные');return true;}
  catch(e){return false;}
 }
+function repairEnglishReportInBackground(){
+ const reportId=report?.id;
+ if(!reportId||!report.translationPending||translatingReportId===reportId)return;
+ translatingReportId=reportId;
+ void call('translate-report').then(result=>{
+  if(!result?.report||report?.id!==reportId||result.actor!==who)return;
+  report=result.report;
+  draw();
+  try{sessionStorage.setItem(cacheKey(),JSON.stringify({data,report,cycleInfo}));}catch(_){}
+ }).catch(()=>{}).finally(()=>{if(translatingReportId===reportId)translatingReportId='';});
+}
 async function fetchOverview(force=false){
  if(overviewPromise)return overviewPromise;
- if(!force&&who&&data&&Date.now()-overviewAt<90000){draw();return true;}
+ if(!force&&who&&data&&Date.now()-overviewAt<90000){draw();repairEnglishReportInBackground();return true;}
  overviewPromise=(async()=>{
   const res=await call('overview',{knownVersion:data?.version??-1,knownReportId:report?.id||'',knownReportUpdatedAt:report?.updatedAt||report?.createdAt||'',knownEmotionVersion:data?.emotions?.version||''});
-  if(res.unchanged){overviewAt=Date.now();markHalo(false);if(report?.id)void call('read-report').catch(()=>{});setStatus('');return true;}
-  who=res.actor;data=res.data;report=res.report;cycleInfo=res.cycle||null;overviewAt=Date.now();draw();
+  if(res.unchanged){overviewAt=Date.now();markHalo(false);if(report?.id)void call('read-report').catch(()=>{});setStatus('');repairEnglishReportInBackground();return true;}
+  who=res.actor;data=res.data;report=res.report;cycleInfo=res.cycle||null;overviewAt=Date.now();draw();repairEnglishReportInBackground();
   try{sessionStorage.setItem(cacheKey(),JSON.stringify({data,report,cycleInfo}));}catch(_){}
   markHalo(false);setStatus('');
   if(res.indicator?.unread)void call('read-report').catch(()=>{});
