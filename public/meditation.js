@@ -64,6 +64,7 @@ function ensurePage(){
    </details>
   </div>`;
  document.body.appendChild(page);
+ window.RudiMeditationAudio?.mount(page);
  $('meditationBack').addEventListener('click',close);
  // Edge swipe right exits the full-page meditation view on iPhone/PWA.
  let edgeSwipe=null;
@@ -117,6 +118,7 @@ function renderClock(){
  text('meditationBreathHint',a?'Дыши спокойно':'Вдох · выдох');
  text('meditationTimerHint',a?'Осталось до окончания':'Выбери своё время');
  $('meditationOrbit')?.classList.toggle('is-active',Boolean(a));
+ window.RudiMeditationAudio?.tick(a);
 }
 function render(){
  if(!page)return;
@@ -131,13 +133,14 @@ function render(){
  $('meditationSound').checked=pref();
  const stats=state?.stats||{sessions:0,totalMinutes:0,streak:0};
  text('meditationCount',stats.sessions);text('meditationTotal',minuteText(stats.totalMinutes));text('meditationStreak',stats.streak);
+ window.RudiMeditationAudio?.refreshProgram();
  const history=$('meditationHistoryList');history.replaceChildren();
  if(!state?.history?.length){const p=document.createElement('p');p.textContent='Здесь появятся ваши медитации';history.appendChild(p)}
  else for(const row of state.history.slice(0,100)){
   const line=document.createElement('div');line.className='meditation-history-row';
   const left=document.createElement('span'),right=document.createElement('strong');
   const date=document.createElement('b');date.textContent=moscowDate(row.endedAt);
-  const tag=document.createElement('small');tag.textContent=row.completed?'Завершена':'Остановлена раньше';
+  const tag=document.createElement('small');const pLabel=window.RudiMeditationAudio?.labelFor(row.id);tag.textContent=(pLabel?pLabel+' · ':'')+(row.completed?'Завершена':'Остановлена раньше');
   left.append(date,tag);right.textContent=minuteText(Number(row.durationSeconds||0)/60)+(Number(row.rewardPoints)>0?' · +'+String(row.rewardPoints).replace('.',',')+' ⭐':'');
   line.append(left,right);history.appendChild(line);
  }
@@ -152,6 +155,7 @@ async function load(){
   const data=await request('state');
   if(actor!==data.actor)return;
   state=data.meditation;partner=data.partner;quote=data.quote||null;
+  window.RudiMeditationAudio?.onState(state?.active);
   todayProgress[actor]={todaySessions:state.stats?.todaySessions||0,todayMinutes:state.stats?.todayMinutes||0};
   todayProgress[partner.actor]={todaySessions:partner.todaySessions||0,todayMinutes:partner.todayMinutes||0};
   render();status('');updatePartner();await autoFinish();
@@ -181,12 +185,15 @@ function notifyComplete(){
 }
 async function start(){
  if(busy||state?.active)return;
+ window.RudiMeditationAudio?.prime();
  busy=true;status('Начинаю…');render();
  try{
   const data=await request('start',{goalMinutes:goal});
   state=data.meditation;
+  window.RudiMeditationAudio?.remember(state?.active?.id);
+  window.RudiMeditationAudio?.onStarted(state?.active?.id);
   render();status('');
- }catch(error){status(String(error.message).includes('already-active')?'Сеанс уже идёт. Обновите страницу.':'Не удалось начать. Попробуйте ещё раз.')}
+ }catch(error){window.RudiMeditationAudio?.onFinish();status(String(error.message).includes('already-active')?'Сеанс уже идёт. Обновите страницу.':'Не удалось начать. Попробуйте ещё раз.')}
  finally{busy=false;render()}
 }
 async function stop(auto){
@@ -196,7 +203,7 @@ async function stop(auto){
  busy=true;render();status('Сохраняю сеанс…');
  try{
   const data=await request('finish',{activeId:active.id,auto});
-  state=data.meditation;render();status('');
+  state=data.meditation;window.RudiMeditationAudio?.onFinish();render();status('');
   todayProgress[actor]={todaySessions:state.stats?.todaySessions||0,todayMinutes:state.stats?.todayMinutes||0};
   document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
   updateNudges();
@@ -213,6 +220,8 @@ async function autoFinish(){
 function open(){
  const current=actorFromPage();if(!ACTORS.includes(current))return;
  actor=current;ensurePage();
+ window.RudiMeditationAudio?.onActor(actor);
+ window.RudiMeditationAudio?.onState(null);
  page.hidden=false;document.body.classList.add('meditation-page-open');
  window.scrollTo({top:0,behavior:'instant'});
  state=null;quote=null;partner=null;status('Загружаю…');
@@ -235,7 +244,7 @@ async function quickStart(){
  }finally{quickStartBusy=false;}
 }
 function close(){
- if(!page)return;page.hidden=true;document.body.classList.remove('meditation-page-open');void syncWakeLock();updatePartner();
+ if(!page)return;page.hidden=true;document.body.classList.remove('meditation-page-open');window.RudiMeditationAudio?.onClose();void syncWakeLock();updatePartner();
 }
 function updatePartner(){
  if(!actor||!partner)return;
