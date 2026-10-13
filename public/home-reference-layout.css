@@ -427,218 +427,122 @@ body[data-app-tab="home"] .rudi-home-shortcuts :is(#fastingProfileButton,#supple
   vector-effect:non-scaling-stroke!important;
 }
 
-/* RUDI v4.221: align the personal identity group without touching the graph. */
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .rudi-home-self-line > .profile-person-head{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:flex-start!important;
-  min-height:52px!important;
-  margin:0!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head > .identity{
-  display:grid!important;
-  grid-template-columns:44px minmax(0,1fr)!important;
-  column-gap:8px!important;
-  align-items:center!important;
-  align-self:center!important;
-  min-width:0!important;
-  min-height:44px!important;
-  margin:0!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap{
-  position:relative!important;
-  align-self:center!important;
-  justify-self:start!important;
-  margin:0!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap > .avatar{
-  position:relative!important;
-  left:0!important;
-  top:0!important;
-  margin:0!important;
-}
-/* Keep the mood badge inside the avatar's right edge, away from the name. */
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap > :is(#moodCurrentButton,#partnerMoodValue).avatar-mood-badge{
-  position:absolute!important;
-  top:-5px!important;
-  right:-2px!important;
-  bottom:auto!important;
-  left:auto!important;
-  width:24px!important;
-  height:24px!important;
-  min-width:24px!important;
-  min-height:24px!important;
-  max-width:24px!important;
-  max-height:24px!important;
-  padding:0!important;
-  margin:0!important;
-  display:grid!important;
-  place-items:center!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap > :is(#moodCurrentButton,#partnerMoodValue).avatar-mood-badge .mood-emoji{
-  font-size:17px!important;
-  line-height:1!important;
-}
-/* Center the two-line name/status column against the avatar, not the card top. */
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person{
+
+/* RUDI v4.223 — unified compact SELF profile layout (replaces conflicting v4.221–4.222 overrides).
+   A collapsed profile's disclosure wrapper previously occupied a grid row; remove that phantom
+   row and center one true inline row. Expanded profiles retain their native details. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed{
   display:flex!important;
   flex-direction:column!important;
+  align-items:stretch!important;
   justify-content:center!important;
-  align-items:flex-start!important;
-  align-self:center!important;
-  gap:3px!important;
-  min-width:0!important;
-  min-height:44px!important;
-  padding:0!important;
-  margin:0!important;
+  align-content:normal!important;
+  height:auto!important;
+  min-height:88px!important;
+  padding:9px 11px!important;
+  gap:0!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person > .profile-name-row{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:flex-start!important;
-  width:100%!important;
-  margin:0!important;
-  padding:0!important;
-  line-height:1.1!important;
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed > .rudi-collapse-body{
+  display:none!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person > :is(.profile-work-status,.profile-cycle-mood,.profile-rhythm-status){
-  margin:0!important;
-  padding:0!important;
-  line-height:1.15!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity .name{
-  margin:0!important;
-  line-height:1.1!important;
-}
-@media(max-width:375px){
-  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head > .identity{
-    grid-template-columns:42px minmax(0,1fr)!important;
-    column-gap:7px!important;
-  }
-  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap,
-  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap > .avatar{
-    width:42px!important;
-    height:42px!important;
-    min-width:42px!important;
-  }
-}
-
-/* RUDI v4.222: fix the entire self tile's vertical alignment, not just the badge. */
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName){
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed > .rudi-home-self-line{
   display:grid!important;
-  align-content:center!important;
-  justify-content:stretch!important;
-  justify-items:stretch!important;
-  grid-auto-rows:min-content!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) > .rudi-home-self-line{
+  grid-template-columns:minmax(0,43%) minmax(0,1fr)!important;
+  grid-template-rows:minmax(0,1fr)!important;
+  align-items:center!important;
+  align-self:stretch!important;
   width:100%!important;
-  min-height:76px!important;
+  min-height:70px!important;
   margin:0!important;
   padding:0!important;
-  align-self:center!important;
-  justify-self:stretch!important;
-  align-items:center!important;
+  gap:10px!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) > .rudi-home-self-line > .profile-person-head{
-  height:72px!important;
-  min-height:72px!important;
-  align-self:center!important;
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .rudi-home-self-line > .profile-person-head{
+  grid-column:1!important;
+  grid-row:1!important;
   display:flex!important;
   align-items:center!important;
   justify-content:flex-start!important;
+  height:70px!important;
+  min-height:70px!important;
+  margin:0!important;
+  padding:0!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head > .identity{
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head > .identity{
+  display:grid!important;
   width:100%!important;
+  grid-template-columns:44px minmax(0,1fr)!important;
+  gap:8px!important;
+  align-items:center!important;
+  align-self:center!important;
   min-height:0!important;
   height:auto!important;
-  display:grid!important;
-  grid-template-columns:44px minmax(0,1fr)!important;
-  align-items:center!important;
-  align-self:center!important;
-  justify-self:stretch!important;
-  column-gap:8px!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap{
-  width:44px!important;
-  height:44px!important;
-  min-width:44px!important;
-  min-height:44px!important;
-  flex:0 0 44px!important;
-  align-self:center!important;
-  justify-self:center!important;
   margin:0!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap > .avatar{
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head .score-avatar-wrap,
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head .score-avatar-wrap > .avatar{
   position:relative!important;
+  width:44px!important;
+  min-width:44px!important;
+  height:44px!important;
+  min-height:44px!important;
+  align-self:center!important;
+  margin:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head .score-avatar-wrap > .avatar{
   top:0!important;
   left:0!important;
-  width:44px!important;
-  height:44px!important;
-  display:block!important;
-  margin:0!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap > :is(#moodCurrentButton,#partnerMoodValue).avatar-mood-badge{
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head .score-avatar-wrap > :is(#moodCurrentButton,#partnerMoodValue).avatar-mood-badge{
   position:absolute!important;
   top:-3px!important;
   right:-3px!important;
-  left:auto!important;
   bottom:auto!important;
+  left:auto!important;
+  width:23px!important;
+  height:23px!important;
+  min-width:23px!important;
+  min-height:23px!important;
   transform:rotate(-10deg)!important;
-  transform-origin:center center!important;
-  width:22px!important;
-  height:22px!important;
-  min-width:22px!important;
-  min-height:22px!important;
-  max-width:22px!important;
-  max-height:22px!important;
-  margin:0!important;
-  padding:0!important;
   z-index:30!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person{
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head .identity > .person{
   display:flex!important;
   flex-direction:column!important;
-  justify-content:center!important;
   align-items:flex-start!important;
+  justify-content:center!important;
   align-self:center!important;
-  gap:3px!important;
-  height:auto!important;
+  min-width:0!important;
   min-height:44px!important;
-  padding:0!important;
-  margin:0!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person > .profile-name-row{
-  display:flex!important;
-  align-items:center!important;
-  justify-content:flex-start!important;
-  align-self:flex-start!important;
-  gap:0!important;
   height:auto!important;
+  padding:0!important;
+  margin:0!important;
+  gap:3px!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head .identity > .person > .profile-name-row,
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head .identity > .person > .profile-name-row .name,
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head .identity > .person > :is(.profile-work-status,.profile-cycle-mood){
   margin:0!important;
   padding:0!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person > .profile-name-row .name{
-  display:block!important;
   line-height:1.12!important;
-  margin:0!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person > :is(.profile-work-status,.profile-cycle-mood){
-  align-self:flex-start!important;
-  margin:0!important;
-  padding:0!important;
-  line-height:1.15!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) > .rudi-home-self-line > .profile-energy-strip{
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .rudi-home-self-line > .profile-energy-strip{
+  grid-column:2!important;
+  grid-row:1!important;
   align-self:center!important;
+  margin:0!important;
 }
 @media(max-width:375px){
-  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head > .identity{
-    grid-template-columns:42px minmax(0,1fr)!important;
-    column-gap:7px!important;
+  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed > .rudi-home-self-line{
+    grid-template-columns:minmax(0,45%) minmax(0,1fr)!important;
+    gap:6px!important;
   }
-  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap,
-  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap > .avatar{
+  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head > .identity{
+    grid-template-columns:42px minmax(0,1fr)!important;
+    gap:7px!important;
+  }
+  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head .score-avatar-wrap,
+  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName).is-collapsed .profile-person-head .score-avatar-wrap > .avatar{
     width:42px!important;height:42px!important;min-width:42px!important;min-height:42px!important;
   }
 }

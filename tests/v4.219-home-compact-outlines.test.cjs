@@ -23,6 +23,6 @@ test('outline tracks resize to actual buttons and avoid duplicate border',()=>{
  assert.match(js,/new ResizeObserver/);
  assert.match(js,/path\.setAttribute\('pathLength',path\.dataset\.rudiOriginalLength\)/);
  assert.match(css,/border-color:transparent!important/);
- assert.match(html,/home-reference-layout\.css\?v=4\.222/);
- assert.match(html,/home-reference-layout\.js\?v=4\.222/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.223/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.223/);
 });
