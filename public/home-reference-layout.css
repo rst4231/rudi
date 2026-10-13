@@ -426,3 +426,99 @@ body[data-app-tab="home"] .rudi-home-shortcuts :is(#fastingProfileButton,#supple
   stroke-width:3px!important;
   vector-effect:non-scaling-stroke!important;
 }
+
+/* RUDI v4.221: align the personal identity group without touching the graph. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .rudi-home-self-line > .profile-person-head{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  min-height:52px!important;
+  margin:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head > .identity{
+  display:grid!important;
+  grid-template-columns:44px minmax(0,1fr)!important;
+  column-gap:8px!important;
+  align-items:center!important;
+  align-self:center!important;
+  min-width:0!important;
+  min-height:44px!important;
+  margin:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap{
+  position:relative!important;
+  align-self:center!important;
+  justify-self:start!important;
+  margin:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap > .avatar{
+  position:relative!important;
+  left:0!important;
+  top:0!important;
+  margin:0!important;
+}
+/* Keep the mood badge inside the avatar's right edge, away from the name. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap > :is(#moodCurrentButton,#partnerMoodValue).avatar-mood-badge{
+  position:absolute!important;
+  top:-5px!important;
+  right:-2px!important;
+  bottom:auto!important;
+  left:auto!important;
+  width:24px!important;
+  height:24px!important;
+  min-width:24px!important;
+  min-height:24px!important;
+  max-width:24px!important;
+  max-height:24px!important;
+  padding:0!important;
+  margin:0!important;
+  display:grid!important;
+  place-items:center!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap > :is(#moodCurrentButton,#partnerMoodValue).avatar-mood-badge .mood-emoji{
+  font-size:17px!important;
+  line-height:1!important;
+}
+/* Center the two-line name/status column against the avatar, not the card top. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person{
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  align-items:flex-start!important;
+  align-self:center!important;
+  gap:3px!important;
+  min-width:0!important;
+  min-height:44px!important;
+  padding:0!important;
+  margin:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person > .profile-name-row{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  line-height:1.1!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person > :is(.profile-work-status,.profile-cycle-mood,.profile-rhythm-status){
+  margin:0!important;
+  padding:0!important;
+  line-height:1.15!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity .name{
+  margin:0!important;
+  line-height:1.1!important;
+}
+@media(max-width:375px){
+  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head > .identity{
+    grid-template-columns:42px minmax(0,1fr)!important;
+    column-gap:7px!important;
+  }
+  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap,
+  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap > .avatar{
+    width:42px!important;
+    height:42px!important;
+    min-width:42px!important;
+  }
+}

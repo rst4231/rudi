@@ -1,5 +1,5 @@
 {
-  "current": "v4.220",
+  "current": "v4.221",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -56,7 +56,8 @@
     "v4.217: car-width home cards, right-side profile arrow, rounded-square shortcut halos and fasting time outside, remove duplicate Games from Quick Access, capture fresh Artemyev posts without entry at Bybit market quote.",
     "v4.218: detect Artemyev past-tense executed long/short ('взял в лонг/шорт') as actionable signals; retain live quote fallback and explicit entry priority.",
     "v4.219: compact self card, full-width biorhythm chart with the live phase on its right, hide arrow, restore rounded tracker halos on iOS.",
-    "v4.220: profile same outer length as Car but shorter height, photo and name left, biorhythm right, phase label above moving dot, 3px fasting and supplement halos."
+    "v4.220: profile same outer length as Car but shorter height, photo and name left, biorhythm right, phase label above moving dot, 3px fasting and supplement halos.",
+    "v4.221: align avatar, two-line name and status vertically; anchor and reduce mood badge on avatar so it no longer overlaps text. Preserve graph, card width and tracker outlines."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [
