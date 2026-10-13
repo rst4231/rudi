@@ -213,9 +213,9 @@ function replaceTemporalInputs(){
 }
 function open(task,ctx={}){
   if(!task?.id||!task?.personal)return;
-  init();closeMenu();byId('rudiPersonalTaskForm').reset();
+  init();closeMenu();
   modal.querySelectorAll('.rudi-personal-picker.is-native-fallback').forEach(node=>node.classList.remove('is-native-fallback'));
-  replaceTemporalInputs();active={task:{...task},ctx,creating:task.isNew===true};
+  byId('rudiPersonalTaskForm').reset();replaceTemporalInputs();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
   const {date,time}=normalizedEditorWhen(active.task);
   // Each task receives fresh native date and time elements.
