@@ -27,8 +27,4 @@ jobs:
           TOKEN="$(printf '%s' "${OIDC_RESPONSE}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["value"])')"
           curl -fsS --retry 2 --max-time 30 \
             -H "Authorization: Bearer ${TOKEN}" \
-            "${RUDI_ENDPOINT}" || echo "Lulu reminder temporarily unavailable"
-          # Reuse the existing 15-minute schedule and OIDC token. No new cron job.
-          curl -fsS --retry 1 --max-time 55 \
-            -H "Authorization: Bearer ${TOKEN}" \
-            "https://spb-daily-guide-bot.vercel.app/api/shared-task-reminder-cron"
+            "${RUDI_ENDPOINT}"
