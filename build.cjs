@@ -263,36 +263,6 @@ function buildWebAssets(env = process.env) {
 /* Integrate personal note into the existing per-user home tile order.
    The legacy runtime is stored as compressed chunks; make a targeted,
    version-checked build-time patch instead of duplicating the drag handler. */
-function patchHomeNoteLayout(runtime) {
-  const changes = [
-    [
-      "const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','smart-home'",
-      "const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home'"
-    ],
-    [
-      "return ['dashboard',...people,'lulu','priority','recommendations','smart-home'",
-      "return ['dashboard',...people,'lulu','priority','recommendations','note','smart-home'"
-    ],
-    [
-      "for(const id of defaults) if(!valid.includes(id)) valid.push(id);\n        return valid;",
-      "for(const id of defaults) if(!valid.includes(id)) valid.push(id);\n"+
-      "        // Introduce the new tile before Smart Home without disturbing a\n"+
-      "        // placement explicitly saved by this actor.\n"+
-      "        if(!requested.includes('note')){\n"+
-      "          const oldIndex=valid.indexOf('note');\n"+
-      "          if(oldIndex>=0)valid.splice(oldIndex,1);\n"+
-      "          const smartHomeIndex=valid.indexOf('smart-home');\n"+
-      "          valid.splice(smartHomeIndex>=0?smartHomeIndex:valid.length,0,'note');\n"+
-      "        }\n"+
-      "        return valid;"
-    ]
-  ];
-  for(const [before,after] of changes){
-    if(runtime.split(before).length!==2)throw new Error('RUDI note home layout patch mismatch: '+before.slice(0,65));
-    runtime=runtime.replace(before,after);
-  }
-  return runtime;
-}
 function buildRuntime() {
   assertProductionGitDeployment();
   syncWebVersion();
@@ -309,7 +279,7 @@ function buildRuntime() {
 
   const compressed = Buffer.from(parts.join(''), 'base64');
   const unpacked = zlib.gunzipSync(compressed).toString('utf8');
-  const code = patchHomeNoteLayout(patchRetiredRuntime(patchEventRuntime(unpacked)));
+  const code = patchRetiredRuntime(patchEventRuntime(unpacked));
   fs.writeFileSync(outputPath, code);
   return { outputPath, bytes: Buffer.byteLength(code) };
 }
