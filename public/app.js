@@ -8603,12 +8603,17 @@
       }
       // D1-backed actor-specific history of personal web pushes. The server is the
       // source of truth, so dismissed device banners are still available here.
-      let personalPushFetchPromise=null,personalPushLastFetch=0;
+      let personalPushFetchPromise=null,personalPushFetchActor='',personalPushLastFetch=0,personalPushLoadedActor='';
       async function loadPersonalPushInbox({force=false}={}){
         if(!currentActor)return null;
-        if(personalPushFetchPromise)return personalPushFetchPromise;
+        if(personalPushLoadedActor!==currentActor){
+          homeDashboardState.personalPush=[];
+          personalPushLastFetch=0;
+        }
+        if(personalPushFetchPromise&&personalPushFetchActor===currentActor)return personalPushFetchPromise;
         if(!force&&Date.now()-personalPushLastFetch<90000)return null;
         const actor=currentActor;
+        personalPushFetchActor=actor;
         personalPushFetchPromise=(async()=>{
           const data=await rudiPushApi('push-inbox');
           if(data.actor!==actor||currentActor!==actor)return null;
@@ -8628,13 +8633,14 @@
               notificationBody:String(row.body||''),createdAt:String(row.createdAt||''),
               targetTab,targetItem,icon:'🔔'};
           });
+          personalPushLoadedActor=actor;
           personalPushLastFetch=Date.now();
           renderActivityJournalItems(homeDashboardState.activity);
           return homeDashboardState.personalPush;
         })().catch(error=>{
           console.warn('RUDI_PERSONAL_PUSH_INBOX_WARN',String(error?.message||error));
           return null;
-        }).finally(()=>{personalPushFetchPromise=null});
+        }).finally(()=>{if(personalPushFetchActor===actor){personalPushFetchPromise=null;personalPushFetchActor=''}});
         return personalPushFetchPromise;
       }
       function activityNotificationsHaveUnread(){return activityUnreadItems().length>0}
