@@ -59,6 +59,12 @@ function init(){
   modal.querySelectorAll('[data-personal-close]').forEach(b=>b.addEventListener('click',close));
   byId('rudiPersonalTaskForm').addEventListener('submit',submit);
   byId('rudiPersonalTaskDelete').addEventListener('click',remove);
+  // One pair of native inputs survives every task switch. Replacing the
+  // nodes on iOS can leave painted native controls from the previous task.
+  for(const type of ['date','time']){
+    f(type).addEventListener('change',syncTime);
+    f(type).addEventListener('input',syncTime);
+  }
   // Date shortcuts remain available in the right-click context menu only.
   menu.querySelectorAll('[data-personal-date-action]').forEach(b=>b.addEventListener('click',()=>useQuick(b.dataset.personalDateAction,true)));
   document.addEventListener('pointerdown',event=>{
@@ -149,30 +155,13 @@ function normalizedEditorWhen(task){
   }
   return {date,time:task?.allDay?'':time};
 }
-function replaceTemporalInputs(){
-  // iOS WebKit can show stale date/time text on a reused native input
-  // even though its value and picker are already correct.
-  // A fresh element guarantees the visible control belongs to this task.
-  for(const type of ['date','time']){
-    const previous=f(type);
-    const fresh=document.createElement('input');
-    fresh.id=previous.id;
-    fresh.type=type;
-    fresh.className='rudi-personal-picker-input';
-    fresh.tabIndex=0;
-    fresh.setAttribute('aria-label',type==='date'?'Дата дела':'Время дела');
-    previous.replaceWith(fresh);
-    fresh.addEventListener('change',syncTime);
-    fresh.addEventListener('input',syncTime);
-  }
-}
 function open(task,ctx={}){
   if(!task?.id||!task?.personal)return;
   init();closeMenu();
-  byId('rudiPersonalTaskForm').reset();replaceTemporalInputs();active={task:{...task},ctx,creating:task.isNew===true};
+  byId('rudiPersonalTaskForm').reset();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
   const {date,time}=normalizedEditorWhen(active.task);
-  // Each task receives fresh native date and time elements.
+  // Reuse the same inputs; switch only task-specific values.
   f('date').value=date;
   f('time').value=date?time:'';
   f('description').value=String(task.description||'');

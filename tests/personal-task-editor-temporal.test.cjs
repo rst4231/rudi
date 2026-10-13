@@ -11,8 +11,8 @@ test('personal TickTick editor renders a single direct native date and time cont
   assert.match(markup,/type="date" aria-label="Дата дела"/);
   assert.match(markup,/type="time" aria-label="Время дела"/);
   assert.doesNotMatch(markup,/data-personal-picker-open|rudi-personal-picker-button/);
-  assert.match(js,/function replaceTemporalInputs\(\)/);
-  assert.match(js,/fresh\.addEventListener\('change',syncTime\)/);
+  assert.doesNotMatch(js,/function replaceTemporalInputs\(\)/);
+  assert.match(js,/f\(type\)\.addEventListener\('change',syncTime\)/);
   assert.match(js,/return \{title:String\(f\('title'\)\.value/);
   assert.match(css,/> input\.rudi-personal-picker-input/);
   assert.doesNotMatch(css,/is-native-fallback|clip-path:inset/);

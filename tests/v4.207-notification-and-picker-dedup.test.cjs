@@ -41,7 +41,7 @@ test('personal editor contains only one real date/time row without second picker
  assert.doesNotMatch(markup,/rudi-personal-picker-button|data-personal-picker-open|data-personal-picker-value/);
  assert.match(css,/> input\.rudi-personal-picker-input/);
  assert.doesNotMatch(css,/is-native-fallback|clip-path:inset/);
- assert.match(html,/personal-task-editor\.css\?v=4\.208/);
- assert.match(html,/app\.js\?v=4\.208/);
- assert.match(sw,/rudi-shell-v4\.208/);
+ assert.match(html,/personal-task-editor\.css\?v=4\.209/);
+ assert.match(html,/app\.js\?v=4\.209/);
+ assert.match(sw,/rudi-shell-v4\.209/);
 });

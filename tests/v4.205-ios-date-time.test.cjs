@@ -18,40 +18,12 @@ test('iPhone task editor has exactly one native date and one native time input, 
  assert.match(shared,/id="ticktickTaskTimeInput" type="time"/);
 });
 
-test('reopened tasks receive fresh pickers and correctly restore distinct native values',()=>{
- const start=src.indexOf('function replaceTemporalInputs(){');
- const end=src.indexOf('function open(task,ctx={}){',start);
- assert.ok(start>0&&end>start);
- const elements={};
- function makeNode(){return {id:'',type:'',value:'',className:'',listeners:{},
-  setAttribute(){},replaceWith(next){elements[this.id]=next;},
-  addEventListener(event,handler){this.listeners[event]=handler}};}
- for(const kind of ['date','time']){
-  const node=makeNode();node.id='rudiPersonalTask'+kind[0].toUpperCase()+kind.slice(1);
-  elements[node.id]=node;
- }
- let syncs=0;
- const replace=vm.runInNewContext(src.slice(start,end)+';replaceTemporalInputs',{
-  document:{createElement:makeNode},
-  f:kind=>elements['rudiPersonalTask'+kind[0].toUpperCase()+kind.slice(1)],
-  syncTime:()=>syncs++
- });
- const oldDate=elements.rudiPersonalTaskDate;
- replace();
- assert.notEqual(elements.rudiPersonalTaskDate,oldDate);
- assert.equal(elements.rudiPersonalTaskDate.type,'date');
- assert.equal(elements.rudiPersonalTaskTime.type,'time');
- assert.equal(elements.rudiPersonalTaskDate.className,'rudi-personal-picker-input');
- elements.rudiPersonalTaskDate.value='2026-10-13';
- elements.rudiPersonalTaskTime.value='10:00';
- assert.equal(elements.rudiPersonalTaskDate.value,'2026-10-13');
- assert.equal(elements.rudiPersonalTaskTime.value,'10:00');
- elements.rudiPersonalTaskDate.listeners.change();
- assert.equal(syncs,1);
- const previous=elements.rudiPersonalTaskDate;
- replace();
- assert.notEqual(elements.rudiPersonalTaskDate,previous);
- assert.equal(elements.rudiPersonalTaskDate.value,'');
+test('sequential task openings reuse the same date/time nodes',()=>{
+ assert.doesNotMatch(src,/function replaceTemporalInputs\(\)/);
+ assert.doesNotMatch(src,/\.replaceWith\(fresh\)/);
+ assert.match(src,/byId\('rudiPersonalTaskForm'\)\.reset\(\);active=/);
+ assert.match(src,/f\(type\)\.addEventListener\('change',syncTime\)/);
+ assert.match(src,/f\(type\)\.addEventListener\('input',syncTime\)/);
  assert.match(src,/f\('date'\)\.value=date;/);
  assert.match(src,/f\('time'\)\.value=date\?time:'';/);
 });
@@ -65,12 +37,7 @@ test('date selection still disables time when task has no date',()=>{
  date.value='2026-10-13';sync();assert.equal(time.disabled,false);
 });
 
-test('native fields retain selected dates and allow focus with the system picker',()=>{
- assert.doesNotMatch(src,/function openPersonalPicker\(type\)/);
- assert.doesNotMatch(src,/function updatePersonalPickerLabel\(type\)/);
- assert.match(src,/fresh\.tabIndex=0;/);
- assert.match(src,/fresh\.addEventListener\('change',syncTime\)/);
- assert.match(src,/f\('date'\)\.value=date;/);
- assert.match(src,/f\('time'\)\.value=date\?time:'';/);
- assert.match(css,/\.rudi-personal-task-modal \.ticktick-task-field > input\.rudi-personal-picker-input/);
+test('native fields do not acquire duplicate nodes across reopen',()=>{
+ assert.doesNotMatch(src,/replaceTemporalInputs|\.replaceWith\(fresh\)/);
+ assert.match(src,/for\(const type of \['date','time'\]\)\{\s*f\(type\)\.addEventListener/);
 });

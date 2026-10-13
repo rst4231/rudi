@@ -44,39 +44,13 @@ test('partner last expense contains emoji but no unnecessary heading',()=>{
   assert.doesNotMatch(app,/node\.textContent='Последний расход: '/);
 });
 
-test('each opened task gets fresh native date/time fields with its own displayed values',()=>{
-  const editor=source('public/personal-task-editor.js');
-  const start=editor.indexOf('function replaceTemporalInputs(){');
-  const end=editor.indexOf('function open(task,ctx={}){',start);
-  assert.ok(start>=0&&end>start);
-  assert.match(editor,/reset\(\);replaceTemporalInputs\(\);active=/);
-  const elements={};
-  function makeNode(){
-    return {id:'',value:'',type:'text',listeners:{},attributes:{},
-      setAttribute(name,value){this.attributes[name]=String(value)},
-      addEventListener(name,cb){this.listeners[name]=cb},
-      replaceWith(next){elements[this.id]=next}};
-  }
-  for(const type of ['date','time']){
-    const node=makeNode();node.id='rudiPersonalTask'+type[0].toUpperCase()+type.slice(1);node.type=type;elements[node.id]=node;
-  }
-  const firstDate=elements.rudiPersonalTaskDate,firstTime=elements.rudiPersonalTaskTime;
-  let changeEvents=0;
-  const rebuild=vm.runInNewContext(editor.slice(start,end)+';replaceTemporalInputs',{
-    document:{createElement:()=>makeNode()},
-    f:(type)=>elements['rudiPersonalTask'+type[0].toUpperCase()+type.slice(1)],
-    syncTime:()=>{changeEvents++}
-  });
-  rebuild();
-  elements.rudiPersonalTaskDate.value='2026-10-12';elements.rudiPersonalTaskTime.value='09:15';
-  const secondDate=elements.rudiPersonalTaskDate,secondTime=elements.rudiPersonalTaskTime;
-  assert.notEqual(firstDate,secondDate);assert.notEqual(firstTime,secondTime);
-  rebuild();
-  elements.rudiPersonalTaskDate.value='2026-10-15';elements.rudiPersonalTaskTime.value='18:40';
-  assert.notEqual(secondDate,elements.rudiPersonalTaskDate);
-  assert.notEqual(secondTime,elements.rudiPersonalTaskTime);
-  assert.equal(elements.rudiPersonalTaskDate.value,'2026-10-15');
-  assert.equal(elements.rudiPersonalTaskTime.value,'18:40');
-  elements.rudiPersonalTaskDate.listeners.change();
-  assert.equal(changeEvents,1);
+test('personal task form keeps one native date and time input across opens',()=>{
+ const editor=source('public/personal-task-editor.js');
+ const markup=editor.slice(editor.indexOf('modal.innerHTML='),editor.indexOf('document.body.appendChild(modal);'));
+ assert.equal((markup.match(/id="rudiPersonalTaskDate"/g)||[]).length,1);
+ assert.equal((markup.match(/id="rudiPersonalTaskTime"/g)||[]).length,1);
+ assert.doesNotMatch(editor,/replaceTemporalInputs|\.replaceWith\(fresh\)/);
+ assert.match(editor,/byId\('rudiPersonalTaskForm'\)\.reset\(\);active=/);
+ assert.match(editor,/f\('date'\)\.value=date;/);
+ assert.match(editor,/f\('time'\)\.value=date\?time:'';/);
 });
