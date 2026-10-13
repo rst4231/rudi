@@ -95,8 +95,13 @@ function openPersonalPicker(type){
   if(!input||input.disabled)return;
   // A clipped, real input supplies the native picker; only the custom label
   // is painted in the card. iOS may otherwise show two independent rows.
-  try{if(typeof input.showPicker==='function'){input.showPicker();return;}}catch(_){}
-  // Older WebKit fallback: show ONLY the genuine input in place of our button.
+  try{
+    if(typeof input.showPicker==='function'&&getComputedStyle(input).display!=='none'){
+      input.showPicker();return;
+    }
+  }catch(_){}
+  // Safari needs a visible native input. Replace the button with it
+  // rather than keeping two painted date/time controls.
   const wrapper=input.closest('.rudi-personal-picker');
   if(wrapper)wrapper.classList.add('is-native-fallback');
   input.tabIndex=0;

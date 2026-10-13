@@ -8595,7 +8595,46 @@
         return !id||currentActivityReadIds().includes(id);
       }
       function activityNotificationItems(items=homeDashboardState.activity){
-        return [...(Array.isArray(items)?items:[]),...(Array.isArray(homeDashboardState.personalPush)?homeDashboardState.personalPush:[])].filter(activityNotificationItem);
+        const activity=(Array.isArray(items)?items:[]).filter(activityNotificationItem);
+        const pushes=(Array.isArray(homeDashboardState.personalPush)?homeDashboardState.personalPush:[]).filter(activityNotificationItem);
+        // Activity journal and push inbox describe the same event in different words.
+        // Keep the journal record and suppress its matching push, but preserve
+        // unmatched pushes (and distinct events of the same type).
+        const tagTypes={
+          'partner-message':'partner-message',
+          'partner-mood':'mood',
+          'lulu-walk':'lulu-walk',
+          'wishlist':'wishlist',
+          'daily-question':'daily-question',
+          'shared-task-complete':'task-complete',
+          'shared-task-checklist-complete':'checklist-complete'
+        };
+        const partner=currentActor==='Рустам'?'Диана':'Рустам';
+        const matched=new Set();
+        const distinctPushes=pushes.filter(push=>{
+          const activityType=tagTypes[String(push?.notificationTag||'')];
+          const time=Date.parse(String(push?.createdAt||''));
+          if(!activityType||!Number.isFinite(time))return true;
+          let nearest=-1,nearestDelta=90*1000+1;
+          for(let i=0;i<activity.length;i++){
+            const event=activity[i];
+            if(matched.has(i)||String(event?.type||'')!==activityType||String(event?.actor||'')!==partner)continue;
+            const delta=Math.abs(time-Date.parse(String(event?.createdAt||'')));
+            if(Number.isFinite(delta)&&delta<=90*1000&&delta<nearestDelta){
+              nearest=i;nearestDelta=delta;
+            }
+          }
+          if(nearest<0)return true;
+          matched.add(nearest);
+          return false;
+        });
+        const seen=new Set();
+        return [...activity,...distinctPushes].filter(item=>{
+          const id=String(item?.id||'').trim();
+          if(id&&seen.has(id))return false;
+          if(id)seen.add(id);
+          return true;
+        });
       }
       function activityUnreadItems(items=homeDashboardState.activity){
         const read=new Set(currentActivityReadIds());
@@ -8633,7 +8672,7 @@
             return {id:'push:'+String(row.id).slice(0,75),type:'personal-push',actor,visibleTo:actor,
               text:String(row.title||'RUDI'),notificationTitle:String(row.title||'RUDI'),
               notificationBody:String(row.body||''),createdAt:String(row.createdAt||''),
-              targetTab,targetItem,icon:'🔔'};
+              targetTab,targetItem,notificationTag:String(row.tag||''),icon:'🔔'};
           });
           personalPushLoadedActor=actor;
           personalPushLastFetch=Date.now();

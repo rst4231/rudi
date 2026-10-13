@@ -75,6 +75,12 @@
   pointer-events:none!important;overflow:hidden!important;
   -webkit-appearance:none!important;appearance:none!important;
 }
+/* Native WebKit pickers must not paint a second date/time row on iOS.
+   The input becomes visible ONLY as a replacement after a picker tap. */
+.rudi-personal-task-modal .ticktick-task-field .rudi-personal-picker:not(.is-native-fallback) .rudi-personal-picker-input{
+  display:none!important;
+  visibility:hidden!important;
+}
 /* Older iOS fallback: one visible native control replaces the custom row. */
 .rudi-personal-task-modal .rudi-personal-picker.is-native-fallback .rudi-personal-picker-button{
   display:none!important;
