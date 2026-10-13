@@ -151,6 +151,7 @@ async function publishDailyLaborArticle(options = {}) {
 async function handler(req, res) {
   try {
     if (req.query?.route === 'home-note') return handleHomeNote(req, res);
+    if (req.query?.route === 'duel-game') return require('./duel-game.cjs')(req,res);
     if (req.query?.route === 'personal-center') return handlePersonalCenter(req, res);
     if (req.query?.route === 'personal-center-cron') return handlePersonalCenterCron(req, res);
     if (req.query?.route === 'crypto-monitor-cron') {
