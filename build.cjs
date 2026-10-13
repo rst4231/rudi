@@ -259,6 +259,38 @@ function buildWebAssets(env = process.env) {
   syncServiceWorkerPrecache(versionedAssets);
 }
 
+
+/* Integrate personal note into the existing per-user home tile order.
+   The legacy runtime is stored as compressed chunks; make a targeted,
+   version-checked build-time patch instead of duplicating the drag handler. */
+function patchHomeNoteLayout(runtime) {
+  const changes = [
+    [
+      "const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam'",
+      "const HOME_TILE_DEFAULT_ORDER = ['dashboard','note','rustam'"
+    ],
+    [
+      "return ['dashboard',...people,'lulu'",
+      "return ['dashboard','note',...people,'lulu'"
+    ],
+    [
+      "const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);",
+      "const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);\n"+
+      "        // Existing custom orders keep their arrangement. Insert the new note\n"+
+      "        // directly below Доброе утро only when no saved note position exists.\n"+
+      "        if(!valid.includes('note')){\n"+
+      "          const dashboardIndex=valid.indexOf('dashboard');\n"+
+      "          valid.splice(dashboardIndex>=0?dashboardIndex+1:0,0,'note');\n"+
+      "        }"
+    ]
+  ];
+  for(const [before,after] of changes){
+    if(runtime.split(before).length!==2)throw new Error('RUDI note home layout patch mismatch: '+before.slice(0,65));
+    runtime=runtime.replace(before,after);
+  }
+  return runtime;
+}
+
 function buildRuntime() {
   assertProductionGitDeployment();
   syncWebVersion();
@@ -275,7 +307,7 @@ function buildRuntime() {
 
   const compressed = Buffer.from(parts.join(''), 'base64');
   const unpacked = zlib.gunzipSync(compressed).toString('utf8');
-  const code = patchRetiredRuntime(patchEventRuntime(unpacked));
+  const code = patchHomeNoteLayout(patchRetiredRuntime(patchEventRuntime(unpacked)));
   fs.writeFileSync(outputPath, code);
   return { outputPath, bytes: Buffer.byteLength(code) };
 }
