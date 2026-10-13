@@ -28,6 +28,7 @@ function labelFor(id){try{const value=localStorage.getItem(storageKey('session:'
 function remember(id){if(id)save('session:'+id,practice)}
 function onActor(name){
  if(!['Рустам','Диана'].includes(name))return;
+ if(actor&&actor!==name){stopAudio();activeId='';}
  actor=name;
  practice=PRACTICES.some(x=>x.id===read('practice','stress'))?read('practice','stress'):'stress';
  sound=SOUNDS.some(x=>x[0]===read('sound','rain'))?read('sound','rain'):'rain';
