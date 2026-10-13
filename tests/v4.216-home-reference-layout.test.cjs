@@ -32,3 +32,8 @@ test('reference layout and games are precached for offline use',()=>{
  for(const file of ['home-reference-layout.css','home-reference-layout.js','rudi-games.js','rudi-games.css'])
   assert.ok(build.includes(file),file);
 });
+
+test('hidden tracker controls and badges are not forced visible in compact rail',()=>{
+ const css=src('public/home-reference-layout.css');
+ assert.match(css,/rudi-home-shortcuts \\[hidden\\]\\{display:none!important\\}/);
+});
