@@ -23,12 +23,12 @@ test('Cloudflare now schedules monitors independently from Lulu GitHub alerts',(
  assert.ok(rewrites.some(r=>r.source==='/api/crypto-monitor-cron'));
 });
 
-test('only 15 markets are selected for new signals, plus open positions',()=>{
+test('up to 40 liquid markets are selected for new signals, plus open positions',()=>{
   const markets=Array.from({length:60},(_,i)=>({symbol:'AL'+i+'USDT',
     turnover24h:String((61-i)*10000000),price24hPcnt:String(i/100),lastPrice:'1.22'}));
   const selection=algorithm.marketUniverse({result:{list:markets}});
-  assert.ok(selection.length<=15,selection.length);
-  assert.ok(selection.length>=10);
+  assert.ok(selection.length<=40,selection.length);
+  assert.ok(selection.length>=30);
   assert.equal(new Set(selection.map(s=>s.symbol)).size,selection.length);
 });
 test('15 minute budget prevents repeated provider queries, not just duplicate trades',async()=>{
@@ -38,7 +38,7 @@ test('15 minute budget prevents repeated provider queries, not just duplicate tr
   }};
   const fetchImpl=async()=>{fetches++;return {ok:false,status:403}};
   const before=await algorithm.scan({client,fetchImpl,now});
-  assert.equal(before.error,'bybit-http-403');
+  assert.equal(before.error,'okx-http-403');
   assert.equal(before.updatedAt,null);
   assert.equal(writes,1);
   await algorithm.scan({client,fetchImpl,now:now+10*60000});

@@ -2,6 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const a=require('../api/crypto-algorithms.cjs');
 const {createMarketRequest}=require('../api/crypto-market-client.cjs');
+const {createOkxMarketRequest}=require('../api/crypto-okx-market.cjs');
 const NOW=Date.parse('2026-10-11T12:12:00Z');
 function bars(overrides={}){
   const candles=Array.from({length:50},(_,i)=>{
@@ -72,11 +73,12 @@ test('scanner persists on client and repeated scans inside interval do not doubl
   const fakeFetch=async url=>{
     calls++;
     if(url.includes('/tickers'))return{ok:true,json:async()=>({
-      retCode:0,result:{list:[{symbol:'TESTUSDT',turnover24h:'10000000',
-        price24hPcnt:'0.12',lastPrice:'110'}]}})};
+      code:'0',data:[{instId:'TEST-USDT-SWAP',last:'110',open24h:'98',
+        volCcy24h:'100000',ts:String(NOW-1000)}]})};
     const b=bars().map(x=>({...x,at:x.at-300000}));
-    return{ok:true,json:async()=>({retCode:0,result:{list:b.slice().reverse().map(x=>
-      [String(x.at),x.open,x.high,x.low,x.close,x.volume].map(String))}})};
+    return{ok:true,json:async()=>({code:'0',data:b.slice().reverse().map(x=>
+      [String(x.at),x.open,x.high,x.low,x.close,x.volume,x.volume,
+        x.volume*x.close,'1'].map(String))})};
   };
   const first=await a.scan({client,fetchImpl:fakeFetch,now:NOW});
   assert.equal(first.portfolios.pump.open,1);
@@ -101,7 +103,7 @@ test('failed scan saves last attempt without fabricating successful scan',async(
  const fetchImpl=async()=>{fetches++;return {ok:false,status:503}};
  const first=await a.scan({client,fetchImpl,now:NOW});
  assert.equal(first.lastScanAt,null);assert.equal(first.updatedAt,null);
- assert.equal(first.error,'bybit-http-503');
+ assert.equal(first.error,'okx-http-503');
  assert.equal(first.lastAttemptAt,new Date(NOW).toISOString());
  const attemptedHosts=fetches;
  assert.ok(attemptedHosts>=1);

@@ -32,3 +32,6 @@
 .crypto-algo-panel .crypto-signals-list{max-width:100%;min-width:0}
 @media(min-width:620px){.crypto-algo-panel .crypto-signals-stats{grid-template-columns:repeat(4,minmax(0,1fr))}.crypto-algo-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:375px){.crypto-algo-item>strong{font-size:12px}.crypto-algo-tabs button{font-size:11px;padding:8px}.crypto-algo-panel .crypto-signals-stats strong{font-size:17px}}
+.crypto-algo-exchanges{display:flex;gap:8px;margin:8px 0 14px;flex-wrap:wrap}
+.crypto-algo-exchanges button{min-height:40px;border:1px solid rgba(156,155,191,.27);background:rgba(145,144,178,.08);color:inherit;border-radius:11px;padding:8px 12px;font-size:12px;font-weight:650;cursor:pointer}
+.crypto-algo-exchanges button.active{border-color:rgba(155,143,245,.72);background:rgba(106,92,198,.26);color:#eee7ff}

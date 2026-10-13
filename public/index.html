@@ -33,6 +33,7 @@
   <link rel="stylesheet" href="/product-extras.css?v=4.149">
 
   <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
+  <link rel="stylesheet" href="/home-reference-layout.css?v=4.216">
   <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
   <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
   <link rel="stylesheet" href="/pwa-extras.css?v=4.149">
@@ -141,6 +142,7 @@
   <script defer src="/crypto-wallets.js?v=4.180"></script>
   <script defer src="/crypto-signals.js?v=4.177"></script>
   <script defer src="/crypto-algorithms.js?v=4.177"></script>
+  <script defer src="/home-reference-layout.js?v=4.216"></script>
   <style>
     #financeWalletList .finance-coin-amount.rudi-wallet-usd-equivalent{
       white-space:normal;overflow:visible;text-align:center;line-height:1.14;font-size:8px;
@@ -1210,8 +1212,12 @@
             <button type="button" id="cryptoAlgoRefresh" class="crypto-signals-inline">Обновить отчёт</button>
           </header>
           <div class="crypto-signals-intro">
-            <h3>Шорт-алгоритмы · Bybit</h3>
+            <h3 id="cryptoAlgoExchangeHeading">Шорт-алгоритмы · OKX</h3>
             <p>Три независимые стратегии торгуют только виртуально. У каждой стартовый капитал 10 000 $.</p>
+          </div>
+          <div class="crypto-algo-exchanges" role="group" aria-label="Биржа виртуальных алгоритмов">
+            <button type="button" class="active" aria-pressed="true" data-crypto-algo-exchange="okx">OKX · новые сделки</button>
+            <button type="button" aria-pressed="false" data-crypto-algo-exchange="bybit">Bybit · архив</button>
           </div>
           <div class="crypto-algo-tabs" id="cryptoAlgoTabs" role="tablist" aria-label="Алгоритмы поиска шорта">
             <button type="button" class="active" role="tab" aria-selected="true" data-crypto-algo="pump">Затухание пампа</button>

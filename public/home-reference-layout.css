@@ -1,0 +1,126 @@
+/* RUDI v4.216: reference composition, with native app controls preserved. */
+body[data-app-tab="home"] .home-dashboard-summary{
+  padding:8px 13px!important;
+  gap:2px!important;
+}
+body[data-app-tab="home"] .home-dashboard-summary .home-dashboard-head{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  grid-template-areas:"greeting controls" "date date" "astro astro"!important;
+  align-items:center!important;
+  gap:5px 8px!important;
+  margin:0!important;
+  padding:7px 7px 8px!important;
+  min-height:0!important;
+}
+body[data-app-tab="home"] .home-dashboard-head .home-dashboard-greeting{grid-area:greeting;min-width:0!important;}
+body[data-app-tab="home"] .home-dashboard-head .home-dashboard-tools{grid-area:controls;justify-self:end;}
+body[data-app-tab="home"] .home-dashboard-head .home-dashboard-date{grid-area:date!important;}
+body[data-app-tab="home"] .rudi-home-astronomy{
+  grid-area:astro;display:flex;align-items:center;gap:7px;
+  flex-wrap:wrap;min-width:0;max-width:100%;line-height:1.35;
+}
+body[data-app-tab="home"] .rudi-home-astronomy .home-dashboard-moon,
+body[data-app-tab="home"] .rudi-home-astronomy .home-dashboard-sun{
+  grid-column:auto!important;min-height:0!important;
+  margin:0!important;white-space:normal;
+}
+body[data-app-tab="home"] .rudi-home-astronomy .home-dashboard-sun:not([hidden])::before{
+  content:"·";color:rgba(235,240,251,.46);margin-right:7px;
+}
+body[data-app-tab="home"] .rudi-home-shortcuts{
+  width:min(92%,470px);margin:0 auto;
+  border:1px solid rgba(134,141,230,.22);
+  border-radius:22px;padding:11px 9px;
+  background:linear-gradient(150deg,rgba(42,46,84,.38),rgba(22,26,48,.22));
+  box-shadow:0 8px 25px rgba(0,0,0,.12);
+}
+body[data-app-tab="home"] .rudi-home-shortcuts-inner{
+  display:flex;justify-content:center;align-items:center;gap:clamp(4px,1.5vw,10px);
+  min-width:0;width:100%;
+}
+body[data-app-tab="home"] .rudi-home-shortcuts .mood-self-buttons{
+  display:contents!important;
+}
+body[data-app-tab="home"] .rudi-home-shortcuts :is(.profile-tool-button,.fasting-profile-button,.meditation-profile-button,.rudi-home-games){
+  position:relative!important;
+  display:grid!important;place-items:center!important;
+  flex:1 1 0!important;width:auto!important;
+  min-width:0!important;max-width:62px!important;
+  height:clamp(42px,11.2vw,59px)!important;
+  min-height:42px!important;
+  padding:0!important;margin:0!important;
+  border-radius:14px!important;
+  border:1px solid rgba(171,177,210,.24)!important;
+  background:rgba(20,24,40,.52)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05)!important;
+  color:var(--text,#f5f7fb)!important;
+  cursor:pointer;touch-action:manipulation;
+}
+body[data-app-tab="home"] .rudi-home-shortcuts :is(.profile-tool-button,.fasting-profile-button,.meditation-profile-button) .mood-emoji,
+body[data-app-tab="home"] .rudi-home-shortcuts .rudi-home-games span{
+  font-size:clamp(21px,6vw,29px)!important;line-height:1!important;
+}
+body[data-app-tab="home"] .rudi-home-shortcuts #fastingProfileButton{
+  border-color:rgba(137,117,255,.78)!important;box-shadow:0 0 10px rgba(119,90,255,.28)!important;
+}
+body[data-app-tab="home"] .rudi-home-shortcuts #supplementProfileButton{
+  border-color:rgba(246,190,81,.58)!important;
+}
+body[data-app-tab="home"] .rudi-home-shortcuts :is(#supplementProfileButton,#fastingProfileButton)::after{
+  pointer-events:none;
+}
+body[data-app-tab="home"] .rudi-home-shortcuts :is(.profile-tool-reminder-badge,.fasting-profile-elapsed){z-index:2}
+body[data-app-tab="home"] #homeRustamTile:has(#displayName),
+body[data-app-tab="home"] #homeDianaTile:has(#displayName){
+  padding:12px 12px!important;gap:7px!important;
+}
+body[data-app-tab="home"] .rudi-home-self-line{
+  display:grid;grid-template-columns:minmax(0,43%) minmax(0,1fr);
+  gap:10px;align-items:center;min-width:0;
+}
+body[data-app-tab="home"] .rudi-home-self-line .profile-person-head{
+  min-width:0!important;margin:0!important;min-height:0!important;
+}
+body[data-app-tab="home"] .rudi-home-self-line .profile-person-head .identity{
+  grid-template-columns:45px minmax(0,1fr)!important;
+  gap:8px!important;min-width:0!important;
+}
+body[data-app-tab="home"] .rudi-home-self-line .profile-person-head .name{
+  font-size:clamp(15px,4.5vw,20px)!important;
+}
+body[data-app-tab="home"] .rudi-home-self-line .profile-energy-strip{
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:16px 29px 12px!important;
+  gap:1px!important;
+  width:100%!important;min-width:0!important;
+}
+body[data-app-tab="home"] .rudi-home-self-line .profile-energy-label{
+  grid-column:1!important;grid-row:1!important;
+  justify-content:flex-start!important;
+  font-size:10px!important;line-height:1.2!important;
+}
+body[data-app-tab="home"] .rudi-home-self-line .profile-energy-plot{
+  grid-column:1!important;grid-row:2!important;height:29px!important;
+}
+body[data-app-tab="home"] .rudi-home-self-line .profile-energy-times{
+  grid-column:1!important;grid-row:3!important;
+  font-size:7px!important;
+}
+body[data-app-tab="home"] .rudi-home-self-line .profile-energy-phase{font-size:9px!important}
+body[data-app-tab="home"] .rudi-home-self-line .profile-person-head .profile-mood{
+  display:none!important;
+}
+body[data-app-tab="home"] .meditation-mood-nudge{
+  width:100%;box-sizing:border-box;margin:0!important;
+}
+@media(max-width:375px){
+  body[data-app-tab="home"] .rudi-home-shortcuts{width:96%;padding:9px 7px}
+  body[data-app-tab="home"] .rudi-home-self-line{grid-template-columns:minmax(0,45%) minmax(0,1fr);gap:6px}
+  body[data-app-tab="home"] .rudi-home-self-line .profile-person-head .identity{grid-template-columns:38px minmax(0,1fr)!important;gap:5px!important}
+  body[data-app-tab="home"] .rudi-home-self-line .profile-person-head .avatar{width:38px!important;height:38px!important}
+  body[data-app-tab="home"] .rudi-home-self-line .profile-energy-times{font-size:6px!important}
+}
+html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts{
+  background:rgba(233,236,250,.72);
+}

@@ -3,7 +3,7 @@ const $=id=>document.getElementById(id);
 const usd=n=>Number(n||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';
 const pct=n=>Number(n||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
 const signed=(n,fmt=usd)=>!Number.isFinite(Number(n))?'—':(Number(n)>0?'+':'')+fmt(n);
-let selected='pump',data=null,busy=false;
+let selected='pump',exchange='okx',data=null,busy=false;
 function tint(el,n){if(!el)return;el.classList.toggle('is-positive',n>0);
   el.classList.toggle('is-negative',n<0);}
 function infoRow(title,amount,detail,positive){
@@ -35,6 +35,13 @@ function draw(){
   for(const tab of document.querySelectorAll('[data-crypto-algo]')){
     const active=tab.dataset.cryptoAlgo===selected;
     tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));
+  }
+  const provider=data.provider==='bybit'?'bybit':'okx';
+  $('cryptoAlgoExchangeHeading').textContent='Шорт-алгоритмы · '+(provider==='bybit'?'Bybit · архив':'OKX');
+  for(const button of document.querySelectorAll('[data-crypto-algo-exchange]')){
+    const active=button.dataset.cryptoAlgoExchange===provider;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',String(active));
   }
   $('cryptoAlgoHeading').textContent=names[selected]?.name||selected;
   $('cryptoAlgoDescription').textContent=names[selected]?.description||'';
@@ -83,31 +90,36 @@ function draw(){
   if(!trades.children.length)trades.textContent='Закрытых сделок пока нет. История начинается только после запуска сканера.';
   const updated=$('cryptoAlgoUpdated');
   const old=data.updatedAt?Date.now()-Date.parse(data.updatedAt):Infinity;
-  updated.textContent=data.updatedAt?'Успешный расчёт '+new Date(data.updatedAt).toLocaleString('ru-RU')+
-    (old>20*60000?' · СКАНЕР НЕ ОБНОВЛЯЕТСЯ':''):'Нет успешных расчётов';
+  updated.textContent=data.updatedAt?(data.archived?'Архивный расчёт ':'Успешный расчёт ')+
+    new Date(data.updatedAt).toLocaleString('ru-RU')+
+    (!data.archived&&old>20*60000?' · СКАНЕР НЕ ОБНОВЛЯЕТСЯ':''):'Нет успешных расчётов';
   const status=$('cryptoAlgoStatus');status.textContent=
     (data.error?'Ошибка последней попытки: '+data.error+'. ':'')+
     (data.warning?data.warning+'. ':'')+
     (data.lastAttemptAt?'Последняя попытка: '+new Date(data.lastAttemptAt).toLocaleString('ru-RU')+'. ':'')+
-    'Отслеживается до '+(data.marketCount||0)+' ликвидных фьючерсных пар Bybit. '+
+    (data.archived?'Архив Bybit, новые сделки здесь не создаются. ':'')+
+    'Проверено '+(data.marketCount||0)+' ликвидных фьючерсных пар '+(provider==='bybit'?'Bybit':'OKX')+'. '+
     'Каждый алгоритм имеет отдельные виртуальные 10 000 $. Результаты не суммируются. '+
     'Реальных ордеров нет; funding и точные ликвидации не учтены. '+
     'График и сделки строятся только после запуска, без придуманной истории.';
+  if($('cryptoAlgoRefresh'))$('cryptoAlgoRefresh').textContent=data.archived?'Обновить архив':'Проверить алгоритмы';
 }
 async function load(recalculate=false){
   if(busy)return;busy=true;const button=$('cryptoAlgoRefresh');
   if(button){button.disabled=true;if(recalculate)button.textContent='Проверяем алгоритмы…';}
   try{
+    const targetExchange=exchange;
     await Promise.resolve(window.__rudiTelegramSdkReady).catch(()=>{});
     const res=await fetch('/api/finances',{method:'POST',cache:'no-store',
       headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({operation:recalculate?'crypto-algo-sync':'crypto-algo-report',
+      body:JSON.stringify({operation:targetExchange==='bybit'?'crypto-algo-history':
+        (recalculate?'crypto-algo-sync':'crypto-algo-report'),
         initData:window.Telegram?.WebApp?.initData||''})});
     const json=await res.json().catch(()=>({}));
     if(!res.ok||!json.ok)throw Error(String(json.error||'Не удалось загрузить данные'));
-    data=json;draw();
+    if(targetExchange===exchange){data=json;draw();}
   }catch(e){$('cryptoAlgoStatus').textContent='Ошибка загрузки: '+e.message;}
-  finally{busy=false;if(button){button.disabled=false;button.textContent='Проверить алгоритмы';}}
+  finally{busy=false;if(button){button.disabled=false;button.textContent=exchange==='bybit'?'Обновить архив':'Проверить алгоритмы';}}
 }
 function show(open){
   const panel=$('financeCryptoAlgoPanel'),main=$('financeCryptoMain'),history=$('financeCryptoHistory');
@@ -120,7 +132,14 @@ function show(open){
 function boot(){
   $('financeCryptoAlgoOpen')?.addEventListener('click',()=>show(true));
   $('financeCryptoAlgoBack')?.addEventListener('click',()=>show(false));
-  $('cryptoAlgoRefresh')?.addEventListener('click',()=>void load(true));
+  $('cryptoAlgoRefresh')?.addEventListener('click',()=>void load(exchange!=='bybit'));
+  document.querySelectorAll('[data-crypto-algo-exchange]').forEach(button=>{
+    button.addEventListener('click',()=>{
+      if(busy||exchange===button.dataset.cryptoAlgoExchange)return;
+      exchange=button.dataset.cryptoAlgoExchange;data=null;
+      void load();
+    });
+  });
   $('cryptoAlgoTabs')?.addEventListener('click',e=>{
     const button=e.target.closest('[data-crypto-algo]');
     if(!button)return;selected=button.dataset.cryptoAlgo;draw();

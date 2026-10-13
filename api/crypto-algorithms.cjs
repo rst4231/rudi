@@ -1,8 +1,8 @@
 'use strict';
-/* Independent, forward-only PAPER trading. Never sends private Bybit requests or orders. */
+/* Independent, forward-only PAPER trading. Never sends exchange orders. */
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
-const {createMarketRequest}=require('./crypto-market-client.cjs');
-const NS='rudi-crypto-algorithms-v1',KEY='virtual-short-portfolios';
+const {createOkxMarketRequest}=require('./crypto-okx-market.cjs');
+const NS='rudi-crypto-algorithms-okx-v1',LEGACY_NS='rudi-crypto-algorithms-v1',KEY='virtual-short-portfolios';
 const INITIAL=10000,INTERVAL=300000,SCAN_INTERVAL=15*60000,FEE=0.00055,SLIPPAGE=0.0005,LEV=2;
 const STRATEGIES=[
   {id:'pump',name:'Затухание пампа',description:'Рост за час, всплеск объёма и ослабление покупателей.'},
@@ -70,17 +70,18 @@ function parseBars(data,now=Date.now()){
     .filter(x=>x.at>0&&x.at+INTERVAL<=now-1000&&x.open>0&&x.high>=x.low&&x.close>0)
     .sort((a,b)=>a.at-b.at);
 }
+const MARKET_LIMIT=40;
 function marketUniverse(response){
   const eligible=(response?.result?.list||[])
     .filter(v=>/^([A-Z0-9]+)USDT$/.test(String(v.symbol||''))&&
       num(v.turnover24h)>=8000000&&num(v.lastPrice)>0&&!String(v.symbol).includes('1000'))
     .sort((a,b)=>num(b.turnover24h)-num(a.turnover24h));
   // Liquid majors + high-turnover positive movers, not only BTC/ETH.
-  const liquid=eligible.slice(0,7);
+  const liquid=eligible.slice(0,20);
   const movers=eligible.filter(v=>num(v.price24hPcnt)>0.04)
-    .sort((a,b)=>num(b.price24hPcnt)-num(a.price24hPcnt)).slice(0,8);
-  return [...new Map([...liquid,...movers].map(v=>[v.symbol,v])).values()]
-    .slice(0,15).map(v=>({symbol:v.symbol,price:num(v.lastPrice)}));
+    .sort((a,b)=>num(b.price24hPcnt)-num(a.price24hPcnt)).slice(0,40);
+  return [...new Map([...liquid,...movers,...eligible].map(v=>[v.symbol,v])).values()]
+    .slice(0,MARKET_LIMIT).map(v=>({symbol:v.symbol,price:num(v.lastPrice)}));
 }
 function mark(portfolio,prices){
   let equity=portfolio.cash;
@@ -180,9 +181,10 @@ function summarize(p){
     trades:trades.slice(0,100).map(x=>({...x})),
     equityCurve:p.equityCurve.slice(-120)};
 }
-function report(state){
+function report(state,provider='okx'){
   const s=adapt(state);
-  return {algorithms:STRATEGIES,initialUsd:INITIAL,exchange:'Bybit USDT Perpetual',
+  return {algorithms:STRATEGIES,initialUsd:INITIAL,provider,
+    archived:provider==='bybit',exchange:provider==='bybit'?'Bybit USDT Perpetual':'OKX USDT Perpetual',
     updatedAt:s.updatedAt,lastScanAt:s.lastScanAt,lastAttemptAt:s.lastAttemptAt||null,
     createdAt:s.createdAt,marketCount:s.marketCount||0,error:s.error||null,
     warning:s.warning||null,
@@ -193,8 +195,9 @@ function report(state){
 }
 async function readReport(options={}){
   const client=options.client||createRudiStateClient(options);
-  const row=await client.getRecord(NS,KEY);
-  return report(row?.value||initial(options.now??Date.now()));
+  const provider=options.provider==='bybit'?'bybit':'okx';
+  const row=await client.getRecord(provider==='bybit'?LEGACY_NS:NS,KEY);
+  return report(row?.value||initial(options.now??Date.now()),provider);
 }
 let flight=null;
 async function scan(options={}){
@@ -206,12 +209,13 @@ async function scan(options={}){
     const previousAttempt=Date.parse(state.lastAttemptAt||state.lastScanAt||'');
     if(Number.isFinite(previousAttempt)&&now-previousAttempt<SCAN_INTERVAL-30000)return report(state);
     state.lastAttemptAt=date(now);
-    const marketRequest=createMarketRequest({fetchImpl:options.fetchImpl});
+    const marketRequest=createOkxMarketRequest({fetchImpl:options.fetchImpl,
+      now:()=>now,origin:options.origin});
     let markets=[],failed=0;
     try{
       const tickerResponse=await marketRequest('/v5/market/tickers?category=linear');
       markets=marketUniverse(tickerResponse);
-      if(!markets.length)throw Error('bybit-empty-universe');
+      if(!markets.length)throw Error('okx-empty-universe');
       // Open symbols must remain monitored even after leaving the top movers.
       const rawTickers=new Map((tickerResponse?.result?.list||[]).map(t=>[t.symbol,t]));
       for(const p of Object.values(state.portfolios)){
@@ -226,14 +230,14 @@ async function scan(options={}){
       for(const p of Object.values(state.portfolios))for(const position of p.positions)
         if(!prices[position.symbol])prices[position.symbol]=position.lastPrice;
       const barsBySymbol={},ideas=[];
-      // Stagger Bybit requests in bounded groups; continue despite an individual symbol outage.
+      // Bound OKX concurrency and pace requests below 40 candles queries per 2s.
       for(let offset=0;offset<markets.length;offset+=4){
         const batch=await Promise.allSettled(markets.slice(offset,offset+4).map(async m=>{
           const data=await marketRequest('/v5/market/kline?category=linear&symbol='+
             encodeURIComponent(m.symbol)+'&interval=5&limit=120');
           const bars=parseBars(data,now);
           if(bars.length<38||now-(bars.at(-1).at+INTERVAL)>12*60000)
-            throw Error('bybit-candles-stale-or-insufficient:'+m.symbol);
+            throw Error('okx-candles-stale-or-insufficient:'+m.symbol);
           return {m,bars};
         }));
         for(const item of batch){
@@ -242,10 +246,11 @@ async function scan(options={}){
           const found=signalsFor(m.symbol,bars,m.price);
           ideas.push(...found);
         }
+        if(offset+4<markets.length)await new Promise(resolve=>setTimeout(resolve,300));
       }
       const validMarkets=Object.keys(barsBySymbol).length;
       if(validMarkets<Math.min(5,markets.length))
-        throw Error('bybit-insufficient-fresh-candles:'+validMarkets+'/'+markets.length);
+        throw Error('okx-insufficient-fresh-candles:'+validMarkets+'/'+markets.length);
       // Preserve ALL open positions. Missing symbols keep last known marks but
       // never generate fabricated exits; equity is consistent with the curve.
       const freshPrices=Object.fromEntries(Object.keys(barsBySymbol).map(s=>[s,prices[s]]));
@@ -262,5 +267,5 @@ async function scan(options={}){
   })();
   try{return await flight;}finally{flight=null;}
 }
-module.exports={NS,INITIAL,STRATEGIES,initial,adapt,rsi,signalsFor,parseBars,
+module.exports={NS,LEGACY_NS,MARKET_LIMIT,INITIAL,STRATEGIES,initial,adapt,rsi,signalsFor,parseBars,
   marketUniverse,openPosition,updatePositions,advance,report,readReport,scan};
