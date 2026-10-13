@@ -8628,7 +8628,7 @@
                 targetItem=String(url.searchParams.get('item')||'').slice(0,120);
               }
             }catch(_){}
-            return {id:'push:'+String(row.id),type:'personal-push',actor,visibleTo:actor,
+            return {id:'push:'+String(row.id).slice(0,75),type:'personal-push',actor,visibleTo:actor,
               text:String(row.title||'RUDI'),notificationTitle:String(row.title||'RUDI'),
               notificationBody:String(row.body||''),createdAt:String(row.createdAt||''),
               targetTab,targetItem,icon:'🔔'};
