@@ -45,6 +45,9 @@ function renderReadButton(){
 function init(){
  const nav=$('financeTabs');
  if(!nav||nav.dataset.rudiIconsReady)return;
+ // Render the finance bar alongside the main app tabbar, not inside the animated
+ // finance page: CSS transforms on its ancestor otherwise break position:fixed.
+ if(nav.parentElement!==document.body)document.body.appendChild(nav);
  nav.dataset.rudiIconsReady='1';nav.classList.add('rudi-finance-icon-nav');
  nav.querySelectorAll('[data-finance-tab]').forEach(btn=>{
    const name=btn.dataset.financeTab;
@@ -63,6 +66,16 @@ function init(){
  });
  const body=$('financeLiteracyBody');
  if(body)new MutationObserver(()=>renderReadButton()).observe(body,{childList:true,subtree:true,characterData:true});
+ const financePage=$('financePage');
+ if(financePage){
+   const updateVisible=()=>{
+     const hidden=['is-personal-history','is-category-history','is-expense-history','is-income-history','is-capital-history']
+       .some(name=>financePage.classList.contains(name));
+     nav.classList.toggle('rudi-finance-nav-suppressed',hidden);
+   };
+   new MutationObserver(updateVisible).observe(financePage,{attributes:true,attributeFilter:['class']});
+   updateVisible();
+ }
  new MutationObserver(()=>updateBadge()).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor','data-app-tab']});
  window.addEventListener('pageshow',()=>{updateBadge();renderReadButton()});
  window.addEventListener('focus',()=>updateBadge());
