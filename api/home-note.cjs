@@ -2,6 +2,7 @@
 const {authorizeRequest,statusForError}=require('./rudi-request-auth.cjs');
 const {readAppState,writeAppState}=require('./rudi-auth-db.cjs');
 const NOTE_KEY='home-note-v1';
+const NOTE_EXPANDED_KEY='home-note-expanded-v1';
 const MAX_LENGTH=8000;
 function normalizeStored(value){
  const row=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
@@ -20,8 +21,14 @@ function createHandler(deps={}){
    const {actor}=authorize(req,body.initData);
    const operation=String(body.operation||'get');
    if(operation==='get'){
-    const note=normalizeStored(await read(actor,NOTE_KEY));
-    return res.status(200).json({ok:true,note});
+    const [note,view]=await Promise.all([read(actor,NOTE_KEY),read(actor,NOTE_EXPANDED_KEY)]);
+    const expanded=typeof view?.expanded==='boolean'?view.expanded:null;
+    return res.status(200).json({ok:true,note:{...normalizeStored(note),expanded}});
+   }
+   if(operation==='set-expanded'){
+    if(typeof body.expanded!=='boolean')return res.status(400).json({ok:false,error:'invalid-note-expanded'});
+    await write(actor,NOTE_EXPANDED_KEY,{expanded:body.expanded,updatedAt:now()});
+    return res.status(200).json({ok:true,expanded:body.expanded});
    }
    if(operation==='save'){
     if(typeof body.text!=='string'||body.text.length>MAX_LENGTH)
@@ -42,4 +49,5 @@ function createHandler(deps={}){
 module.exports=createHandler();
 module.exports.createHandler=createHandler;
 module.exports.NOTE_KEY=NOTE_KEY;
+module.exports.NOTE_EXPANDED_KEY=NOTE_EXPANDED_KEY;
 module.exports.MAX_LENGTH=MAX_LENGTH;
