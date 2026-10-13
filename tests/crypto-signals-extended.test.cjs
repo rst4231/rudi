@@ -1,20 +1,20 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
-const {parseSignal,marketFromText,tradeOutcome,screenLiquidationRisk}=require('../api/crypto-signals.cjs');
+const {parseSignal,marketFromText,tradeOutcome,screenLiquidationRisk,marketPriceForSignal}=require('../api/crypto-signals.cjs');
 const {linkUpdates}=require('../api/crypto-trade-events.cjs');
 const {normalizeConfig,simulateVirtual}=require('../api/crypto-virtual.cjs');
 const now=Date.parse('2026-10-11T12:30:00Z');
 const base={id:10,at:'2026-10-11T08:20:00Z',url:'https://t.me/ne_investor/10'};
 const bar=(hour,open,low,high,close)=>({at:Date.parse('2026-10-11T'+hour+':00:00Z'),open,low,high,close});
 
-test('Bybit Spot and Perpetual are distinct; unknown long never trades',()=>{
+test('Bybit Spot and Perpetual are distinct; direct long defaults to derivatives',()=>{
   assert.equal(marketFromText('Bybit Spot беру лонг','long').market,'spot');
   assert.equal(marketFromText('спот шорт','short').market,'unconfirmed');
   assert.equal(marketFromText('перпетуал Bybit','long').market,'linear');
   assert.equal(marketFromText('иду в шорт','short').market,'linear');
   const uncertain=parseSignal({...base,text:'$ETH беру в лонг'});
-  assert.equal(uncertain.market,'unconfirmed');
-  assert.equal(uncertain.paperEligible,false);
+  assert.equal(uncertain.market,'linear');
+  assert.equal(uncertain.paperEligible,true);
   const spot=parseSignal({...base,text:'$ETH беру в лонг на Bybit Spot'});
   assert.equal(spot.market,'spot');
   assert.equal(spot.paperEligible,true);
@@ -103,4 +103,23 @@ test('Partial close then BE exit stays positive after estimated fees',()=>{
     normalizeConfig({startedAt:'2026-10-10T00:00:00Z'}),now);
   assert.equal(virtual.stats.wins,1);
   assert.ok(virtual.totalPnlUsd>90);
+});
+
+test('Direct long/short without price use a fresh exchange quote',async()=>{
+  const long=parseSignal({...base,text:'$ETH беру в лонг'});
+  const short=parseSignal({...base,id:11,text:'$BTC беру в шорт'});
+  const requested=[];
+  const quote=async path=>{requested.push(path);return {retCode:0,result:{list:[{symbol:path.includes('ETH')?'ETHUSDT':'BTCUSDT',lastPrice:'105.25'}]}};};
+  assert.equal(await marketPriceForSignal(long,quote),105.25);
+  assert.equal(await marketPriceForSignal(short,quote),105.25);
+  assert.match(requested[0],/category=linear/);
+  await assert.rejects(marketPriceForSignal(long,async()=>({retCode:0,result:{list:[]}})),/market-live-price-unavailable/);
+});
+test('Market entry remains at initial quote when new candles appear',()=>{
+  const s=parseSignal({...base,text:'$ETH беру в лонг'});
+  const result=tradeOutcome(s,[bar('09',108,106,110,107),bar('10',111,90,113,99)],{
+    now,openedPosition:{entry:105.25,entryAt:'2026-10-11T09:15:00Z',execution:'market-at-sync'}});
+  assert.equal(result.entry,105.25);
+  assert.equal(result.entryAt,'2026-10-11T09:15:00.000Z');
+  assert.equal(result.execution,'market-at-sync');
 });

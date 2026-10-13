@@ -100,6 +100,7 @@ function marketFromText(text,direction){
   if(spot)return {market:'spot',marketSource:'explicit'};
   if(derivative)return {market:'linear',marketSource:'explicit'};
   if(direction==='short')return {market:'linear',marketSource:'short-derivative'};
+  if(direction==='long')return {market:'linear',marketSource:'long-derivative-inferred'};
   return {market:'unconfirmed',marketSource:'not-specified'};
 }
 function parseSignal(row){
@@ -220,6 +221,17 @@ function modeledTrade(signal,candles,messages=[],now=Date.now()){
     entryAt:new Date(first.at).toISOString(),marketPrice:price,
     lastPriceAt:new Date(last.at).toISOString()};
 }
+// Capture the current Bybit quote ONCE for fresh new direct entries only.
+async function marketPriceForSignal(signal,marketRequest){
+  if(!['linear','spot'].includes(signal?.market))throw Error('market-unconfirmed');
+  const symbol=signal.symbol+'USDT';
+  const path='/v5/market/tickers?'+new URLSearchParams({category:signal.market,symbol});
+  const payload=await marketRequest(path);
+  const ticker=payload?.result?.list?.find(x=>x?.symbol===symbol);
+  const price=Number(ticker?.lastPrice);
+  if(Number(payload?.retCode)!==0||!(price>0&&Number.isFinite(price)))throw Error('market-live-price-unavailable');
+  return price;
+}
 let refreshFlight=null;
 async function refreshSignals(options={}){
   if(refreshFlight)return refreshFlight;
@@ -277,8 +289,16 @@ async function refreshSignals(options={}){
         if(attempts>=Math.min(5,Math.max(1,Number(options.maxChecks||5)))){if(acceptedPrev)results[s.id]=acceptedPrev;continue;}
         attempts++;
         try{
+          const signalAge=now-Date.parse(s.at);
+          if(!s.entry&&!acceptedPrev?.entry&&signalAge>=0&&signalAge<=3600000){
+            const livePrice=await marketPriceForSignal(s,marketRequest);
+            const openedAt=new Date(now).toISOString();
+            results[s.id]={status:'open',entry:livePrice,entryAt:openedAt,marketPrice:livePrice,
+              lastPriceAt:openedAt,execution:'market-at-sync',market:s.market,checkedAt:openedAt};
+            continue;
+          }
           const candles=await candlesForSignal(s,{...options,marketRequest});
-          let outcome=tradeOutcome(s,candles,{now});
+          let outcome=tradeOutcome(s,candles,{now,openedPosition:acceptedPrev?.execution==='market-at-sync'?acceptedPrev:null});
           if(s.market==='linear'&&['open','won','lost','breakeven'].includes(outcome.status)){
             const [mark,funding]=await Promise.allSettled([
               candlesForSignal(s,{...options,marketRequest,mark:true}),
@@ -356,4 +376,4 @@ async function readSignals(options={}){
   return buildView(state,options.now??Date.now());
 }
 module.exports={NS,parsePreview,parseSignal,evaluateCandles,compareSignal:parseSignal,
-  buildView,readSignals,refreshSignals,candlesForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk,fundingForSignal};
+  buildView,readSignals,refreshSignals,candlesForSignal,marketPriceForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk,fundingForSignal};

@@ -131,7 +131,7 @@ function render(data){
   const signals=$('cryptoSignalsList');if(signals){signals.replaceChildren();
     for(const x of s.signals||[]){
       const title=x.symbol+' '+(x.direction==='short'?'SHORT':'LONG');
-      const entry=x.entry?('Вход '+x.entry):'Точная цена входа отсутствует';
+      const entry=x.entry?((x.execution==='market-at-sync'?'Вход по рынку ':'Вход ')+x.entry):'Точная цена входа отсутствует';
       const info=entry+' · '+marketName(x.market)+' · '+new Date(x.at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+
         ' · Маржа автора: '+marginName(x.marginModeReported)+
         (x.adjustmentCount?' · Сообщений о пополнении/доборе: '+x.adjustmentCount:'');

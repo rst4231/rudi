@@ -1,7 +1,21 @@
 /* RUDI home arrangement: preserve original controls and profile energy logic. */
 (()=>{'use strict';
  const $=id=>document.getElementById(id);
- let pending=false;
+ let pending=false,outlineObserver=null;
+ // Path coordinates match the button's 14px corner radius and preserve tracked progress.
+ const roundedOutline='M50 3 H83 A14 14 0 0 1 97 17 V83 A14 14 0 0 1 83 97 H17 A14 14 0 0 1 3 83 V17 A14 14 0 0 1 17 3 H50';
+ function restoreTrackerOutlines(rail){
+   for(const id of ['fastingProfileButton','supplementProfileButton']){
+     for(const path of rail.querySelectorAll('#'+id+' svg.rudi-fasting-progress-outline path,#'+id+' svg.rudi-supplement-progress-outline path')){
+       if(path.dataset.rudiRounded==='1')continue;
+       const previousLength=path.getTotalLength();
+       path.setAttribute('d',roundedOutline);
+       // Existing scripts use old perimeter lengths to compute their progress arc.
+       if(previousLength>0)path.setAttribute('pathLength',String(previousLength));
+       path.dataset.rudiRounded='1';
+     }
+   }
+ }
  function arrange(){
    pending=false;
    const dashboard=$('homeDashboard'),self=$('homeRustamTile')?.contains($('displayName'))
@@ -34,6 +48,11 @@
        ||rail.querySelector('.mood-self-buttons');
    const inner=rail.querySelector('.rudi-home-shortcuts-inner');
    if(buttons&&buttons.parentElement!==inner)inner.insertBefore(buttons,$('rudiHomeGamesButton'));
+   restoreTrackerOutlines(rail);
+   if(!outlineObserver&&typeof MutationObserver==='function'){
+     outlineObserver=new MutationObserver(()=>restoreTrackerOutlines(rail));
+     outlineObserver.observe(rail,{childList:true,subtree:true});
+   }
    // Existing meditation module inserts its conditional hint before the self tile.
    // Keep the rail directly before that hint or the tile, including customized home order.
    const hint=$('meditationMoodNudgeRustam')||$('meditationMoodNudgeDiana');

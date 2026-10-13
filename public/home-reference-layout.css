@@ -1,6 +1,6 @@
 /* RUDI v4.216: reference composition, with native app controls preserved. */
 body[data-app-tab="home"] .home-dashboard-summary{
-  width:96%!important;max-width:100%!important;margin-inline:auto!important;
+  width:100%!important;max-width:100%!important;margin-inline:0!important;box-sizing:border-box!important;
 }
 body[data-app-tab="home"] .home-dashboard-summary .home-dashboard-head{
   display:grid!important;
@@ -70,12 +70,12 @@ body[data-app-tab="home"] .rudi-home-shortcuts :is(#supplementProfileButton,#fas
 body[data-app-tab="home"] .rudi-home-shortcuts :is(.profile-tool-reminder-badge,.fasting-profile-elapsed){z-index:2}
 body[data-app-tab="home"] #homeRustamTile:has(#displayName),
 body[data-app-tab="home"] #homeDianaTile:has(#displayName){
-  width:96%!important;max-width:100%!important;margin-inline:auto!important;
-  padding:12px 12px!important;gap:7px!important;
+  width:100%!important;max-width:100%!important;margin-inline:0!important;box-sizing:border-box!important;
+  padding:10px 12px!important;gap:6px!important;
 }
 body[data-app-tab="home"] .rudi-home-self-line{
-  display:grid;grid-template-columns:minmax(0,43%) minmax(0,1fr);
-  gap:10px;align-items:center;min-width:0;
+  position:relative;display:grid;grid-template-columns:minmax(0,42%) minmax(0,1fr);
+  gap:8px;align-items:center;min-width:0;box-sizing:border-box;padding-right:36px;
 }
 body[data-app-tab="home"] .rudi-home-self-line .profile-person-head{
   min-width:0!important;margin:0!important;min-height:0!important;
@@ -113,7 +113,7 @@ body[data-app-tab="home"] .meditation-mood-nudge{
   width:min(92%,470px);max-width:100%;box-sizing:border-box;margin:0 auto!important;
 }
 @media(max-width:375px){
-  body[data-app-tab="home"] .rudi-home-shortcuts{width:96%;padding:9px 7px}
+  body[data-app-tab="home"] .rudi-home-shortcuts{width:96%;padding:9px 7px 22px}
   body[data-app-tab="home"] .rudi-home-self-line{grid-template-columns:minmax(0,45%) minmax(0,1fr);gap:6px}
   body[data-app-tab="home"] .rudi-home-self-line .profile-person-head .identity{grid-template-columns:38px minmax(0,1fr)!important;gap:5px!important}
   body[data-app-tab="home"] .rudi-home-self-line .profile-person-head .avatar{width:38px!important;height:38px!important}
@@ -125,3 +125,35 @@ html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts{
 
 /* Compact-grid display rules must never override native hidden state. */
 body[data-app-tab="home"] .rudi-home-shortcuts [hidden]{display:none!important}
+
+/* RUDI v4.217: all home cards share the width of the car tile. */
+body[data-app-tab="home"] [data-home-tile]{
+  width:100%!important;max-width:100%!important;box-sizing:border-box!important;
+  margin-inline:0!important;justify-self:stretch!important;
+}
+/* Profile navigation belongs to the far-right bottom corner, not the graph gap. */
+body[data-app-tab="home"] .rudi-home-self-line .profile-person-head > .profile-person-actions{
+  position:absolute!important;right:0!important;bottom:0!important;top:auto!important;
+  margin:0!important;transform:none!important;z-index:5!important;
+}
+body[data-app-tab="home"] .rudi-home-self-line .profile-person-head > .profile-person-actions .block-collapse-button{
+  width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;
+}
+/* Restore the original outside caption for fasting progress. */
+body[data-app-tab="home"] .rudi-home-shortcuts{padding-bottom:23px!important;overflow:visible!important}
+body[data-app-tab="home"] .rudi-home-shortcuts #fastingProfileButton{overflow:visible!important}
+body[data-app-tab="home"] .rudi-home-shortcuts #fastingProfileButton .fasting-profile-elapsed{
+  position:absolute!important;top:calc(100% + 6px)!important;bottom:auto!important;
+  left:50%!important;transform:translateX(-50%)!important;z-index:7!important;
+  color:rgba(233,239,252,.9)!important;font-size:10px!important;line-height:1!important;
+  white-space:nowrap!important;
+}
+/* Finance budget ring matches the rounded-square icon, not a circle. */
+body[data-app-tab="home"] .rudi-home-shortcuts #financeProfileButton.has-budget::after{
+  inset:0!important;border:3px solid transparent!important;border-radius:14px!important;
+  background:conic-gradient(var(--finance-home-budget-color) var(--finance-home-budget-progress,0%),color-mix(in srgb,var(--line) 65%,transparent) 0) border-box!important;
+  -webkit-mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0)!important;
+  -webkit-mask-composite:xor!important;
+  mask:linear-gradient(#fff 0 0) padding-box,linear-gradient(#fff 0 0)!important;
+  mask-composite:exclude!important;pointer-events:none!important;
+}

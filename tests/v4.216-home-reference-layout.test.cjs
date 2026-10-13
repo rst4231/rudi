@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const src=p=>fs.readFileSync(p,'utf8');
 test('reference hero is narrower horizontally while preserving its original height',()=>{
  const css=src('public/home-reference-layout.css');
- assert.match(css,/home-dashboard-summary\{[\s\S]{0,110}width:96%!important/);
+ assert.match(css,/home-dashboard-summary\{[\s\S]{0,110}width:100%!important/);
  const hero=css.match(/home-dashboard-summary\\{[\\s\\S]*?\\}/)?.[0]||'';
  assert.doesNotMatch(hero,/min-height:0!important/);
 });
@@ -17,13 +17,13 @@ test('six shortcuts sit before conditional meditation hint and profile',()=>{
 });
 test('games button is executable and its scripts are loaded',()=>{
  const html=src('public/index.html'),code=src('public/home-reference-layout.js');
- assert.match(html,/rudi-games\.js\?v=4\.216/);
- assert.match(html,/rudi-games\.css\?v=4\.216/);
+ assert.match(html,/rudi-games\.js\?v=4\.217/);
+ assert.match(html,/rudi-games\.css\?v=4\.217/);
  assert.match(code,/window\.RudiGames\?\.open\?\.\(\)/);
 });
 test('OKX UI assets are cache-busted, but Bybit history stays visible',()=>{
  const html=src('public/index.html');
- assert.match(html,/crypto-algorithms\.js\?v=4\.216/);
+ assert.match(html,/crypto-algorithms\.js\?v=4\.217/);
  assert.match(html,/OKX · новые сделки/);
  assert.match(html,/Bybit · архив/);
 });
@@ -36,4 +36,15 @@ test('reference layout and games are precached for offline use',()=>{
 test('hidden tracker controls and badges are not forced visible in compact rail',()=>{
  const css=src('public/home-reference-layout.css');
  assert.ok(css.includes('.rudi-home-shortcuts [hidden]{display:none!important}'));
+});
+
+test('all home tiles match the car tile width and navigation stays right',()=>{
+ const css=src('public/home-reference-layout.css'),layout=src('public/home-reference-layout.js'),games=src('public/rudi-games.js');
+ assert.match(css,/body\[data-app-tab="home"\] \[data-home-tile\]\{/);
+ assert.match(css,/profile-person-head > \.profile-person-actions\{/);
+ assert.match(css,/fasting-profile-elapsed\{/);
+ assert.match(css,/financeProfileButton\.has-budget::after\{/);
+ assert.match(layout,/roundedOutline/);
+ assert.match(layout,/rudiHomeGamesButton/);
+ assert.doesNotMatch(games,/row\.appendChild\(button\)/);
 });

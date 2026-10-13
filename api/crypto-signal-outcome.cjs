@@ -12,11 +12,15 @@ function tradeOutcome(signal,candles,options={}){
       'collateral-addition','position-addition','unspecified-addition'].includes(e.type))
     .sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
   if(!signal.paperEligible&&!signal.qualified)return {status:signal.status||'unverified'};
-  let entry=null,entryAt=null,stop=signal.stop??null,remaining=1,exitAt=null,exitPrice=null,
+  const saved=options.openedPosition;
+  const liveEntry=Number(saved?.entry),liveEntryAt=Date.parse(saved?.entryAt||'');
+  const hasLiveEntry=saved?.execution==='market-at-sync'&&liveEntry>0&&Number.isFinite(liveEntryAt);
+  let entry=hasLiveEntry?liveEntry:null,entryAt=hasLiveEntry?liveEntryAt:null,stop=signal.stop??null,remaining=1,exitAt=null,exitPrice=null,
     closedPct=0,unknownSize=false,riskUnknown=false,complete=false;
   const legs=[],timeline=[],seen=new Set();
+  if(hasLiveEntry)timeline.push({type:'entry',at:new Date(entryAt).toISOString(),price:entry,source:'market-at-sync'});
   for(const bar of bars){
-    if(bar.at<=Date.parse(signal.at))continue;
+    if(bar.at<=Math.max(Date.parse(signal.at),hasLiveEntry?liveEntryAt:0))continue;
     if(!entry){
       if(signal.entry!==null&&signal.entry!==undefined){
         if(bar.low>signal.entry||bar.high<signal.entry)continue;
@@ -74,8 +78,8 @@ function tradeOutcome(signal,candles,options={}){
   const netClosed=complete?Math.round(closedPct*100)/100:null;
   if(unknownSize)return {status:'size-unknown',entry,entryAt:new Date(entryAt).toISOString(),
     legs,timeline,reason:'missing-closed-percentage'};
-  const common={entry,entryAt:new Date(entryAt).toISOString(),execution:signal.entry?
-    'explicit-level':'next-hour-model',legs,timeline,closedFraction:Math.round((1-remaining)*10000)/10000,
+  const common={entry,entryAt:new Date(entryAt).toISOString(),execution:hasLiveEntry?
+    'market-at-sync':signal.entry?'explicit-level':'next-hour-model',legs,timeline,closedFraction:Math.round((1-remaining)*10000)/10000,
     openFraction:remaining,realizedPricePct:Math.round(closedPct*100)/100,
     unquantifiedAdditions:riskUnknown,marketPrice:Number.isFinite(last?.close)?last.close:null};
   if(complete)return {...common,status:netClosed>0?'won':netClosed<0?'lost':'breakeven',

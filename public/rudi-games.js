@@ -225,15 +225,9 @@ function ensurePage(){
  },{passive:true});
 }
 function ensureShortcut(){
- $('rudiGamesHomeButton')?.remove(); // Remove the old profile shortcut.
- if($('rudiGamesQuickButton'))return;
- const row=document.querySelector('#quickAccessTile .quick-access-actions');
- if(!row)return;
- const button=document.createElement('button');button.id='rudiGamesQuickButton';button.type='button';
- button.className='quick-access-button is-games';
- button.title='Игры и тренажёры';button.setAttribute('aria-label','Открыть игры и тренажёры');
- button.innerHTML='<span class="quick-access-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="11" rx="5"/><path d="M8 10v5m-2.5-2.5h5M15.5 11h.01M18 14h.01"/></svg></span><span class="quick-access-copy"><strong>Игры</strong></span>';
- button.addEventListener('click',open);row.appendChild(button);
+ // Games remain available in the top shortcut bar; remove the duplicate in Quick Access.
+ $('rudiGamesHomeButton')?.remove();
+ $('rudiGamesQuickButton')?.remove();
 }
 document.addEventListener('rudi:home-tiles-ready',ensureShortcut);
 document.addEventListener('visibilitychange',()=>{if(mode==='duel'&&!document.hidden){queueDuelPoll(150);}});
