@@ -20,7 +20,8 @@ const money=n=>Math.round(n).toLocaleString('ru-RU')+' ₽';
 const actor=()=>document.body?.dataset?.rudiActor==='Диана'?'Диана':'Рустам';
 const storageKey=()=> 'rudi-games-v1:'+actor();
 let page=null,mode='home',memoryTimer=null,level=1,sequence='',quiz=[],index=0,correct=0,answered=false,
- cash=100000,units=0,price=100,previousPrice=100,round=0,history=[];
+ cash=100000,units=0,price=100,previousPrice=100,round=0,history=[],
+ duelCells=Array(9).fill(''),duelTurn='Рустам',duelWinner='',duelWins=[],duelDone=false;
 function stats(){try{const v=JSON.parse(localStorage.getItem(storageKey())||'{}');return {memory:Number(v.memory)||0,quiz:Number(v.quiz)||0,market:Number.isFinite(Number(v.market))?Number(v.market):-100,sessions:Number(v.sessions)||0}}catch{return {memory:0,quiz:0,market:-100,sessions:0}}}
 function save(patch){const data={...stats(),...patch};try{localStorage.setItem(storageKey(),JSON.stringify(data))}catch{}return data}
 function haptic(){try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch{}}
@@ -39,6 +40,7 @@ function menu(){
   '<button data-rudi-game="memory" class="rudi-game-card"><span class="rudi-game-glyph">◎</span><span><b>Тренировка памяти</b><small>Запомни последовательность цифр. С каждым раундом сложнее.</small></span><span class="rudi-game-arrow">›</span></button>'+
   '<button data-rudi-game="quiz" class="rudi-game-card"><span class="rudi-game-glyph">?</span><span><b>Финансовая викторина</b><small>10 вопросов на риск, бюджет и инвестиции.</small></span><span class="rudi-game-arrow">›</span></button>'+
   '<button data-rudi-game="market" class="rudi-game-card"><span class="rudi-game-glyph">↗</span><span><b>Симулятор рынка</b><small>8 ходов, 100 000 виртуальных рублей и случайные колебания.</small></span><span class="rudi-game-arrow">›</span></button>'+
+  '<button data-rudi-game="duel" class="rudi-game-card"><span class="rudi-game-glyph">×○</span><span><b>Крестики-нолики на двоих</b><small>Рустам против Дианы · один телефон · счёт побед</small></span><span class="rudi-game-arrow">›</span></button>'+
   '</div>');
 }
 function memoryShow(){
@@ -129,6 +131,59 @@ function marketAction(action){
    section('<div class="rudi-game-result"><span>Виртуальный капитал</span><strong>'+money(marketValue())+'</strong><p>Изменение: '+(roi>0?'+':'')+roi.toFixed(1)+'%. Рынок случайный, а прошлый результат ничего не гарантирует.</p><button class="rudi-game-primary" data-rudi-game="market">Сыграть снова</button></div>');
  }else marketRender();
 }
+
+const DUEL_LINES=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+function duelScore(){
+ try{
+   const data=JSON.parse(localStorage.getItem('rudi-games-duel-v1')||'{}');
+   return {rustam:Math.max(0,Number(data.rustam)||0),diana:Math.max(0,Number(data.diana)||0),
+     draws:Math.max(0,Number(data.draws)||0),next:data.next==='Диана'?'Диана':'Рустам'};
+ }catch{return {rustam:0,diana:0,draws:0,next:'Рустам'}}
+}
+function duelSave(score){
+ try{localStorage.setItem('rudi-games-duel-v1',JSON.stringify(score))}catch{}
+}
+function duelStart(){
+ mode='duel';clearTimeout(memoryTimer);memoryTimer=null;
+ duelCells=Array(9).fill('');duelWinner='';duelWins=[];duelDone=false;
+ duelTurn=duelScore().next;duelRender();
+}
+function duelMove(i){
+ if(mode!=='duel'||duelDone||!Number.isInteger(i)||i<0||i>=9||duelCells[i])return;
+ const player=duelTurn;duelCells[i]=player==='Рустам'?'X':'O';
+ const line=DUEL_LINES.find(indices=>indices.every(index=>duelCells[index]===duelCells[i]));
+ if(line){duelWinner=player;duelWins=line;duelDone=true}
+ else if(duelCells.every(Boolean)){duelDone=true}
+ else {duelTurn=player==='Рустам'?'Диана':'Рустам'}
+ if(duelDone){
+   const score=duelScore();
+   if(duelWinner==='Рустам')score.rustam++;
+   else if(duelWinner==='Диана')score.diana++;
+   else score.draws++;
+   score.next=score.next==='Рустам'?'Диана':'Рустам';
+   duelSave(score);
+ }
+ duelRender();
+}
+function duelRender(){
+ header('Крестики-нолики','Рустам × Диана · на одном телефоне');
+ const s=duelScore();
+ const status=duelDone
+  ?(duelWinner?('Победа: '+duelWinner+'!'):'Ничья!')
+  :'Ход: '+duelTurn+' ('+(duelTurn==='Рустам'?'×':'○')+')';
+ section('<div class="rudi-game-work rudi-duel-work">'+
+  '<div class="rudi-duel-score" aria-label="Счёт партий"><div><small>Рустам ×</small><strong>'+s.rustam+'</strong></div>'+
+  '<div><small>Ничьи</small><strong>'+s.draws+'</strong></div>'+
+  '<div><small>Диана ○</small><strong>'+s.diana+'</strong></div></div>'+
+  '<p class="rudi-duel-status" role="status" aria-live="polite">'+status+'</p>'+
+  '<div class="rudi-duel-board" role="group" aria-label="Поле крестики-нолики">'+duelCells.map((mark,i)=>
+    '<button type="button" class="rudi-duel-cell'+(duelWins.includes(i)?' is-winning':'')+(mark==='X'?' is-rustam':mark==='O'?' is-diana':'')+'" data-duel-cell="'+i+'" aria-label="Клетка '+(i+1)+': '+(mark==='X'?'Рустам':mark==='O'?'Диана':'пусто')+'"'+(duelDone||mark?' disabled':'')+'>'+(mark==='X'?'×':mark==='O'?'○':'')+'</button>'
+   ).join('')+'</div>'+
+  '<button type="button" class="rudi-game-primary" data-rudi-game="duel">'+(duelDone?'Ещё партия':'Начать заново')+'</button>'+
+  '<p class="rudi-game-hint">Играйте по очереди на одном экране. Победы и ничьи сохраняются на этом устройстве.</p>'+
+ '</div>');
+}
+
 function open(){
  const active=document.body?.dataset?.rudiActor;
  if(!active)return;
@@ -151,6 +206,8 @@ function ensurePage(){
    if(game==='memory'){level=1;memoryShow();return}
    if(game==='quiz'){quizStart();return}
    if(game==='market'){marketStart();return}
+   if(game==='duel'){duelStart();return}
+   const cell=e.target.closest('[data-duel-cell]');if(cell){duelMove(Number(cell.dataset.duelCell));return}
    const answer=e.target.closest('[data-quiz-answer]');if(answer){quizAnswer(Number(answer.dataset.quizAnswer));return}
    const action=e.target.closest('[data-market-action]');if(action)marketAction(action.dataset.marketAction);
  });
@@ -163,13 +220,14 @@ function ensurePage(){
  },{passive:true});
 }
 function ensureShortcut(){
- if($('rudiGamesHomeButton'))return;
- const row=document.querySelector('.mood-self-buttons');
- if(!row)return;
- const button=document.createElement('button');button.id='rudiGamesHomeButton';button.type='button';
- button.className='profile-tool-button partner-mood-value';
+ // Existing quick-access layout owns the button; no extra profile shortcut.
+ const old=$('rudiGamesHomeButton');if(old)old.remove();
+ const row=document.querySelector('#quickAccessTile .quick-access-actions');
+ if(!row||$('quickGamesButton'))return;
+ const button=document.createElement('button');button.id='quickGamesButton';button.type='button';
+ button.className='quick-access-button is-games';
  button.title='Игры и тренажёры';button.setAttribute('aria-label','Открыть игры и тренажёры');
- button.innerHTML='<span class="mood-emoji" aria-hidden="true">🎮</span>';
+ button.innerHTML='<span class="quick-access-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7.5 8h9c3 0 4 2.2 4.9 5.5.7 2.5-.4 4.2-2.2 4.2-.9 0-1.8-.5-3.4-2.1H8.2c-1.6 1.6-2.5 2.1-3.4 2.1-1.8 0-2.9-1.7-2.2-4.2C3.5 10.2 4.5 8 7.5 8Z"/><path d="M6.5 11.7h5M9 9.2v5M15.7 11.4h.01M18.1 13.3h.01"/></svg></span><span class="quick-access-copy"><strong>Игры</strong></span>';
  button.addEventListener('click',open);
  row.appendChild(button);
 }
