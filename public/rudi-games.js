@@ -163,16 +163,20 @@ function ensurePage(){
  },{passive:true});
 }
 function ensureShortcut(){
- if($('rudiGamesHomeButton'))return;
- const row=document.querySelector('.mood-self-buttons');
+ const row=document.querySelector('#quickAccessTile .quick-access-actions');
  if(!row)return;
+ const existing=$('rudiGamesHomeButton');
+ if(existing?.parentElement===row)return;
+ // Previously the games shortcut lived beside the mood controls.
+ if(existing)existing.remove();
  const button=document.createElement('button');button.id='rudiGamesHomeButton';button.type='button';
- button.className='profile-tool-button partner-mood-value';
+ button.className='quick-access-button is-games';
  button.title='Игры и тренажёры';button.setAttribute('aria-label','Открыть игры и тренажёры');
- button.innerHTML='<span class="mood-emoji" aria-hidden="true">🎮</span>';
+ button.innerHTML='<span class="quick-access-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 8h10a4 4 0 0 1 3.9 3.2l1.1 6a2.1 2.1 0 0 1-3.2 2.2L16 17H8l-2.8 2.4A2.1 2.1 0 0 1 2 17.2l1.1-6A4 4 0 0 1 7 8Z"/><path d="M7 11v5m-2.5-2.5h5M16.6 12.2h.01M19 14.5h.01"/></svg></span><span class="quick-access-copy"><strong>Игры</strong></span>';
  button.addEventListener('click',open);
  row.appendChild(button);
 }
+
 document.addEventListener('rudi:home-tiles-ready',ensureShortcut);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureShortcut,{once:true});else ensureShortcut();
 window.RudiGames={open,close};

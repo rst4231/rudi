@@ -92,3 +92,21 @@ test('finance nav and games are isolated, offline-cacheable assets',()=>{
  assert.match(game,/rudi-games-v1/);
  for(const name of ['finance-nav-icons.js','finance-nav-icons.css','rudi-games.js','rudi-games.css'])assert.ok(build.includes(name));
 });
+
+test('finance tabbar is portaled to body so financePage animation cannot displace fixed nav',()=>{
+ const script=fs.readFileSync('public/finance-nav-icons.js','utf8');
+ const style=fs.readFileSync('public/finance-nav-icons.css','utf8');
+ assert.match(script,/document\.body\.appendChild\(nav\)/);
+ assert.match(style,/body > #financeTabs\.rudi-finance-icon-nav/);
+ assert.match(style,/position:fixed!important/);
+ assert.match(style,/bottom:0!important/);
+ assert.match(style,/body:not\(\[data-app-tab="finances"\]\) > #financeTabs/);
+ assert.match(style,/body:has\(#financePage:is\(/);
+});
+test('games shortcut is installed only inside quick access, with the existing game launcher',()=>{
+ const game=fs.readFileSync('public/rudi-games.js','utf8');
+ assert.match(game,/#quickAccessTile \.quick-access-actions/);
+ assert.doesNotMatch(game,/querySelector\('\.mood-self-buttons'\)/);
+ assert.match(game,/button\.addEventListener\('click',open\)/);
+ assert.match(game,/is-games/);
+});
