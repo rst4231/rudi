@@ -366,8 +366,8 @@ function draw(){
  showText('pcSymptomsCount',activeSymptoms.some(x=>Date.now()-Date.parse(x.updatedAt)>24*3600*1000)?'Как самочувствие сегодня?':activeSymptoms.length+' активных записей');
  showText('pcWeight',data.weights?.length?data.weights.at(-1).kg+' кг':'Добавить вес');
  showText('pcReportDate',report?asDate(report.createdAt):'Сегодня');
- const ready=Boolean(report?.narrative&&report.model!=='deterministic'),insight=ready?safeNarrative(report):null;
- showText('pcReport',ready?(reportHasText(insight?.overview)?insight.overview:'Вот самое важное из твоих записей.'):(report?'Обзор пока не готов. Попробуй ещё раз.':'Твой обзор появится здесь после первого запуска.'));
+ const translating=Boolean(report?.translationPending),ready=Boolean(report?.narrative&&report.model!=='deterministic'&&!translating),insight=ready?safeNarrative(report):null;
+ showText('pcReport',translating?report.narrative.overview:ready?(reportHasText(insight?.overview)?insight.overview:'Вот самое важное из твоих записей.'):(report?'Обзор пока не готов. Попробуй ещё раз.':'Твой обзор появится здесь после первого запуска.'));
  const blocks=[['pcMainChange','pcMainBlock',insight?.mainChange],['pcMainObservation','pcObservationBlock',insight?.mainObservation],['pcMainAction','pcActionBlock',insight?.mainAction],['pcForecast','pcForecastBlock',insight?.forecast]];
  let visible=0;
  for(const [id,block,value] of blocks){const show=Boolean(ready&&reportHasText(value));const el=$(block);if(el)el.hidden=!show;if(show){showText(id,value);visible++;}}
