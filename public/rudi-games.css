@@ -78,3 +78,19 @@ html[data-theme="dark"] .rudi-market-price span.gain{color:#59dea3}
  .rudi-market-price strong{font-size:29px}
 }
 @media(prefers-reduced-motion:reduce){.rudi-games-page *{animation:none!important;transition:none!important}}
+
+/* Local two-player tic-tac-toe: compact and usable with thumbs. */
+.rudi-duel-work{gap:16px}
+.rudi-duel-score{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.rudi-duel-score>div{display:grid;gap:4px;justify-items:center;padding:12px 5px;border:1px solid var(--game-border);background:rgba(93,130,206,.08);border-radius:15px}
+.rudi-duel-score small{font-size:11px;opacity:.68}
+.rudi-duel-score strong{font-size:25px;font-variant-numeric:tabular-nums}
+.rudi-duel-status{text-align:center!important;font-size:17px!important;font-weight:800!important;min-height:24px}
+.rudi-duel-board{width:100%;max-width:400px;margin:0 auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.rudi-duel-cell{width:100%;aspect-ratio:1;border:1px solid var(--game-border);border-radius:17px;background:rgba(96,139,226,.12);color:var(--game-ink);font:inherit;font-size:clamp(36px,9vw,60px);font-weight:750;line-height:1;display:grid;place-items:center;cursor:pointer;touch-action:manipulation}
+.rudi-duel-cell.is-rustam{color:#4e7fea}.rudi-duel-cell.is-diana{color:#ed6da3}
+.rudi-duel-cell.is-winning{background:rgba(55,190,123,.2);border-color:rgba(55,190,123,.48)}
+.rudi-duel-cell:disabled{cursor:default;opacity:1}
+.quick-access-button.is-games{background:linear-gradient(145deg,color-mix(in srgb,var(--accent-soft) 64%,var(--surface-strong)),var(--surface-strong))}
+.quick-access-button.is-games .quick-access-icon{color:var(--accent)}
+@media(max-width:370px){.rudi-duel-board{gap:7px}.rudi-duel-cell{border-radius:13px}.rudi-duel-score small{font-size:10px}}

@@ -1,11 +1,11 @@
 {
-  "current": "v4.213",
-  "versionBranch": "fix/rudi-v4213-production-cleanup",
+  "current": "v4.214",
+  "versionBranch": "feature/rudi-v4214-fixed-finance-nav-duel",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-13",
-  "basedOnProduction": "v4.212",
+  "basedOnProduction": "v4.213",
   "notes": [
     "Includes v4.198 prepared fixes: 100-star wishlist reward, updated earning guide, expense label, and native iOS date/time field refresh.",
     "Global rain and snow effects driven by live Open-Meteo current weather, individually toggleable and enabled by default with sync.",
@@ -47,7 +47,9 @@
     "v4.212: тренажёры памяти, финансовая викторина и симулятор рынка с локальными персональными рекордами, без внешних API.",
     "v4.212: нижняя панель финансов с пятью иконками вместо текста, корректные отдельные права доступа, индикатор новой статьи и отметка прочтения.",
     "v4.212: Web Push для незавершённых совместных задач со временем, адресная доставка Рустаму, Диане или обоим, проверка каждые 5 минут через GitHub Actions OIDC, атомарная защита от дублей.",
-    "v4.213: убрано второе расписание push-напоминаний, удалены несуществующие ресурсы HTML и обновлена PWA-версия для iOS без очистки кэша."
+    "v4.213: убрано второе расписание push-напоминаний, удалены несуществующие ресурсы HTML и обновлена PWA-версия для iOS без очистки кэша.",
+    "v4.214: нижняя навигация финансов закреплена к viewport как главное меню и сохраняет доступность и индикатор непрочитанной статьи.",
+    "v4.214: крестики-нолики для двух игроков на одном телефоне, локальный счёт Рустам/Диана; ярлык игр перенесён в блок «Быстрый доступ»."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [
