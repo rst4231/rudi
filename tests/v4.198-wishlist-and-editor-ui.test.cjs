@@ -52,7 +52,8 @@ test('each opened task gets fresh native date/time fields with its own displayed
   assert.match(editor,/reset\(\);replaceTemporalInputs\(\);active=/);
   const elements={};
   function makeNode(){
-    return {id:'',value:'',type:'text',listeners:{},
+    return {id:'',value:'',type:'text',listeners:{},attributes:{},
+      setAttribute(name,value){this.attributes[name]=String(value)},
       addEventListener(name,cb){this.listeners[name]=cb},
       replaceWith(next){elements[this.id]=next}};
   }
