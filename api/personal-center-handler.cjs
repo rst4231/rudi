@@ -30,7 +30,7 @@ module.exports=async function handler(req,res){
     const indicator={unread:Boolean(latest?.id&&latest.model!=='deterministic'&&latest.id!==seen?.value?.id)};
     const emotions=Array.isArray(mood)?computeEmotionSignals(mood):null;
     const knownVersion=Number(body.knownVersion),knownReportId=String(body.knownReportId||''),knownReportUpdatedAt=String(body.knownReportUpdatedAt||''),knownEmotionVersion=String(body.knownEmotionVersion||'');
-    if(actor!=='Диана'&&knownVersion>=0&&knownVersion===data.version&&knownReportId===(latest?.id||'')&&knownReportUpdatedAt===(latest?.updatedAt||latest?.createdAt||'')&&knownEmotionVersion===(emotions?.version||'')){
+    if(!localized?.translationPending&&actor!=='Диана'&&knownVersion>=0&&knownVersion===data.version&&knownReportId===(latest?.id||'')&&knownReportUpdatedAt===(latest?.updatedAt||latest?.createdAt||'')&&knownEmotionVersion===(emotions?.version||'')){
       return res.status(200).json({ok:true,actor,unchanged:true});
     }
     return res.status(200).json({ok:true,actor,data:{...data,emotions},report:localized,indicator,cycle:actor==='Диана'&&cycle?{...cycleViewForDate(cycle,state.moscowDate()),cycleLengthDays:cycle.cycleLengthDays}:null,whoSource:WHO_SOURCE});
