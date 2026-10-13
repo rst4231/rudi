@@ -6,6 +6,9 @@ const { resolveTelegramBotToken } = require('./products-bought.cjs');
 const ACTORS = new Set(['Рустам', 'Диана']);
 const SUBSCRIPTIONS_KEY = 'push:subscriptions:v1';
 const NOTIFICATIONS_KEY = 'push:notifications:v1';
+const INBOX_KEY = 'push:inbox:v1';
+const MAX_INBOX_ITEMS = 240;
+const INBOX_RETENTION_MS = 120 * 24 * 60 * 60 * 1000;
 const MAX_SUBSCRIPTIONS = 6;
 const MAX_NOTIFICATIONS = 24;
 const NOTIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -224,6 +227,39 @@ function normalizeNotificationQueue(value, now = Date.now()) {
     .slice(-MAX_NOTIFICATIONS);
 }
 
+function normalizePushInbox(value, now=Date.now()) {
+  const source=Array.isArray(value?.items)?value.items:Array.isArray(value)?value:[];
+  const seen=new Set();
+  return source.map(normalizePushNotification).filter(row=>{
+    if(!row||row.kind!=='show'||seen.has(row.id))return false;
+    if(now-Date.parse(row.createdAt)>INBOX_RETENTION_MS)return false;
+    seen.add(row.id);
+    return true;
+  }).sort((a,b)=>Date.parse(a.createdAt)-Date.parse(b.createdAt)).slice(-MAX_INBOX_ITEMS);
+}
+async function readPushInbox(actor, options={}) {
+  const safeActor=normalizeActor(actor);
+  if(!safeActor)throw Error('rudi-access-denied');
+  const now=Number(options.now||Date.now());
+  const db=options.dbOptions||options;
+  const [archived,queue]=await Promise.all([
+    readAppState(safeActor,INBOX_KEY,db).catch(()=>null),
+    readAppState(safeActor,NOTIFICATIONS_KEY,db).catch(()=>null)
+  ]);
+  // Existing queued notifications are migrated on read. No replay or extra push.
+  const merged=normalizePushInbox({
+    items:[...normalizePushInbox(archived,now),...normalizeNotificationQueue(queue,now)]
+  },now);
+  return merged.slice().reverse();
+}
+async function archivePushNotification(actor, notification, options={}) {
+  if(notification.kind!=='show')return;
+  const now=Number(options.now||Date.now());
+  const db=options.dbOptions||options;
+  const current=normalizePushInbox(await readAppState(actor,INBOX_KEY,db).catch(()=>null),now);
+  const next=normalizePushInbox({items:[...current,notification]},now);
+  await writeAppState(actor,INBOX_KEY,{items:next,updatedAt:notification.createdAt},db);
+}
 async function queuePushNotification(actor, payload, options = {}) {
   const safeActor = normalizeActor(actor);
   if (!safeActor) throw new Error('rudi-access-denied');
@@ -250,6 +286,7 @@ async function queuePushNotification(actor, payload, options = {}) {
     row,
   ].slice(-MAX_NOTIFICATIONS);
   await writeAppState(safeActor, NOTIFICATIONS_KEY, { items: next, updatedAt: row.createdAt }, options.dbOptions || options);
+  try{await archivePushNotification(safeActor,row,options)}catch(error){console.warn('RUDI_PUSH_INBOX_ARCHIVE_WARN',String(error?.message||error))}
   return row;
 }
 
@@ -361,6 +398,7 @@ function stripTelegramHtml(value) {
 module.exports = {
   SUBSCRIPTIONS_KEY,
   NOTIFICATIONS_KEY,
+  INBOX_KEY,
   derivePrivateScalar,
   vapidKeyMaterial,
   publicApplicationServerKey,
@@ -374,6 +412,8 @@ module.exports = {
   removePushSubscriptions,
   queuePushNotification,
   readPendingPushNotifications,
+  readPushInbox,
+  normalizePushInbox,
   sendPushWake,
   sendPushPayload,
   sendPushNotification,
