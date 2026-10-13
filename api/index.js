@@ -40,7 +40,6 @@ const { scheduleSmartSaveTelegram } = require('./smart-saves-telegram.cjs');
 const { handleSmartHomeRequest, readSmartHomeSnapshot } = require('./smart-home-client.cjs');
 const { evaluateHumidityAlert } = require('./smart-home-humidity-alert.cjs');
 const { handleHabitReminderCron } = require('./habit-reminder.cjs');
-const { handleSharedTaskReminderCron } = require('./shared-task-reminder.cjs');
 const { handleWeatherRequest } = require('./weather.cjs');
 const { handleBirthdayGreeting } = require('./birthday-greeting.cjs');
 const { handleCarRequest } = require('./car-client.cjs');
@@ -279,7 +278,6 @@ async function handler(req, res) {
       }
     }
     if (req.query?.route === 'habit-reminder-cron') return handleHabitReminderCron(req, res);
-    if (req.query?.route === 'shared-task-reminder-cron') return handleSharedTaskReminderCron(req, res);
     if (req.query?.route === 'weather') return handleWeatherRequest(req, res);
     if (req.query?.route === 'birthday-greeting') return handleBirthdayGreeting(req, res);
     if (req.query?.route === 'car') return handleCarRequest(req, res);
