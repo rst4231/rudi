@@ -261,6 +261,22 @@ async function handler(req, res) {
         return res.status(500).json({ ok: false, error: 'humidity-check-failed' });
       }
     }
+    if (req.query?.route === 'shared-task-reminders-cron') {
+      if (req.method !== 'GET') return res.status(405).json({ok:false,error:'method-not-allowed'});
+      const authorized=await isGitHubActionsRequestAuthorized(req,{
+        audience:'rudi-shared-task-reminders',
+        workflowRef:'rst4231/rudi/.github/workflows/shared-task-reminders.yml@refs/heads/main'
+      });
+      if(!authorized)return res.status(401).json({ok:false,error:'unauthorized-cron'});
+      try{
+        const {runSharedTaskReminders}=require('./shared-task-reminders.cjs');
+        const result=await runSharedTaskReminders();
+        return res.status(result.ok?200:503).json(result);
+      }catch(error){
+        console.error('RUDI_SHARED_TASK_CRON_ERROR',String(error?.message||error));
+        return res.status(503).json({ok:false,error:'shared-task-reminder-failed'});
+      }
+    }
     if (req.query?.route === 'habit-reminder-cron') return handleHabitReminderCron(req, res);
     if (req.query?.route === 'weather') return handleWeatherRequest(req, res);
     if (req.query?.route === 'birthday-greeting') return handleBirthdayGreeting(req, res);
