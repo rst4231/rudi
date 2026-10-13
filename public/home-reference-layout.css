@@ -123,5 +123,5 @@ html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts{
   background:rgba(233,236,250,.72);
 }
 
-/* The compact grid must not reveal controls or badges marked hidden. */
+/* Compact-grid display rules must never override native hidden state. */
 body[data-app-tab="home"] .rudi-home-shortcuts [hidden]{display:none!important}
