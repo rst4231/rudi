@@ -2,11 +2,16 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs');
 const src=p=>fs.readFileSync(p,'utf8');
-test('both market scanners obey central configurable read-only Cloudflare market base',()=>{
+test('both market scanners share configurable read-only gateway with official Bybit fallback',()=>{
  const algo=src('api/crypto-algorithms.cjs'),author=src('api/crypto-signals.cjs');
- assert.match(algo,/process\.env\.RUDI_BYBIT_PUBLIC_API_URL/);
- assert.match(author,/process\.env\.RUDI_BYBIT_PUBLIC_API_URL/);
- assert.match(author,/marketOrigin\(\)\+'\/v5\/market\/funding\/history\?'/);
+ const client=src('api/crypto-market-client.cjs');
+ assert.match(algo,/require\('\.\/crypto-market-client\.cjs'\)/);
+ assert.match(author,/require\('\.\/crypto-market-client\.cjs'\)/);
+ assert.match(client,/process\.env\.RUDI_BYBIT_PUBLIC_API_URL/);
+ assert.match(client,/https:\/\/api\.bybit\.com/);
+ assert.match(client,/https:\/\/api\.bytick\.com/);
+ assert.match(client,/TRANSIENT_HTTP/);
+ assert.match(author,/\/v5\/market\/funding\/history\?/);
  assert.match(algo,/\/v5\/market\/kline\?category=linear/);
 });
 test('Worker only allows read-only public derivatives and Spot market URLs',()=>{
