@@ -54,6 +54,7 @@ test('homepage note is above self profile; styles and client behaviors are prese
  const js=fs.readFileSync('public/home-note.js','utf8');
  const css=fs.readFileSync('public/home-note.css','utf8');
  const pos=html.indexOf('id="homeNoteTile"');
+ assert.match(html,/<span>Личная заметка<\/span>/);
  assert.ok(pos>0&&pos<html.indexOf('class="profile"'));
  for(const id of ['homeNoteToggle','homeNoteEdit','homeNoteText','homeNoteSave','homeNoteCancel'])
   assert.match(html,new RegExp('id="'+id+'"'));
