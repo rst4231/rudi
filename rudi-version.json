@@ -1,5 +1,5 @@
 {
-  "current": "v4.223",
+  "current": "v4.224",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -59,7 +59,8 @@
     "v4.220: profile same outer length as Car but shorter height, photo and name left, biorhythm right, phase label above moving dot, 3px fasting and supplement halos.",
     "v4.221: align avatar, two-line name and status vertically; anchor and reduce mood badge on avatar so it no longer overlaps text. Preserve graph, card width and tracker outlines.",
     "v4.222: center complete profile content vertically in tile, align avatar, mood badge, name and status on iPhone; preserve graph and widths.",
-    "v4.223: fix the actual collapsed-profile layout by removing the hidden disclosure grid row and vertically centering a single horizontal avatar/name/chart row; consolidate conflicting overrides."
+    "v4.223: fix the actual collapsed-profile layout by removing the hidden disclosure grid row and vertically centering a single horizontal avatar/name/chart row; consolidate conflicting overrides.",
+    "v4.224: unify self card layout across collapsed and expanded states, center avatar/name/status and graph on identical vertical coordinates, remove phantom collapsed details, validated in Chromium at iPhone widths."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [
