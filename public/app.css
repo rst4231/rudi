@@ -18407,3 +18407,8 @@ body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-agend
 body[data-app-tab="home"] .priority-section .ticktick-today-task:has(.is-shared-avatar){
   min-height:79px;
 }
+
+/* Keep «Весь день» inside the time rail on narrow iPhones. */
+body[data-app-tab="home"] .priority-section .ticktick-agenda-time .ticktick-agenda-start{
+  display:block;max-width:100%;white-space:normal;text-align:right;overflow-wrap:normal;
+}
