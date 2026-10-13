@@ -1,6 +1,7 @@
 'use strict';
 /* Independent, forward-only PAPER trading. Never sends private Bybit requests or orders. */
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
+const {createMarketRequest}=require('./crypto-market-client.cjs');
 const NS='rudi-crypto-algorithms-v1',KEY='virtual-short-portfolios';
 const INITIAL=10000,INTERVAL=300000,SCAN_INTERVAL=15*60000,FEE=0.00055,SLIPPAGE=0.0005,LEV=2;
 const STRATEGIES=[
@@ -68,19 +69,6 @@ function parseBars(data,now=Date.now()){
     low:num(row[3]),close:num(row[4]),volume:num(row[5])}))
     .filter(x=>x.at>0&&x.at+INTERVAL<=now-1000&&x.open>0&&x.high>=x.low&&x.close>0)
     .sort((a,b)=>a.at-b.at);
-}
-async function bybit(path,fetchImpl=globalThis.fetch){
-  const ctrl=typeof AbortController==='function'?new AbortController():null;
-  const timer=ctrl?setTimeout(()=>ctrl.abort(),9500):null;
-  try{
-    const endpoint=String(process.env.RUDI_BYBIT_PUBLIC_API_URL||'https://api.bybit.com').replace(/\/+$/,'');
-    const r=await fetchImpl(endpoint+path,{...(ctrl?{signal:ctrl.signal}:{}),
-      headers:{Accept:'application/json'}});
-    if(!r.ok)throw Error('bybit-http-'+r.status);
-    const json=await r.json();
-    if(json.retCode!==0)throw Error('bybit-'+json.retCode);
-    return json;
-  }finally{if(timer)clearTimeout(timer);}
 }
 function marketUniverse(response){
   const eligible=(response?.result?.list||[])
@@ -218,9 +206,10 @@ async function scan(options={}){
     const previousAttempt=Date.parse(state.lastAttemptAt||state.lastScanAt||'');
     if(Number.isFinite(previousAttempt)&&now-previousAttempt<SCAN_INTERVAL-30000)return report(state);
     state.lastAttemptAt=date(now);
+    const marketRequest=createMarketRequest({fetchImpl:options.fetchImpl});
     let markets=[],failed=0;
     try{
-      const tickerResponse=await bybit('/v5/market/tickers?category=linear',options.fetchImpl);
+      const tickerResponse=await marketRequest('/v5/market/tickers?category=linear');
       markets=marketUniverse(tickerResponse);
       if(!markets.length)throw Error('bybit-empty-universe');
       // Open symbols must remain monitored even after leaving the top movers.
@@ -240,8 +229,8 @@ async function scan(options={}){
       // Stagger Bybit requests in bounded groups; continue despite an individual symbol outage.
       for(let offset=0;offset<markets.length;offset+=4){
         const batch=await Promise.allSettled(markets.slice(offset,offset+4).map(async m=>{
-          const data=await bybit('/v5/market/kline?category=linear&symbol='+
-            encodeURIComponent(m.symbol)+'&interval=5&limit=120',options.fetchImpl);
+          const data=await marketRequest('/v5/market/kline?category=linear&symbol='+
+            encodeURIComponent(m.symbol)+'&interval=5&limit=120');
           const bars=parseBars(data,now);
           if(bars.length<38||now-(bars.at(-1).at+INTERVAL)>12*60000)
             throw Error('bybit-candles-stale-or-insufficient:'+m.symbol);

@@ -1,6 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const a=require('../api/crypto-algorithms.cjs');
+const {createMarketRequest}=require('../api/crypto-market-client.cjs');
 const NOW=Date.parse('2026-10-11T12:12:00Z');
 function bars(overrides={}){
   const candles=Array.from({length:50},(_,i)=>{
@@ -103,4 +104,39 @@ test('failed scan saves last attempt without fabricating successful scan',async(
  assert.equal(first.error,'bybit-http-503');
  assert.equal(first.lastAttemptAt,new Date(NOW).toISOString());
  await a.scan({client,fetchImpl,now:NOW+60000});assert.equal(fetches,1);
+});
+
+test('503 at Cloudflare market gateway fails over to official Bybit and stays there',async()=>{
+  const calls=[];
+  const request=createMarketRequest({origin:'https://rudi-crypto-market.example.workers.dev',
+    fetchImpl:async url=>{
+      calls.push(url);
+      return url.includes('workers.dev')
+        ?{ok:false,status:503}
+        :{ok:true,json:async()=>({retCode:0,result:{list:[{symbol:'BTCUSDT'}]}})};
+    }});
+  const first=await request('/v5/market/tickers?category=linear');
+  assert.equal(first.result.list[0].symbol,'BTCUSDT');
+  await request('/v5/market/tickers?category=linear');
+  assert.equal(calls.length,3);
+  assert.ok(calls[0].includes('workers.dev'));
+  assert.ok(calls[1].startsWith('https://api.bybit.com/'));
+  assert.ok(calls[2].startsWith('https://api.bybit.com/'));
+});
+test('transient failures on both official hosts fail closed rather than fabricate prices',async()=>{
+  const request=createMarketRequest({origin:'https://rudi-crypto-market.example.workers.dev',
+    fetchImpl:async()=>({ok:false,status:503})});
+  await assert.rejects(request('/v5/market/tickers?category=linear'),/bybit-http-503/);
+});
+test('non-retryable Bybit access restriction does not rotate host',async()=>{
+  let calls=0;
+  const request=createMarketRequest({origin:'https://rudi-crypto-market.example.workers.dev',
+    fetchImpl:async()=>{calls++;return {ok:false,status:403};}});
+  await assert.rejects(request('/v5/market/tickers?category=linear'),/bybit-http-403/);
+  assert.equal(calls,1);
+});
+test('invalid exchange payload never enables an artificial paper trade',async()=>{
+  const request=createMarketRequest({fetchImpl:async()=>({ok:true,json:async()=>({
+    retCode:0,result:{list:null}})})});
+  await assert.rejects(request('/v5/market/tickers?category=linear'),/bybit-invalid-payload/);
 });

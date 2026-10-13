@@ -2,8 +2,8 @@
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const {linkUpdates}=require('./crypto-trade-events.cjs');
 const {tradeOutcome,screenLiquidationRisk}=require('./crypto-signal-outcome.cjs');
+const {createMarketRequest}=require('./crypto-market-client.cjs');
 const NS='rudi-crypto-signal-monitor-v1', KEY='ne_investor', PERIOD_MS=30*86400000, INTERVAL_MS=15*60000;
-const marketOrigin=()=>String(process.env.RUDI_BYBIT_PUBLIC_API_URL||'https://api.bybit.com').replace(/\/+$/,'');
 const cleanText=s=>String(s||'').slice(0,1800);
 function entities(text){
   return String(text||'').replace(/&#(x[0-9a-f]+|\d+);/gi,(_,n)=>{
@@ -161,29 +161,25 @@ function evaluateCandles(signal,candles,now=Date.now()){
     calculation:'gross-unleveraged-excludes-fees-funding-slippage'};
 }
 async function candlesForSignal(signal,options={}){
-  const fetcher=options.fetchImpl||fetch;
+  const marketRequest=options.marketRequest||createMarketRequest({fetchImpl:options.fetchImpl});
   if(!['linear','spot'].includes(signal?.market))throw Error('bybit-market-unconfirmed');
   const symbol=signal.symbol+'USDT';
   const start=Math.floor((Date.parse(signal.at)+3600000)/3600000)*3600000;
   const end=Date.now();
-  const url=marketOrigin()+'/v5/market/'+(options.mark?'mark-price-kline':'kline')+'?'+new URLSearchParams({
+  const path='/v5/market/'+(options.mark?'mark-price-kline':'kline')+'?'+new URLSearchParams({
     category:signal.market,symbol,interval:'60',start:String(start),end:String(end),limit:'1000'});
-  const response=await fetcher(url,{signal:AbortSignal.timeout(9000),cache:'no-store'});
-  if(!response.ok)throw Error('market-http-'+response.status);
-  const payload=await response.json();
+  const payload=await marketRequest(path);
   if(Number(payload.retCode)!==0||!Array.isArray(payload.result?.list))throw Error('market-data-unavailable');
   return payload.result.list.map(r=>({at:Number(r[0]),open:Number(r[1]),high:Number(r[2]),low:Number(r[3]),close:Number(r[4])})).filter(r=>
     Number.isFinite(r.at)&&Number.isFinite(r.open)&&Number.isFinite(r.high)&&Number.isFinite(r.low)&&r.high>=r.low);
 }
 async function fundingForSignal(signal,options={}){
   if(signal?.market!=='linear')return {rates:[],complete:true};
-  const fetcher=options.fetchImpl||fetch;
+  const marketRequest=options.marketRequest||createMarketRequest({fetchImpl:options.fetchImpl});
   const start=Date.parse(signal.at),end=Number(options.now||Date.now());
-  const url=marketOrigin()+'/v5/market/funding/history?'+new URLSearchParams({
+  const path='/v5/market/funding/history?'+new URLSearchParams({
     category:'linear',symbol:signal.symbol+'USDT',startTime:String(start),endTime:String(end),limit:'200'});
-  const response=await fetcher(url,{cache:'no-store',signal:AbortSignal.timeout(9000)});
-  if(!response.ok)throw Error('bybit-funding-http-'+response.status);
-  const json=await response.json(),list=json?.result?.list;
+  const json=await marketRequest(path),list=json?.result?.list;
   if(Number(json?.retCode)!==0||!Array.isArray(list))throw Error('bybit-funding-unavailable');
   const rates=list.map(x=>({at:new Date(Number(x.fundingRateTimestamp)).toISOString(),
     rate:Number(x.fundingRate)})).filter(x=>Number.isFinite(Date.parse(x.at))&&Number.isFinite(x.rate)
@@ -234,6 +230,7 @@ async function refreshSignals(options={}){
     if(!options.force&&previous.updatedAt&&now-Date.parse(previous.updatedAt)<INTERVAL_MS)
       return buildView(previous,now);
     const cutoff=now-PERIOD_MS;
+    const marketRequest=createMarketRequest({fetchImpl:options.fetchImpl});
     let posts=new Map((Array.isArray(previous.messages)?previous.messages:[])
       .filter(m=>Date.parse(m.at)>=cutoff).map(m=>[m.id,m]));
     let cursor=Number(previous.cursor||0)||null,complete=Boolean(previous.backfillComplete);
@@ -280,12 +277,12 @@ async function refreshSignals(options={}){
         if(attempts>=Math.min(5,Math.max(1,Number(options.maxChecks||5)))){if(acceptedPrev)results[s.id]=acceptedPrev;continue;}
         attempts++;
         try{
-          const candles=await candlesForSignal(s,options);
+          const candles=await candlesForSignal(s,{...options,marketRequest});
           let outcome=tradeOutcome(s,candles,{now});
           if(s.market==='linear'&&['open','won','lost','breakeven'].includes(outcome.status)){
             const [mark,funding]=await Promise.allSettled([
-              candlesForSignal(s,{...options,mark:true}),
-              fundingForSignal(s,{...options,now})
+              candlesForSignal(s,{...options,marketRequest,mark:true}),
+              fundingForSignal(s,{...options,marketRequest,now})
             ]);
             if(mark.status==='fulfilled'){
               const relevant=mark.value.filter(c=>c.at>Date.parse(outcome.entryAt)&&
