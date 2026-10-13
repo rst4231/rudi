@@ -534,3 +534,19 @@ test('personal AI halo refreshes after account switch and clears even for unchan
  assert.match(app,/if\(res\.unchanged\)\{overviewAt=Date\.now\(\);markHalo\(false\)/);
  assert.match(app,/visibilitychange.*checkStatus\(true\)/);
 });
+
+test('new morning AI reports trigger a visible halo and polling while the PWA remains open',()=>{
+ const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
+ const css=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
+ const shell=fs.readFileSync(path.join(__dirname,'..','public','app.css'),'utf8');
+ assert.match(app,/HALO_CHECK_INTERVAL_MS=90\*1000/);
+ assert.match(app,/window\.setInterval\(\(\)=>\{if\(!open&&\!document\.hidden\)void checkStatus\(\);\},HALO_CHECK_INTERVAL_MS\)/);
+ assert.match(app,/window\.addEventListener\('online',\(\)=>void checkStatus\(true\)\)/);
+ assert.match(app,/call\('status'\)/);
+ assert.match(app,/markHalo\(res\.unread\)/);
+ assert.match(css,/#avatar\.pc-unread\{/);
+ assert.match(css,/outline:3px solid #17ca7b!important/);
+ assert.match(css,/filter:drop-shadow/);
+ assert.match(shell,/\.profile \.avatar\{/);
+ assert.match(app,/call\('read-report'\)/);
+});
