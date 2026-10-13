@@ -123,3 +123,19 @@ test('Market entry remains at initial quote when new candles appear',()=>{
   assert.equal(result.entryAt,'2026-10-11T09:15:00.000Z');
   assert.equal(result.execution,'market-at-sync');
 });
+
+test('Executed long and short reported as взял without entry are actionable now',()=>{
+  const openedLong=parseSignal({...base,id:201,text:'$ETH взял в лонг'});
+  const openedShort=parseSignal({...base,id:202,text:'$BTC взял в шорт'});
+  assert.equal(openedLong.direction,'long');
+  assert.equal(openedShort.direction,'short');
+  assert.equal(openedLong.paperEligible,true);
+  assert.equal(openedShort.paperEligible,true);
+  assert.equal(openedLong.entry,null);
+  assert.equal(openedShort.entry,null);
+  assert.equal(openedLong.market,'linear');
+  assert.equal(openedShort.market,'linear');
+  const priced=parseSignal({...base,id:203,text:'$ETH взял в лонг, вход 2450'});
+  assert.equal(priced.entry,2450);
+  assert.equal(parseSignal({...base,id:204,text:'$BTC после пробоя планирую взять в лонг'}),null);
+});

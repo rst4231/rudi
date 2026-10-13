@@ -108,13 +108,13 @@ function parseSignal(row){
   const text=String(row.text),lower=text.toLowerCase();
   // Position top-ups are follow-ups, not fresh virtual entries.
   if(parseTradeAdjustment(row)&&
-    !/(?:^|[^а-яёa-z])(?:открыл|открываю|заш[её]л|вхожу|беру)(?=$|[^а-яёa-z])/i.test(text))return null;
+    !/(?:^|[^а-яёa-z])(?:открыл|открываю|заш[её]л|вхожу|беру|взял|взяла)(?=$|[^а-яёa-z])/i.test(text))return null;
   if(/(?:^|[^а-яёa-z])(отзыв|розыгрыш|реферал|учебник|подписка|вакансия)(?=$|[^а-яёa-z])/i.test(text)&&
-     !/(?:беру|заш[её]л|вхожу|открыл|открываю)\s.{0,40}(?:шорт|лонг)/i.test(text))return null;
+     !/(?:беру|взял|взяла|заш[её]л|вхожу|открыл|открываю)\s.{0,40}(?:шорт|лонг)/i.test(text))return null;
   const ticker=text.match(/\$([a-z0-9]{2,14})\b/i)?.[1]?.toUpperCase();
   if(!ticker||!/(?:^|[^а-яёa-z])(шорт|short|лонг|long)(?=$|[^а-яёa-z])/i.test(text))return null;
   const direction=/(?:^|[^а-яёa-z])(шорт|short)(?=$|[^а-яёa-z])/i.test(text)?'short':'long';
-  const actionable=/(?:^|[^а-яёa-z])(?:беру|заш[её]л|вхожу|открыл|открываю|набираю|набираюсь|докупаю|лонгую|шорчу)(?=$|[^а-яёa-z])|можно\s+(?:брать|открывать)/i.test(lower);
+  const actionable=/(?:^|[^а-яёa-z])(?:беру|взял|взяла|заш[её]л|вхожу|открыл|открываю|набираю|набираюсь|докупаю|лонгую|шорчу)(?=$|[^а-яёa-z])|можно\s+(?:брать|открывать)/i.test(lower);
   if(!actionable)return null;
   const conditional=/(?:^|[^а-яёa-z])(?:если|после|планирую)(?=$|[^а-яёa-z])|при\s+условии|можно\s+брать/i.test(lower);
   // Do not infer entry from a mentioned market level or from "now".

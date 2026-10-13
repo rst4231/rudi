@@ -17,13 +17,13 @@ test('six shortcuts sit before conditional meditation hint and profile',()=>{
 });
 test('games button is executable and its scripts are loaded',()=>{
  const html=src('public/index.html'),code=src('public/home-reference-layout.js');
- assert.match(html,/rudi-games\.js\?v=4\.217/);
- assert.match(html,/rudi-games\.css\?v=4\.217/);
+ assert.match(html,/rudi-games\.js\?v=4\.218/);
+ assert.match(html,/rudi-games\.css\?v=4\.218/);
  assert.match(code,/window\.RudiGames\?\.open\?\.\(\)/);
 });
 test('OKX UI assets are cache-busted, but Bybit history stays visible',()=>{
  const html=src('public/index.html');
- assert.match(html,/crypto-algorithms\.js\?v=4\.217/);
+ assert.match(html,/crypto-algorithms\.js\?v=4\.218/);
  assert.match(html,/OKX · новые сделки/);
  assert.match(html,/Bybit · архив/);
 });
