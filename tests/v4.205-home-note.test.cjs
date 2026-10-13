@@ -97,14 +97,14 @@ test('note expansion and text are isolated by actor',async()=>{
  assert.equal((await call('Рустам','get')).note.expanded,false);
  assert.equal((await call('Рустам','get')).note.text,'Моя запись');
 });
-test('note is a draggable tile; runtime inserts after dashboard for each actor',()=>{
+test('note is a draggable tile; runtime defaults immediately above smart-home for each actor',()=>{
  const html=fs.readFileSync('public/index.html','utf8');
  const build=fs.readFileSync('build.cjs','utf8');
  assert.match(html,/id="homeNoteTile"[^>]*data-home-tile="note"/);
  assert.match(build,/function patchHomeNoteLayout/);
- assert.match(build,/HOME_TILE_DEFAULT_ORDER = \['dashboard','note','rustam'/);
- assert.match(build,/return \['dashboard','note',\.\.\.people/);
- assert.match(build,/if\(!valid\.includes\('note'\)\)/);
- assert.match(build,/const dashboardIndex=valid\.indexOf\('dashboard'\)/);
+ assert.match(build,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home'/);
+ assert.match(build,/return \['dashboard',\.\.\.people,'lulu','priority','recommendations','note','smart-home'/);
+ assert.match(build,/if\(!requested\.includes\('note'\)\)/);
+ assert.match(build,/const smartHomeIndex=valid\.indexOf\('smart-home'\)/);
  assert.match(build,/patchHomeNoteLayout\(patchRetiredRuntime/);
 });
