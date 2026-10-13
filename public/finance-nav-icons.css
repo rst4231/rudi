@@ -39,7 +39,7 @@
  box-shadow:0 0 0 2px rgba(244,67,78,.13);
 }
 #financePage #financeTabs .rudi-literacy-unread[hidden]{display:none!important}
-body[data-app-tab="finances"] .shell{
+body[data-primary-nav="hidden"][data-app-tab="finances"] .shell{
  padding-bottom:calc(112px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
 }
 body:not([data-app-tab="finances"]) #financeTabs.rudi-finance-icon-nav,
