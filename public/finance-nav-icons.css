@@ -79,3 +79,38 @@ body.auth-login #financeTabs.rudi-finance-icon-nav,
 body.keyboard-editing #financeTabs.rudi-finance-icon-nav,
 body.ticktick-task-modal-open #financeTabs.rudi-finance-icon-nav{display:none!important}
 @media(max-width:430px){body #financeTabs.rudi-finance-icon-nav{width:100%!important}}
+
+/* v4.215: match the five-icon home bar on all viewport widths. */
+body #financeTabs.rudi-finance-icon-nav{
+  min-height:72px!important;gap:2px!important;
+  padding:10px 10px max(8px,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px))!important;
+  border-radius:20px 20px 0 0!important;
+}
+body #financeTabs.rudi-finance-icon-nav .finance-tab{
+  min-height:54px!important;padding:6px 2px!important;border-radius:16px!important;
+}
+body #financeTabs.rudi-finance-icon-nav .rudi-finance-icon{
+  width:34px!important;height:34px!important;border-radius:11px!important;
+}
+body #financeTabs.rudi-finance-icon-nav .rudi-finance-icon svg{
+  width:24px!important;height:24px!important;
+}
+body #financeTabs.rudi-finance-icon-nav .rudi-literacy-unread{
+  top:5px;right:clamp(6px,15%,18px);
+}
+@media(max-width:430px){
+ body #financeTabs.rudi-finance-icon-nav{
+  min-height:70px!important;gap:2px!important;
+  padding:9px 8px max(7px,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px))!important;
+  border-radius:18px 18px 0 0!important;
+ }
+ body #financeTabs.rudi-finance-icon-nav .finance-tab{
+  min-height:52px!important;padding:5px 1px!important;
+ }
+ body #financeTabs.rudi-finance-icon-nav .rudi-finance-icon{
+  width:32px!important;height:32px!important;border-radius:11px!important;
+ }
+ body #financeTabs.rudi-finance-icon-nav .rudi-finance-icon svg{
+  width:23px!important;height:23px!important;
+ }
+}
