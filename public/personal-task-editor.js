@@ -40,8 +40,8 @@ function init(){
     '<form id="rudiPersonalTaskForm" class="ticktick-task-form">'+
       '<label class="ticktick-task-field"><span>Что сделать</span><input id="rudiPersonalTaskTitle" maxlength="500" required autocomplete="off"></label>'+
       '<div class="ticktick-task-field-row ticktick-task-date-time-row">'+
-       '<label class="ticktick-task-field"><span>Дата</span><input id="rudiPersonalTaskDate" type="date" class="rudi-personal-native-datetime" aria-label="Дата дела"></label>'+
-       '<label class="ticktick-task-field"><span>Время</span><input id="rudiPersonalTaskTime" type="time" class="rudi-personal-native-datetime" aria-label="Время дела"></label></div>'+
+       '<label class="ticktick-task-field"><span>Дата</span><input id="rudiPersonalTaskDate" type="date"></label>'+
+       '<label class="ticktick-task-field"><span>Время</span><input id="rudiPersonalTaskTime" type="time"></label></div>'+
 
       '<label class="ticktick-task-field"><span>Список TickTick</span><select id="rudiPersonalTaskProject"><option value="">Загружаю списки…</option></select></label>'+
       '<label class="ticktick-task-field"><span>Описание</span><textarea id="rudiPersonalTaskDescription" maxlength="5000" rows="3" placeholder="Необязательно"></textarea></label>'+
@@ -158,8 +158,6 @@ function replaceTemporalInputs(){
     const fresh=document.createElement('input');
     fresh.id=previous.id;
     fresh.type=type;
-    fresh.className='rudi-personal-native-datetime';
-    fresh.setAttribute?.('aria-label',type==='date'?'Дата дела':'Время дела');
     previous.replaceWith(fresh);
     if(type==='date'){
       fresh.addEventListener('change',syncTime);
