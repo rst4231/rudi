@@ -1,7 +1,6 @@
 /* RUDI v4.216: reference composition, with native app controls preserved. */
 body[data-app-tab="home"] .home-dashboard-summary{
-  padding:8px 13px!important;
-  gap:2px!important;
+  width:96%!important;max-width:100%!important;margin-inline:auto!important;
 }
 body[data-app-tab="home"] .home-dashboard-summary .home-dashboard-head{
   display:grid!important;
@@ -10,8 +9,6 @@ body[data-app-tab="home"] .home-dashboard-summary .home-dashboard-head{
   align-items:center!important;
   gap:5px 8px!important;
   margin:0!important;
-  padding:7px 7px 8px!important;
-  min-height:0!important;
 }
 body[data-app-tab="home"] .home-dashboard-head .home-dashboard-greeting{grid-area:greeting;min-width:0!important;}
 body[data-app-tab="home"] .home-dashboard-head .home-dashboard-tools{grid-area:controls;justify-self:end;}
@@ -73,6 +70,7 @@ body[data-app-tab="home"] .rudi-home-shortcuts :is(#supplementProfileButton,#fas
 body[data-app-tab="home"] .rudi-home-shortcuts :is(.profile-tool-reminder-badge,.fasting-profile-elapsed){z-index:2}
 body[data-app-tab="home"] #homeRustamTile:has(#displayName),
 body[data-app-tab="home"] #homeDianaTile:has(#displayName){
+  width:96%!important;max-width:100%!important;margin-inline:auto!important;
   padding:12px 12px!important;gap:7px!important;
 }
 body[data-app-tab="home"] .rudi-home-self-line{
@@ -112,7 +110,7 @@ body[data-app-tab="home"] .rudi-home-self-line .profile-person-head .profile-moo
   display:none!important;
 }
 body[data-app-tab="home"] .meditation-mood-nudge{
-  width:100%;box-sizing:border-box;margin:0!important;
+  width:min(92%,470px);max-width:100%;box-sizing:border-box;margin:0 auto!important;
 }
 @media(max-width:375px){
   body[data-app-tab="home"] .rudi-home-shortcuts{width:96%;padding:9px 7px}
