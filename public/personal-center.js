@@ -12,6 +12,7 @@ function positiveShare(entry){
 }
 let root=null,open=false,who='',data=null,report=null,lastStatus=0,loading=false,manualLoading=false,activeSheet='',cycleInfo=null,overviewAt=0,refreshing=false,overviewPromise=null,rhythmMode='habits',translatingReportId='';
 const cachePrefix='rudi-personal-center-session:';
+const HALO_CHECK_INTERVAL_MS=90*1000;
 function setStatus(t){if($('pcStatus'))$('pcStatus').textContent=String(t||'')}
 async function call(operation,extra={}){
  const res=await fetch(API,{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},body:JSON.stringify({operation,initData:String(window.Telegram?.WebApp?.initData||''),...extra})});
@@ -62,6 +63,10 @@ function attach(){
  if(!tryStatus()){const observer=new MutationObserver(()=>{if(tryStatus())observer.disconnect();});observer.observe(document.body,{attributes:true,attributeFilter:['class']});}
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)void checkStatus(true);});
  window.addEventListener('focus',()=>void checkStatus(true));
+ window.addEventListener('online',()=>void checkStatus(true));
+ // A morning report can be published while the PWA remains in the foreground.
+ // Poll status only: no full overview, language translation or new AI generation.
+ window.setInterval(()=>{if(!open&&!document.hidden)void checkStatus();},HALO_CHECK_INTERVAL_MS);
  // Immediately clear a previous account's halo after switching actors
  // within the PWA, before loading the next account's unread state.
  new MutationObserver(()=>{lastStatus=0;markHalo(false);void checkStatus(true);})
@@ -71,7 +76,7 @@ function attach(){
 }
 async function checkStatus(force=false){
  if(open||document.hidden||document.body.classList.contains('auth-pending'))return;
- if(!force&&Date.now()-lastStatus<8*60*1000)return;
+ if(!force&&Date.now()-lastStatus<HALO_CHECK_INTERVAL_MS)return;
  lastStatus=Date.now();
  try{const res=await call('status');if(who&&res.actor!==who){data=null;report=null;cycleInfo=null;overviewAt=0;}who=res.actor;markHalo(res.unread);}catch(e){lastStatus=0;}
 }
