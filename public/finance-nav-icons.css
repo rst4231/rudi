@@ -1,4 +1,4 @@
-/* RUDI v4.212: bottom finance navigation mirrors the home bottom bar. */
+/* RUDI v4.214: fixed finance navigation is a body-level viewport portal. */
 body > #financeTabs.rudi-finance-icon-nav{
  position:fixed!important;left:50%!important;bottom:0!important;
  z-index:4210!important;transform:translateX(-50%)!important;
@@ -44,6 +44,7 @@ body[data-primary-nav="hidden"][data-app-tab="finances"] .shell{
  padding-bottom:calc(88px + max(env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px)))!important;
 }
 body:not([data-app-tab="finances"]) > #financeTabs.rudi-finance-icon-nav,
+body:not(.auth-ok) > #financeTabs.rudi-finance-icon-nav,
 body:has(#financePage:is(.is-personal-history,.is-category-history,.is-expense-history,.is-income-history,.is-capital-history)) > #financeTabs.rudi-finance-icon-nav{
  display:none!important;
 }
