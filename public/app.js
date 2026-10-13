@@ -139,12 +139,13 @@
         activityVersion:0,
         lulu:null,
         nearestStatic:null,
-        partnerLastExpense:null
+        partnerLastExpense:null,
+        personalPush:[]
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','priority','recommendations','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
+        return ['dashboard',...people,'lulu','priority','recommendations','note','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
       }
       function homePrimaryBlocksMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -1649,6 +1650,14 @@
           valid.splice(afterPriority>=0?afterPriority+1:valid.length,0,'recommendations');
         }
         for(const id of defaults) if(!valid.includes(id)) valid.push(id);
+        // Only insert this new tile when the owner has not positioned it manually.
+        // Every other saved block keeps its existing relative order.
+        if(!requested.includes('note')){
+          const oldIndex=valid.indexOf('note');
+          if(oldIndex>=0)valid.splice(oldIndex,1);
+          const smartHomeIndex=valid.indexOf('smart-home');
+          valid.splice(smartHomeIndex>=0?smartHomeIndex:valid.length,0,'note');
+        }
         return valid;
       }
 
@@ -8576,6 +8585,7 @@
         const actor=String(item?.actor||'').trim();
         const visibleTo=String(item?.visibleTo||'').trim();
         const partnerActor=currentActor==='Диана'?'Рустам':'Диана';
+        if(type==='personal-push')return visibleTo===currentActor;
         if(type==='reward-unlock'&&visibleTo===currentActor) return true;
         if(type==='photo'||type==='calendar') return true;
         return actor===partnerActor&&ACTIVITY_NOTIFICATION_TYPES.has(type);
@@ -8585,11 +8595,47 @@
         return !id||currentActivityReadIds().includes(id);
       }
       function activityNotificationItems(items=homeDashboardState.activity){
-        return (Array.isArray(items)?items:[]).filter(activityNotificationItem);
+        return [...(Array.isArray(items)?items:[]),...(Array.isArray(homeDashboardState.personalPush)?homeDashboardState.personalPush:[])].filter(activityNotificationItem);
       }
       function activityUnreadItems(items=homeDashboardState.activity){
         const read=new Set(currentActivityReadIds());
         return activityNotificationItems(items).filter(item=>!read.has(String(item?.id||'')));
+      }
+      // D1-backed actor-specific history of personal web pushes. The server is the
+      // source of truth, so dismissed device banners are still available here.
+      let personalPushFetchPromise=null,personalPushLastFetch=0;
+      async function loadPersonalPushInbox({force=false}={}){
+        if(!currentActor)return null;
+        if(personalPushFetchPromise)return personalPushFetchPromise;
+        if(!force&&Date.now()-personalPushLastFetch<90000)return null;
+        const actor=currentActor;
+        personalPushFetchPromise=(async()=>{
+          const data=await rudiPushApi('push-inbox');
+          if(data.actor!==actor||currentActor!==actor)return null;
+          const rows=Array.isArray(data.notifications)?data.notifications:[];
+          homeDashboardState.personalPush=rows.filter(row=>row&&row.kind==='show'&&row.id).map(row=>{
+            let targetTab='',targetItem='';
+            try{
+              const url=new URL(String(row.url||'/'),location.origin);
+              if(url.origin===location.origin){
+                const value=String(url.searchParams.get('tab')||'').trim();
+                if(['home','feed','schedule','wishlist','photos','products','saves','smart-saves','score','messenger','fasting','dates','car'].includes(value))targetTab=value;
+                targetItem=String(url.searchParams.get('item')||'').slice(0,120);
+              }
+            }catch(_){}
+            return {id:'push:'+String(row.id),type:'personal-push',actor,visibleTo:actor,
+              text:String(row.title||'RUDI'),notificationTitle:String(row.title||'RUDI'),
+              notificationBody:String(row.body||''),createdAt:String(row.createdAt||''),
+              targetTab,targetItem,icon:'🔔'};
+          });
+          personalPushLastFetch=Date.now();
+          renderActivityJournalItems(homeDashboardState.activity);
+          return homeDashboardState.personalPush;
+        })().catch(error=>{
+          console.warn('RUDI_PERSONAL_PUSH_INBOX_WARN',String(error?.message||error));
+          return null;
+        }).finally(()=>{personalPushFetchPromise=null});
+        return personalPushFetchPromise;
       }
       function activityNotificationsHaveUnread(){return activityUnreadItems().length>0}
       function updateActivityNotificationBadge(){
@@ -8660,6 +8706,7 @@
         const dashboard=document.getElementById('homeDashboard');
         clearTimeout(activityNotificationsCloseTimer);
         if(next){
+          void loadPersonalPushInbox({force:true});
           setSettingsOpen(false);
           activityJournalExpanded=false;
           positionActivityNotificationsPanel();
@@ -8795,6 +8842,7 @@
       function activityEventView(item){
         const raw=String(item?.text||'').trim();
         const type=String(item?.type||'');
+        if(type==='personal-push')return {title:String(item?.notificationTitle||'RUDI'),detail:String(item?.notificationBody||'')};
         if(type==='fasting'){
           const split=raw.match(/^(.+?):\s*(.+)$/u);
           if(split) return {title:split[1],detail:split[2]};
@@ -8858,7 +8906,7 @@
         // Product list edits are intentionally kept out of the shared activity feed.
         // This also hides legacy records without deleting other historical activity.
         const withoutProductAdds=source.filter(item=>String(item?.type||'')!=='products');
-        const filtered=activityPanelMode==='history'?withoutProductAdds:withoutProductAdds.filter(activityNotificationItem);
+        const filtered=activityPanelMode==='history'?withoutProductAdds:activityNotificationItems(withoutProductAdds);
         const summaries=compactActivityItems(filtered);
         const visible=activityJournalExpanded?summaries:summaries.slice(0,5);
         const read=new Set(currentActivityReadIds());
@@ -8966,6 +9014,7 @@
 
       async function loadActivityJournal({silent=false}={}){
         if(!currentActor) return null;
+        void loadPersonalPushInbox().catch(()=>{});
         try{
           const payload=await activityRequest();
           renderActivityJournal(payload);
@@ -10917,6 +10966,7 @@
         if(!('serviceWorker' in navigator)||window.__rudiPushNavigationBound==='1') return;
         window.__rudiPushNavigationBound='1';
         navigator.serviceWorker.addEventListener('message',event=>{
+          if(event.data?.type==='RUDI_PUSH_RECEIVED'){void loadPersonalPushInbox({force:true});return;}
           if(event.data?.type!=='RUDI_PUSH_NAVIGATE') return;
           const raw=String(event.data?.url||'/');
           try{
