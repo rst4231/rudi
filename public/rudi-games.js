@@ -21,7 +21,7 @@ const actor=()=>document.body?.dataset?.rudiActor==='Диана'?'Диана':'�
 const storageKey=()=> 'rudi-games-v1:'+actor();
 let page=null,mode='home',memoryTimer=null,level=1,sequence='',quiz=[],index=0,correct=0,answered=false,
  cash=100000,units=0,price=100,previousPrice=100,round=0,history=[];
-function stats(){try{const v=JSON.parse(localStorage.getItem(storageKey())||'{}');return {memory:Number(v.memory)||0,quiz:Number(v.quiz)||0,market:Number(v.market)||-100,sessions:Number(v.sessions)||0}}catch{return {memory:0,quiz:0,market:-100,sessions:0}}}
+function stats(){try{const v=JSON.parse(localStorage.getItem(storageKey())||'{}');return {memory:Number(v.memory)||0,quiz:Number(v.quiz)||0,market:Number.isFinite(Number(v.market))?Number(v.market):-100,sessions:Number(v.sessions)||0}}catch{return {memory:0,quiz:0,market:-100,sessions:0}}}
 function save(patch){const data={...stats(),...patch};try{localStorage.setItem(storageKey(),JSON.stringify(data))}catch{}return data}
 function haptic(){try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch{}}
 function header(title,subtitle=''){
@@ -65,11 +65,9 @@ function memoryCheck(){
    level++;
    $('rudiGameMessage').textContent='Верно! Следующий уровень сложнее.';
    $('rudiMemoryCheck').textContent='Следующий уровень';$('rudiMemoryCheck').disabled=false;
-   $('rudiMemoryCheck').onclick=memoryShow;
  }else{
    $('rudiGameMessage').textContent='Ответ: '+sequence+'. Хорошая попытка!';
    $('rudiMemoryCheck').textContent='Попробовать снова';$('rudiMemoryCheck').disabled=false;
-   $('rudiMemoryCheck').onclick=()=>{level=1;memoryShow()};
  }
  $('rudiMemoryAnswer').disabled=true;
  // Replace the original handler so the next click never resubmits the answer.
