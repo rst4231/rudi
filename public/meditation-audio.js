@@ -120,12 +120,16 @@ function tone(hz,sec,level=.09){
  gain.gain.exponentialRampToValueAtTime(.0001,t+sec);
  osc.connect(gain);gain.connect(master);osc.start(t);osc.stop(t+sec+.04);
 }
+function clearSoundNodes(){
+ cleanups.forEach(fn=>{try{fn()}catch{}});cleanups=[];
+ try{master?.disconnect()}catch{};master=null;
+}
 function startAmbient(){
- closeContext();
+ clearSoundNodes();
  if(sound==='none'||!activeId||!speechAllowed)return;
  try{
   const C=window.AudioContext||window.webkitAudioContext;if(!C){note('Фоновое аудио не поддерживается этим браузером');return}
-  audioCtx=new C();void audioCtx.resume();
+  if(!audioCtx||audioCtx.state==='closed')audioCtx=new C();void audioCtx.resume();
   master=audioCtx.createGain();master.gain.value=Math.max(.0001,volume/100);master.connect(audioCtx.destination);
   if(sound==='rain')addNoise('white',850,.37,0);
   else if(sound==='ocean')addNoise('brown',520,.43,.13);
@@ -179,8 +183,8 @@ function onState(active){
  if(id===activeId)return;
  stopAudio();activeId=id;render();
 }
-function onFinish(){activeId='';stopAudio();render()}
-function onClose(){stopAudio()}
+function onFinish(){activeId='';stopAudio();$('meditationOrbit')?.classList.remove('is-guided');render()}
+function onClose(){stopAudio();$('meditationOrbit')?.classList.remove('is-guided')}
 function tick(active){
  if(!active||!activeId||!speechAllowed||active.id!==activeId)return;
  const total=Math.max(1,Number(active.goalMinutes)||10)*60;
