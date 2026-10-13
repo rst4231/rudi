@@ -7,7 +7,14 @@ const $=id=>document.getElementById(id);
 const heading=$('homeNoteToggle'),edit=$('homeNoteEdit'),content=$('homeNoteContent'),preview=$('homeNotePreview');
 const editor=$('homeNoteEditor'),textarea=$('homeNoteText'),save=$('homeNoteSave'),cancel=$('homeNoteCancel'),status=$('homeNoteStatus');
 const LIMIT=8000;
-let text='',loaded=false,expanded=false,editing=false,busy=false,lastFetched=0,loading=null;
+let text='',loaded=false,expanded=false,preferredExpanded=false,editing=false,busy=false,lastFetched=0,loading=null;
+let viewSave=Promise.resolve();
+function rememberExpanded(value){
+ preferredExpanded=Boolean(value);
+ const next=preferredExpanded;
+ viewSave=viewSave.catch(()=>{}).then(()=>request('set-expanded',{expanded:next})).catch(()=>showStatus('Не удалось сохранить состояние заметки'));
+ return viewSave;
+}
 const showStatus=value=>{status.textContent=value||'';status.hidden=!value};
 async function request(operation,extra={}){
  const response=await fetch('/api/home-note',{
@@ -47,7 +54,10 @@ async function load(){
   try{
    const result=await request('get');
    text=typeof result.note?.text==='string'?result.note.text:'';
-   loaded=true;expanded=Boolean(text.trim());editing=false;lastFetched=Date.now();
+   loaded=true;
+   preferredExpanded=typeof result.note?.expanded==='boolean'?result.note.expanded:Boolean(text.trim());
+   expanded=Boolean(text.trim())&&preferredExpanded;
+   editing=false;lastFetched=Date.now();
    showStatus('');render();
   }catch(error){
    if(!loaded){loaded=true;expanded=false;editing=false;}
@@ -66,7 +76,7 @@ function beginEdit(){
 }
 function discard(){
  if(busy)return;
- editing=false;expanded=Boolean(text.trim());showStatus('');render();
+ editing=false;expanded=Boolean(text.trim())&&preferredExpanded;showStatus('');render();
 }
 async function persist(){
  if(busy)return;
@@ -77,6 +87,7 @@ async function persist(){
   const result=await request('save',{text:value});
   text=typeof result.note?.text==='string'?result.note.text:value;
   lastFetched=Date.now();editing=false;expanded=Boolean(text.trim());
+  void rememberExpanded(expanded);
   showStatus('');render();
  }catch(error){
   showStatus(error.message||'Не удалось сохранить заметку');
@@ -86,7 +97,7 @@ async function persist(){
 heading.addEventListener('click',()=>{
  if(editing||busy)return;
  if(!text.trim()){beginEdit();return}
- expanded=!expanded;render();
+ expanded=!expanded;render();void rememberExpanded(expanded);
 });
 edit.addEventListener('click',beginEdit);
 preview.addEventListener('click',beginEdit);
