@@ -1,19 +1,40 @@
 /* RUDI home arrangement: preserve original controls and profile energy logic. */
 (()=>{'use strict';
  const $=id=>document.getElementById(id);
- let pending=false,outlineObserver=null;
- // Path coordinates match the button's 14px corner radius and preserve tracked progress.
- const roundedOutline='M50 3 H83 A14 14 0 0 1 97 17 V83 A14 14 0 0 1 83 97 H17 A14 14 0 0 1 3 83 V17 A14 14 0 0 1 17 3 H50';
+ let pending=false,outlineObserver=null,outlineResizeObserver=null;
+ // Draw rounded outlines in the real button dimensions (not a stretched 100x100 SVG).
+ function roundedOutline(width,height){
+   const inset=3.5,r=Math.max(1,Math.min(14,width/2-inset,height/2-inset));
+   const w=width-inset,h=height-inset;
+   return 'M '+width/2+' '+inset+
+     ' H '+(w-r)+' A '+r+' '+r+' 0 0 1 '+w+' '+(inset+r)+
+     ' V '+(h-r)+' A '+r+' '+r+' 0 0 1 '+(w-r)+' '+h+
+     ' H '+(inset+r)+' A '+r+' '+r+' 0 0 1 '+inset+' '+(h-r)+
+     ' V '+(inset+r)+' A '+r+' '+r+' 0 0 1 '+(inset+r)+' '+inset+
+     ' H '+width/2;
+ }
  function restoreTrackerOutlines(rail){
    for(const id of ['fastingProfileButton','supplementProfileButton']){
-     for(const path of rail.querySelectorAll('#'+id+' svg.rudi-fasting-progress-outline path,#'+id+' svg.rudi-supplement-progress-outline path')){
-       if(path.dataset.rudiRounded==='1')continue;
-       const previousLength=path.getTotalLength();
-       path.setAttribute('d',roundedOutline);
-       // Existing scripts use old perimeter lengths to compute their progress arc.
-       if(previousLength>0)path.setAttribute('pathLength',String(previousLength));
-       path.dataset.rudiRounded='1';
+     const button=rail.querySelector('#'+id);
+     const svg=button?.querySelector('svg.rudi-fasting-progress-outline,svg.rudi-supplement-progress-outline');
+     if(!svg)continue;
+     const rect=button.getBoundingClientRect();
+     const width=Math.round(rect.width*10)/10,height=Math.round(rect.height*10)/10;
+     if(!(width>12&&height>12))continue;
+     const size=width+'x'+height;
+     if(svg.dataset.rudiOutlineGeometry===size)continue;
+     const paths=svg.querySelectorAll('path');
+     for(const path of paths){
+       if(!path.dataset.rudiOriginalLength){
+         const previousLength=path.getTotalLength?.();
+         if(previousLength>0)path.dataset.rudiOriginalLength=String(previousLength);
+       }
+       path.setAttribute('d',roundedOutline(width,height));
+       if(path.dataset.rudiOriginalLength)path.setAttribute('pathLength',path.dataset.rudiOriginalLength);
      }
+     svg.setAttribute('viewBox','0 0 '+width+' '+height);
+     svg.setAttribute('preserveAspectRatio','none');
+     svg.dataset.rudiOutlineGeometry=size;
    }
  }
  function arrange(){
@@ -52,6 +73,13 @@
    if(!outlineObserver&&typeof MutationObserver==='function'){
      outlineObserver=new MutationObserver(()=>restoreTrackerOutlines(rail));
      outlineObserver.observe(rail,{childList:true,subtree:true});
+   }
+   if(!outlineResizeObserver&&typeof ResizeObserver==='function'){
+     outlineResizeObserver=new ResizeObserver(()=>restoreTrackerOutlines(rail));
+     for(const id of ['fastingProfileButton','supplementProfileButton']){
+       const button=rail.querySelector('#'+id);
+       if(button)outlineResizeObserver.observe(button);
+     }
    }
    // Existing meditation module inserts its conditional hint before the self tile.
    // Keep the rail directly before that hint or the tile, including customized home order.
