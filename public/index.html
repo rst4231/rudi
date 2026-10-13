@@ -81,6 +81,8 @@
   <script defer src="/personal-task-editor.js?v=4.209"></script>
   <script defer src="/meditation.js?v=4.197"></script>
   <script defer src="/meditation-audio.js?v=4.211"></script>
+  <script defer src="/games.js?v=4.212"></script>
+  <script defer src="/finance-tabs-bottom.js?v=4.212"></script>
   <script defer src="/finance-wallet-currency.js?v=4.180"></script>
   <script defer src="/coinkeeper-history.js?v=4.187"></script>
   <script defer src="/product-extras.js?v=4.149"></script>
@@ -149,6 +151,8 @@
   <link rel="stylesheet" href="/personal-task-editor.css?v=4.209">
   <link rel="stylesheet" href="/meditation.css?v=4.197">
   <link rel="stylesheet" href="/meditation-audio.css?v=4.211">
+  <link rel="stylesheet" href="/games.css?v=4.212">
+  <link rel="stylesheet" href="/finance-tabs-bottom.css?v=4.212">
 </head>
 <body class="auth-pending">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
@@ -386,13 +390,7 @@
         <span id="marketTickerA11y" class="market-ticker-a11y" aria-live="polite">Курсы загружаются</span>
       </section>
 
-      <nav id="financeTabs" class="finance-tabs" role="tablist" aria-label="Разделы финансов">
-        <button type="button" class="finance-tab is-active" data-finance-tab="personal" role="tab" aria-selected="true">Личные</button>
-        <button type="button" class="finance-tab" data-finance-tab="crypto" role="tab" aria-selected="false" hidden>Крипта</button>
-        <button type="button" class="finance-tab" data-finance-tab="debts" role="tab" aria-selected="false">Долги</button>
-        <button type="button" class="finance-tab" data-finance-tab="shared" role="tab" aria-selected="false">Совместные</button>
-        <button type="button" class="finance-tab" data-finance-tab="literacy" role="tab" aria-selected="false">Грамотность</button>
-      </nav>
+
 
       <div id="financeSharedPanel" class="finance-tab-panel" data-finance-panel="shared" hidden>
         <article class="finance-editor-card">
@@ -1261,6 +1259,13 @@
           <p class="crypto-algo-footnote">Только тестирование. Вход после подтверждённой свечи; моделируются комиссии, проскальзывание и стопы. Funding и реальные биржевые ликвидации не учитываются. Доходность не гарантирована.</p>
         </section>
       </div>
+      <nav id="financeTabs" class="finance-tabs finance-tabs-icons" role="tablist" aria-label="Разделы финансов">
+        <button type="button" class="finance-tab is-active" data-finance-tab="personal" role="tab" aria-label="Личные" title="Личные" aria-selected="true"><span class="finance-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-linecap="round"><circle cx="12" cy="7" r="3.6"/><path d="M4.5 20c.4-4.3 3-6.1 7.5-6.1s7.1 1.8 7.5 6.1"/></svg></span></button>
+        <button type="button" class="finance-tab" data-finance-tab="crypto" role="tab" aria-label="Крипта" title="Крипта" aria-selected="false" hidden><span class="finance-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M9 7.5h4.2a2.4 2.4 0 0 1 0 4.8H9m0 0h4.7a2.4 2.4 0 0 1 0 4.8H9m2.2-11v13m3-13v13"/></svg></span></button>
+        <button type="button" class="finance-tab" data-finance-tab="debts" role="tab" aria-label="Долги" title="Долги" aria-selected="false"><span class="finance-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="3.5" width="16" height="17" rx="3"/><path d="M8 8h8M8 12h8m-8 4h4"/></svg></span></button>
+        <button type="button" class="finance-tab" data-finance-tab="shared" role="tab" aria-label="Совместные" title="Совместные" aria-selected="false"><span class="finance-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-linecap="round"><circle cx="8" cy="8" r="3"/><circle cx="17.5" cy="9" r="2.5"/><path d="M2.5 19c.1-4 2.1-6 5.5-6 3.3 0 5.4 2 5.5 6M15 14c3.8-.3 5.6 1.6 6 5"/></svg></span></button>
+        <button type="button" class="finance-tab" data-finance-tab="literacy" role="tab" aria-label="Грамотность" title="Грамотность" aria-selected="false"><span class="finance-tab-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" stroke-linecap="round"><path d="M12 5.5c-2.6-1.9-5.4-2-9-1v13c3.5-.9 6.5-.6 9 1.2m0-13.2c2.6-1.9 5.4-2 9-1v13c-3.5-.9-6.5-.6-9 1.2m0-13.2v13.2"/></svg></span><span class="finance-literacy-unread" hidden aria-hidden="true"></span></button>
+      </nav>
     </section>
     <section class="panel partner-message" data-app-tab-section="home" data-home-tile="partner" aria-label="Послание">
       <div class="love-hearts" aria-hidden="true">

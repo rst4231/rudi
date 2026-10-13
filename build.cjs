@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { PNG } = require('pngjs');
 
-const WEB_ASSETS = ['home-note.css', 'home-note.js', 'personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'personal-task-editor.js', 'personal-task-editor.css', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'rudi-effects.js', 'rudi-effects.css', 'personal-task-editor.js', 'personal-task-editor.css', 'meditation.js', 'meditation.css', 'meditation-audio.js', 'meditation-audio.css', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js'];
+const WEB_ASSETS = ['home-note.css', 'home-note.js', 'personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'personal-task-editor.js', 'personal-task-editor.css', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'rudi-effects.js', 'rudi-effects.css', 'personal-task-editor.js', 'personal-task-editor.css', 'meditation.js', 'meditation.css', 'meditation-audio.js', 'meditation-audio.css', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js', 'finance-nav-icons.js', 'finance-nav-icons.css', 'rudi-games.js', 'rudi-games.css'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -169,6 +169,20 @@ function syncWebVersion(env = process.env) {
     /(<meta name="rudi-version" content=")[^"]*(")/,
     '$1' + label + '$2'
   );
+  // Feature modules stay outside the large legacy application bundle.
+  // Inject only absent tags, and version every URL on subsequent builds.
+  const featureStyles=['finance-nav-icons.css','rudi-games.css'];
+  const featureScripts=['finance-nav-icons.js','rudi-games.js'];
+  for(const name of featureStyles){
+    const pattern=new RegExp('/'+name.replace(/\./g,'\\.')+'\\?v=[^"\\s]+','g');
+    if(pattern.test(html)) html=html.replace(pattern,'/'+name+'?v='+assetVersion);
+    else html=html.replace('</head>','  <link rel="stylesheet" href="/'+name+'?v='+assetVersion+'">\n</head>');
+  }
+  for(const name of featureScripts){
+    const pattern=new RegExp('/'+name.replace(/\./g,'\\.')+'\\?v=[^"\\s]+','g');
+    if(pattern.test(html)) html=html.replace(pattern,'/'+name+'?v='+assetVersion);
+    else html=html.replace('</head>','  <script defer src="/'+name+'?v='+assetVersion+'"></script>\n</head>');
+  }
   writeBuiltFile(webIndexPath, html);
   // Tiny uncached release marker for Telegram/iOS environments where SW updates lag.
   writeBuiltFile(path.join(__dirname, 'public', 'version.json'), JSON.stringify({ version: label }) + '\n');

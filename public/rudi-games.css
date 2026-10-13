@@ -1,0 +1,80 @@
+/* RUDI games: independent offline full-screen module. */
+.rudi-games-page{
+ --game-bg:#eaf3ff;--game-ink:#193251;--game-card:rgba(255,255,255,.83);--game-border:rgba(78,106,173,.13);
+ position:fixed;inset:0;z-index:4420;overflow-y:auto;overscroll-behavior:contain;
+ padding:calc(14px + env(safe-area-inset-top)) max(12px,env(safe-area-inset-left)) calc(40px + env(safe-area-inset-bottom));
+ color:var(--game-ink);
+ background:radial-gradient(ellipse at 50% 0%,#dbe5ff,transparent 58%),linear-gradient(145deg,#f3f7ff,#e8f1f6);
+}
+.rudi-games-page[hidden]{display:none!important}
+body.rudi-games-open{overflow:hidden!important}
+body.rudi-games-open #appTabBar,body.rudi-games-open #financeTabs{display:none!important}
+.rudi-games-head{max-width:740px;display:flex;align-items:center;gap:14px;margin:0 auto 24px}
+.rudi-games-head>button{flex:0 0 44px;width:44px;height:44px;display:grid;place-items:center;border:1px solid var(--game-border);
+ border-radius:14px;background:var(--game-card);color:inherit}
+.rudi-games-head svg{width:21px;height:21px;stroke:currentColor;stroke-width:1.9;fill:none}
+.rudi-games-head h1{font-size:23px;letter-spacing:-.04em;margin:0}
+.rudi-games-head small{font-size:12px;opacity:.6}
+.rudi-games-content{max-width:740px;margin:0 auto;display:grid;gap:18px}
+.rudi-game-hero{padding:23px 22px;border-radius:23px;background:linear-gradient(128deg,#355dd5,#6987e8);color:white;box-shadow:0 12px 40px #527dde40}
+.rudi-games-overline{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;opacity:.7}
+.rudi-game-hero h2{font-size:29px;line-height:1.2;letter-spacing:-.045em;margin:10px 0 6px}
+.rudi-game-hero p{font-size:13px;line-height:1.5;max-width:490px;opacity:.9;margin:0}
+.rudi-games-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.rudi-games-stats>div{padding:13px 8px;border-radius:18px;border:1px solid var(--game-border);background:var(--game-card);display:grid;gap:8px;text-align:center;min-width:0}
+.rudi-games-stats small{font-size:11px;opacity:.65}
+.rudi-games-stats strong{font-size:clamp(13px,3.2vw,21px);font-variant-numeric:tabular-nums;letter-spacing:-.025em;overflow-wrap:anywhere}
+.rudi-games-list{display:grid;gap:12px}
+.rudi-game-card{display:flex;align-items:center;gap:16px;text-align:left;width:100%;border:1px solid var(--game-border);
+ border-radius:21px;background:var(--game-card);padding:16px;color:inherit;cursor:pointer;font:inherit;box-shadow:0 6px 22px #304b7620}
+.rudi-game-card>span:nth-child(2){display:grid;gap:5px;flex:1;min-width:0}
+.rudi-game-card b{font-size:15px}
+.rudi-game-card small{font-size:12px;line-height:1.4;opacity:.65}
+.rudi-game-glyph{width:51px;height:51px;border-radius:15px;display:grid;place-items:center;background:rgba(73,115,220,.14);font-size:26px;font-weight:750;color:#4a72d8}
+.rudi-game-arrow{font-size:28px;opacity:.34}
+.rudi-game-work,.rudi-game-result{border:1px solid var(--game-border);border-radius:24px;background:var(--game-card);padding:22px;display:grid;gap:18px}
+.rudi-game-work>small,.rudi-game-result>span{font-size:12px;font-weight:750;opacity:.6}
+.rudi-game-work p{font-size:13px;line-height:1.5;margin:0}
+.rudi-game-work h2{font-size:22px;margin:0;letter-spacing:-.03em;line-height:1.3}
+.rudi-game-primary{width:100%;min-height:50px;border:0;border-radius:15px;background:#4c77da;color:#fff;font:inherit;font-size:15px;font-weight:790;cursor:pointer}
+.rudi-game-primary:disabled{opacity:.52;cursor:default}
+.rudi-memory-number{height:100px;display:grid;place-items:center;border-radius:21px;font-size:clamp(31px,8vw,51px);letter-spacing:.1em;font-weight:800;font-variant-numeric:tabular-nums;background:rgba(96,139,226,.12)}
+.rudi-memory-label{display:grid;gap:9px;font-size:13px;font-weight:700}
+.rudi-memory-label[hidden]{display:none!important}
+.rudi-memory-label input{min-height:54px;box-sizing:border-box;width:100%;border:1px solid var(--game-border);border-radius:15px;background:var(--game-card);color:inherit;font-size:27px;text-align:center;font-variant-numeric:tabular-nums;letter-spacing:.1em}
+#rudiGameMessage{font-size:14px;font-weight:700;min-height:18px}
+.rudi-quiz-options{display:grid;gap:10px}
+.rudi-quiz-options button{min-height:57px;border:1px solid var(--game-border);border-radius:15px;background:rgba(104,133,194,.09);padding:12px 15px;font:inherit;color:inherit;font-size:14px;text-align:left;cursor:pointer}
+.rudi-quiz-options button.correct{border-color:#47bd89;background:rgba(57,183,119,.19)}
+.rudi-quiz-options button.wrong{border-color:#eb7379;background:rgba(233,90,90,.14)}
+.rudi-quiz-options button:disabled{cursor:default}
+.rudi-games-progress{height:7px;border-radius:99px;background:#6684c62b;overflow:hidden}
+.rudi-games-progress i{display:block;height:100%;border-radius:inherit;background:#4a7de6}
+.rudi-game-work .rudi-game-hint{font-size:12px;opacity:.67}
+.rudi-game-result{text-align:center;padding:40px 24px}
+.rudi-game-result strong{font-size:clamp(33px,8vw,52px);font-variant-numeric:tabular-nums;letter-spacing:-.05em;overflow-wrap:anywhere}
+.rudi-game-result p{margin:0;font-size:14px;line-height:1.6}
+.rudi-market-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.rudi-market-head span{font-size:14px;font-weight:700}
+.rudi-market-head small{font-size:11px;opacity:.65}
+.rudi-market-price{display:grid;text-align:center;gap:5px;padding:21px;border-radius:21px;background:rgba(96,139,226,.12)}
+.rudi-market-price small{opacity:.65}.rudi-market-price strong{font-size:37px;font-variant-numeric:tabular-nums}
+.rudi-market-price span.gain{color:#1f9a66}.rudi-market-price span.loss{color:#dc5963}
+.rudi-market-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.rudi-market-actions button{min-height:52px;border-radius:14px;border:1px solid var(--game-border);background:#4574d5;color:white;font:inherit;font-weight:750;font-size:12px;cursor:pointer}
+.rudi-market-actions button:nth-child(2){background:rgba(98,123,165,.2);color:inherit}
+.rudi-market-actions button:nth-child(3){background:#40506b}
+.rudi-market-actions button:disabled{opacity:.4}
+html[data-theme="dark"] .rudi-games-page{
+ --game-ink:#e4ecff;--game-card:rgba(26,39,64,.91);--game-border:rgba(151,181,236,.15);
+ background:radial-gradient(ellipse at 45% 1%,#233c63,transparent 55%),linear-gradient(140deg,#111b30,#14253a);
+}
+html[data-theme="dark"] .rudi-game-primary{background:#4a73dc}
+html[data-theme="dark"] .rudi-market-price span.gain{color:#59dea3}
+@media(max-width:400px){
+ .rudi-game-card{padding:13px 11px;gap:10px}.rudi-game-card b{font-size:13px}.rudi-game-card small{font-size:11px}
+ .rudi-game-glyph{width:43px;height:43px;flex:0 0 43px}
+ .rudi-game-work{padding:17px 13px}
+ .rudi-market-price strong{font-size:29px}
+}
+@media(prefers-reduced-motion:reduce){.rudi-games-page *{animation:none!important;transition:none!important}}
