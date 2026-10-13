@@ -38,3 +38,16 @@ test('audio module isolates saved practice metadata by actor without changing ex
  assert.match(existing,/RudiMeditationAudio\?\.onClose/);
  assert.match(existing,/RudiMeditationAudio\?\.tick/);
 });
+
+test('voice starts on direct user gesture before asynchronous server confirmation',()=>{
+ const calls=[],storage=new Map();
+ function Utterance(text){this.text=text}
+ const window={SpeechSynthesisUtterance:Utterance,speechSynthesis:{resume(){},cancel(){},getVoices:()=>[{lang:'ru-RU',name:'Milena'}],speak:utterance=>calls.push(utterance.text)}};
+ const ctx={window,SpeechSynthesisUtterance:Utterance,document:{getElementById:()=>null},localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},setTimeout:()=>1,clearTimeout:()=>{},setInterval:()=>1,clearInterval:()=>{}};
+ vm.runInNewContext(file,ctx);
+ const player=window.RudiMeditationAudio;player.onActor('Рустам');player.prime();
+ assert.equal(calls.length,1,'first line should start on the tap');
+ player.onStarted('id-1');
+ assert.equal(calls.length,1,'do not restart the same phrase after server start');
+ player.onFinish();
+});
