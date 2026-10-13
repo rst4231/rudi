@@ -78,3 +78,21 @@ html[data-theme="dark"] .rudi-market-price span.gain{color:#59dea3}
  .rudi-market-price strong{font-size:29px}
 }
 @media(prefers-reduced-motion:reduce){.rudi-games-page *{animation:none!important;transition:none!important}}
+
+/* Online pair game. Same isolated game page, usable on iPhone/Telegram. */
+.rudi-duel-work{max-width:470px;margin:0 auto;width:100%;box-sizing:border-box}
+.rudi-duel-score{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:750}
+.rudi-duel-score span:nth-child(2){font-size:10px;opacity:.6}
+.rudi-duel-score b{font-size:20px;color:#4a78d9}
+.rudi-duel-turn{margin:0;text-align:center;font-size:15px;font-weight:780;min-height:23px}
+.rudi-duel-board{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;width:min(100%,350px);margin:0 auto}
+.rudi-duel-cell{aspect-ratio:1/1;border-radius:18px;background:rgba(106,136,205,.10);border:1px solid var(--game-border);
+ display:grid;place-items:center;font-size:clamp(46px,15vw,74px);font-weight:450;line-height:1;color:var(--game-ink);
+ font-family:ui-sans-serif,system-ui,sans-serif;cursor:pointer;touch-action:manipulation}
+.rudi-duel-cell.is-x{color:#537de9;background:rgba(83,125,233,.11)}
+.rudi-duel-cell.is-o{color:#d95c96;background:rgba(217,92,150,.12)}
+.rudi-duel-cell:disabled{cursor:default}
+.rudi-duel-cell:focus-visible{outline:3px solid #7a9eff;outline-offset:2px}
+.rudi-duel-work .rudi-game-primary{width:100%}
+.rudi-duel-work .rudi-game-hint{font-size:11px;line-height:1.5;margin:0}
+@media(max-width:375px){.rudi-duel-board{gap:6px}.rudi-duel-cell{border-radius:14px}}
