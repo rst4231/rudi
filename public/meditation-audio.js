@@ -18,7 +18,7 @@ const MOODS=[['stress','Напряжение','stress'],['tired','Усталос
 const SOUNDS=[['rain','Дождь'],['ocean','Океан'],['forest','Лес'],['fire','Камин'],['brown','Глубокий шум'],['bowls','Поющие чаши'],['music','Тихая музыка'],['none','Без фона']];
 const $=id=>document.getElementById(id);
 let el=null,actor='',practice='stress',mood='stress',sound='rain',voice='female',volume=35,program=7;
-let audioCtx=null,master=null,cleanups=[],speakingFor=null,spoken=new Set(),speechAllowed=false,activeId='',savedId='';
+let audioCtx=null,master=null,cleanups=[],speakingFor=null,spoken=new Set(),speechAllowed=false,activeId='',primedIntro=false;
 const optionHtml=(items,current)=>items.map(item=>'<option value="'+item[0]+'"'+(item[0]===current?' selected':'')+'>'+item[1]+'</option>').join('');
 const chosen=()=>PRACTICES.find(item=>item.id===practice)||PRACTICES[2];
 const storageKey=s=>'rudi:meditation:'+actor+':guided:'+s;
@@ -91,6 +91,10 @@ function note(t){const node=$('meditationAudioNote');if(node)node.textContent=t}
 function prime(){
  try{if(window.AudioContext||window.webkitAudioContext){const C=window.AudioContext||window.webkitAudioContext; if(!audioCtx)audioCtx=new C();void audioCtx.resume()}}catch{}
  try{window.speechSynthesis?.resume()}catch{}
+ // Unlock speech on the user's tap, before the server start request.
+ if(!activeId&&voice!=='none'&&!primedIntro){
+  speechAllowed=true;speak(chosen().lines[0]);speechAllowed=false;primedIntro=true;
+ }
 }
 function closeContext(){
  if(master&&audioCtx){try{master.gain.setTargetAtTime(.0001,audioCtx.currentTime,.16)}catch{}}
@@ -99,7 +103,7 @@ function closeContext(){
  if(old)setTimeout(()=>{try{void old.close()}catch{}},550);
 }
 function cancelSpeech(){try{window.speechSynthesis?.cancel()}catch{}}
-function stopAudio(){speechAllowed=false;spoken.clear();speakingFor=null;cancelSpeech();closeContext();render()}
+function stopAudio(){speechAllowed=false;spoken.clear();speakingFor=null;primedIntro=false;cancelSpeech();closeContext();render()}
 function addNoise(type,cutoff,base,fadeRate){
  const ctx=audioCtx,len=ctx.sampleRate*3,buffer=ctx.createBuffer(1,len,ctx.sampleRate),arr=buffer.getChannelData(0);
  let brown=0;for(let i=0;i<len;i++){const random=Math.random()*2-1; if(type==='brown'){brown=(brown+random*.025)/1.025;arr[i]=Math.max(-1,Math.min(1,brown*3.5))}else arr[i]=random}
@@ -176,7 +180,9 @@ function onStarted(id,resume=false){
  if(!id)return;
  activeId=id;spoken.clear();speechAllowed=true;speakingFor=practice;
  startAmbient();render();
- if(!resume)speak(chosen().lines[0]);
+ if(!resume&&!primedIntro)speak(chosen().lines[0]);
+ if(resume)speak('Продолжаем практику. Дыши спокойно и следуй за своим вниманием.');
+ primedIntro=false;
  note('Голос зависит от доступных русских голосов устройства. Если экран заблокирован, Telegram может приостановить звук.');
 }
 function onState(active){
