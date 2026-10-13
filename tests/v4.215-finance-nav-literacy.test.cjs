@@ -7,7 +7,7 @@ function setup(storage=new Map()){
  const listeners=new Map(),observers=[],elements={};
  const title=elements.financeLiteracyTitle={textContent:'Первый урок'};
  const bodyText=elements.financeLiteracyBody={textContent:'Тема об инвестициях. '.repeat(44)};
- const panel=elements.financeLiteracyPanel={hidden:true};
+ const panel=elements.financeLiteracyPanel={hidden:true,querySelector(q){return q==='.finance-literacy-card'?card:null}};
  const card={getBoundingClientRect(){return {top:-450,bottom:335}},appendChild(node){elements.rudiLiteracyReadButton=node}};
  const tabs={};
  for(const id of ['personal','crypto','debts','shared','literacy']){
