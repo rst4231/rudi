@@ -7,16 +7,16 @@ test('iPhone task editor shows exactly one native date and time, without duplica
  const markup=src.slice(src.indexOf("modal.innerHTML="),src.indexOf("document.body.appendChild(modal);"));
  assert.equal((markup.match(/id="rudiPersonalTaskDate"/g)||[]).length,1);
  assert.equal((markup.match(/id="rudiPersonalTaskTime"/g)||[]).length,1);
- assert.match(markup,/id="rudiPersonalTaskDate" type="date"/);
- assert.match(markup,/id="rudiPersonalTaskTime" type="time"/);
+ assert.match(markup,/id="rudiPersonalTaskDate" class="rudi-personal-picker-input" type="date"/);
+ assert.match(markup,/id="rudiPersonalTaskTime" class="rudi-personal-picker-input" type="time"/);
  assert.doesNotMatch(markup,/rudi-personal-temporal-(?:control|value)/);
- assert.doesNotMatch(css,/opacity:0!important/);
+ assert.match(css,/clip-path:inset\(50%\)!important/);
  assert.doesNotMatch(css,/rudi-personal-native-datetime|rudi-personal-temporal-control/);
  const shared=fs.readFileSync('public/index.html','utf8');
  assert.match(shared,/id="ticktickTaskDateInput" type="date"/);
  assert.match(shared,/id="ticktickTaskTimeInput" type="time"/);
- assert.match(src,/id="rudiPersonalTaskDate" type="date"/);
- assert.match(src,/id="rudiPersonalTaskTime" type="time"/);
+ assert.match(src,/id="rudiPersonalTaskDate" class="rudi-personal-picker-input" type="date"/);
+ assert.match(src,/id="rudiPersonalTaskTime" class="rudi-personal-picker-input" type="time"/);
 });
 
 test('reopened tasks receive fresh pickers and correctly restore distinct native values',()=>{
@@ -42,7 +42,7 @@ test('reopened tasks receive fresh pickers and correctly restore distinct native
  assert.notEqual(elements.rudiPersonalTaskDate,oldDate);
  assert.equal(elements.rudiPersonalTaskDate.type,'date');
  assert.equal(elements.rudiPersonalTaskTime.type,'time');
- assert.equal(elements.rudiPersonalTaskDate.className,'');
+ assert.equal(elements.rudiPersonalTaskDate.className,'rudi-personal-picker-input');
  elements.rudiPersonalTaskDate.value='2026-10-13';
  elements.rudiPersonalTaskTime.value='10:00';
  assert.equal(elements.rudiPersonalTaskDate.value,'2026-10-13');
@@ -61,7 +61,32 @@ test('date selection still disables time when task has no date',()=>{
  const start=src.indexOf('function syncTime(){');
  const end=src.indexOf('function closeMenu(){',start);
  const date={value:''},time={disabled:false};
- const sync=vm.runInNewContext(src.slice(start,end)+';syncTime',{f:type=>type==='date'?date:time});
- sync();assert.equal(time.disabled,true);
- date.value='2026-10-13';sync();assert.equal(time.disabled,false);
+ const button={disabled:false},labels=[];
+ const sync=vm.runInNewContext(src.slice(start,end)+';syncTime',{f:type=>type==='date'?date:time,modal:{querySelector:()=>button},updatePersonalPickerLabel:type=>labels.push(type)});
+ sync();assert.equal(time.disabled,true);assert.equal(button.disabled,true);
+ date.value='2026-10-13';sync();assert.equal(time.disabled,false);assert.equal(button.disabled,false);assert.deepEqual(labels,['date','time','date','time']);
+});
+
+test('custom single-line display keeps native picker launch and task values',()=>{
+ assert.match(src,/data-personal-picker-open="date"/);
+ assert.match(src,/data-personal-picker-open="time"/);
+ assert.match(src,/data-personal-picker-value="date"/);
+ assert.match(src,/data-personal-picker-value="time"/);
+ assert.match(src,/function openPersonalPicker\(type\)/);
+ assert.match(src,/input\.showPicker\(\)/);
+ assert.match(src,/classList\.add\('is-native-fallback'\)/);
+ assert.match(src,/f\('date'\)\.value=date;/);
+ assert.match(src,/f\('time'\)\.value=date\?time:'';/);
+ assert.match(css,/\.rudi-personal-picker-button/);
+ assert.match(css,/\.rudi-personal-picker-input/);
+ assert.match(css,/is-native-fallback/);
+ const input={value:'2026-10-13'},display={textContent:''};
+ const part=src.slice(src.indexOf('function updatePersonalPickerLabel(type){'),src.indexOf('function openPersonalPicker(type){'));
+ const update=vm.runInNewContext(part+';updatePersonalPickerLabel',{
+  f:()=>input,modal:{querySelector:()=>display},
+  Date,Intl,Number,String
+ });
+ update('date');
+ assert.match(display.textContent,/13.*окт.*2026/i);
+ input.value='18:20';update('time');assert.equal(display.textContent,'18:20');
 });
