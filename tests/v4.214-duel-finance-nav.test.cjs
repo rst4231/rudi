@@ -64,6 +64,9 @@ test('games shortcut is under Quick Access, and finance navigation is viewport-f
  assert.match(js,/#quickAccessTile \.quick-access-actions/);
  assert.match(js,/rudiGamesHomeButton'\)\?\.remove\(\)/);
  assert.match(js,/Крестики-нолики · онлайн/);
+ assert.match(js,/if\(game==='duel'\)\{duelStart\(\);return\}/);
+ assert.match(js,/data-duel-index/);
+ assert.match(js,/void duelAction\('move'/);
  assert.match(nav,/document\.body\.appendChild\(nav\)/);
  assert.match(css,/position:fixed!important;bottom:0!important/);
  assert.match(css,/body:not\(\[data-app-tab="finances"\]\)/);
