@@ -4,7 +4,7 @@
  let pending=false,outlineObserver=null,outlineResizeObserver=null;
  // Draw rounded outlines in the real button dimensions (not a stretched 100x100 SVG).
  function roundedOutline(width,height){
-   const inset=3.5,r=Math.max(1,Math.min(14,width/2-inset,height/2-inset));
+   const inset=1.5,r=Math.max(1,Math.min(12.5,width/2-inset,height/2-inset));
    const w=width-inset,h=height-inset;
    return 'M '+width/2+' '+inset+
      ' H '+(w-r)+' A '+r+' '+r+' 0 0 1 '+w+' '+(inset+r)+
@@ -36,6 +36,31 @@
      svg.setAttribute('preserveAspectRatio','none');
      svg.dataset.rudiOutlineGeometry=size;
    }
+ }
+ // Keep the runtime's source phase untouched. The caption follows its moving timeline dot.
+ function updateEnergyPointCaption(energy){
+   const phase=energy?.querySelector('.profile-energy-label .profile-energy-phase');
+   const dot=energy?.querySelector('.profile-energy-plot .profile-energy-now');
+   if(!phase||!dot)return;
+   let label=dot.querySelector('.rudi-energy-point-caption');
+   if(!label){
+     label=document.createElement('span');
+     label.className='rudi-energy-point-caption';
+     label.setAttribute('aria-hidden','true');
+     dot.appendChild(label);
+   }
+   const text=phase.textContent?.trim()||'';
+   if(label.textContent!==text)label.textContent=text;
+   if(label.hidden===!!text)label.hidden=!text;
+ }
+ const energyPointObservers=new WeakSet();
+ function watchEnergyPointCaption(energy){
+   if(!energy)return;
+   updateEnergyPointCaption(energy);
+   if(energyPointObservers.has(energy)||typeof MutationObserver!=='function')return;
+   energyPointObservers.add(energy);
+   new MutationObserver(()=>updateEnergyPointCaption(energy))
+     .observe(energy,{childList:true,characterData:true,subtree:true});
  }
  function arrange(){
    pending=false;
@@ -98,6 +123,7 @@
      }
      if(profileHead.parentElement!==main||energy.parentElement!==main)
        main.append(profileHead,energy);
+     watchEnergyPointCaption(energy);
    }
  }
  function schedule(){

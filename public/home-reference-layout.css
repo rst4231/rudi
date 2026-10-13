@@ -300,3 +300,129 @@ body[data-app-tab="home"] .rudi-home-shortcuts #financeProfileButton.has-budget:
   mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0)!important;
   mask-composite:exclude!important;
 }
+
+/* RUDI v4.220: reference self card — same outer width as Car, compact in HEIGHT. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName){
+  width:100%!important;
+  max-width:100%!important;
+  margin-inline:0!important;
+  justify-self:stretch!important;
+  padding:8px 11px!important;
+  gap:2px!important;
+  min-height:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .rudi-home-self-line{
+  display:grid!important;
+  grid-template-columns:minmax(0,43%) minmax(0,1fr)!important;
+  grid-template-rows:auto!important;
+  align-items:center!important;
+  gap:10px!important;
+  padding:0!important;
+  min-height:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .rudi-home-self-line > .profile-person-head{
+  grid-column:1!important;
+  grid-row:1!important;
+  min-height:52px!important;
+  margin:0!important;
+  padding:0!important;
+  align-items:center!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity{
+  grid-template-columns:44px minmax(0,1fr)!important;
+  gap:8px!important;
+  align-items:center!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity .person{
+  align-self:center!important;
+  padding-top:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .score-avatar-wrap{
+  width:44px!important;
+  min-width:44px!important;
+  height:44px!important;
+  flex-basis:44px!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .avatar{
+  width:44px!important;
+  height:44px!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .rudi-home-self-line > .profile-energy-strip{
+  grid-column:2!important;
+  grid-row:1!important;
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:32px 12px!important;
+  gap:0!important;
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0 2px 0 9px!important;
+  border-left:1px solid rgba(177,186,222,.13);
+  align-self:center!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-energy-strip .profile-energy-plot{
+  grid-column:1!important;
+  grid-row:1!important;
+  width:100%!important;
+  height:32px!important;
+  min-width:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-energy-strip .profile-energy-times{
+  grid-column:1!important;
+  grid-row:2!important;
+  width:100%!important;
+  justify-self:stretch!important;
+  font-size:7px!important;
+  line-height:1.1!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-energy-strip .profile-energy-label{
+  display:none!important;
+}
+/* The caption always follows the current white marker, including phase changes. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-energy-plot .profile-energy-now{
+  overflow:visible!important;
+  z-index:5!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-energy-plot .rudi-energy-point-caption{
+  position:absolute!important;
+  bottom:calc(100% + 4px)!important;
+  left:50%!important;
+  transform:translateX(-50%)!important;
+  display:block!important;
+  width:max-content!important;
+  max-width:none!important;
+  padding:0 2px!important;
+  font-size:9px!important;
+  line-height:1.1!important;
+  font-weight:800!important;
+  color:rgba(236,241,252,.95)!important;
+  white-space:nowrap!important;
+  text-align:center!important;
+  text-shadow:0 1px 5px rgba(0,4,12,.7)!important;
+  pointer-events:none!important;
+}
+body[data-app-tab="home"] .rudi-energy-point-caption[hidden]{display:none!important}
+@media(max-width:375px){
+  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName){
+    width:100%!important;
+    max-width:100%!important;
+    padding:7px 9px!important;
+  }
+  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .rudi-home-self-line{
+    grid-template-columns:minmax(0,45%) minmax(0,1fr)!important;
+    gap:6px!important;
+  }
+  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .rudi-home-self-line > .profile-energy-strip{
+    padding-left:6px!important;
+  }
+}
+/* The finance budget halo uses a 3px stroke; match fasting and supplements exactly. */
+body[data-app-tab="home"] .rudi-home-shortcuts :is(#fastingProfileButton,#supplementProfileButton):has(svg:not([hidden])){
+  border-width:0!important;
+}
+body[data-app-tab="home"] .rudi-home-shortcuts :is(#fastingProfileButton,#supplementProfileButton) svg:is(.rudi-fasting-progress-outline,.rudi-supplement-progress-outline) path{
+  stroke-width:3px!important;
+  vector-effect:non-scaling-stroke!important;
+}

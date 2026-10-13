@@ -3,9 +3,9 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const css=fs.readFileSync('public/home-reference-layout.css','utf8');
 const js=fs.readFileSync('public/home-reference-layout.js','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
-test('self card alone is narrower than car and layout remains single-column',()=>{
- assert.match(css,/has\(#displayName\)\{\s*width:92%!important/);
- assert.match(css,/\.rudi-home-self-line\{[\s\S]*?grid-template-columns:minmax\(0,1fr\)!important/);
+test('compact self layout keeps full-width car baseline and graph',()=>{
+ assert.match(css,/RUDI v4\.220:[\s\S]*?has\(#displayName\)\{\s*width:100%!important/);
+ assert.match(css,/RUDI v4\.220:[\s\S]*?\.rudi-home-self-line\{[\s\S]*?grid-template-columns:minmax\(0,43%\) minmax\(0,1fr\)!important/);
  assert.match(css,/\.profile-energy-strip \.(?:profile-energy-plot)\{/);
 });
 test('hide only the arrow in own profile',()=>{
@@ -23,6 +23,6 @@ test('outline tracks resize to actual buttons and avoid duplicate border',()=>{
  assert.match(js,/new ResizeObserver/);
  assert.match(js,/path\.setAttribute\('pathLength',path\.dataset\.rudiOriginalLength\)/);
  assert.match(css,/border-color:transparent!important/);
- assert.match(html,/home-reference-layout\.css\?v=4\.219/);
- assert.match(html,/home-reference-layout\.js\?v=4\.219/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.220/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.220/);
 });
