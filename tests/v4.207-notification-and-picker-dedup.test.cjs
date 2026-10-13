@@ -34,11 +34,14 @@ test('two different events pair with at most two pushes',()=>{
 test('unrelated actor does not suppress a different recipients push',()=>{
  assert.equal(matcher([samePush])([{...activity,actor:'Рустам'}]).length,2);
 });
-test('date and time pickers cannot render two parallel input rows',()=>{
- assert.match(css,/rudi-personal-picker:not\(\.is-native-fallback\)[^\{]*\{\s*display:none!important/);
- assert.match(css,/\.rudi-personal-picker\.is-native-fallback[^\{]*\.rudi-personal-picker-input\{/);
- assert.match(editor,/getComputedStyle\(input\)\.display!=='none'/);
- assert.match(html,/personal-task-editor\.css\?v=4\.207/);
- assert.match(html,/app\.js\?v=4\.207/);
- assert.match(sw,/rudi-shell-v4\.207/);
+test('personal editor contains only one real date/time row without second picker controls',()=>{
+ const markup=editor.slice(editor.indexOf("modal.innerHTML="),editor.indexOf("document.body.appendChild(modal);"));
+ assert.equal((markup.match(/type="date"/g)||[]).length,1);
+ assert.equal((markup.match(/type="time"/g)||[]).length,1);
+ assert.doesNotMatch(markup,/rudi-personal-picker-button|data-personal-picker-open|data-personal-picker-value/);
+ assert.match(css,/> input\.rudi-personal-picker-input/);
+ assert.doesNotMatch(css,/is-native-fallback|clip-path:inset/);
+ assert.match(html,/personal-task-editor\.css\?v=4\.208/);
+ assert.match(html,/app\.js\?v=4\.208/);
+ assert.match(sw,/rudi-shell-v4\.208/);
 });

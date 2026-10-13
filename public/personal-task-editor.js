@@ -40,16 +40,8 @@ function init(){
     '<form id="rudiPersonalTaskForm" class="ticktick-task-form">'+
       '<label class="ticktick-task-field"><span>Что сделать</span><input id="rudiPersonalTaskTitle" maxlength="500" required autocomplete="off"></label>'+
       '<div class="ticktick-task-field-row ticktick-task-date-time-row">'+
-       '<label class="ticktick-task-field"><span>Дата</span><span class="rudi-personal-picker">'+
-        '<button type="button" class="rudi-personal-picker-button" data-personal-picker-open="date" aria-label="Выбрать дату">'+
-          '<span data-personal-picker-value="date">Выбрать дату</span>'+
-          '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 10h18"/></svg></button>'+
-        '<input id="rudiPersonalTaskDate" class="rudi-personal-picker-input" type="date" tabindex="-1" aria-label="Дата дела"></span></label>'+
-       '<label class="ticktick-task-field"><span>Время</span><span class="rudi-personal-picker">'+
-        '<button type="button" class="rudi-personal-picker-button" data-personal-picker-open="time" aria-label="Выбрать время">'+
-          '<span data-personal-picker-value="time">Без времени</span>'+
-          '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></button>'+
-        '<input id="rudiPersonalTaskTime" class="rudi-personal-picker-input" type="time" tabindex="-1" aria-label="Время дела"></span></label></div>'+
+       '<label class="ticktick-task-field"><span>Дата</span><input id="rudiPersonalTaskDate" class="rudi-personal-picker-input" type="date" aria-label="Дата дела"></label>'+
+       '<label class="ticktick-task-field"><span>Время</span><input id="rudiPersonalTaskTime" class="rudi-personal-picker-input" type="time" aria-label="Время дела"></label></div>'+
 
       '<label class="ticktick-task-field"><span>Список TickTick</span><select id="rudiPersonalTaskProject"><option value="">Загружаю списки…</option></select></label>'+
       '<label class="ticktick-task-field"><span>Описание</span><textarea id="rudiPersonalTaskDescription" maxlength="5000" rows="3" placeholder="Необязательно"></textarea></label>'+
@@ -67,9 +59,6 @@ function init(){
   modal.querySelectorAll('[data-personal-close]').forEach(b=>b.addEventListener('click',close));
   byId('rudiPersonalTaskForm').addEventListener('submit',submit);
   byId('rudiPersonalTaskDelete').addEventListener('click',remove);
-  modal.querySelectorAll('[data-personal-picker-open]').forEach(button=>{
-    button.addEventListener('click',()=>openPersonalPicker(button.dataset.personalPickerOpen));
-  });
   // Date shortcuts remain available in the right-click context menu only.
   menu.querySelectorAll('[data-personal-date-action]').forEach(b=>b.addEventListener('click',()=>useQuick(b.dataset.personalDateAction,true)));
   document.addEventListener('pointerdown',event=>{
@@ -78,43 +67,9 @@ function init(){
   document.addEventListener('scroll',closeMenu,true);
   document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeMenu();if(!modal.hidden)close()}});
 }
-function updatePersonalPickerLabel(type){
-  const input=f(type);
-  const display=modal?.querySelector('[data-personal-picker-value="'+type+'"]');
-  if(!input||!display)return;
-  if(type==='date'){
-    const value=String(input.value||'');
-    const day=/^\d{4}-\d{2}-\d{2}$/.test(value)?new Date(value+'T12:00:00Z'):null;
-    display.textContent=day&&Number.isFinite(day.getTime())
-      ?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}).format(day)
-      :'Выбрать дату';
-  }else display.textContent=input.value||'Без времени';
-}
-function openPersonalPicker(type){
-  const input=f(type);
-  if(!input||input.disabled)return;
-  // A clipped, real input supplies the native picker; only the custom label
-  // is painted in the card. iOS may otherwise show two independent rows.
-  try{
-    if(typeof input.showPicker==='function'&&getComputedStyle(input).display!=='none'){
-      input.showPicker();return;
-    }
-  }catch(_){}
-  // Safari needs a visible native input. Replace the button with it
-  // rather than keeping two painted date/time controls.
-  const wrapper=input.closest('.rudi-personal-picker');
-  if(wrapper)wrapper.classList.add('is-native-fallback');
-  input.tabIndex=0;
-  input.focus();
-  input.click();
-}
 function syncTime(){
   const date=f('date'),time=f('time');
   if(time)time.disabled=!date?.value;
-  const button=modal?.querySelector('[data-personal-picker-open="time"]');
-  if(button)button.disabled=!date?.value;
-  updatePersonalPickerLabel('date');
-  updatePersonalPickerLabel('time');
 }
 function closeMenu(){if(menu)menu.hidden=true}
 function close(){
@@ -204,7 +159,7 @@ function replaceTemporalInputs(){
     fresh.id=previous.id;
     fresh.type=type;
     fresh.className='rudi-personal-picker-input';
-    fresh.tabIndex=-1;
+    fresh.tabIndex=0;
     fresh.setAttribute('aria-label',type==='date'?'Дата дела':'Время дела');
     previous.replaceWith(fresh);
     fresh.addEventListener('change',syncTime);
@@ -214,7 +169,6 @@ function replaceTemporalInputs(){
 function open(task,ctx={}){
   if(!task?.id||!task?.personal)return;
   init();closeMenu();
-  modal.querySelectorAll('.rudi-personal-picker.is-native-fallback').forEach(node=>node.classList.remove('is-native-fallback'));
   byId('rudiPersonalTaskForm').reset();replaceTemporalInputs();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
   const {date,time}=normalizedEditorWhen(active.task);

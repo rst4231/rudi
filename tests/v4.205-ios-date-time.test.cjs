@@ -3,20 +3,19 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const src=fs.readFileSync('public/personal-task-editor.js','utf8');
 const css=fs.readFileSync('public/personal-task-editor.css','utf8');
 
-test('iPhone task editor shows exactly one native date and time, without duplicate visual overlays',()=>{
+test('iPhone task editor has exactly one native date and one native time input, with no overlay buttons',()=>{
  const markup=src.slice(src.indexOf("modal.innerHTML="),src.indexOf("document.body.appendChild(modal);"));
  assert.equal((markup.match(/id="rudiPersonalTaskDate"/g)||[]).length,1);
  assert.equal((markup.match(/id="rudiPersonalTaskTime"/g)||[]).length,1);
+ assert.equal((markup.match(/type="date"/g)||[]).length,1);
+ assert.equal((markup.match(/type="time"/g)||[]).length,1);
  assert.match(markup,/id="rudiPersonalTaskDate" class="rudi-personal-picker-input" type="date"/);
  assert.match(markup,/id="rudiPersonalTaskTime" class="rudi-personal-picker-input" type="time"/);
- assert.doesNotMatch(markup,/rudi-personal-temporal-(?:control|value)/);
- assert.match(css,/clip-path:inset\(50%\)!important/);
- assert.doesNotMatch(css,/rudi-personal-native-datetime|rudi-personal-temporal-control/);
+ assert.doesNotMatch(markup,/rudi-personal-picker-button|data-personal-picker-open|data-personal-picker-value/);
+ assert.doesNotMatch(css,/is-native-fallback|clip-path:inset/);
  const shared=fs.readFileSync('public/index.html','utf8');
  assert.match(shared,/id="ticktickTaskDateInput" type="date"/);
  assert.match(shared,/id="ticktickTaskTimeInput" type="time"/);
- assert.match(src,/id="rudiPersonalTaskDate" class="rudi-personal-picker-input" type="date"/);
- assert.match(src,/id="rudiPersonalTaskTime" class="rudi-personal-picker-input" type="time"/);
 });
 
 test('reopened tasks receive fresh pickers and correctly restore distinct native values',()=>{
@@ -61,32 +60,17 @@ test('date selection still disables time when task has no date',()=>{
  const start=src.indexOf('function syncTime(){');
  const end=src.indexOf('function closeMenu(){',start);
  const date={value:''},time={disabled:false};
- const button={disabled:false},labels=[];
- const sync=vm.runInNewContext(src.slice(start,end)+';syncTime',{f:type=>type==='date'?date:time,modal:{querySelector:()=>button},updatePersonalPickerLabel:type=>labels.push(type)});
- sync();assert.equal(time.disabled,true);assert.equal(button.disabled,true);
- date.value='2026-10-13';sync();assert.equal(time.disabled,false);assert.equal(button.disabled,false);assert.deepEqual(labels,['date','time','date','time']);
+ const sync=vm.runInNewContext(src.slice(start,end)+';syncTime',{f:type=>type==='date'?date:time});
+ sync();assert.equal(time.disabled,true);
+ date.value='2026-10-13';sync();assert.equal(time.disabled,false);
 });
 
-test('custom single-line display keeps native picker launch and task values',()=>{
- assert.match(src,/data-personal-picker-open="date"/);
- assert.match(src,/data-personal-picker-open="time"/);
- assert.match(src,/data-personal-picker-value="date"/);
- assert.match(src,/data-personal-picker-value="time"/);
- assert.match(src,/function openPersonalPicker\(type\)/);
- assert.match(src,/input\.showPicker\(\)/);
- assert.match(src,/classList\.add\('is-native-fallback'\)/);
+test('native fields retain selected dates and allow focus with the system picker',()=>{
+ assert.doesNotMatch(src,/function openPersonalPicker\(type\)/);
+ assert.doesNotMatch(src,/function updatePersonalPickerLabel\(type\)/);
+ assert.match(src,/fresh\.tabIndex=0;/);
+ assert.match(src,/fresh\.addEventListener\('change',syncTime\)/);
  assert.match(src,/f\('date'\)\.value=date;/);
  assert.match(src,/f\('time'\)\.value=date\?time:'';/);
- assert.match(css,/\.rudi-personal-picker-button/);
- assert.match(css,/\.rudi-personal-picker-input/);
- assert.match(css,/is-native-fallback/);
- const input={value:'2026-10-13'},display={textContent:''};
- const part=src.slice(src.indexOf('function updatePersonalPickerLabel(type){'),src.indexOf('function openPersonalPicker(type){'));
- const update=vm.runInNewContext(part+';updatePersonalPickerLabel',{
-  f:()=>input,modal:{querySelector:()=>display},
-  Date,Intl,Number,String
- });
- update('date');
- assert.match(display.textContent,/13.*окт.*2026/i);
- input.value='18:20';update('time');assert.equal(display.textContent,'18:20');
+ assert.match(css,/\.rudi-personal-task-modal \.ticktick-task-field > input\.rudi-personal-picker-input/);
 });

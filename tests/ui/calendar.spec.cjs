@@ -634,3 +634,29 @@ test('v4.97 analyst is above literacy article',async({page})=>{
  await expect(page.locator('#financeLiteracyBody')).toBeVisible();
  expect(await page.evaluate(()=>[...document.querySelector('#financeLiteracyPanel').children].slice(0,2).map(e=>e.classList[0]))).toEqual(['finance-analyst-card','finance-literacy-card']);
 });
+
+test('personal TickTick task modal shows exactly one editable date/time row on mobile',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  await mockRudi(page);
+  await page.goto('/');
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  const task={id:'editor-test-1',personal:true,title:'Тестовая задача',
+    projectId:'biz',projectName:'Бизнес',date:'2026-10-13',startTime:'12:00',allDay:false};
+  await page.evaluate(task=>window.RUDIPersonalTaskEditor.open(task,{initData:''}),task);
+  const row=page.locator('#rudiPersonalTaskModal .ticktick-task-date-time-row');
+  const date=row.locator('input[type="date"]'),time=row.locator('input[type="time"]');
+  await expect(row).toBeVisible();
+  await expect(date).toHaveCount(1);await expect(time).toHaveCount(1);
+  await expect(date).toBeVisible();await expect(time).toBeVisible();
+  await expect(date).toHaveValue('2026-10-13');
+  await expect(time).toHaveValue('12:00');
+  await expect(row.locator('button')).toHaveCount(0);
+  await expect.poll(async()=>((await row.boundingBox())?.height||Infinity)).toBeLessThan(85);
+  await page.evaluate(()=>window.RUDIPersonalTaskEditor.open({
+    id:'editor-test-2',personal:true,title:'Другая задача',projectId:'biz',
+    projectName:'Бизнес',date:'2026-10-14',startTime:'16:30',allDay:false
+  },{initData:''}));
+  await expect(date).toHaveValue('2026-10-14');
+  await expect(time).toHaveValue('16:30');
+  await expect(row.locator('button')).toHaveCount(0);
+});
