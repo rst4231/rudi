@@ -266,22 +266,25 @@ function buildWebAssets(env = process.env) {
 function patchHomeNoteLayout(runtime) {
   const changes = [
     [
-      "const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam'",
-      "const HOME_TILE_DEFAULT_ORDER = ['dashboard','note','rustam'"
+      "const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','smart-home'",
+      "const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home'"
     ],
     [
-      "return ['dashboard',...people,'lulu'",
-      "return ['dashboard','note',...people,'lulu'"
+      "return ['dashboard',...people,'lulu','priority','recommendations','smart-home'",
+      "return ['dashboard',...people,'lulu','priority','recommendations','note','smart-home'"
     ],
     [
-      "const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);",
-      "const valid=requested.filter((id,index)=>HOME_TILE_DEFAULT_ORDER.includes(id)&&requested.indexOf(id)===index);\n"+
-      "        // Existing custom orders keep their arrangement. Insert the new note\n"+
-      "        // directly below Доброе утро only when no saved note position exists.\n"+
-      "        if(!valid.includes('note')){\n"+
-      "          const dashboardIndex=valid.indexOf('dashboard');\n"+
-      "          valid.splice(dashboardIndex>=0?dashboardIndex+1:0,0,'note');\n"+
-      "        }"
+      "for(const id of defaults) if(!valid.includes(id)) valid.push(id);\n        return valid;",
+      "for(const id of defaults) if(!valid.includes(id)) valid.push(id);\n"+
+      "        // Introduce the new tile before Smart Home without disturbing a\n"+
+      "        // placement explicitly saved by this actor.\n"+
+      "        if(!requested.includes('note')){\n"+
+      "          const oldIndex=valid.indexOf('note');\n"+
+      "          if(oldIndex>=0)valid.splice(oldIndex,1);\n"+
+      "          const smartHomeIndex=valid.indexOf('smart-home');\n"+
+      "          valid.splice(smartHomeIndex>=0?smartHomeIndex:valid.length,0,'note');\n"+
+      "        }\n"+
+      "        return valid;"
     ]
   ];
   for(const [before,after] of changes){
@@ -290,7 +293,6 @@ function patchHomeNoteLayout(runtime) {
   }
   return runtime;
 }
-
 function buildRuntime() {
   assertProductionGitDeployment();
   syncWebVersion();
