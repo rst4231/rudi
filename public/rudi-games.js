@@ -19,6 +19,7 @@ const safe=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;
 const money=n=>Math.round(n).toLocaleString('ru-RU')+' ₽';
 const actor=()=>document.body?.dataset?.rudiActor==='Диана'?'Диана':'Рустам';
 const storageKey=()=> 'rudi-games-v1:'+actor();
+let duelRoom=null,duelTimer=null,duelBusy=false,duelMessage='';
 let page=null,mode='home',memoryTimer=null,level=1,sequence='',quiz=[],index=0,correct=0,answered=false,
  cash=100000,units=0,price=100,previousPrice=100,round=0,history=[];
 function stats(){try{const v=JSON.parse(localStorage.getItem(storageKey())||'{}');return {memory:Number(v.memory)||0,quiz:Number(v.quiz)||0,market:Number.isFinite(Number(v.market))?Number(v.market):-100,sessions:Number(v.sessions)||0}}catch{return {memory:0,quiz:0,market:-100,sessions:0}}}
@@ -30,7 +31,7 @@ function header(title,subtitle=''){
 }
 function section(html){$('rudiGamesContent').innerHTML=html}
 function menu(){
- mode='home';clearTimeout(memoryTimer);memoryTimer=null;
+ stopDuel();mode='home';clearTimeout(memoryTimer);memoryTimer=null;
  header('Игры и тренажёры','Короткая тренировка каждый день');
  const s=stats();
  section('<div class="rudi-game-hero"><span class="rudi-games-overline">Прокачай мозг</span><h2>5 минут для себя</h2><p>Без регистрации, без рекламы и без реальных денег. Результаты хранятся на этом устройстве.</p></div>'+
@@ -39,7 +40,7 @@ function menu(){
   '<button data-rudi-game="memory" class="rudi-game-card"><span class="rudi-game-glyph">◎</span><span><b>Тренировка памяти</b><small>Запомни последовательность цифр. С каждым раундом сложнее.</small></span><span class="rudi-game-arrow">›</span></button>'+
   '<button data-rudi-game="quiz" class="rudi-game-card"><span class="rudi-game-glyph">?</span><span><b>Финансовая викторина</b><small>10 вопросов на риск, бюджет и инвестиции.</small></span><span class="rudi-game-arrow">›</span></button>'+
   '<button data-rudi-game="market" class="rudi-game-card"><span class="rudi-game-glyph">↗</span><span><b>Симулятор рынка</b><small>8 ходов, 100 000 виртуальных рублей и случайные колебания.</small></span><span class="rudi-game-arrow">›</span></button>'+
-  '</div>');
+  '<button data-rudi-game="duel" class="rudi-game-card"><span class="rudi-game-glyph">×○</span><span><b>Крестики-нолики · онлайн</b><small>Рустам и Диана играют со своих телефонов. Поле общее.</small></span><span class="rudi-game-arrow">›</span></button></div>');
 }
 function memoryShow(){
  mode='memory';
@@ -129,6 +130,64 @@ function marketAction(action){
    section('<div class="rudi-game-result"><span>Виртуальный капитал</span><strong>'+money(marketValue())+'</strong><p>Изменение: '+(roi>0?'+':'')+roi.toFixed(1)+'%. Рынок случайный, а прошлый результат ничего не гарантирует.</p><button class="rudi-game-primary" data-rudi-game="market">Сыграть снова</button></div>');
  }else marketRender();
 }
+
+/* Online duel: active while open, limited polling to protect D1 quotas. */
+function stopDuel(){if(duelTimer){clearTimeout(duelTimer);duelTimer=null}duelBusy=false}
+async function duelRequest(operation='get',extra={}){
+ const response=await fetch('/api/duel-game',{method:'POST',credentials:'same-origin',cache:'no-store',
+  headers:{'content-type':'application/json'},
+  body:JSON.stringify({initData:String(window.Telegram?.WebApp?.initData||''),operation,...extra})});
+ const result=await response.json().catch(()=>null);
+ if(!response.ok||!result?.ok){
+  const e=new Error(response.status===401?'Требуется повторный вход':response.status===409?'Игра обновилась, повтори действие':'Не удалось соединиться с игрой');
+  e.server=result;e.status=response.status;throw e;
+ }
+ return result;
+}
+function duelRender(){
+ if(mode!=='duel'||!page||page.hidden)return;
+ const actorName=actor(),room=duelRoom;
+ header('Крестики-нолики','Онлайн · Рустам × против Дианы ○');
+ if(!room){section('<div class="rudi-game-work"><p class="rudi-duel-message">Загружаем общее поле…</p></div>');return}
+ const turn=room.turn===actorName,playing=room.status==='playing';
+ const message=room.status==='won'?(room.winner===actorName?'Ты победил'+(actorName==='Диана'?'а':'')+'!':room.winner+' победил'+(room.winner==='Диана'?'а':'')):
+   room.status==='draw'?'Ничья. Хорошая игра!':
+   playing?(turn?'Твой ход':'Ходит '+room.turn):'Игра ещё не началась';
+ const cells=room.board.map((v,i)=>'<button type="button" data-duel-index="'+i+'" aria-label="Клетка '+(i+1)+(v?', '+(v==='X'?'крестик':'нолик'):'')+'" '+(!playing||!turn||!!v||duelBusy?'disabled':'')+' class="rudi-duel-cell '+(v==='X'?'is-x':v==='O'?'is-o':'')+'">'+(v==='X'?'×':v==='O'?'○':'')+'</button>').join('');
+ section('<div class="rudi-game-work rudi-duel-work"><div class="rudi-duel-score"><span>Рустам <b>×</b></span><span>Раунд '+room.round+'</span><span><b>○</b> Диана</span></div>'+
+   '<p class="rudi-duel-turn" role="status">'+safe(message)+'</p><div class="rudi-duel-board" role="group" aria-label="Поле 3 на 3">'+cells+'</div>'+
+   (room.status!=='playing'?'<button type="button" data-duel-action="start" class="rudi-game-primary" '+(duelBusy?'disabled':'')+'>'+(room.round?'Новая партия':'Начать игру')+'</button>':'')+
+   '<p class="rudi-game-hint">Поле автоматически синхронизируется, когда игра открыта на двух устройствах. '+(duelMessage?safe(duelMessage):'Обновление каждые несколько секунд.')+'</p></div>');
+}
+function queueDuelPoll(delay=6500){
+ if(duelTimer)clearTimeout(duelTimer);
+ if(mode!=='duel'||page?.hidden||document.hidden)return;
+ duelTimer=setTimeout(()=>{duelTimer=null;void duelPoll()},delay);
+}
+async function duelPoll(){
+ if(mode!=='duel'||page?.hidden||document.hidden)return;
+ if(duelBusy){queueDuelPoll();return}
+ duelBusy=true;
+ try{
+  const result=await duelRequest('get');
+  if(mode!=='duel')return;
+  const changed=duelRoom?.version!==result.room?.version||!!duelMessage;
+  duelRoom=result.room;duelMessage='';if(changed)duelRender();
+ }catch(error){if(mode==='duel'){duelMessage=!navigator.onLine?'Ожидаем интернет':error.message;duelRender()}}
+ finally{duelBusy=false;queueDuelPoll()}
+}
+async function duelAction(action,index){
+ if(duelBusy||mode!=='duel')return;
+ duelBusy=true;duelMessage='';
+ try{
+  const result=await duelRequest(action,action==='move'?{index,version:duelRoom?.version}:{});
+  duelRoom=result.room;duelRender();haptic();
+ }catch(error){
+  if(error.server?.room)duelRoom=error.server.room;
+  duelMessage=error.message;duelRender();
+ }finally{duelBusy=false;queueDuelPoll()}
+}
+function duelStart(){stopDuel();mode='duel';duelRoom=null;duelMessage='';duelRender();void duelPoll()}
 function open(){
  const active=document.body?.dataset?.rudiActor;
  if(!active)return;
@@ -137,7 +196,7 @@ function open(){
  window.scrollTo({top:0,behavior:'instant'});menu();haptic();
 }
 function close(){
- if(!page)return;page.hidden=true;document.body.classList.remove('rudi-games-open');
+ stopDuel();if(!page)return;page.hidden=true;document.body.classList.remove('rudi-games-open');
  clearTimeout(memoryTimer);memoryTimer=null;mode='home';
 }
 function ensurePage(){
@@ -163,17 +222,19 @@ function ensurePage(){
  },{passive:true});
 }
 function ensureShortcut(){
- if($('rudiGamesHomeButton'))return;
- const row=document.querySelector('.mood-self-buttons');
+ $('rudiGamesHomeButton')?.remove(); // Remove the old profile shortcut.
+ if($('rudiGamesQuickButton'))return;
+ const row=document.querySelector('#quickAccessTile .quick-access-actions');
  if(!row)return;
- const button=document.createElement('button');button.id='rudiGamesHomeButton';button.type='button';
- button.className='profile-tool-button partner-mood-value';
+ const button=document.createElement('button');button.id='rudiGamesQuickButton';button.type='button';
+ button.className='quick-access-button is-games';
  button.title='Игры и тренажёры';button.setAttribute('aria-label','Открыть игры и тренажёры');
- button.innerHTML='<span class="mood-emoji" aria-hidden="true">🎮</span>';
- button.addEventListener('click',open);
- row.appendChild(button);
+ button.innerHTML='<span class="quick-access-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="11" rx="5"/><path d="M8 10v5m-2.5-2.5h5M15.5 11h.01M18 14h.01"/></svg></span><span class="quick-access-copy"><strong>Игры</strong></span>';
+ button.addEventListener('click',open);row.appendChild(button);
 }
 document.addEventListener('rudi:home-tiles-ready',ensureShortcut);
+document.addEventListener('visibilitychange',()=>{if(mode==='duel'&&!document.hidden){queueDuelPoll(150);}});
+window.addEventListener('online',()=>{if(mode==='duel')queueDuelPoll(150)});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureShortcut,{once:true});else ensureShortcut();
 window.RudiGames={open,close};
 })();
