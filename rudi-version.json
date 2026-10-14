@@ -1,5 +1,5 @@
 {
-  "current": "v4.240",
+  "current": "v4.241",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -72,7 +72,8 @@
     "v4.237: Independently collect famous Stand Up and scheduled theatrical film premieres from accessible event listings; preserve existing concert pipeline, prevent stale same-day refresh and refresh calendar client cache every five minutes.",
     "v4.238: compact event links with emoji/time/title, concert and theatrical cinema genres (no genres for Stand Up), chronological cross-category ordering, and centered purple calendar indicators.",
     "v4.239: shared calendar separates Мероприятия (concerts and famous standup, jointly time-sorted) from Кинопремьеры, compact row spacing, and re-renders when persisted genres change; no extra per-view preview requests.",
-    "v4.240: evidence-based habit analysis, coach UI, dated charts, recurring due labels and streamlined archives."
+    "v4.240: evidence-based habit analysis, coach UI, dated charts, recurring due labels and streamlined archives.",
+    "v4.241: 50 liquid OKX scanner coins (unchanged 15-minute interval and 4-request concurrency), leading asset CoinMarketCap links, reduced Home name/status spacing."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [
