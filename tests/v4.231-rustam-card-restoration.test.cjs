@@ -11,11 +11,11 @@ test('Rustam keeps exact v4.229 inline layout settings',()=>{
  assert.ok(source.includes("'grid-column':'2','grid-row':'1','align-self':'center','height':'44px'"));
  assert.ok(source.includes("'grid-template-columns':narrow?'minmax(0,53%) minmax(0,1fr)':'minmax(0,50%) minmax(0,1fr)'"));
 });
-test('expanded graph is called only for Diana',()=>{
- assert.match(js,/if\(self\.id==='homeDianaTile'\)return layoutLiveDiana\(/);
- const diana=js.slice(js.indexOf('function layoutLiveDiana('),js.indexOf('function layoutLiveRustamV4229('));
- assert.match(diana,/'grid-template-rows':'48px 58px'/);
- assert.match(diana,/'grid-column':'1','grid-row':'2','align-self':'center','height':'58px'/);
+test('both accounts share Rustam proven layout and Diana-only stacked variant is removed',()=>{
+ assert.match(js,/function layoutLiveSelf\(self,main,profileHead,energy\)/);
+ assert.match(js,/return layoutLiveRustamV4229\(self,main,profileHead,energy\)/);
+ assert.doesNotMatch(js,/function layoutLiveDiana\(/);
+ assert.doesNotMatch(js,/'grid-template-rows':'48px 58px'/);
 });
 test('new width and chart styles contain only Diana-specific selectors',()=>{
  const patch=css.slice(css.indexOf('/* RUDI v4.232:'),css.indexOf('/* RUDI v4.234: energy dot interactions'));
