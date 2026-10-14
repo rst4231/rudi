@@ -130,14 +130,41 @@
      if(row&&badge&&badge.parentElement!==row)row.appendChild(badge);
    }
  }
- // Home cards may mount after initial tab visibility was applied.
+ // Override inline display:flex!important on relocated Home profile cards.
+ // Save the original display and hidden state to restore on Home.
  function suppressLateHomeTiles(){
    const tab=document.body?.dataset?.appTab;
-   if(!tab||tab==='home')return false;
+   const home=!tab||tab==='home';
    for(const tile of document.querySelectorAll('[data-app-tab-section="home"]')){
+     const guarded=['homeRustamTile','homeDianaTile','rudiHomeShortcuts'].includes(tile.id);
+     if(home){
+       if(guarded&&tile.dataset?.rudiTabGuard==='1'){
+         const d=tile.dataset;
+         if(d.rudiPreviousDisplay)
+           tile.style.setProperty('display',d.rudiPreviousDisplay,d.rudiPreviousPriority||'');
+         else tile.style.removeProperty('display');
+         tile.hidden=d.rudiLastHomeHidden==='1';
+         delete d.rudiTabGuard;
+         delete d.rudiPreviousDisplay;
+         delete d.rudiPreviousPriority;
+       }
+       if(guarded&&tile.dataset)tile.dataset.rudiLastHomeHidden=tile.hidden?'1':'0';
+       continue;
+     }
+     if(guarded&&tile.dataset&&tile.style){
+       const d=tile.dataset;
+       if(d.rudiTabGuard!=='1'){
+         if(d.rudiLastHomeHidden===undefined)
+           d.rudiLastHomeHidden=tile.contains?.(document.getElementById('displayName'))?'0':tile.hidden?'1':'0';
+         d.rudiTabGuard='1';
+         d.rudiPreviousDisplay=tile.style.getPropertyValue('display');
+         d.rudiPreviousPriority=tile.style.getPropertyPriority('display');
+       }
+       tile.style.setProperty('display','none','important');
+     }
      if(!tile.hidden)tile.hidden=true;
    }
-   return true;
+   return !home;
  }
  function arrange(){
    pending=false;
@@ -216,6 +243,16 @@
  window.addEventListener('rudi:profile-ready',schedule);
  document.addEventListener('rudi:home-tiles-ready',schedule);
  window.addEventListener('rudi:app-tab-change',schedule);
+ if(typeof MutationObserver==='function'){
+   new MutationObserver(schedule).observe(document.body,{attributes:true,attributeFilter:['data-app-tab']});
+   const root=document.querySelector('.shell');
+   if(root)new MutationObserver(changes=>{
+     if(!document.body.dataset.appTab||document.body.dataset.appTab==='home')return;
+     if(changes.some(change=>Array.from(change.addedNodes).some(node=>
+       node.nodeType===1&&(node.matches?.('[data-app-tab-section="home"]')||
+       node.querySelector?.('[data-app-tab-section="home"]')))))schedule();
+   }).observe(root,{childList:true,subtree:true});
+ }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});
  else schedule();
 })();

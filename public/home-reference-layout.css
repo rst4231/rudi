@@ -780,3 +780,6 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName)[
 body[data-app-tab="home"] .rudi-home-shortcuts[hidden]{
   display:none!important;
 }
+
+/* RUDI v4.228: fallback for home-only profile on every non-Home tab. */
+body[data-app-tab]:not([data-app-tab="home"]) :is(#homeRustamTile,#homeDianaTile,#rudiHomeShortcuts){display:none!important;}
