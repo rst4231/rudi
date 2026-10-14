@@ -3,6 +3,7 @@
 const $=id=>document.getElementById(id);
 const g=()=>window.RudiGames;
 const actor=()=>document.body?.dataset?.rudiActor==='Диана'?'Диана':'Рустам';
+const opponentName=()=>actor()==='Рустам'?'Диана':'Рустам';
 const safe=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const key=name=>'rudi-game-v4242:'+actor()+':'+name;
 const read=(name,fallback)=>{try{return JSON.parse(localStorage.getItem(key(name)))??fallback}catch{return fallback}};
@@ -10,6 +11,7 @@ const write=(name,data)=>{try{localStorage.setItem(key(name),JSON.stringify(data
 const isVisible=()=>!document.hidden&&!!document.body?.dataset?.rudiActor;
 const status={duel:{active:false,turn:null},battleship:{active:false,turn:null}};
 let statusLast=0,statusBusy=false,battleRoom=null,battleMessage='',battleBusy=false,battleTimer=null,activeGame='',think=null,word=null,wordDate='';
+let battlePresence=null,battleSession='',battleLastHeartbeat=0;
 let previousLauncherBadge=null;
 function sum(){return Object.values(status).filter(x=>x.active).length}
 function myTurns(){return Object.values(status).filter(x=>x.active&&x.turn===actor()).length}
@@ -76,9 +78,16 @@ async function battleRequest(operation='get',payload={}){
   const e=new Error(response.status===409?'Поле изменилось. Обновляю…':response.status===401?'Нужен повторный вход':'Нет связи с игрой');
   e.room=data?.room;throw e;
  }
+ if(operation==='get')battlePresence=data.presence||null;
  return data.room;
 }
+function leaveBattle(){
+ const session=battleSession;
+ battleSession='';battleLastHeartbeat=0;
+ if(session)void battleRequest('leave',{sessionId:session}).catch(()=>{});
+}
 function stop(){
+ if(activeGame==='battleship')leaveBattle();
  activeGame='';if(battleTimer){clearTimeout(battleTimer);battleTimer=null}
  battleBusy=false;
 }
@@ -91,9 +100,13 @@ async function pollBattle(){
  if(activeGame!=='battleship'||document.hidden||battleBusy)return;
  battleBusy=true;
  try{
-  const r=await battleRequest('get');
-  if(activeGame!=='battleship')return;
-  const changed=battleRoom?.version!==r.version||!!battleMessage;
+  if(!battleSession)battleSession=window.crypto?.randomUUID?.()||('battle'+Date.now()+'_'+Math.random().toString(36).slice(2));
+  const session=battleSession,heartbeat=!battleLastHeartbeat||Date.now()-battleLastHeartbeat>=45000;
+  const previousPresence=JSON.stringify(battlePresence);
+  const r=await battleRequest('get',heartbeat?{sessionId:session,active:true}:{});
+  if(activeGame!=='battleship'||battleSession!==session)return;
+  if(heartbeat)battleLastHeartbeat=Date.now();
+  const changed=battleRoom?.version!==r.version||!!battleMessage||previousPresence!==JSON.stringify(battlePresence);
   battleRoom=r;battleMessage='';updateOne('battleship',r);
   if(changed)renderBattle();
  }catch(e){if(activeGame==='battleship'){battleMessage=navigator.onLine?e.message:'Нет интернета';renderBattle()}}
@@ -104,7 +117,7 @@ function cells(kind,room){
  const hitmap=new Map((shots||[]).map(x=>[x.cell,x.hit]));
  const shipset=new Set(own?room.ownShips||[]:room.opponentShips||[]);
  const turn=room.status==='playing'&&room.turn===actor();
- return '<div class="rudi-battle-grid" role="group" aria-label="'+(own?'Мой флот':'Поле соперника')+'">'+
+ return '<div class="rudi-battle-grid" role="group" aria-label="'+(own?'Мой флот':'Поле '+opponentName())+'">'+
  Array.from({length:49},(_,i)=>{
   const has=hitmap.has(i),hit=hitmap.get(i),ship=shipset.has(i);
   const label='Клетка '+String.fromCharCode(65+Math.floor(i/7))+(i%7+1);
@@ -120,16 +133,21 @@ function renderBattle(){
  g().header('Морской бой','Рустам против Дианы · 7 × 7');
  if(!r){g().section('<div class="rudi-game-work">Подключаю общее поле…</div>');return}
  const playing=r.status==='playing',turn=r.turn===actor(),ended=r.status==='ended';
+ const other=opponentName();
+ const presenceStatus=name=>battlePresence===null?'Проверяем…':battlePresence[name]?'В игре':'Не в игре';
+ const presenceClass=name=>battlePresence===null?'is-checking':battlePresence[name]?'is-online':'is-offline';
+ const presenceHtml='<div class="rudi-duel-presence" aria-label="Сейчас в Морском бое">'+
+  [actor(),other].map(name=>'<span class="rudi-duel-player '+presenceClass(name)+'"><i aria-hidden="true"></i><b>'+safe(name)+'</b><small>'+presenceStatus(name)+'</small></span>').join('')+'</div>';
  const message=playing?(turn?'Твой ход — выбирай клетку':'Ходит '+r.turn):
   r.status==='won'?(r.winner===actor()?'Победа! Все корабли соперника потоплены.':'Победил'+(r.winner==='Диана'?'а':'')+' '+r.winner):
   ended?'Партия завершена.':'Можно начать новую партию.';
- g().section('<div class="rudi-game-work rudi-battle-work"><div class="rudi-battle-info"><span>Раунд '+r.round+'</span><strong>'+safe(message)+'</strong></div>'+
-  '<section><h2>Поле соперника</h2><p>Нажми на клетку, чтобы выстрелить. Красный крест — попадание.</p>'+
+ g().section('<div class="rudi-game-work rudi-battle-work">'+presenceHtml+'<div class="rudi-battle-info"><span>Раунд '+r.round+'</span><strong>'+safe(message)+'</strong></div>'+
+  '<section><h2>Поле '+safe(other)+'</h2><p>Нажми на клетку, чтобы выстрелить. Красный крест — попадание.</p>'+
   cells('enemy',r)+'</section><section><h2>Мои корабли</h2><p>Корабли размещаются автоматически. Синий квадрат — часть корабля.</p>'+
   cells('own',r)+'</section>'+
   (playing?'<button class="rudi-duel-finish" type="button" data-battle-action="end">Завершить партию</button>':
    '<button class="rudi-game-primary" type="button" data-battle-action="start">'+(r.round?'Новая партия':'Начать игру')+'</button>')+
-  '<p class="rudi-game-hint" role="status">'+safe(battleMessage||'Ходы сохраняются. Проверка соперника — раз в 15 секунд, пока игра открыта.')+'</p></div>');
+  '<p class="rudi-game-hint" role="status">'+safe(battleMessage||'Ходы сохраняются. Поле обновляется раз в 20 секунд, пока игра открыта.')+'</p></div>');
 }
 async function battleAction(action,index){
  if(activeGame!=='battleship'||battleBusy)return;
@@ -143,7 +161,7 @@ async function battleAction(action,index){
  }finally{battleBusy=false;scheduleBattle()}
 }
 function startBattle(){
- activeGame='battleship';battleRoom=null;battleMessage='';g().setMode('battleship');
+ activeGame='battleship';battleRoom=null;battlePresence=null;battleSession='';battleLastHeartbeat=0;battleMessage='';g().setMode('battleship');
  renderBattle();void pollBattle();
 }
 const WORDS=['АРБУЗ','ГОРОД','КНИГА','ПАРУС','ЛАМПА','СОСНА','ГЕРОЙ','ОКЕАН','СТЕНА','ШКОЛА','ГРУША','ЛИМОН','ДОСКА','САПОГ','МОТОР','РОМАН','ПИЛОТ','ПЕСНЯ','МАСКА','РЫБАК','ТРАВА','МЕЧТА','ВЕТЕР','РОБОТ','СЛОВО','ДОЖДЬ','КРЫША','ЛИСТЫ','МЫШКА','ЧАШКА','НОЖКА','ЗАМОК','ДЕНЕК','ПОЛКА','СЦЕНА','ТУМАН','ВОЛНА','ОГОНЬ','ШТУКА','ЯГОДА'];
@@ -254,8 +272,8 @@ function onClick(e){
 }
 document.addEventListener('submit',e=>{if(e.target?.id==='rudiWordForm'){e.preventDefault();submitWord()}});
 document.addEventListener('visibilitychange',()=>{
- if(document.hidden){if(battleTimer){clearTimeout(battleTimer);battleTimer=null}}
- else{if(activeGame==='battleship')void pollBattle();else void refreshStatus(true)}
+ if(document.hidden){if(battleTimer){clearTimeout(battleTimer);battleTimer=null}if(activeGame==='battleship')leaveBattle()}
+ else{if(activeGame==='battleship'){battlePresence=null;void pollBattle()}else void refreshStatus(true)}
 });
 window.addEventListener('online',()=>{if(activeGame==='battleship')void pollBattle();else void refreshStatus(true)});
 window.addEventListener('focus',()=>{if(activeGame!=='battleship')void refreshStatus()});
