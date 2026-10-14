@@ -119,43 +119,10 @@
    sync();
  }
  function layoutLiveSelf(self,main,profileHead,energy){
-   // Only Diana keeps v4.230's expanded graph. Rustam gets the unmodified v4.229 layout.
-   if(self.id==='homeDianaTile')return layoutLiveDiana(self,main,profileHead,energy);
+   // Both account roles must share exactly one profile layout. The former
+   // Diana-only two-row layout shifted her avatar into the energy timeline.
    return layoutLiveRustamV4229(self,main,profileHead,energy);
  }
- function layoutLiveDiana(self,main,profileHead,energy){
-   self.dataset.rudiSelfLayout='inline';
-   setImportant(self,{'display':'flex','flex-direction':'column','justify-content':'center','align-items':'stretch','gap':'0',
-     'min-height':'118px','padding-top':'6px','padding-bottom':'7px'});
-   // Full-width energy graph below the identity: no lost 50%-width column.
-   setImportant(main,{'display':'grid','grid-template-columns':'minmax(0,1fr)',
-     'grid-template-rows':'48px 58px','grid-auto-rows':'auto','align-items':'center',
-     'align-content':'center','height':'106px','min-height':'106px','max-height':'none','width':'100%','gap':'0',
-     'margin':'0','padding':'0'});
-   setImportant(profileHead,{'grid-column':'1','grid-row':'1','display':'flex','align-items':'center',
-     'justify-content':'flex-start','align-self':'center','height':'48px','min-height':'48px',
-     'margin':'0','padding':'0'});
-   setImportant(energy,{'grid-column':'1','grid-row':'2','align-self':'center','height':'58px',
-     'min-height':'58px','margin':'0','padding':'0 7px','border-left':'none'});
-   const identity=profileHead.querySelector('.identity');
-   setImportant(identity,{'display':'grid','align-items':'center','align-self':'center','margin':'0',
-     'padding':'0','min-height':'44px'});
-   const avatar=profileHead.querySelector('.score-avatar-wrap');
-   setImportant(avatar,{'align-self':'center','margin':'0'});
-   const person=identity?.querySelector('.person');
-   setImportant(person,{'display':'flex','flex-direction':'column','justify-content':'center',
-     'align-self':'center','margin':'0','padding':'0'});
-   if(selfAxisObserved!==main&&typeof ResizeObserver==='function'){
-     selfAxisObserver?.disconnect();
-     selfAxisObserved=main;
-     selfAxisObserver=new ResizeObserver(()=>alignLiveProfileAxis(profileHead,energy));
-     selfAxisObserver.observe(main);
-     if(identity)selfAxisObserver.observe(identity);
-     selfAxisObserver.observe(energy);
-   }
-   alignLiveProfileAxis(profileHead,energy);
- }
-
  function layoutLiveRustamV4229(self,main,profileHead,energy){
    self.dataset.rudiSelfLayout='inline';
    setImportant(self,{'display':'flex','flex-direction':'column','justify-content':'center','align-items':'stretch','gap':'0',
