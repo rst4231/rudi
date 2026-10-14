@@ -90,6 +90,34 @@
        profileHead.style.setProperty('transform','translateY('+adjustment.toFixed(2)+'px)','important');
    });
  }
+
+ // Current-time biorhythm point uses the native collapse toggle, on both cards.
+ function bindEnergyDotExpander(energy){
+   const tile=energy?.closest('#homeRustamTile,#homeDianaTile');
+   const dot=energy?.querySelector('.profile-energy-plot .profile-energy-now');
+   if(!tile||!dot||dot.dataset.rudiDotExpandBound==='1')return;
+   dot.dataset.rudiDotExpandBound='1';
+   dot.removeAttribute('aria-hidden');
+   dot.setAttribute('role','button');
+   dot.setAttribute('tabindex','0');
+   dot.setAttribute('aria-label','Раскрыть карточку '+(tile.id==='homeDianaTile'?'Дианы':'Рустама'));
+   energy.setAttribute('role','group');
+   const sync=()=>dot.setAttribute('aria-expanded',String(!tile.classList.contains('is-collapsed')));
+   const expand=event=>{
+     if(document.body.dataset.appTab&&document.body.dataset.appTab!=='home')return;
+     event.preventDefault();
+     event.stopPropagation();
+     if(tile.classList.contains('is-collapsed'))tile.querySelector('.block-collapse-button')?.click();
+     sync();
+   };
+   dot.addEventListener('click',expand);
+   dot.addEventListener('keydown',event=>{
+     if(event.key==='Enter'||event.key===' ')expand(event);
+   });
+   if(typeof MutationObserver==='function')new MutationObserver(sync)
+     .observe(tile,{attributes:true,attributeFilter:['class']});
+   sync();
+ }
  function layoutLiveSelf(self,main,profileHead,energy){
    // Only Diana keeps v4.230's expanded graph. Rustam gets the unmodified v4.229 layout.
    if(self.id==='homeDianaTile')return layoutLiveDiana(self,main,profileHead,energy);
@@ -280,11 +308,15 @@
        main.append(profileHead,energy);
      layoutLiveSelf(self,main,profileHead,energy);
      watchEnergyPointCaption(energy);
+     bindEnergyDotExpander(energy);
    }
    // Diana's curve also needs its live phase caption when the other profile
    // owns the Home page; observe the existing dot, do not duplicate the data.
    const dianaEnergy=$('homeDianaTile')?.querySelector('.profile-energy-strip');
-   if(dianaEnergy&&dianaEnergy!==energy)watchEnergyPointCaption(dianaEnergy);
+   if(dianaEnergy&&dianaEnergy!==energy){
+     watchEnergyPointCaption(dianaEnergy);
+     bindEnergyDotExpander(dianaEnergy);
+   }
    // Both cards need the same name-side sticker geometry.
    placeMoodBadgesByName();
  }
@@ -307,6 +339,18 @@
        node.querySelector?.('[data-app-tab-section="home"]')))))schedule();
    }).observe(root,{childList:true,subtree:true});
  }
+
+ // The Home “Ближайшее” heading opens the existing Feed tab, not Schedule.
+ // Capture before app.js's legacy direct click handler; no app bundle edits.
+ document.addEventListener('click',event=>{
+   const nearest=event.target?.closest?.('#homeNearestOpen');
+   if(!nearest)return;
+   const feed=document.querySelector('.app-tab-button[data-app-tab="feed"]');
+   if(!feed)return;
+   event.preventDefault();
+   event.stopImmediatePropagation();
+   feed.click();
+ },true);
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});
  else schedule();
 })();

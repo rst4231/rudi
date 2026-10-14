@@ -19,7 +19,7 @@ test('fasting caption alone adds extra padding and hidden/empty timer cannot tri
  assert.match(css,/\.rudi-home-shortcuts \[hidden\]\{display:none!important\}/);
 });
 test('Diana partner card is compact and responsive with unchanged graph and native actions',()=>{
- const d=latest.slice(latest.indexOf('/* Diana as PARTNER'));
+ const d=latest.slice(latest.indexOf('/* Diana as PARTNER'),latest.indexOf('/* RUDI v4.234: energy dot interactions'));
  assert.doesNotMatch(d,/#homeRustamTile/);
  assert.match(d,/#homeDianaTile:not\(:has\(#displayName\)\)/);
  assert.match(d,/grid-template-columns:minmax\(0,43%\) minmax\(0,1fr\) auto!important/);
@@ -33,7 +33,7 @@ test('Diana partner card is compact and responsive with unchanged graph and nati
 });
 test('Rustam layout JS, native partner contacts and PWA version remain consistent',()=>{
  assert.match(js,/return layoutLiveRustamV4229\(self,main,profileHead,energy\)/);
- assert.match(html,/home-reference-layout\.css\?v=4\.233/);
- assert.match(html,/home-reference-layout\.js\?v=4\.231/);
- assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.233/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.234/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.234/);
+ assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.234/);
 });

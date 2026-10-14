@@ -36,18 +36,54 @@ function compare24h(points,now=Date.now()){
   const info=historyCoverage(points,now);
   const unavailable=reason=>({available:false,reason,...info});
   const target=now-24*HOUR;
-  const base=valid.reduce((best,p)=>!best||Math.abs(Date.parse(p.at)-target)<
-    Math.abs(Date.parse(best.at)-target)?p:best,null);
   const last=valid[valid.length-1];
-  if(!base||!last)return unavailable(info.observations?'partial-history':'no-history');
-  if(Math.abs(Date.parse(base.at)-target)>20*60000)
-    return unavailable(Date.parse(valid[0].at)>target+20*60000?'history-too-short':'baseline-missing');
+  if(!last)return unavailable(info.observations?'partial-history':'no-history');
   if(now-Date.parse(last.at)>20*60000)return unavailable('last-sync-stale');
-  if(last.at===base.at||last.usd===null||base.usd<=0)return unavailable('insufficient-history');
-  const delta=rounded(last.usd-base.usd),pct=rounded(delta/base.usd*100);
-  return {available:true,...info,deltaUsd:delta,percent:pct,from:base.at,to:last.at,
+
+  // Provider syncs are not scheduled at precisely the same minute each day.
+  // Keep strict real-observation requirements, but do not discard a real mark
+  // for being 21+ minutes away from an arbitrary 24-hour boundary.
+  const t=p=>Date.parse(p.at);
+  const candidates=valid.filter(p=>p!==last);
+  const before=candidates.filter(p=>t(p)<=target).at(-1);
+  const after=candidates.find(p=>t(p)>=target);
+  const near=2*HOUR,maxInterpolationGap=6*HOUR;
+  let baseUsd=null,from=null,baselineMethod=null,observedHours=null;
+  if(before&&after&&before!==after
+    &&target-t(before)<=maxInterpolationGap/2
+    &&t(after)-target<=maxInterpolationGap/2
+    &&t(after)-t(before)<=maxInterpolationGap){
+    // Linear estimation only between TWO complete real balance snapshots.
+    // The interpolation is explicitly marked; it is never called trading PNL.
+    const weight=(target-t(before))/(t(after)-t(before));
+    baseUsd=before.usd+(after.usd-before.usd)*weight;
+    from=new Date(target).toISOString();
+    baselineMethod='interpolated';
+    observedHours=24;
+  }else{
+    const nearest=candidates.reduce((best,p)=>!best||Math.abs(t(p)-target)<
+      Math.abs(t(best)-target)?p:best,null);
+    if(nearest&&Math.abs(t(nearest)-target)<=near){
+      baseUsd=nearest.usd;
+      from=nearest.at;
+      baselineMethod=Math.abs(t(nearest)-target)<=20*60000?'observed':'nearby-observation';
+      observedHours=Math.round((t(last)-t(nearest))/HOUR*10)/10;
+    }
+  }
+  if(baseUsd===null)
+    return unavailable(valid[0]&&t(valid[0])>target+near?'history-too-short':'baseline-missing');
+  if(!Number.isFinite(baseUsd)||baseUsd<=0)return unavailable('insufficient-history');
+  const delta=rounded(last.usd-baseUsd),pct=rounded(delta/baseUsd*100);
+  const approximate=baselineMethod!=='observed';
+  const detail=baselineMethod==='interpolated'
+    ?'Точка 24 ч назад приблизительно восстановлена между реальными полными снимками.'
+    :baselineMethod==='nearby-observation'
+      ?'Сравнены реальные полные снимки с интервалом '+observedHours+' ч (приблизительно сутки).'
+      :'Сравнены реальные полные снимки с интервалом около 24 ч.';
+  return {available:true,...info,deltaUsd:delta,percent:pct,from,to:last.at,
+    baselineMethod,observedHours,approximate,
     kind:'unadjusted-valuation-change',verifiedPnl:false,
-    note:'Оценка изменения стоимости за 24 ч. Пополнения, выводы и внутренние переводы не вычтены.'};
+    note:detail+' Это изменение стоимости, а не торговый PNL. Пополнения, выводы и внутренние переводы не вычтены.'};
 }
 // Valuation since the first saved full balance on day 1 of the Moscow
 // calendar month. Daily snapshots contain no clock time and cannot reconstruct

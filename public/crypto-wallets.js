@@ -87,7 +87,7 @@
     return 'недостаточно полных снимков';
   };
   const pnlText=(p,period='day')=>{
-    const label=period==='month'?'За месяц':'За 24 ч';
+    const label=period==='month'?'За месяц':p?.available&&p.approximate?'За ≈24 ч':'За 24 ч';
     if(!p?.available)return label+': '+pnlUnavailable(p,period);
     return label+': '+(p.deltaUsd>0?'+':'')+cash(p.deltaUsd)+
       ' ('+(p.percent>0?'+':'')+p.percent.toFixed(2)+'%)';
@@ -118,7 +118,13 @@
     if(actor!=='Рустам'||!connections.length||pnlFlight)return pnlFlight;
     pnlFlight=request('crypto-pnl-24h').then(data=>{
       pnl24h=data;render();
-    }).catch(()=>{pnl24h=null;render();}).finally(()=>{pnlFlight=null;});
+    }).catch(()=>{
+      const offline=connection=>({id:connection.walletId,available:false,reason:'history-unavailable'});
+      pnl24h={total:{available:false,reason:'history-unavailable'},
+        items:connections.map(offline),
+        month:{total:{available:false,reason:'history-unavailable'},items:connections.map(offline)}};
+      render();
+    }).finally(()=>{pnlFlight=null;});
     return pnlFlight;
   }
   function render(){

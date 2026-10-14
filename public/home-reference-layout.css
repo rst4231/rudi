@@ -1006,3 +1006,63 @@ body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) > .rudi-collaps
   body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-person-head > .profile-person-actions{gap:3px!important}
   body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-energy-strip .profile-energy-times{font-size:5.6px!important}
 }
+
+/* RUDI v4.234: Diana partner alignment only, leave Rustam layout unchanged. */
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)){
+  grid-template-rows:72px auto!important;
+  padding:6px 11px 3px!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-person-head > .identity{
+  grid-template-columns:44px minmax(0,1fr)!important;
+  gap:8px!important;
+  align-self:center!important;
+  justify-self:stretch!important;
+  min-height:44px!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .score-avatar-wrap,
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .score-avatar-wrap > .avatar{
+  width:44px!important;height:44px!important;
+  min-width:44px!important;min-height:44px!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .identity > .person{
+  align-self:center!important;justify-content:center!important;
+  margin:0!important;padding:0!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) > .profile-energy-strip{
+  grid-template-rows:32px 12px!important;
+  height:44px!important;min-height:44px!important;
+  align-self:center!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-energy-strip .profile-energy-plot{
+  height:32px!important;
+}
+@media(max-width:375px){
+  body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)){padding-inline:9px!important}
+  body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-person-head > .identity{
+    grid-template-columns:42px minmax(0,1fr)!important;gap:7px!important;
+  }
+  body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .score-avatar-wrap,
+  body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .score-avatar-wrap > .avatar{
+    width:42px!important;height:42px!important;min-width:42px!important;min-height:42px!important;
+  }
+}
+/* RUDI v4.234: energy dot interactions on BOTH profile cards, geometry intact. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-plot .profile-energy-now{
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+  cursor:pointer!important;
+  box-shadow:0 0 0 2px rgba(255,255,255,.18),0 0 10px 4px var(--profile-energy-current,#55d8a6)!important;
+  z-index:8!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-plot .profile-energy-now::before{
+  content:"";
+  position:absolute;
+  inset:-18px;
+  border-radius:50%;
+  background:transparent;
+  pointer-events:auto;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-plot .profile-energy-now:focus-visible{
+  outline:2px solid #fff!important;
+  outline-offset:5px!important;
+}

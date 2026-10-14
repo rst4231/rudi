@@ -18,7 +18,7 @@ test('expanded graph is called only for Diana',()=>{
  assert.match(diana,/'grid-column':'1','grid-row':'2','align-self':'center','height':'58px'/);
 });
 test('new width and chart styles contain only Diana-specific selectors',()=>{
- const patch=css.slice(css.indexOf('/* RUDI v4.232:'));
+ const patch=css.slice(css.indexOf('/* RUDI v4.232:'),css.indexOf('/* RUDI v4.234: energy dot interactions'));
  assert.ok(patch);
  assert.doesNotMatch(patch,/#homeRustamTile/);
  assert.match(patch,/#homeDianaTile:has\(#displayName\)/);
@@ -30,9 +30,9 @@ test('new width and chart styles contain only Diana-specific selectors',()=>{
  assert.match(css,/body\[data-app-tab="home"\] :is\(#homeRustamTile,#homeDianaTile\):has\(#displayName\)/);
 });
 test('PWA version bump does not change game assets',()=>{
- assert.match(html,/home-reference-layout\.js\?v=4\.231/);
- assert.match(html,/home-reference-layout\.css\?v=4\.233/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.234/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.234/);
  assert.match(html,/rudi-games\.js\?v=4\.230/);
  assert.match(html,/rudi-games\.css\?v=4\.230/);
- assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.233/);
+ assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.234/);
 });
