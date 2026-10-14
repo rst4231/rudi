@@ -15,15 +15,39 @@ function infoRow(title,amount,detail,positive){
   if(Number.isFinite(positive))tint(right,positive);
   item.append(left,right);return item;
 }
-function cmcPairUrl(symbol){
- const raw=String(symbol||'').toUpperCase().replace(/[^A-Z0-9/]/g,'');
- const pair=raw.includes('/')?raw:raw.replace(/(USDT|USDC|USD|BTC|ETH)$/,'/$1');
- return /^[A-Z0-9]{2,20}\/[A-Z0-9]{2,8}$/.test(pair)?'https://coinmarketcap.com/search/?q='+encodeURIComponent(pair):'';
+function cmcCoinUrl(symbol){
+ const raw=String(symbol||'').toUpperCase().trim().replace(/[^A-Z0-9/]/g,'');
+ const pair=raw.match(/^([A-Z0-9]{2,24})(USDT|USDC|USD|BTC|ETH)$/);
+ const coin=raw.includes('/')?raw.split('/')[0]:(pair?pair[1]:raw);
+ if(!/^[A-Z0-9]{2,24}$/.test(coin))return '';
+ // Known listing slugs open the actual coin page; others search for BASE only.
+ const slugs={
+ BTC:'bitcoin',ETH:'ethereum',SOL:'solana',BNB:'bnb',XRP:'xrp',DOGE:'dogecoin',
+ ADA:'cardano',AVAX:'avalanche',TRX:'tron',TON:'toncoin',SUI:'sui',
+ LINK:'chainlink',DOT:'polkadot-new',LTC:'litecoin',BCH:'bitcoin-cash',
+ XLM:'stellar',HBAR:'hedera',ICP:'internet-computer',ATOM:'cosmos',
+ NEAR:'near-protocol',APT:'aptos',ARB:'arbitrum',OP:'optimism-ethereum',
+ UNI:'uniswap',AAVE:'aave',FIL:'filecoin',ETC:'ethereum-classic',
+ INJ:'injective',IMX:'immutable-x',GRT:'the-graph',ALGO:'algorand',
+ PEPE:'pepe',SHIB:'shiba-inu',WIF:'dogwifhat',BONK:'bonk1',KAS:'kaspa',
+ RUNE:'thorchain',TAO:'bittensor',RENDER:'render',TIA:'celestia',
+ FET:'artificial-superintelligence-alliance',JUP:'jupiter-ag',
+ GALA:'gala',SAND:'the-sandbox',MANA:'decentraland',FLOW:'flow',
+ WLD:'worldcoin-org',ENA:'ethena',ONDO:'ondo-finance',PENDLE:'pendle',
+ BAT:'basic-attention-token',ENS:'ethereum-name-service',AR:'arweave',
+ ZEC:'zcash',NEO:'neo',XMR:'monero',CRV:'curve-dao-token',
+ COMP:'compound',DYDX:'dydx',STX:'stacks',LDO:'lido-dao',
+ VET:'vechain',XTZ:'tezos',CAKE:'pancakeswap',CHZ:'chiliz',
+ KAVA:'kava',IOTA:'iota',JASMY:'jasmy',ETHFI:'ether-fi',
+ HYPE:'hyperliquid',PENGU:'pudgy-penguins'
+ };
+ return slugs[coin]?'https://coinmarketcap.com/currencies/'+slugs[coin]+'/':
+  'https://coinmarketcap.com/search/?q='+encodeURIComponent(coin);
 }
 function linkDeal(node,symbol){
- const url=cmcPairUrl(symbol);if(!url)return node;
+ const url=cmcCoinUrl(symbol);if(!url)return node;
  node.classList.add('crypto-algo-item--cmc');node.setAttribute('role','link');node.setAttribute('tabindex','0');
- node.title='Найти '+symbol+' на CoinMarketCap';node.setAttribute('aria-label',node.title);
+ node.title='Открыть основную монету на CoinMarketCap';node.setAttribute('aria-label',node.title);
  const open=()=>window.open(url,'_blank','noopener,noreferrer');
  node.addEventListener('click',e=>{if(!e.target.closest('details'))open();});
  node.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.target.closest('details')){e.preventDefault();open();}});
