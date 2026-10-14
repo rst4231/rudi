@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.243';
+const CACHE_NAME='rudi-shell-v4.244';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -6,8 +6,8 @@ const PRECACHE=[
   "/",
   "/manifest.webmanifest",
   "/rudi-games.js?v=4.242",
-  "/rudi-games-extra.js?v=4.243",
-  "/rudi-games.css?v=4.242",
+  "/rudi-games-extra.js?v=4.244",
+  "/rudi-games.css?v=4.244",
   "/favicon-rudi-v460.png",
   "/apple-touch-icon-rudi-v460.png",
   "/icon-192-rudi-v460.png",
@@ -313,7 +313,7 @@ async function readPushDeviceAuth(){
 async function badgeNewGamePush(row){
  const tag=String(row?.tag||''),url=String(row?.url||'');
  if(!/^rudi-(duel-start|battle-start)-/.test(tag)||!/[?&]game=(duel|battleship)(?:&|$)/.test(url))return;
- try{if(typeof self.navigator?.setAppBadge==='function')await self.navigator.setAppBadge(1)}
+ try{if(typeof self.navigator?.setAppBadge==='function')await self.navigator.setAppBadge()}
  catch(_){}
 }
 
