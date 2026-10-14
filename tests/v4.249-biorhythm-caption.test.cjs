@@ -12,7 +12,7 @@ assert.ok(block.startsWith(' function updateEnergyPointCaption('),'caption updat
 
 function mockEnergy(width=160,dotX=155){
  const phase={textContent:'Выдох'};
- const dot={getBoundingClientRect:()=>({left:100+dotX,width:8})};
+ const dot={getBoundingClientRect:()=>({left:100+dotX,width:8}),querySelector:()=>null};
  const markerLabel={textContent:'',style:{left:''},hidden:false,parentElement:null,
   getBoundingClientRect:()=>({width:44})};
  const energy={
