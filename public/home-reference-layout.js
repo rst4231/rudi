@@ -293,6 +293,7 @@
      games.innerHTML='<span aria-hidden="true">🎮</span>';
      games.addEventListener('click',()=>window.RudiGames?.open?.());
      inner.append(games);
+     window.RudiGameExtras?.renderBadges?.();
    }
    const buttons=self.querySelector('.mood-self-buttons')||$('fastingProfileButton')?.closest('.mood-self-buttons')
        ||rail.querySelector('.mood-self-buttons');
