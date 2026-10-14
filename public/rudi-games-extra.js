@@ -140,7 +140,7 @@ function renderBattle(){
   [actor(),other].map(name=>'<span class="rudi-duel-player '+presenceClass(name)+'"><i aria-hidden="true"></i><b>'+safe(name)+'</b><small>'+presenceStatus(name)+'</small></span>').join('')+'</div>';
  const message=playing?(turn?'Твой ход — выбирай клетку':'Ходит '+r.turn):
   r.status==='won'?(r.winner===actor()?'Победа! Все корабли соперника потоплены.':'Победил'+(r.winner==='Диана'?'а':'')+' '+r.winner):
-  ended?'Партия завершена.':'Можно начать новую партию.';
+  ended?'Партия завершена.':r.round?'Можно начать новую партию.':'Игра ещё не началась.';
  g().section('<div class="rudi-game-work rudi-battle-work">'+presenceHtml+'<div class="rudi-battle-info"><span>Раунд '+r.round+'</span><strong>'+safe(message)+'</strong></div>'+
   '<section><h2>Поле '+safe(other)+'</h2><p>Нажми на клетку, чтобы выстрелить. Красный крест — попадание.</p>'+
   cells('enemy',r)+'</section><section><h2>Мои корабли</h2><p>Корабли размещаются автоматически. Синий квадрат — часть корабля.</p>'+
