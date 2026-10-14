@@ -1303,3 +1303,60 @@ body[data-app-tab="home"] #homeRustamTile:not(:has(#displayName)) .profile-energ
 }
 
 /* End RUDI v4.247 role-symmetric partner card. */
+
+
+/* RUDI v4.249: one reserved phase-caption lane for SELF and PARTNER on both accounts.
+   Neither "Энергия" nor the phase is placed over the biorhythm curve. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-strip{
+  position:relative!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:14px 29px 11px!important;
+  height:54px!important;
+  min-height:54px!important;
+  max-height:54px!important;
+  overflow:visible!important;
+  align-self:center!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-strip .profile-energy-label{
+  display:none!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-strip .profile-energy-plot{
+  grid-column:1!important;
+  grid-row:2!important;
+  width:100%!important;
+  height:29px!important;
+  min-width:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-strip .profile-energy-times{
+  grid-column:1!important;
+  grid-row:3!important;
+  width:100%!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-strip > .rudi-energy-point-caption{
+  position:absolute!important;
+  z-index:10!important;
+  top:0!important;
+  right:auto!important;
+  bottom:auto!important;
+  transform:translateX(-50%)!important;
+  height:13px!important;
+  max-height:13px!important;
+  line-height:13px!important;
+  width:max-content!important;
+  max-width:calc(100% - 6px)!important;
+  overflow:hidden!important;
+  text-overflow:ellipsis!important;
+  white-space:nowrap!important;
+  padding:0 2px!important;
+  margin:0!important;
+  font-size:10px!important;
+  font-weight:800!important;
+  color:rgba(236,241,252,.96)!important;
+  text-shadow:0 1px 4px rgba(0,4,12,.68)!important;
+  pointer-events:none!important;
+  box-sizing:border-box!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-strip > .rudi-energy-point-caption[hidden]{
+  display:none!important;
+}
