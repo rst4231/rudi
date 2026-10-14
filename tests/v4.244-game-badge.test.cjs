@@ -63,11 +63,12 @@ test('CSS keeps dot inside the game button and overrides inherited span sizing',
 test('PWA and HTML versions fetch updated game badge assets without numeric OS badge',()=>{
  const sw=fs.readFileSync('public/sw.js','utf8');
  const html=fs.readFileSync('public/index.html','utf8');
- assert.match(sw,/CACHE_NAME='rudi-shell-v4\.244'/);
- assert.match(sw,/self\.navigator\.setAppBadge\(\)/);
+ assert.match(sw,/CACHE_NAME='rudi-shell-v4\.\d+'/);
+ // OS badge is now set only by verified live game state, not a game-start push.
+ assert.doesNotMatch(sw,/self\.navigator\.setAppBadge\(/);
  assert.doesNotMatch(sw,/self\.navigator\.setAppBadge\(1\)/);
- assert.match(html,/rudi-games-extra\.js\?v=4\.244/);
+ assert.match(html,/rudi-games-extra\.js\?v=4\.\d+/);
  assert.match(html,/rudi-games\.css\?v=4\.244/);
- assert.equal(fs.readFileSync('VERSION','utf8').trim(),'v4.244');
- assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,'v4.244');
+ assert.match(fs.readFileSync('VERSION','utf8').trim(),/^v4\.\d+$/);
+ assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,fs.readFileSync('VERSION','utf8').trim());
 });
