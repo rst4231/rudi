@@ -308,6 +308,15 @@ async function readPushDeviceAuth(){
   }finally{db.close()}
 }
 
+// Set a supported PWA launcher badge when a new multiplayer party is pushed.
+// The client replaces it with the current live status when the app is opened.
+async function badgeNewGamePush(row){
+ const tag=String(row?.tag||''),url=String(row?.url||'');
+ if(!/^rudi-(duel-start|battle-start)-/.test(tag)||!/[?&]game=(duel|battleship)(?:&|$)/.test(url))return;
+ try{if(typeof self.navigator?.setAppBadge==='function')await self.navigator.setAppBadge(1)}
+ catch(_){}
+}
+
 async function deliverPendingPushNotifications(){
   const [seenIds,auth,subscription]=await Promise.all([
     readPushSeenIds().catch(()=>[]),
@@ -339,6 +348,7 @@ async function deliverPendingPushNotifications(){
       shown.push(id);
       continue;
     }
+    await badgeNewGamePush(row);
     await self.registration.showNotification(String(row?.title||'RUDI'),{
       body:String(row?.body||''),
       tag:notificationTag,
@@ -370,6 +380,7 @@ async function deliverDirectPushNotification(row){
   }
   const notificationTag=String(row?.tag||id);
   const notificationUrl=String(row?.url||'/');
+  await badgeNewGamePush(row);
   await self.registration.showNotification(String(row?.title||'RUDI'),{
     body:String(row?.body||''),
     tag:notificationTag,
