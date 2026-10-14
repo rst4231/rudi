@@ -144,8 +144,8 @@ function battleShips(kind,room,hitMap){
   const first=group[0],vertical=group.length>1&&group[1]-first===BATTLE_SIZE;
   const sunk=group.every(i=>hitMap.get(i)===true);
   return '<span aria-hidden="true" class="rudi-battle-vessel'+(vertical?' is-vertical':'')+
-   (sunk?' is-sunk':'')+'" style="--v-row:'+Math.floor(first/BATTLE_SIZE)+
-   ';--v-col:'+(first%BATTLE_SIZE)+';--v-size:'+group.length+'">'+
+   (sunk?' is-sunk':'')+'" style="grid-row:'+(Math.floor(first/BATTLE_SIZE)+1)+' / span '+(vertical?group.length:1)+
+   ';grid-column:'+(first%BATTLE_SIZE+1)+' / span '+(vertical?1:group.length)+'">'+
    '<i class="rudi-battle-vessel-deck"></i><i class="rudi-battle-vessel-bridge"></i>'+
    '<i class="rudi-battle-vessel-turrets"></i><i class="rudi-battle-vessel-wreck"></i></span>';
  }).join('');
@@ -212,7 +212,7 @@ function cells(kind,room){
   const has=hitmap.has(i),hit=hitmap.get(i),ship=shipset.has(i);
   const label='Клетка '+String.fromCharCode(65+Math.floor(i/7))+(i%7+1);
   const glyph=has?(hit?'<span class="rudi-battle-fire" aria-hidden="true">🔥</span>':'<span class="rudi-battle-splash" aria-hidden="true">•</span>'):'';
-  return '<button type="button" '+(own?'':'data-battle-cell="'+i+'" ')+'aria-label="'+label+
+  return '<button type="button" style="grid-row:'+(Math.floor(i/BATTLE_SIZE)+1)+';grid-column:'+(i%BATTLE_SIZE+1)+'" '+(own?'':'data-battle-cell="'+i+'" ')+'aria-label="'+label+
    (has?(hit?sunk.has(i)?', корабль потоплен':', попадание':', мимо'):own&&ship?', корабль':'')+
    '" class="rudi-battle-cell'+(ship?' is-ship':'')+
    (has?(hit?' is-hit':' is-miss'):'')+'" '+(own||has||!turn?'disabled':'')+'>'+glyph+'</button>';
