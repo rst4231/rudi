@@ -21,7 +21,7 @@ test('unconfirmed OKX candles are excluded',()=>{
  assert.equal(rows.length,1);assert.equal(rows[0][0],'2000');
  assert.equal(rows[0][5],'150');
 });
-test('OKX scanner selects and scans 40 liquid markets',async()=>{
+test('OKX scanner selects and scans 50 liquid markets',async()=>{
  let state=null,candleCalls=0;
  const client={getRecord:async()=>state?{value:state}:null,
    setRecord:async row=>{state=row.value;}};
@@ -37,7 +37,7 @@ test('OKX scanner selects and scans 40 liquid markets',async()=>{
  };
  const result=await a.scan({client,fetchImpl,now:NOW});
  assert.equal(result.provider,'okx');assert.equal(result.error,null);
- assert.equal(result.marketCount,40);assert.equal(candleCalls,40);
+ assert.equal(result.marketCount,50);assert.equal(candleCalls,50);
  assert.equal(result.portfolios.pump.closed,0);
 });
 test('Bybit archive remains read-only in its original namespace',async()=>{
@@ -60,4 +60,22 @@ test('OKX source 403 cannot invent successful scans or Bybit trades',async()=>{
  const failed=await a.scan({client,now:NOW,fetchImpl:async()=>({ok:false,status:403})});
  assert.equal(failed.error,'okx-http-403');
  assert.equal(failed.updatedAt,null);assert.equal(failed.marketCount,0);
+});
+
+test('CoinMarketCap follows the base coin, not the trading pair',()=>{
+ const fs=require('node:fs'),vm=require('node:vm'),source=fs.readFileSync('public/crypto-algorithms.js','utf8');
+ const start=source.indexOf('function cmcCoinUrl(symbol){');
+ const end=source.indexOf('\nfunction linkDeal(',start);
+ assert.ok(start>=0&&end>start);
+ const coin=vm.runInNewContext(source.slice(start,end)+'\ncmcCoinUrl');
+ assert.equal(coin('BTCUSDT'),'https://coinmarketcap.com/currencies/bitcoin/');
+ assert.equal(coin('BATUSDT'),'https://coinmarketcap.com/currencies/basic-attention-token/');
+ assert.equal(coin('ETH/USDT'),'https://coinmarketcap.com/currencies/ethereum/');
+ assert.equal(coin('UNKNOWNUSDT'),'https://coinmarketcap.com/search/?q=UNKNOWN');
+});
+test('Home name/status spacing is tighter on both profile cards',()=>{
+ const fs=require('node:fs'),css=fs.readFileSync('public/home-reference-layout.css','utf8');
+ const rules=css.slice(css.lastIndexOf('/* RUDI v4.241:'));
+ assert.match(rules,/:has\(#displayName\)[^\n]*gap:1px!important/);
+ assert.match(rules,/#homeDianaTile:not\(:has\(#displayName\)\)[^\n]*gap:1px!important/);
 });
