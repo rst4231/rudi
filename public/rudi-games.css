@@ -248,3 +248,26 @@ html[data-theme="dark"] .rudi-game-card .rudi-game-live-chip{color:#ff9fae;backg
 @media(max-width:370px){.rudi-battle-grid{gap:3px}.rudi-battle-cell{border-radius:6px}}
 
 /* RUDI v4.244: nonnumeric game status dot; deployed build marker. */
+
+
+/* RUDI v4.247: high-contrast Back button for the games room in dark mode.
+   Limit scope to this screen: the shared page-back control serves many sections. */
+html[data-theme="dark"] .rudi-games-page .rudi-games-head > #rudiGamesBack{
+  background:#222d4a!important;
+  border:1px solid rgba(177,191,245,.38)!important;
+  color:#f2f5ff!important;
+  opacity:1!important;
+  box-shadow:0 5px 16px rgba(1,6,24,.20)!important;
+}
+html[data-theme="dark"] .rudi-games-page .rudi-games-head > #rudiGamesBack svg,
+html[data-theme="dark"] .rudi-games-page .rudi-games-head > #rudiGamesBack svg path{
+  color:#f2f5ff!important;
+  stroke:#f2f5ff!important;
+  stroke-width:2.4px!important;
+  fill:none!important;
+  opacity:1!important;
+}
+html[data-theme="dark"] .rudi-games-page .rudi-games-head > #rudiGamesBack:focus-visible{
+  outline:2px solid #a2baff!important;
+  outline-offset:3px!important;
+}
