@@ -1,5 +1,5 @@
 {
-  "current": "v4.246",
+  "current": "v4.247",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -78,7 +78,8 @@
     "v4.243: personalized opponent fleet labels and live participant presence in Battleship using existing room polling; session-scoped join/leave with no dedicated extra fetches.",
     "v4.244: fix oversized overlapping Home games alert; show an isolated small red dot without digits, use nonnumeric native PWA badge where supported, refresh cache.",
     "v4.245: Home game and installed-PWA red dot appear only when it is the current player's turn; active matches still appear in game cards; start pushes no longer set false launcher badges; no extra polling.",
-    "v4.246: Move partner fasting progress and elapsed hours onto the partner avatar, reuse old purple progress / green goal-reached color, preserve goal popup on hour badge, remove former icon beside Telegram, use existing minute ticker without extra requests."
+    "v4.246: Move partner fasting progress and elapsed hours onto the partner avatar, reuse old purple progress / green goal-reached color, preserve goal popup on hour badge, remove former icon beside Telegram, use existing minute ticker without extra requests.",
+    "v4.247: eliminate Diana-only stacked live Home profile that shifted avatar into energy chart, reuse Rustam's compact one-row live layout for both account roles, and apply existing Diana-partner card geometry to Rustam-as-partner. Preserve personal data, mood, energy dots, fasting avatar and Home widgets; cache-bust layout JS/CSS without extra requests."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [
