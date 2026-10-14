@@ -1,7 +1,7 @@
 {
   "enabled": true,
   "monthsAhead": 3,
-  "yandexStandupUrl": "https://afisha.yandex.ru/saint-petersburg/selections/main-standup",
+  "yandexStandupUrl": "https://afisha.yandex.ru/saint-petersburg/selections/standup",
   "knownStandups": [
     "Андрей Бебуришвили",
     "Алексей Щербаков",
