@@ -50,7 +50,7 @@ test('battle alternates turns, rejects repeated, stale and opponent moves',async
  assert.equal((await d.call('Диана','move',{index:0,version:1})).code,409);
  const second=await d.call('Диана','move',{index:6,version:2});assert.equal(second.code,200);
  assert.equal(second.body.room.ownShots.length,1);
- assert.equal((await d.call('Рустам','move',{index:0,version:3})).code,409);
+ assert.equal((await d.call('Рустам','move',{index:6,version:3})).code,409);
 });
 test('hit grants another turn; miss passes turn',()=>{
  const a=battle.nextMove(null,'Рустам','start',null,'2026-10-14T12:00:00Z',mockShips).room;
