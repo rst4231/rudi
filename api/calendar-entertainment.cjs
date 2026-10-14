@@ -19,9 +19,10 @@ function event(raw,kind,date,source,c=DEFAULTS){
   if(!title||!validDate(date)||!['concert','standup','cinema'].includes(kind))return null;
   if(kind==='standup'&&!isKnown(title,c))return null;
   if(kind==='concert'&&(/^(кавер|джем|открытый микрофон|трибьют)/iu.test(title)||/\b(бар|pub|паб)\b/iu.test(venue)))return null;
-  return {kind,date,title,time:/^\d{1,2}:\d{2}$/u.test(time)?time.padStart(5,'0'):'',venue,href,source:clean(source,80)};
+  const clock=time.match(/\b(\d{1,2}:\d{2})\b/u);
+  return {kind,date,title,time:clock?clock[1].padStart(5,'0'):'',venue,href,source:clean(source,80)};
 }
-function unique(items){const map=new Map();for(const item of items||[]){if(!item)continue;const key=[item.kind,item.date,fold(item.title),item.time,fold(item.venue)].join('|');if(!map.has(key)||(!map.get(key).href&&item.href))map.set(key,item)}return [...map.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.kind.localeCompare(b.kind)||a.time.localeCompare(b.time)||a.title.localeCompare(b.title,'ru'))}
+function unique(items){const map=new Map();for(const item of items||[]){if(!item)continue;const key=[item.kind,item.date,fold(item.title),item.time].join('|');const prev=map.get(key);map.set(key,prev?{...prev,venue:prev.venue||item.venue,href:prev.href||item.href,source:prev.source||item.source}:item)}return [...map.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.kind.localeCompare(b.kind)||a.time.localeCompare(b.time)||a.title.localeCompare(b.title,'ru'))}
 const stripHtml=s=>String(s||'').replace(/<[^>]+>/gu,'').replace(/&amp;/gu,'&').replace(/&nbsp;/gu,' ').replace(/&quot;/gu,'"').trim();
 function parsePart(part,kind,date,c){const lines=String(part||'').replace(/\\n/gu,'\n').split(/\r?\n/gu);const out=[];let current=null;
   const push=()=>{if(current)out.push(event(current,kind,date,kind==='concert'?'Яндекс Афиша':'Stage StandUp Club',c));current=null};
