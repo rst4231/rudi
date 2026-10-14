@@ -27,8 +27,8 @@ test('self lower padding shrinks and name gets space without changing overall wi
  assert.match(js,/'min-height':'82px','padding-top':'6px','padding-bottom':'3px'/);
  assert.match(js,/grid-template-columns':narrow\?'minmax\(0,53%\)/);
  assert.match(scope,/padding-bottom:3px!important/);
- assert.match(html,/home-reference-layout\.css\?v=4\.230/);
- assert.match(html,/home-reference-layout\.js\?v=4\.230/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.231/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.231/);
 });
 test('shortcuts retain v4.225 dark-mode surface in the light app theme',()=>{
  assert.match(css,/html\[data-theme="light"\] body\[data-app-tab="home"\] \.rudi-home-shortcuts\{/);
