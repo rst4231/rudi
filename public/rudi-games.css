@@ -271,3 +271,5 @@ html[data-theme="dark"] .rudi-games-page .rudi-games-head > #rudiGamesBack:focus
   outline:2px solid #a2baff!important;
   outline-offset:3px!important;
 }
+
+/* v4.247 release: mobile profile symmetry + dark games navigation contrast, one build. */
