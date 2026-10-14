@@ -93,5 +93,5 @@ test('home full-width energy chart and moving phase caption',()=>{
  assert.match(html,/home-reference-layout\.js\?v=4\.\d+/);
  assert.match(html,/home-reference-layout\.css\?v=4\.\d+/);
  assert.match(html,/rudi-games\.js\?v=4\.\d+/);
- assert.match(html,/rudi-games\.css\?v=4\.230/);
+ assert.match(html,/rudi-games\.css\?v=4\.\d+/);
 });
