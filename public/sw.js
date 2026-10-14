@@ -9,7 +9,7 @@ const PRECACHE=[
   "/home-reference-layout.js?v=4.247",
   "/rudi-games.js?v=4.242",
   "/rudi-games-extra.js?v=4.245",
-  "/rudi-games.css?v=4.244",
+  "/rudi-games.css?v=4.247",
   "/favicon-rudi-v460.png",
   "/apple-touch-icon-rudi-v460.png",
   "/icon-192-rudi-v460.png",
