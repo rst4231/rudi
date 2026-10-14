@@ -657,3 +657,114 @@ body[data-app-tab="home"] [data-rudi-self-layout="inline"] > .rudi-home-self-lin
 body[data-app-tab="home"] [data-rudi-self-layout="inline"] .profile-person-head .profile-person-actions .block-collapse-button{
   display:none!important;
 }
+
+/* RUDI v4.226: native mood sticker BESIDE each name, not on the portrait.
+   Both buttons retain their native click and live data bindings. */
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row{
+  display:inline-flex!important;
+  width:max-content!important;
+  max-width:100%!important;
+  min-width:0!important;
+  align-items:center!important;
+  justify-content:flex-start!important;
+  justify-self:start!important;
+  flex-wrap:nowrap!important;
+  gap:4px!important;
+  overflow:visible!important;
+  white-space:nowrap!important;
+}
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > :is(#moodCurrentButton,#partnerMoodValue).avatar-mood-badge{
+  position:relative!important;
+  inset:auto!important;
+  top:auto!important;
+  right:auto!important;
+  left:auto!important;
+  bottom:auto!important;
+  display:grid!important;
+  place-items:center!important;
+  flex:0 0 26px!important;
+  width:26px!important;
+  height:26px!important;
+  min-width:26px!important;
+  min-height:26px!important;
+  max-width:26px!important;
+  max-height:26px!important;
+  padding:0!important;
+  margin:0!important;
+  border:1px solid rgba(241,246,255,.55)!important;
+  border-radius:50%!important;
+  background:linear-gradient(145deg,#252c40,#111625)!important;
+  box-shadow:0 1px 4px rgba(0,0,0,.24)!important;
+  overflow:hidden!important;
+  transform:none!important;
+  opacity:1!important;
+  -webkit-backdrop-filter:none!important;
+  backdrop-filter:none!important;
+  color:#f5f7ff!important;
+  vertical-align:middle!important;
+}
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > :is(#moodCurrentButton,#partnerMoodValue).avatar-mood-badge:active{
+  transform:scale(.94)!important;
+}
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > #partnerMoodValue[hidden],
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > #moodCurrentButton[hidden]{
+  display:none!important;
+}
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > #partnerMoodValue .partner-mood-icon[hidden]{
+  display:none!important;
+}
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > #partnerMoodValue .partner-mood-icon:not([hidden]){
+  display:grid!important;
+  place-items:center!important;
+}
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > #partnerMoodValue .partner-mood-icon:not([hidden]) .mood-emoji,
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > #moodCurrentButton .mood-emoji{
+  font-size:19px!important;
+  line-height:1!important;
+  transform:none!important;
+}
+/* An unset mood shows no white or pale sticker. Keep the own button functional
+   as a minimal transparent '+' to let the user choose their mood. */
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > #moodCurrentButton.is-empty{
+  border-color:transparent!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  color:rgba(203,212,235,.65)!important;
+}
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > #moodCurrentButton.is-empty .mood-emoji{
+  visibility:hidden!important;
+}
+body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > #moodCurrentButton.is-empty::after{
+  content:"+";
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  font-size:19px;
+  line-height:1;
+  font-weight:500;
+  pointer-events:none;
+}
+/* Reduce the unused lower padding without altering car-width or the energy chart. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName){
+  min-height:82px!important;
+  padding-top:6px!important;
+  padding-bottom:3px!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) > .rudi-home-self-line{
+  grid-template-columns:minmax(0,50%) minmax(0,1fr)!important;
+}
+@media(max-width:375px){
+  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) > .rudi-home-self-line{
+    grid-template-columns:minmax(0,53%) minmax(0,1fr)!important;
+  }
+  body[data-app-tab="home"] .profile-person-card .profile-person-head .profile-name-row > :is(#moodCurrentButton,#partnerMoodValue).avatar-mood-badge{
+    flex-basis:23px!important;
+    width:23px!important;
+    height:23px!important;
+    min-width:23px!important;
+    min-height:23px!important;
+    max-width:23px!important;
+    max-height:23px!important;
+  }
+}

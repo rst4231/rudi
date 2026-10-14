@@ -92,8 +92,10 @@
  }
  function layoutLiveSelf(self,main,profileHead,energy){
    self.dataset.rudiSelfLayout='inline';
-   setImportant(self,{'display':'flex','flex-direction':'column','justify-content':'center','align-items':'stretch','gap':'0','min-height':'92px'});
-   setImportant(main,{'display':'grid','grid-template-columns':'minmax(0,43%) minmax(0,1fr)',
+   setImportant(self,{'display':'flex','flex-direction':'column','justify-content':'center','align-items':'stretch','gap':'0',
+     'min-height':'82px','padding-top':'6px','padding-bottom':'3px'});
+   const narrow=window.innerWidth<=375;
+   setImportant(main,{'display':'grid','grid-template-columns':narrow?'minmax(0,53%) minmax(0,1fr)':'minmax(0,50%) minmax(0,1fr)',
      'grid-template-rows':'72px','grid-auto-rows':'72px','align-items':'center',
      'align-content':'center','height':'72px','min-height':'72px','max-height':'72px','width':'100%','gap':'10px',
      'margin':'0','padding':'0'});
@@ -118,6 +120,15 @@
      selfAxisObserver.observe(energy);
    }
    alignLiveProfileAxis(profileHead,energy);
+ }
+ // Relocate the same native mood buttons, preserving their listeners and live state.
+ function placeMoodBadgesByName(){
+   for(const id of ['homeRustamTile','homeDianaTile']){
+     const tile=$(id);
+     const row=tile?.querySelector('.profile-person-head .profile-name-row');
+     const badge=tile?.querySelector('#moodCurrentButton,#partnerMoodValue');
+     if(row&&badge&&badge.parentElement!==row)row.appendChild(badge);
+   }
  }
  function arrange(){
    pending=false;
@@ -183,6 +194,8 @@
      layoutLiveSelf(self,main,profileHead,energy);
      watchEnergyPointCaption(energy);
    }
+   // Both cards need the same name-side sticker geometry.
+   placeMoodBadgesByName();
  }
  function schedule(){
    if(pending)return;pending=true;

@@ -1,5 +1,5 @@
 {
-  "current": "v4.225",
+  "current": "v4.226",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -61,7 +61,8 @@
     "v4.222: center complete profile content vertically in tile, align avatar, mood badge, name and status on iPhone; preserve graph and widths.",
     "v4.223: fix the actual collapsed-profile layout by removing the hidden disclosure grid row and vertically centering a single horizontal avatar/name/chart row; consolidate conflicting overrides.",
     "v4.224: unify self card layout across collapsed and expanded states, center avatar/name/status and graph on identical vertical coordinates, remove phantom collapsed details, validated in Chromium at iPhone widths.",
-    "v4.225: use live mounted DOM layout and measured center correction for profile alignment, preserve permanently dark opaque tracker panel including in light theme."
+    "v4.225: use live mounted DOM layout and measured center correction for profile alignment, preserve permanently dark opaque tracker panel including in light theme.",
+    "v4.226: move native mood badges beside names for both profiles; circular partner badge, no empty white placeholder, reduce own card bottom padding, preserve dark shortcut rail in light mode."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [
