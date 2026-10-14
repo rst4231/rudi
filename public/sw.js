@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.235';
+const CACHE_NAME='rudi-shell-v4.240';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -10,7 +10,8 @@ const PRECACHE=[
   "/icon-192-rudi-v460.png",
   "/icon-512.svg",
   "/icon-maskable.svg",
-  "/app.css?v=4.149",
+  "/app.css?v=4.240",
+  "/finance-obligation-dates.js?v=4.240",
   "/finance-bank.css?v=4.149",
   "/rudi-design-system.css?v=4.149",
   "/pwa-extras.css?v=4.149",
