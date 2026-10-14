@@ -1,10 +1,11 @@
-const CACHE_NAME='rudi-shell-v4.245';
+const CACHE_NAME='rudi-shell-v4.246';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
 const PRECACHE=[
   "/",
   "/manifest.webmanifest",
+  "/home-reference-layout.css?v=4.246",
   "/rudi-games.js?v=4.242",
   "/rudi-games-extra.js?v=4.245",
   "/rudi-games.css?v=4.244",
@@ -26,7 +27,7 @@ const PRECACHE=[
   "/supplement-advanced.css?v=4.149",
   "/rudi-effects.css?v=4.199",
   "/rudi-effects.js?v=4.199",
-  "/app.js?v=4.209",
+  "/app.js?v=4.246",
   "/meditation.js?v=4.197",
   "/personal-task-editor.js?v=4.209",
   "/personal-task-editor.css?v=4.209",
