@@ -77,7 +77,7 @@ function nextMove(raw,actor,operation,index,now=new Date().toISOString(),makeShi
  const shots={...s.shots,[actor]:[...s.shots[actor],{cell:index,hit}]};
  const won=shots[actor].filter(x=>x.hit).length===s.ships[opponent].length;
  return {ok:true,room:{...s,shots,version:s.version+1,updatedAt:now,
-  status:won?'won':'playing',turn:won?'':opponent,winner:won?actor:''}};
+  status:won?'won':'playing',turn:won?'':hit?actor:opponent,winner:won?actor:''}};
 }
 function notifyGameStart(actor,round,deps={}){
  const recipient=other(actor);
