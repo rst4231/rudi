@@ -79,14 +79,19 @@ function nextMove(raw,actor,operation,index,now=new Date().toISOString(),makeShi
  return {ok:true,room:{...s,shots,version:s.version+1,updatedAt:now,
   status:won?'won':'playing',turn:won?'':opponent,winner:won?actor:''}};
 }
-function notification(actor,room,operation,deps={}){
- const recipient=other(actor),send=deps.sendPushImpl||((to,payload)=>require('./web-push.cjs').sendPushNotification(to,payload));
- const title='Морской бой',body=operation==='start'?actor+' начинает игру. Заходи!':'Твой ход! '+actor+' сделал'+(actor==='Диана'?'а':'')+' выстрел.';
- const task=Promise.resolve().then(()=>send(recipient,{title,body,tag:'rudi-battle-'+room.round+'-'+room.version,
-  id:'rudi-battle-'+room.round+'-'+room.version+'-'+recipient,url:'/?tab=home&game=battleship'}))
-  .catch(e=>{console.warn('RUDI_BATTLE_PUSH_WARN',String(e?.message||e));return null});
- const waitUntil=deps.waitUntilImpl||((p)=>require('@vercel/functions').waitUntil(p));
- try{waitUntil(task)}catch(_){}
+function notifyGameStart(actor,round,deps={}){
+ const recipient=other(actor);
+ const send=deps.sendPushImpl||((to,payload)=>require('./web-push.cjs').sendPushNotification(to,payload));
+ const action=actor==='Диана'?'начала':'начал';
+ const task=Promise.resolve().then(()=>send(recipient,{
+  title:'⚓ Морской бой',
+  body:actor+' '+action+' новую партию. Заходи играть!',
+  tag:'rudi-battle-start-'+round,
+  id:'rudi-battle-start-'+round+'-'+recipient,
+  url:'/?tab=home&game=battleship'
+ })).catch(e=>{console.warn('RUDI_BATTLE_PUSH_WARN',String(e?.message||e));return {sent:false}});
+ const waitUntil=deps.waitUntilImpl||((job)=>require('@vercel/functions').waitUntil(job));
+ try{waitUntil(task)}catch(e){console.warn('RUDI_BATTLE_PUSH_BACKGROUND_WARN',String(e?.message||e))}
  return task;
 }
 function createHandler(deps={}){
@@ -118,12 +123,12 @@ function createHandler(deps={}){
     const result=nextMove(current,actor,operation,body.index,now(),deps.makeShips||ships);
     if(!result.ok)return res.status(409).json({ok:false,error:result.error,room:publicRoom(result.room,actor)});
     await cache.set(ROOM,result.room,{ttl:TTL});
-    if(operation==='start'||operation==='move'&&result.room.status==='playing')
-     notification(actor,result.room,operation,deps);
+    // Send one push per successfully persisted new round; moves never spam notifications.
+    if(operation==='start')notifyGameStart(actor,result.room.round,deps);
     return res.status(200).json({ok:true,actor,room:publicRoom(result.room,actor)});
    }finally{if(locked)try{await cache.delete(LOCK)}catch(_){}}
   }catch(e){console.error('RUDI_BATTLE_ERROR',String(e?.message||e));return res.status(503).json({ok:false,error:'battle-store-unavailable'})}
  };
 }
 module.exports=createHandler();
-Object.assign(module.exports,{NS,ROOM,ships,initial,normalize,publicRoom,nextMove,createHandler});
+Object.assign(module.exports,{NS,ROOM,ships,initial,normalize,publicRoom,nextMove,createHandler,notifyGameStart});
