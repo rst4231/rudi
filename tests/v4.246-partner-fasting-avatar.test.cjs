@@ -29,7 +29,7 @@ function harness(actor='Рустам',now=Date.parse('2026-10-14T14:00:00Z')){
    if(id===((actor==='Рустам')?'homeDianaTile':'homeRustamTile'))return tile;
    return null;
   },
-  createElement(tag){return {tag,className:'',hidden:false,style:{},setAttribute(k,v){this[k]=v}}},
+  createElement(tag){return {tag,className:'',hidden:false,style:{},dataset:{},listeners:{},addEventListener(k,fn){this.listeners[k]=fn},setAttribute(k,v){this[k]=v}}},
   createElementNS(_ns,tag){
    const classes=new Set(),children=[];
    return {tag,hidden:false,style:{},
@@ -51,6 +51,9 @@ test('same old purple progress and green completed halo for both partner directi
   const label=x.byClass.get('.rudi-partner-fasting-hours');
   const svg=x.byClass.get('.rudi-partner-fasting-outline');
   assert.equal(label.textContent,'8 ч');
+  assert.equal(label.tag,'button','hours keep prior goal popup');
+  assert.equal(label.dataset.fastingGoalHours,'16');
+  assert.equal(typeof label.listeners.click,'function');
   assert.equal(label.hidden,false);
   assert.equal(svg.hidden,false);
   assert.equal(x.style.props['--rudi-partner-fasting-color'],'#a59af9');
