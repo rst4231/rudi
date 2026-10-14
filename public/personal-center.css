@@ -305,3 +305,26 @@ body.rudi-center-open{overflow:hidden!important}
 .rudi-center__deep-verify{border-left-color:var(--pc-blue)}
 .rudi-center__deep-caveat{margin:0!important;padding-top:9px;border-top:1px solid var(--pc-border);color:var(--pc-muted);font-size:12px!important;line-height:1.6!important}
 @media(max-width:520px){.rudi-center__deep-card{padding:16px}.rudi-center__deep-interpret p{font-size:14px}}
+
+/* Coach design: disciplined spacing, calm colors and evidence markers */
+.rudi-center__content{width:100%;max-width:720px;margin-inline:auto}
+.rudi-center__hero{background:linear-gradient(125deg,#18313c,#22514d 58%,#12735b);border-radius:27px;padding:clamp(20px,3vw,30px);box-shadow:0 14px 33px rgba(11,55,49,.13)}
+.rudi-center__hero-identity{gap:clamp(12px,3vw,20px);align-items:center;min-width:0}
+.rudi-center__hero-name h1{font-size:clamp(24px,5.5vw,38px);letter-spacing:-.04em}
+.rudi-center__hero-name #pcHeroMeta{display:flex;gap:3px 9px;flex-wrap:wrap;line-height:1.5;font-size:clamp(11px,2.8vw,14px);margin:0}
+.rudi-center__hero-metric{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.rudi-center__hero-metric:not(:last-child)::after{content:'·';opacity:.65;margin-left:3px}
+.rudi-center__hero-warning{font-size:10px;color:#ff667b;text-shadow:0 0 5px rgba(190,34,59,.5)}
+.rudi-center__hero-attention{display:flex;flex-direction:column;gap:5px;margin-top:13px;font-size:11px;line-height:1.45;color:#ffe0e3}
+.rudi-center__hero-attention[hidden]{display:none!important}
+.rudi-center__card{border-radius:22px;box-shadow:0 5px 20px rgba(15,40,48,.035);margin-bottom:15px}
+.rudi-center__report .rudi-center__head{margin-bottom:9px;align-items:center}
+.rudi-center__report .rudi-center__eyebrow{margin-bottom:0;font-size:11px;letter-spacing:.17em}
+.rudi-center__report .rudi-center__report-lead{margin-top:0}
+.rudi-center__summary-grid>div{border-radius:15px}
+.rudi-center__tile-grid{gap:14px}
+.rudi-center__tile{border-radius:19px;min-width:0}
+.rudi-center__rhythm-chart{max-height:none}
+.rudi-center__chart{aspect-ratio:350/168;max-height:none;padding:4px 2px;overflow:visible}
+.rudi-center__deep-card{box-shadow:0 4px 17px rgba(16,38,46,.04);border-radius:18px}
+@media(max-width:520px){.rudi-center__hero{padding:22px 19px;border-radius:24px}.rudi-center__hero-avatar{width:64px;height:64px}.rudi-center__head{flex-wrap:wrap}.rudi-center__rhythm-chart{min-height:155px}.rudi-center__tile-grid{gap:10px}}

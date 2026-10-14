@@ -35,3 +35,6 @@
 .crypto-algo-exchanges{display:flex;gap:8px;margin:8px 0 14px;flex-wrap:wrap}
 .crypto-algo-exchanges button{min-height:40px;border:1px solid rgba(156,155,191,.27);background:rgba(145,144,178,.08);color:inherit;border-radius:11px;padding:8px 12px;font-size:12px;font-weight:650;cursor:pointer}
 .crypto-algo-exchanges button.active{border-color:rgba(155,143,245,.72);background:rgba(106,92,198,.26);color:#eee7ff}
+
+.crypto-algo-item--cmc{cursor:pointer;transition:background .16s ease}
+.crypto-algo-item--cmc:hover,.crypto-algo-item--cmc:focus-visible{background:rgba(104,144,198,.16);outline:2px solid rgba(155,143,245,.5);outline-offset:1px}

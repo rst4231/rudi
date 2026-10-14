@@ -15,6 +15,20 @@ function infoRow(title,amount,detail,positive){
   if(Number.isFinite(positive))tint(right,positive);
   item.append(left,right);return item;
 }
+function cmcPairUrl(symbol){
+ const raw=String(symbol||'').toUpperCase().replace(/[^A-Z0-9/]/g,'');
+ const pair=raw.includes('/')?raw:raw.replace(/(USDT|USDC|USD|BTC|ETH)$/,'/$1');
+ return /^[A-Z0-9]{2,20}\/[A-Z0-9]{2,8}$/.test(pair)?'https://coinmarketcap.com/search/?q='+encodeURIComponent(pair):'';
+}
+function linkDeal(node,symbol){
+ const url=cmcPairUrl(symbol);if(!url)return node;
+ node.classList.add('crypto-algo-item--cmc');node.setAttribute('role','link');node.setAttribute('tabindex','0');
+ node.title='Найти '+symbol+' на CoinMarketCap';node.setAttribute('aria-label',node.title);
+ const open=()=>window.open(url,'_blank','noopener,noreferrer');
+ node.addEventListener('click',e=>{if(!e.target.closest('details'))open();});
+ node.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.target.closest('details')){e.preventDefault();open();}});
+ return node;
+}
 function curve(points){
   const svg=$('cryptoAlgoCurve');if(!svg)return;svg.replaceChildren();
   const series=(points||[]).map(p=>Number(p.usd)).filter(Number.isFinite);
@@ -68,9 +82,9 @@ function draw(){
   // Open positions are global, even when the selected strategy has none.
   for(const algorithm of data.algorithms||[]){
     for(const t of data.portfolios?.[algorithm.id]?.positions||[]){
-      positions.append(infoRow(algorithm.name+' · '+t.symbol+' · SHORT',signed(t.unrealizedPnl),
+      positions.append(linkDeal(infoRow(algorithm.name+' · '+t.symbol+' · SHORT',signed(t.unrealizedPnl),
         'Вход '+Number(t.entry).toPrecision(6)+' · TP '+t.take+' · SL '+t.stop+' · '+t.leverage+'×',
-        t.unrealizedPnl));
+        t.unrealizedPnl),t.symbol));
     }
   }
   if(!positions.children.length)positions.textContent='Открытых виртуальных позиций ни у одного алгоритма нет.';
@@ -85,7 +99,7 @@ function draw(){
     desc.textContent='Вход '+Number(t.entry).toPrecision(7)+' · Выход '+Number(t.exitPrice).toPrecision(7)+
       ' · Маржа '+usd(t.margin)+' · Объём '+usd(t.notional)+
       ' · Комиссии '+usd(t.feeUsd)+' · Сила сигнала '+t.score+'/100';
-    details.append(summary,desc);node.append(details);trades.append(node);
+    details.append(summary,desc);node.append(details);trades.append(linkDeal(node,t.symbol));
   }
   if(!trades.children.length)trades.textContent='Закрытых сделок пока нет. История начинается только после запуска сканера.';
   const updated=$('cryptoAlgoUpdated');
