@@ -48,11 +48,32 @@ function normalize(raw){
   ships:Object.fromEntries(PLAYERS.map(a=>[a,getBoard(a)])),
   shots:Object.fromEntries(PLAYERS.map(a=>[a,getShots(a)]))};
 }
+function vesselGroups(cells){
+ const set=new Set(cells),seen=new Set(),groups=[];
+ for(const first of set){
+  if(seen.has(first))continue;
+  const group=[],stack=[first];seen.add(first);
+  while(stack.length){
+   const current=stack.pop(),row=Math.floor(current/SIZE);
+   group.push(current);
+   for(const next of [current-SIZE,current+SIZE,current-1,current+1]){
+    if(next<0||next>=SIZE*SIZE||!set.has(next)||seen.has(next))continue;
+    if(Math.abs(next-current)===1&&Math.floor(next/SIZE)!==row)continue;
+    seen.add(next);stack.push(next);
+   }
+  }
+  groups.push(group.sort((a,b)=>a-b));
+ }
+ return groups;
+}
 function publicRoom(raw,actor){
  const s=normalize(raw),enemy=other(actor),done=s.status!=='playing';
  return {status:s.status,round:s.round,version:s.version,turn:s.turn,winner:s.winner,
   endedBy:s.endedBy,updatedAt:s.updatedAt,
   ownShips:s.ships[actor],ownShots:s.shots[actor],enemyShots:s.shots[enemy],
+  // Reveal only FULLY sunk enemy vessels during active play. Other ship positions remain secret.
+  sunkShips:vesselGroups(s.ships[enemy]).filter(group=>group.every(cell=>
+   s.shots[actor].some(shot=>shot.cell===cell&&shot.hit))),
   opponentShips:done?s.ships[enemy]:undefined};
 }
 function nextMove(raw,actor,operation,index,now=new Date().toISOString(),makeShips=ships){
@@ -158,4 +179,4 @@ function createHandler(deps={}){
  };
 }
 module.exports=createHandler();
-Object.assign(module.exports,{NS,ROOM,ships,initial,normalize,publicRoom,nextMove,createHandler,notifyGameStart,validSession,readPresence});
+Object.assign(module.exports,{NS,ROOM,ships,vesselGroups,initial,normalize,publicRoom,nextMove,createHandler,notifyGameStart,validSession,readPresence});
