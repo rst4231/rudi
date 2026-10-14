@@ -112,20 +112,111 @@ async function pollBattle(){
  }catch(e){if(activeGame==='battleship'){battleMessage=navigator.onLine?e.message:'Нет интернета';renderBattle()}}
  finally{battleBusy=false;scheduleBattle()}
 }
+
+/* RUDI v4.248: continuous ship silhouettes, complete wrecks, and local Web Audio effects. */
+const BATTLE_SIZE=7;
+let battleSoundEnabled=read('battle-sound-enabled',true)!==false,battleAudio=null;
+function vesselGroups(cells){
+ const tiles=new Set((cells||[]).filter(i=>Number.isInteger(i)&&i>=0&&i<49));
+ const visited=new Set(),groups=[];
+ for(const first of tiles){
+  if(visited.has(first))continue;
+  const stack=[first],group=[];visited.add(first);
+  while(stack.length){
+   const i=stack.pop(),row=Math.floor(i/BATTLE_SIZE);
+   group.push(i);
+   for(const next of [i-BATTLE_SIZE,i+BATTLE_SIZE,i-1,i+1]){
+    if(!tiles.has(next)||visited.has(next))continue;
+    if(Math.abs(next-i)===1&&Math.floor(next/BATTLE_SIZE)!==row)continue;
+    visited.add(next);stack.push(next);
+   }
+  }
+  groups.push(group.sort((a,b)=>a-b));
+ }
+ return groups;
+}
+function battleShips(kind,room,hitMap){
+ const own=kind==='own',finished=room.status!=='playing';
+ const groups=own?vesselGroups(room.ownShips):finished?
+  vesselGroups(room.opponentShips):(room.sunkShips||[]);
+ return groups.map(group=>{
+  if(!group.length)return '';
+  const first=group[0],vertical=group.length>1&&group[1]-first===BATTLE_SIZE;
+  const sunk=group.every(i=>hitMap.get(i)===true);
+  return '<span aria-hidden="true" class="rudi-battle-vessel'+(vertical?' is-vertical':'')+
+   (sunk?' is-sunk':'')+'" style="--v-row:'+Math.floor(first/BATTLE_SIZE)+
+   ';--v-col:'+(first%BATTLE_SIZE)+';--v-size:'+group.length+'">'+
+   '<i class="rudi-battle-vessel-deck"></i><i class="rudi-battle-vessel-bridge"></i>'+
+   '<i class="rudi-battle-vessel-turrets"></i><i class="rudi-battle-vessel-wreck"></i></span>';
+ }).join('');
+}
+function battleTone(ctx,at,startFreq,endFreq,length,volume,type='sine'){
+ const osc=ctx.createOscillator(),gain=ctx.createGain();
+ osc.type=type;osc.frequency.setValueAtTime(startFreq,at);
+ osc.frequency.exponentialRampToValueAtTime(endFreq,at+length);
+ gain.gain.setValueAtTime(.0001,at);
+ gain.gain.exponentialRampToValueAtTime(Math.max(.0002,volume),at+.014);
+ gain.gain.exponentialRampToValueAtTime(.0001,at+length);
+ osc.connect(gain);gain.connect(ctx.destination);
+ osc.start(at);osc.stop(at+length+.015);
+}
+function battleNoise(ctx,at,duration,peak,filterType,freq){
+ const count=Math.floor(ctx.sampleRate*duration),buffer=ctx.createBuffer(1,count,ctx.sampleRate);
+ const samples=buffer.getChannelData(0);
+ for(let i=0;i<count;i++)samples[i]=(Math.random()*2-1)*(1-i/count);
+ const source=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+ source.buffer=buffer;filter.type=filterType;filter.frequency.value=freq;
+ gain.gain.setValueAtTime(.0001,at);
+ gain.gain.exponentialRampToValueAtTime(peak,at+.014);
+ gain.gain.exponentialRampToValueAtTime(.0001,at+duration);
+ source.connect(filter);filter.connect(gain);gain.connect(ctx.destination);
+ source.start(at);source.stop(at+duration+.005);
+}
+function playBattleSound(kind){
+ if(!battleSoundEnabled||document.hidden)return;
+ try{
+  const Audio=window.AudioContext||window.webkitAudioContext;
+  if(!Audio)return;
+  if(!battleAudio)battleAudio=new Audio();
+  const ctx=battleAudio;if(ctx.state==='closed')return;
+  if(ctx.state==='suspended')void ctx.resume().catch(()=>{});
+  const at=ctx.currentTime+.01;
+  if(kind==='fire'){
+   battleTone(ctx,at,160,48,.33,.19,'triangle');
+   battleNoise(ctx,at,.23,.20,'lowpass',950);
+  }else if(kind==='miss'){
+   battleNoise(ctx,at,.33,.16,'highpass',750);
+   battleTone(ctx,at,270,105,.23,.04);
+  }else if(kind==='hit'||kind==='sunk'){
+   battleTone(ctx,at,110,39,.42,.24,'sawtooth');
+   battleNoise(ctx,at,.37,.24,'lowpass',1300);
+   if(kind==='sunk'){
+    battleTone(ctx,at+.18,220,47,.80,.13,'triangle');
+    battleNoise(ctx,at+.28,.65,.13,'lowpass',440);
+   }
+  }
+ }catch(_){/* Sound is optional on browsers without Web Audio. */}
+}
+
 function cells(kind,room){
  const own=kind==='own',shots=own?room.enemyShots:room.ownShots;
  const hitmap=new Map((shots||[]).map(x=>[x.cell,x.hit]));
- const shipset=new Set(own?room.ownShips||[]:room.opponentShips||[]);
+ const ships=own?room.ownShips:room.status==='playing'?(room.sunkShips||[]).flat():room.opponentShips;
+ const shipset=new Set(ships||[]);
+ const sunk=new Set((own?vesselGroups(room.ownShips):room.status==='playing'?
+  (room.sunkShips||[]):vesselGroups(room.opponentShips)).filter(group=>
+  group.length&&group.every(i=>hitmap.get(i)===true)).flat());
  const turn=room.status==='playing'&&room.turn===actor();
  return '<div class="rudi-battle-grid" role="group" aria-label="'+(own?'Мой флот':'Поле '+opponentName())+'">'+
  Array.from({length:49},(_,i)=>{
   const has=hitmap.has(i),hit=hitmap.get(i),ship=shipset.has(i);
   const label='Клетка '+String.fromCharCode(65+Math.floor(i/7))+(i%7+1);
-  const glyph=has?(hit?'×':'•'):own&&ship?'■':room.status!=='playing'&&ship?'■':'';
+  const glyph=has?(hit?'<span class="rudi-battle-fire" aria-hidden="true">🔥</span>':'<span class="rudi-battle-splash" aria-hidden="true">•</span>'):'';
   return '<button type="button" '+(own?'':'data-battle-cell="'+i+'" ')+'aria-label="'+label+
-   (has?hit?', попадание':', мимо':'')+'" class="rudi-battle-cell'+(ship&&own?' is-ship':'')+
+   (has?(hit?sunk.has(i)?', корабль потоплен':', попадание':', мимо'):own&&ship?', корабль':'')+
+   '" class="rudi-battle-cell'+(ship?' is-ship':'')+
    (has?(hit?' is-hit':' is-miss'):'')+'" '+(own||has||!turn?'disabled':'')+'>'+glyph+'</button>';
- }).join('')+'</div>';
+ }).join('')+battleShips(kind,room,hitmap)+'</div>';
 }
 function renderBattle(){
  if(activeGame!=='battleship'||g()?.getMode?.()!=='battleship')return;
@@ -141,9 +232,9 @@ function renderBattle(){
  const message=playing?(turn?'Твой ход — выбирай клетку':'Ходит '+r.turn):
   r.status==='won'?(r.winner===actor()?'Победа! Все корабли соперника потоплены.':'Победил'+(r.winner==='Диана'?'а':'')+' '+r.winner):
   ended?'Партия завершена.':r.round?'Можно начать новую партию.':'Игра ещё не началась.';
- g().section('<div class="rudi-game-work rudi-battle-work">'+presenceHtml+'<div class="rudi-battle-info"><span>Раунд '+r.round+'</span><strong>'+safe(message)+'</strong></div>'+
-  '<section><h2>Поле '+safe(other)+'</h2><p>Нажми на клетку, чтобы выстрелить. Красный крест — попадание.</p>'+
-  cells('enemy',r)+'</section><section><h2>Мои корабли</h2><p>Корабли размещаются автоматически. Синий квадрат — часть корабля.</p>'+
+ g().section('<div class="rudi-game-work rudi-battle-work">'+presenceHtml+'<div class="rudi-battle-info"><span>Раунд '+r.round+'</span><strong>'+safe(message)+'</strong>'+'<button type="button" class="rudi-battle-sound" data-battle-sound aria-label="'+(battleSoundEnabled?'Выключить звуки':'Включить звуки')+'" title="'+(battleSoundEnabled?'Выключить звуки':'Включить звуки')+'">'+(battleSoundEnabled?'🔊':'🔇')+'</button></div>'+
+  '<section><h2>Поле '+safe(other)+'</h2>'+
+  cells('enemy',r)+'</section><section><h2>Мои корабли</h2>'+
   cells('own',r)+'</section>'+
   (playing?'<button class="rudi-duel-finish" type="button" data-battle-action="end">Завершить партию</button>':
    '<button class="rudi-game-primary" type="button" data-battle-action="start">'+(r.round?'Новая партия':'Начать игру')+'</button>')+
@@ -153,8 +244,15 @@ async function battleAction(action,index){
  if(activeGame!=='battleship'||battleBusy)return;
  battleBusy=true;battleMessage='';
  try{
+  if(action==='move')playBattleSound('fire');
   const params=(action==='move'||action==='end')?{version:battleRoom?.version,...(action==='move'?{index}:{})}:{};
-  battleRoom=await battleRequest(action,params);updateOne('battleship',battleRoom);renderBattle();
+  battleRoom=await battleRequest(action,params);
+  if(action==='move'){
+   const shot=(battleRoom.ownShots||[]).find(x=>x.cell===index);
+   const sunk=(battleRoom.sunkShips||[]).some(group=>group.includes(index));
+   playBattleSound(sunk?'sunk':shot?.hit?'hit':'miss');
+  }
+  updateOne('battleship',battleRoom);renderBattle();
  }catch(e){
   if(e.room){battleRoom=e.room;updateOne('battleship',battleRoom)}
   battleMessage=e.message;renderBattle();
@@ -260,6 +358,8 @@ function openGame(game){
  if(game==='thinking')startThinking();
 }
 function onClick(e){
+ const sound=e.target.closest('[data-battle-sound]');
+ if(sound){battleSoundEnabled=!battleSoundEnabled;write('battle-sound-enabled',battleSoundEnabled);renderBattle();return true}
  const cell=e.target.closest('[data-battle-cell]');
  if(cell){void battleAction('move',Number(cell.dataset.battleCell));return true}
  const cmd=e.target.closest('[data-battle-action]');
