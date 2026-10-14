@@ -179,14 +179,25 @@ html[data-theme="dark"] .rudi-duel-finish{color:#ffa8be;border-color:rgba(252,13
 
 
 /* RUDI v4.242: new games, compact status badges, installable app badges. */
+/* Home game status: nonnumeric dot, kept INSIDE the icon edge.
+   A global .rudi-home-games span rule uses !important font-size,
+   so the badge needs explicit isolation and no inherited type styles. */
 #rudiHomeGamesButton{position:relative!important;overflow:visible!important}
-#rudiHomeGamesButton .rudi-games-alert{
- position:absolute;top:-5px;right:-7px;z-index:10;min-width:14px;height:14px;box-sizing:border-box;
- padding:0 3px;border-radius:99px;background:#e72c48;color:#fff;border:2px solid #fff;
- display:grid;place-items:center;font-size:9px;font-style:normal;font-weight:900;line-height:1;
- box-shadow:0 1px 7px #e72c4877;pointer-events:none;
+#rudiHomeGamesButton > .rudi-games-alert{
+ display:block!important;position:absolute!important;z-index:10!important;
+ top:5px!important;right:5px!important;bottom:auto!important;left:auto!important;
+ box-sizing:border-box!important;width:13px!important;height:13px!important;
+ min-width:13px!important;max-width:13px!important;
+ min-height:13px!important;max-height:13px!important;
+ padding:0!important;margin:0!important;
+ border:2px solid #15192b!important;border-radius:50%!important;
+ background:#ee3453!important;color:transparent!important;
+ font-size:0!important;line-height:0!important;font-weight:normal!important;
+ font-style:normal!important;text-indent:-9999px!important;
+ box-shadow:0 0 0 1px rgba(238,52,83,.14)!important;
+ transform:none!important;overflow:hidden!important;pointer-events:none!important;
 }
-#rudiHomeGamesButton .rudi-games-alert[hidden]{display:none!important}
+#rudiHomeGamesButton > .rudi-games-alert[hidden]{display:none!important}
 .rudi-games-page .rudi-game-card{position:relative}
 .rudi-game-card .rudi-game-card-copy{display:grid;gap:5px;flex:1;min-width:0}
 .rudi-game-card .rudi-game-live-chip{
