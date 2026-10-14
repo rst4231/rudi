@@ -8,7 +8,7 @@
  const rel=n=>{
   if(n===0)return 'сегодня';
   if(n===1)return 'завтра';
-  if(n===2)return 'послезавтра';
+  if(n===2)return 'через 2 дня';
   const last=n%10,last100=n%100;
   return 'через '+n+' '+(last===1&&last100!==11?'день':last>=2&&last<=4&&(last100<12||last100>14)?'дня':'дней');
  };
