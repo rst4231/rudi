@@ -1,5 +1,5 @@
 {
-  "current": "v4.243",
+  "current": "v4.244",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -75,7 +75,8 @@
     "v4.240: evidence-based habit analysis, coach UI, dated charts, recurring due labels and streamlined archives.",
     "v4.241: 50 liquid OKX scanner coins (unchanged 15-minute interval and 4-request concurrency), leading asset CoinMarketCap links, reduced Home name/status spacing.",
     "v4.242: two-player Battleship with authoritative hidden fleets, protected turns and single start push; daily Russian word puzzle; offline reasoning trainer; remove finance quiz; shared active/your-turn badges in Home and games; PWA launcher badge where supported; batched game status and restrained polling.",
-    "v4.243: personalized opponent fleet labels and live participant presence in Battleship using existing room polling; session-scoped join/leave with no dedicated extra fetches."
+    "v4.243: personalized opponent fleet labels and live participant presence in Battleship using existing room polling; session-scoped join/leave with no dedicated extra fetches.",
+    "v4.244: fix oversized overlapping Home games alert; show an isolated small red dot without digits, use nonnumeric native PWA badge where supported, refresh cache."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [
