@@ -79,3 +79,19 @@ test('v4.247 serves new JS CSS from offline cache and preserves other modules',(
  assert.equal(fs.readFileSync('VERSION','utf8').trim(),'v4.247');
  assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,'v4.247');
 });
+test('games Back button keeps readable arrow against dark background',()=>{
+ const gameCss=fs.readFileSync('public/rudi-games.css','utf8');
+ const rule=gameCss.slice(gameCss.indexOf('/* RUDI v4.247: high-contrast Back button'));
+ assert.ok(rule.includes('html[data-theme="dark"] .rudi-games-page .rudi-games-head > #rudiGamesBack'));
+ assert.match(rule,/background:#222d4a!important/);
+ assert.match(rule,/color:#f2f5ff!important/);
+ assert.match(rule,/stroke:#f2f5ff!important/);
+ assert.match(rule,/stroke-width:2\.4px!important/);
+ assert.match(rule,/:focus-visible/);
+ const content=fs.readFileSync('public/rudi-games.js','utf8');
+ assert.match(content,/id="rudiGamesBack" class="rudi-app-page-back"/);
+ const html=fs.readFileSync('public/index.html','utf8');
+ const sw=fs.readFileSync('public/sw.js','utf8');
+ assert.match(html,/rudi-games\.css\?v=4\.247/);
+ assert.match(sw,/rudi-games\.css\?v=4\.247/);
+});
