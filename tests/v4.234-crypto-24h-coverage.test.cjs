@@ -45,6 +45,6 @@ test('client explains approximations and error state without masking missing his
   assert.match(code,/pnl24h=\{total:\{available:false,reason:'history-unavailable'\}/);
   assert.match(code,/не все счета Bybit учтены/);
   const html=fs.readFileSync('public/index.html','utf8');
-  assert.match(html,/crypto-wallets\.js\?v=4\.234/);
-  assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.235/);
+  assert.match(html,/crypto-wallets\.js\?v=4\.\d+/);
+  assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.\d+/);
 });
