@@ -36,9 +36,18 @@ async function runCinemaPremieresCron(options = {}) {
 async function handler(req,res){
   if(!isCronRequestAuthorized(req)) return res.status(401).json({ok:false,error:'unauthorized-cron'});
   try{
-    const result=await runCinemaPremieresCron({now:new Date()});
+    const now=new Date();
+    const result=await runCinemaPremieresCron({now});
     console.log('RUDI_CINEMA_CRON_RESULT',JSON.stringify(result));
-    return res.status(200).json({ok:true,...result});
+    let entertainmentCalendar=null;
+    try{
+      entertainmentCalendar=await require('./calendar-entertainment.cjs').refresh({now});
+      console.log('RUDI_ENTERTAINMENT_CRON_RESULT',JSON.stringify(entertainmentCalendar));
+    }catch(error){
+      console.error('RUDI_ENTERTAINMENT_CRON_ERROR',String(error?.message||error));
+      entertainmentCalendar={failed:true};
+    }
+    return res.status(200).json({ok:true,...result,entertainmentCalendar});
   }catch(error){
     console.error('RUDI_CINEMA_CRON_ERROR',String(error?.message||error));
     return res.status(500).json({ok:false,error:'cinema-cron-failed'});
