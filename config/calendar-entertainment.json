@@ -1,7 +1,7 @@
 {
   "enabled": true,
   "monthsAhead": 3,
-  "yandexStandupUrl": "https://afisha.yandex.ru/saint-petersburg/selections/standup",
+  "yandexStandupUrl": "https://afisha.yandex.ru/saint-petersburg/selections/main-standup",
   "knownStandups": [
     "Андрей Бебуришвили",
     "Алексей Щербаков",
@@ -17,6 +17,7 @@
     "Comedy Club",
     "Женский форум",
     "Женский стендап",
-    "StandUp на ТНТ"
+    "StandUp на ТНТ",
+    "Варвара Щербакова"
   ]
 }
