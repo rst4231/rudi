@@ -70,7 +70,7 @@ function parseBars(data,now=Date.now()){
     .filter(x=>x.at>0&&x.at+INTERVAL<=now-1000&&x.open>0&&x.high>=x.low&&x.close>0)
     .sort((a,b)=>a.at-b.at);
 }
-const MARKET_LIMIT=40;
+const MARKET_LIMIT=50;
 function marketUniverse(response){
   const eligible=(response?.result?.list||[])
     .filter(v=>/^([A-Z0-9]+)USDT$/.test(String(v.symbol||''))&&
@@ -79,7 +79,7 @@ function marketUniverse(response){
   // Liquid majors + high-turnover positive movers, not only BTC/ETH.
   const liquid=eligible.slice(0,20);
   const movers=eligible.filter(v=>num(v.price24hPcnt)>0.04)
-    .sort((a,b)=>num(b.price24hPcnt)-num(a.price24hPcnt)).slice(0,40);
+    .sort((a,b)=>num(b.price24hPcnt)-num(a.price24hPcnt)).slice(0,50);
   return [...new Map([...liquid,...movers,...eligible].map(v=>[v.symbol,v])).values()]
     .slice(0,MARKET_LIMIT).map(v=>({symbol:v.symbol,price:num(v.lastPrice)}));
 }
@@ -230,7 +230,7 @@ async function scan(options={}){
       for(const p of Object.values(state.portfolios))for(const position of p.positions)
         if(!prices[position.symbol])prices[position.symbol]=position.lastPrice;
       const barsBySymbol={},ideas=[];
-      // Bound OKX concurrency and pace requests below 40 candles queries per 2s.
+      // Bound OKX concurrency to four candle requests, with 300ms between batches.
       for(let offset=0;offset<markets.length;offset+=4){
         const batch=await Promise.allSettled(markets.slice(offset,offset+4).map(async m=>{
           const data=await marketRequest('/v5/market/kline?category=linear&symbol='+
