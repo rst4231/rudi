@@ -37,30 +37,57 @@
      svg.dataset.rudiOutlineGeometry=size;
    }
  }
- // Keep the runtime's source phase untouched. The caption follows its moving timeline dot.
+ // Keep the live phase and marker unchanged. Put the caption in its own
+ // reserved lane above the curve; its x coordinate follows the marker.
  function updateEnergyPointCaption(energy){
    const phase=energy?.querySelector('.profile-energy-label .profile-energy-phase');
    const dot=energy?.querySelector('.profile-energy-plot .profile-energy-now');
    if(!phase||!dot)return;
-   let label=dot.querySelector('.rudi-energy-point-caption');
+   let label=energy.querySelector(':scope > .rudi-energy-point-caption')||
+     dot.querySelector('.rudi-energy-point-caption');
    if(!label){
      label=document.createElement('span');
      label.className='rudi-energy-point-caption';
      label.setAttribute('aria-hidden','true');
-     dot.appendChild(label);
    }
+   if(label.parentElement!==energy)energy.appendChild(label);
    const text=phase.textContent?.trim()||'';
    if(label.textContent!==text)label.textContent=text;
    if(label.hidden===!!text)label.hidden=!text;
+   if(!text)return;
+   const bounds=energy.getBoundingClientRect();
+   const marker=dot.getBoundingClientRect();
+   const caption=label.getBoundingClientRect();
+   if(!bounds.width||!marker.width||!caption.width)return;
+   // Clamp both edges within the strip without changing the real dot location.
+   const half=Math.min(caption.width,bounds.width-6)/2;
+   const min=half+3,max=Math.max(min,bounds.width-half-3);
+   const x=Math.min(max,Math.max(min,marker.left+marker.width/2-bounds.left));
+   const next=x.toFixed(1)+'px';
+   if(label.style.left!==next)label.style.left=next;
  }
- const energyPointObservers=new WeakSet();
+ const energyPointObservers=new WeakMap();
  function watchEnergyPointCaption(energy){
    if(!energy)return;
-   updateEnergyPointCaption(energy);
-   if(energyPointObservers.has(energy)||typeof MutationObserver!=='function')return;
-   energyPointObservers.add(energy);
-   new MutationObserver(()=>updateEnergyPointCaption(energy))
-     .observe(energy,{childList:true,characterData:true,subtree:true});
+   let watcher=energyPointObservers.get(energy);
+   if(!watcher&&typeof MutationObserver==='function'){
+     const dotObserver=new MutationObserver(()=>updateEnergyPointCaption(energy));
+     watcher={marker:null,dotObserver,sync:null};
+     watcher.sync=()=>{
+       const current=energy.querySelector('.profile-energy-plot .profile-energy-now');
+       if(current!==watcher.marker){
+         dotObserver.disconnect();
+         watcher.marker=current;
+         if(current)dotObserver.observe(current,{attributes:true,attributeFilter:['style']});
+       }
+       updateEnergyPointCaption(energy);
+     };
+     energyPointObservers.set(energy,watcher);
+     new MutationObserver(watcher.sync)
+       .observe(energy,{childList:true,characterData:true,subtree:true});
+   }
+   if(watcher)watcher.sync();
+   else updateEnergyPointCaption(energy);
  }
  // The profile is assembled by the runtime after page load. Layout must be
  // enforced on those live DOM nodes, not only through the cascading stylesheets.
@@ -135,7 +162,7 @@
    setImportant(profileHead,{'grid-column':'1','grid-row':'1','display':'flex','align-items':'center',
      'justify-content':'flex-start','align-self':'center','height':'72px','min-height':'72px',
      'margin':'0','padding':'0'});
-   setImportant(energy,{'grid-column':'2','grid-row':'1','align-self':'center','height':'44px','margin':'0'});
+   setImportant(energy,{'grid-column':'2','grid-row':'1','align-self':'center','height':'54px','margin':'0'});
    const identity=profileHead.querySelector('.identity');
    setImportant(identity,{'display':'grid','align-items':'center','align-self':'center','margin':'0',
      'padding':'0','min-height':'44px'});
@@ -300,15 +327,14 @@
      if(profileHead.parentElement!==main||energy.parentElement!==main)
        main.append(profileHead,energy);
      layoutLiveSelf(self,main,profileHead,energy);
-     watchEnergyPointCaption(energy);
-     bindEnergyDotExpander(energy);
    }
-   // Diana's curve also needs its live phase caption when the other profile
-   // owns the Home page; observe the existing dot, do not duplicate the data.
-   const dianaEnergy=$('homeDianaTile')?.querySelector('.profile-energy-strip');
-   if(dianaEnergy&&dianaEnergy!==energy){
-     watchEnergyPointCaption(dianaEnergy);
-     bindEnergyDotExpander(dianaEnergy);
+   // Observe BOTH profiles in either account: Rustam is the partner on Diana's
+   // phone and Diana is the partner on Rustam's phone.
+   for(const id of ['homeRustamTile','homeDianaTile']){
+     const strip=$(id)?.querySelector('.profile-energy-strip');
+     if(!strip)continue;
+     watchEnergyPointCaption(strip);
+     bindEnergyDotExpander(strip);
    }
    // Both cards need the same name-side sticker geometry.
    placeMoodBadgesByName();
