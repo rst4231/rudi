@@ -22,10 +22,10 @@ function renderBadges(){
  const btn=$('rudiHomeGamesButton');
  if(btn){
   const total=sum(),mine=myTurns();
-  btn.classList.toggle('rudi-games-has-badge',total>0);
+  btn.classList.toggle('rudi-games-has-badge',mine>0);
   let badge=btn.querySelector('.rudi-games-alert');
   if(!badge){badge=document.createElement('i');badge.className='rudi-games-alert';badge.setAttribute('aria-hidden','true');btn.append(badge)}
-  badge.hidden=!total;badge.textContent='';
+  badge.hidden=mine===0;badge.textContent='';
   btn.title=mine?'Игры · твой ход':total?'Игры · партия начата':'Игры';
   btn.setAttribute('aria-label',btn.title);
  }
@@ -39,7 +39,7 @@ function renderBadges(){
    chip.textContent=text;chip.hidden=!text;
   }
  }
- const badgeActive=sum()>0;
+ const badgeActive=myTurns()>0;
  if(previousLauncherBadge!==badgeActive){
   previousLauncherBadge=badgeActive;
   if(badgeActive&&typeof navigator.setAppBadge==='function')
