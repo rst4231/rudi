@@ -66,6 +66,7 @@ test('client shows other participant actual name and reuses duel online/offline 
  assert.match(js,/battlePresence\[name\]\?'В игре':'Не в игре'/);
  assert.match(js,/45000/);
  assert.match(js,/function leaveBattle\(\)/);
+ assert.match(js,/Игра ещё не началась/);
  assert.match(js,/scheduleBattle\(\)/);
 });
 test('one versioned HTML script and same interval, no extra presence poll',()=>{
