@@ -143,8 +143,8 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/calendar-offline\.js\?v=[^"]+/g, '/calendar-offline.js?v=' + assetVersion);
   html = html.replace(/\/calendar-entertainment\.css\?v=[^"]+/g, '/calendar-entertainment.css?v=' + assetVersion);
   html = html.replace(/\/calendar-entertainment\.js\?v=[^"]+/g, '/calendar-entertainment.js?v=' + assetVersion);
-  html = html.replace(/\/calendar-entertainment\.js\?v=[^"]+/g, '/presence.css?v=' + assetVersion);
-  html = html.replace(/\/calendar-entertainment\.js\?v=[^"]+/g, '/presence.js?v=' + assetVersion);
+  html = html.replace(/\/presence\.css\?v=[^"]+/g, '/presence.css?v=' + assetVersion);
+  html = html.replace(/\/presence\.js\?v=[^"]+/g, '/presence.js?v=' + assetVersion);
   html = html.replace(/\/smart-home\.css\?v=[^"]+/g, '/smart-home.css?v=' + assetVersion);
   html = html.replace(/\/car\.css\?v=[^"]+/g, '/car.css?v=' + assetVersion);
   html = html.replace(/\/app\.js\?v=[^"]+/g, '/app.js?v=' + assetVersion);
