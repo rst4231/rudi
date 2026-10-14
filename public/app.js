@@ -19599,11 +19599,18 @@
           wrap.style.setProperty('--rudi-partner-fasting-color',color);
           let hoursNode=oldHours;
           if(!hoursNode){
-            hoursNode=document.createElement('span');
+            hoursNode=document.createElement('button');
+            hoursNode.type='button';
             hoursNode.className='rudi-partner-fasting-hours';
+            hoursNode.addEventListener('click',event=>{
+              event.preventDefault();
+              event.stopPropagation();
+              showPartnerFastingGoal(hoursNode);
+            });
             wrap.appendChild(hoursNode);
           }
           hoursNode.hidden=false;
+          hoursNode.dataset.fastingGoalHours=String(goalHours);
           hoursNode.textContent=hours+' ч';
           hoursNode.title='Голодание '+partnerActor+': '+hours+' ч · цель '+goalHours+' ч';
           hoursNode.setAttribute('aria-label',hoursNode.title);
