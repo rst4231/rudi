@@ -1,3 +1,4 @@
+/* RUDI v4.248 production build marker: sea battle visuals and synthesized shot effects. */
 /* RUDI v4.245: own-turn-only Home/PWA badge, personalized sea-battle and offline thinking games. */
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
