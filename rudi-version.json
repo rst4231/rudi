@@ -1,5 +1,5 @@
 {
-  "current": "v4.247",
+  "current": "v4.248",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -80,7 +80,8 @@
     "v4.245: Home game and installed-PWA red dot appear only when it is the current player's turn; active matches still appear in game cards; start pushes no longer set false launcher badges; no extra polling.",
     "v4.246: Move partner fasting progress and elapsed hours onto the partner avatar, reuse old purple progress / green goal-reached color, preserve goal popup on hour badge, remove former icon beside Telegram, use existing minute ticker without extra requests.",
     "v4.247: eliminate Diana-only stacked live Home profile that shifted avatar into energy chart, reuse Rustam's compact one-row live layout for both account roles, and apply existing Diana-partner card geometry to Rustam-as-partner. Preserve personal data, mood, energy dots, fasting avatar and Home widgets; cache-bust layout JS/CSS without extra requests.",
-    "v4.247: Dark game-room Back button now has a dark surface and high-contrast light arrow in dark theme; game styles cache-busted without affecting other page buttons."
+    "v4.247: Dark game-room Back button now has a dark surface and high-contrast light arrow in dark theme; game styles cache-busted without affecting other page buttons.",
+    "v4.248: Морской бой — цельные силуэты кораблей размером 3/2 клетки, огонь на попаданиях, полное зачёркивание затонувшего корабля, Web Audio залпы/всплески/потопление с управлением звуком, компактные подписи без подсказок. Враг раскрывает только целиком потопленные корабли до завершения партии; API и очередь ходов сохранены."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [
