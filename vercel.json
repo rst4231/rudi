@@ -199,6 +199,8 @@
       "source": "/api/duel-game",
       "destination": "/api/index?route=duel-game"
     },
+    {"source":"/api/battleship-game","destination":"/api/index?route=battleship-game"},
+    {"source":"/api/game-status","destination":"/api/index?route=game-status"},
     {
       "source": "/api/home-note",
       "destination": "/api/index?route=home-note"
