@@ -117,7 +117,7 @@ test('entertainment list is one time-sorted direct-link list, with centered cale
   assert.match(js,/querySelector\('\.calendar-day-indicators'\)/);
   assert.match(css,/\.calendar-day-indicators \.rudi-entertainment-marker/);
   assert.match(css,/position:static!important/);
-  assert.match(html,/calendar-entertainment\.js\?v=4\.238/);
+  assert.match(html,/calendar-entertainment\.js\?v=4\.239/);
 });
 
 test('premiere genres are extracted individually from the Russian cinema release cards',()=>{
@@ -132,4 +132,24 @@ test('premiere genres are extracted individually from the Russian cinema release
   assert.deepEqual(rows.map(x=>[x.title,x.genre]),[
     ['Руки вверх 2','биография'],['Вторая премьера','комедия, семейный']
   ]);
+});
+
+test('event section titles and deduplicated grouping preserve links, chronological event order and cinema separation',()=>{
+  const js=fs.readFileSync(path.join(__dirname,'..','public/calendar-entertainment.js'),'utf8');
+  const css=fs.readFileSync(path.join(__dirname,'..','public/calendar-entertainment.css'),'utf8');
+  const start=js.indexOf('function group(items){'),end=js.indexOf('function render(){');
+  const source=js.slice(start,end);
+  assert.match(source,/title:'Мероприятия'/);
+  assert.match(source,/title:'Кинопремьеры'/);
+  assert.match(source,/item\.kind==='concert'\|\|item\.kind==='standup'/);
+  assert.match(source,/item\.kind==='cinema'/);
+  assert.match(source,/sortedByTime\(bucket\.rows\)/);
+  assert.match(source,/row\.href=item\.href/);
+  assert.match(source,/item\.kind==='concert'\|\|item\.kind==='cinema'/);
+  assert.doesNotMatch(source,/createElement\('details'\)|createElement\('summary'\)/);
+  assert.match(js,/e\.genre\|\|''/);
+  assert.match(css,/grid-auto-rows:min-content!important/);
+  assert.match(css,/min-height:0!important;height:auto!important/);
+  assert.match(css,/row-gap:0!important/);
+  assert.match(css,/padding:3px 0!important/);
 });
