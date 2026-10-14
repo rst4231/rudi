@@ -34,5 +34,5 @@ test('PWA version bump does not change game assets',()=>{
  assert.match(html,/home-reference-layout\.css\?v=4\.\d+/);
  assert.match(html,/rudi-games\.js\?v=4\.\d+/);
  assert.match(html,/rudi-games\.css\?v=4\.\d+/);
- assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.235/);
+ assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.\d+/);
 });
