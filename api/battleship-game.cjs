@@ -5,6 +5,7 @@ const {authorizeRequest,statusForError}=require('./rudi-request-auth.cjs');
 const {createStrictRuntimeCache}=require('./strict-runtime-cache.cjs');
 const NS='rudi-sea-battle-v1',ROOM='pair',LOCK='pair-lock',TTL=86400*90;
 const PLAYERS=['Рустам','Диана'],SIZE=7,LENGTHS=[3,2,2];
+const PRESENCE='online:',PRESENCE_TTL=110,PRESENCE_ACTIVE_MS=85000;
 const other=actor=>actor===PLAYERS[0]?PLAYERS[1]:PLAYERS[0];
 function ships(random=crypto.randomInt){
  const occupied=new Set(),cells=[];
@@ -79,6 +80,15 @@ function nextMove(raw,actor,operation,index,now=new Date().toISOString(),makeShi
  return {ok:true,room:{...s,shots,version:s.version+1,updatedAt:now,
   status:won?'won':'playing',turn:won?'':hit?actor:opponent,winner:won?actor:''}};
 }
+function validSession(value){return typeof value==='string'&&/^[a-zA-Z0-9_-]{8,90}$/.test(value)?value:''}
+async function readPresence(cache,at){
+ const when=Date.parse(at);
+ const rows=await Promise.all(PLAYERS.map(name=>cache.get(PRESENCE+name)));
+ return Object.fromEntries(PLAYERS.map((name,i)=>{
+  const last=Date.parse(rows[i]?.seenAt||'');
+  return [name,Number.isFinite(when)&&Number.isFinite(last)&&last<=when&&when-last<PRESENCE_ACTIVE_MS];
+ }));
+}
 function notifyGameStart(actor,round,deps={}){
  const recipient=other(actor);
  const send=deps.sendPushImpl||((to,payload)=>require('./web-push.cjs').sendPushNotification(to,payload));
@@ -106,10 +116,27 @@ function createHandler(deps={}){
   catch(e){const code=statusForError(e);return res.status(code).json({ok:false,error:code>=500?'server-error':String(e.message||e)})}
   if(!PLAYERS.includes(actor))return res.status(403).json({ok:false,error:'battle-forbidden'});
   const operation=String(body.operation||'get');
-  if(!['get','start','move','end'].includes(operation))return res.status(400).json({ok:false,error:'battle-operation-invalid'});
+  if(!['get','start','move','end','leave'].includes(operation))return res.status(400).json({ok:false,error:'battle-operation-invalid'});
+  const sessionId=validSession(body.sessionId);
+  if(operation==='leave'){
+   if(!sessionId)return res.status(400).json({ok:false,error:'battle-session-invalid'});
+   try{
+    const key=PRESENCE+actor,previous=await cache.get(key);
+    if(previous?.sessionId===sessionId)await cache.delete(key);
+    return res.status(200).json({ok:true,actor});
+   }catch(error){
+    console.warn('RUDI_BATTLE_PRESENCE_LEAVE_WARN',String(error?.message||error));
+    return res.status(503).json({ok:false,error:'battle-store-unavailable'});
+   }
+  }
   try{
    if(operation==='get'){
-    return res.status(200).json({ok:true,room:publicRoom(await cache.get(ROOM),actor),actor});
+    // Heartbeat piggybacks on the room poll; no extra HTTP request.
+    // Client limits writes to about every 45 seconds.
+    if(sessionId&&body.active===true)
+     await cache.set(PRESENCE+actor,{sessionId,seenAt:now()},{ttl:PRESENCE_TTL});
+    const [room,presence]=await Promise.all([cache.get(ROOM),readPresence(cache,now())]);
+    return res.status(200).json({ok:true,room:publicRoom(room,actor),actor,presence});
    }
    if(operation==='move'&&(!Number.isInteger(body.index)||body.index<0||body.index>=49))
     return res.status(400).json({ok:false,error:'battle-cell-invalid'});
@@ -131,4 +158,4 @@ function createHandler(deps={}){
  };
 }
 module.exports=createHandler();
-Object.assign(module.exports,{NS,ROOM,ships,initial,normalize,publicRoom,nextMove,createHandler,notifyGameStart});
+Object.assign(module.exports,{NS,ROOM,ships,initial,normalize,publicRoom,nextMove,createHandler,notifyGameStart,validSession,readPresence});
