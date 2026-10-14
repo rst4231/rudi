@@ -1,5 +1,5 @@
 {
-  "current": "v4.238",
+  "current": "v4.239",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -70,7 +70,8 @@
     "v4.231: Restore Rustam's exact v4.229 card geometry, scope the full-width live rhythm graph to Diana, and narrow Diana's card to 96%.",
     "v4.236: Shared calendar shows concerts, known Stand Up shows, and Russian cinema releases with a rolling three-month horizon, using existing feed collection and a Thursday update.",
     "v4.237: Independently collect famous Stand Up and scheduled theatrical film premieres from accessible event listings; preserve existing concert pipeline, prevent stale same-day refresh and refresh calendar client cache every five minutes.",
-    "v4.238: compact event links with emoji/time/title, concert and theatrical cinema genres (no genres for Stand Up), chronological cross-category ordering, and centered purple calendar indicators."
+    "v4.238: compact event links with emoji/time/title, concert and theatrical cinema genres (no genres for Stand Up), chronological cross-category ordering, and centered purple calendar indicators.",
+    "v4.239: shared calendar separates Мероприятия (concerts and famous standup, jointly time-sorted) from Кинопремьеры, compact row spacing, and re-renders when persisted genres change; no extra per-view preview requests."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [

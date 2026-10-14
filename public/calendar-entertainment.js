@@ -31,22 +31,32 @@
  function group(items){
   const wrapper=document.createElement('div');wrapper.className='calendar-selected-group rudi-entertainment-group';
   wrapper.dataset.rudiEntertainment='1';
-  for(const item of sortedByTime(items)){
-   if(!icons[item.kind])continue;
-   const linked=/^https?:\/\/[^\s]+$/i.test(item.href||'');
-   const row=document.createElement(linked?'a':'span');
-   row.className='rudi-entertainment-event calendar-selected-row';
-   if(linked){row.href=item.href;row.target='_blank';row.rel='noopener noreferrer'}
-   else row.classList.add('rudi-entertainment-event-unlinked');
-   const icon=document.createElement('span');icon.className='rudi-entertainment-icon';
-   icon.textContent=icons[item.kind];icon.setAttribute('aria-hidden','true');row.append(icon);
-   if(/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(item.time||'')){
-    const clock=document.createElement('time');clock.className='rudi-entertainment-time';
-    clock.textContent=item.time;clock.dateTime=item.time;row.append(clock);
+  const buckets=[
+    {title:'Мероприятия',icon:'🎟️',rows:items.filter(item=>item.kind==='concert'||item.kind==='standup')},
+    {title:'Кинопремьеры',icon:'🎬',rows:items.filter(item=>item.kind==='cinema')}
+  ];
+  for(const bucket of buckets){
+   if(!bucket.rows.length)continue;
+   const section=document.createElement('section');section.className='rudi-entertainment-section';
+   const heading=document.createElement('h3');heading.className='rudi-entertainment-heading';
+   heading.textContent=bucket.icon+' '+bucket.title;section.append(heading);
+   for(const item of sortedByTime(bucket.rows)){
+    const linked=/^https?:\/\/[^\s]+$/i.test(item.href||'');
+    const row=document.createElement(linked?'a':'span');
+    row.className='rudi-entertainment-event calendar-selected-row';
+    if(linked){row.href=item.href;row.target='_blank';row.rel='noopener noreferrer'}
+    else row.classList.add('rudi-entertainment-event-unlinked');
+    const icon=document.createElement('span');icon.className='rudi-entertainment-icon';
+    icon.textContent=icons[item.kind];icon.setAttribute('aria-hidden','true');row.append(icon);
+    if(/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(item.time||'')){
+     const clock=document.createElement('time');clock.className='rudi-entertainment-time';
+     clock.textContent=item.time;clock.dateTime=item.time;row.append(clock);
+    }
+    const title=document.createElement('span');title.className='rudi-entertainment-event-title';
+    title.textContent=item.title+((item.kind==='concert'||item.kind==='cinema')&&item.genre?' ('+item.genre+')':'');
+    row.append(title);section.append(row);
    }
-   const title=document.createElement('span');title.className='rudi-entertainment-event-title';
-   title.textContent=item.title+((item.kind==='concert'||item.kind==='cinema')&&item.genre?' ('+item.genre+')':'');
-   row.append(title);wrapper.append(row);
+   wrapper.append(section);
   }
   return wrapper;
  }
@@ -65,7 +75,7 @@
   }
   const chosen=grid.querySelector('.calendar-day-cell.selected')?.dataset.date||'';
   const events=rows(chosen),before=selected.querySelector('[data-rudi-entertainment]');
-  const key=events.map(e=>e.kind+e.title+e.time).join('|');
+  const key=events.map(e=>[e.kind,e.title,e.time,e.genre||'',e.href||''].join('~')).join('|');
   if(before?.dataset.key===key)return;
   before?.remove();if(!events.length)return;
   let details=selected.querySelector('.calendar-selected-details');
