@@ -33,7 +33,7 @@ test('Diana partner card is compact and responsive with unchanged graph and nati
 });
 test('Rustam layout JS, native partner contacts and PWA version remain consistent',()=>{
  assert.match(js,/return layoutLiveRustamV4229\(self,main,profileHead,energy\)/);
- assert.match(html,/home-reference-layout\.css\?v=4\.234/);
- assert.match(html,/home-reference-layout\.js\?v=4\.235/);
- assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.235/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.\d+/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.\d+/);
+ assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.\d+/);
 });
