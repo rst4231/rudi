@@ -229,6 +229,17 @@ async function handler(req, res) {
       }
     }
     if (req.query?.route === 'wallet-logo') return handleWalletLogo(req, res);
+    if (req.query?.route === 'calendar-entertainment') {
+      if(req.method!=='GET')return res.status(405).json({ok:false,error:'method-not-allowed'});
+      try {
+        const result=await require('./calendar-entertainment.cjs').month(req.query?.month);
+        res.setHeader('Cache-Control','private, max-age=300');
+        return res.status(200).json(result);
+      }catch(error){
+        console.error('RUDI_CALENDAR_ENTERTAINMENT_ERROR',String(error?.message||error));
+        return res.status(503).json({ok:false,error:'calendar-entertainment-unavailable'});
+      }
+    }
     if (req.query?.route === 'calendar-day-summary') return handleCalendarDaySummary(req, res);
     if (req.query?.route === 'meditation') return handleMeditation(req, res);
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
