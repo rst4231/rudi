@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { PNG } = require('pngjs');
 
-const WEB_ASSETS = ['home-note.css', 'home-note.js', 'personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'personal-task-editor.js', 'personal-task-editor.css', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'rudi-effects.js', 'rudi-effects.css', 'personal-task-editor.js', 'personal-task-editor.css', 'meditation.js', 'meditation.css', 'meditation-audio.js', 'meditation-audio.css', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js', 'finance-nav-icons.js', 'finance-nav-icons.css', 'rudi-games.js', 'rudi-games.css', 'home-reference-layout.css', 'home-reference-layout.js'];
+const WEB_ASSETS = ['home-note.css', 'home-note.js', 'personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'calendar-entertainment.css', 'calendar-entertainment.js', 'presence.css', 'presence.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'personal-task-editor.js', 'personal-task-editor.css', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'rudi-effects.js', 'rudi-effects.css', 'personal-task-editor.js', 'personal-task-editor.css', 'meditation.js', 'meditation.css', 'meditation-audio.js', 'meditation-audio.css', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js', 'finance-nav-icons.js', 'finance-nav-icons.css', 'rudi-games.js', 'rudi-games.css', 'home-reference-layout.css', 'home-reference-layout.js'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -141,6 +141,10 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/pwa-extras\.css\?v=[^"]+/g, '/pwa-extras.css?v=' + assetVersion);
   html = html.replace(/\/calendar\.css\?v=[^"]+/g, '/calendar.css?v=' + assetVersion);
   html = html.replace(/\/calendar-offline\.js\?v=[^"]+/g, '/calendar-offline.js?v=' + assetVersion);
+  html = html.replace(/\/calendar-entertainment\.css\?v=[^"]+/g, '/calendar-entertainment.css?v=' + assetVersion);
+  html = html.replace(/\/calendar-entertainment\.js\?v=[^"]+/g, '/calendar-entertainment.js?v=' + assetVersion);
+  html = html.replace(/\/presence\.css\?v=[^"]+/g, '/presence.css?v=' + assetVersion);
+  html = html.replace(/\/presence\.js\?v=[^"]+/g, '/presence.js?v=' + assetVersion);
   html = html.replace(/\/smart-home\.css\?v=[^"]+/g, '/smart-home.css?v=' + assetVersion);
   html = html.replace(/\/car\.css\?v=[^"]+/g, '/car.css?v=' + assetVersion);
   html = html.replace(/\/app\.js\?v=[^"]+/g, '/app.js?v=' + assetVersion);

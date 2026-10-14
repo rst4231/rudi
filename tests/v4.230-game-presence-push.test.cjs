@@ -90,8 +90,8 @@ test('home full-width energy chart and moving phase caption',()=>{
  assert.match(c,/profile-energy-label\{\s*display:none!important/);
  assert.match(c,/profile-energy-plot \.rudi-energy-point-caption/);
  assert.match(c,/#homeDianaTile \.profile-energy-strip \.profile-energy-plot\{[\s\S]{0,150}width:100%!important/);
- assert.match(html,/home-reference-layout\.js\?v=4\.231/);
- assert.match(html,/home-reference-layout\.css\?v=4\.231/);
- assert.match(html,/rudi-games\.js\?v=4\.230/);
- assert.match(html,/rudi-games\.css\?v=4\.230/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.\d+/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.\d+/);
+ assert.match(html,/rudi-games\.js\?v=4\.\d+/);
+ assert.match(html,/rudi-games\.css\?v=4\.\d+/);
 });

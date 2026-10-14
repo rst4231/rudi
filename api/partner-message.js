@@ -3474,6 +3474,23 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+  if (action === 'presence') {
+    if (req.method !== 'POST') return res.status(405).json({ok:false,error:'method-not-allowed'});
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const result=await require('./presence-store.cjs').heartbeat(actor,{
+        cache:options.presenceCache,
+        cacheOptions:options.cacheOptions,
+        now:options.now
+      });
+      res.setHeader('Cache-Control','private, no-store');
+      return res.status(200).json({ok:true,...result});
+    }catch(error){
+      return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)});
+    }
+  }
+
   if (action === 'app-auth') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {

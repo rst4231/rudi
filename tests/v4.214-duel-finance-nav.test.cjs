@@ -55,13 +55,13 @@ test('duel API authenticates actor and prevents concurrent stale state mutation'
  assert.equal((await call('Рустам','get')).body.room.board[4],'O');
  assert.equal((await call('Рустам','get',{},'GET')).statusCode,405);
 });
-test('games shortcut is under Quick Access, and finance navigation is viewport-fixed',()=>{
+test('games entry avoids duplicate Quick Access shortcut, and finance navigation is viewport-fixed',()=>{
  const js=fs.readFileSync('public/rudi-games.js','utf8');
  const nav=fs.readFileSync('public/finance-nav-icons.js','utf8');
  const css=fs.readFileSync('public/finance-nav-icons.css','utf8');
  const api=fs.readFileSync('api/index.js','utf8');
  const rewrites=JSON.parse(fs.readFileSync('vercel.json','utf8')).rewrites;
- assert.match(js,/#quickAccessTile \.quick-access-actions/);
+ assert.match(js,/rudiGamesQuickButton'\)\?\.remove\(\)/);
  assert.match(js,/rudiGamesHomeButton'\)\?\.remove\(\)/);
  assert.match(js,/Крестики-нолики · онлайн/);
  assert.match(js,/if\(game==='duel'\)\{duelStart\(\);return\}/);

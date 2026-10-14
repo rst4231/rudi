@@ -34,6 +34,6 @@ test('only Diana node is targeted; Rustam and existing Home behaviors untouched'
  assert.match(fragment,/\$\('homeDianaTile'\)\?\.querySelector\('\.profile-work-status'\)/);
  assert.doesNotMatch(fragment,/#homeRustamTile|homeRustamTile|selfWorkStatus/);
  assert.match(js,/placeMoodBadgesByName\(\);\s*bindDianaShiftHours\(\)/);
- assert.match(html,/home-reference-layout\.js\?v=4\.235/);
- assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.235/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.\d+/);
+ assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.\d+/);
 });

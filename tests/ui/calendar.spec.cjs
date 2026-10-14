@@ -418,9 +418,9 @@ test('profile collapse can be toggled without losing the mood message',async({pa
   const collapse=card.locator('.block-collapse-button').first();
   await expect(collapse).toBeAttached();
   const startedCollapsed=await card.evaluate(node=>node.classList.contains('is-collapsed'));
-  await collapse.click({force:true});
+  await collapse.evaluate(button=>button.click());
   await expect.poll(()=>card.evaluate(node=>node.classList.contains('is-collapsed'))).toBe(!startedCollapsed);
-  await collapse.click({force:true});
+  await collapse.evaluate(button=>button.click());
   await expect.poll(()=>card.evaluate(node=>node.classList.contains('is-collapsed'))).toBe(startedCollapsed);
   await expect(card.locator(':scope > #moodMessage')).toHaveCount(1);
 });

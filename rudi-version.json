@@ -1,5 +1,5 @@
 {
-  "current": "v4.235",
+  "current": "v4.236",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -67,7 +67,8 @@
     "v4.228: fix home profile on Finances and Calendar by overriding inline-important display outside Home, restoring original state when returning, and watching tab changes and late mounts.",
     "v4.229: restore home shortcut rail and own profile after navigation; tighten hero top/bottom and supplement/advice gutters; fix stale task binding and iOS date/time controls.",
     "v4.230: tic-tac-toe partner push on successful start, live game presence, finish-with-attribution and round reset, themed game hub, removed market simulator entry and verbose hero description.",
-    "v4.231: Restore Rustam's exact v4.229 card geometry, scope the full-width live rhythm graph to Diana, and narrow Diana's card to 96%."
+    "v4.231: Restore Rustam's exact v4.229 card geometry, scope the full-width live rhythm graph to Diana, and narrow Diana's card to 96%.",
+    "v4.236: Shared calendar shows concerts, known Stand Up shows, and Russian cinema releases with a rolling three-month horizon, using existing feed collection and a Thursday update."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [
