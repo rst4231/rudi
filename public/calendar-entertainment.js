@@ -45,7 +45,7 @@
     clock.textContent=item.time;clock.dateTime=item.time;row.append(clock);
    }
    const title=document.createElement('span');title.className='rudi-entertainment-event-title';
-   title.textContent=item.title+(item.kind==='concert'&&item.genre?' ('+item.genre+')':'');
+   title.textContent=item.title+((item.kind==='concert'||item.kind==='cinema')&&item.genre?' ('+item.genre+')':'');
    row.append(title);wrapper.append(row);
   }
   return wrapper;

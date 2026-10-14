@@ -18,7 +18,7 @@ const isKnown=(name,c=DEFAULTS)=>Boolean(fold(name)&&(c.knownStandups||DEFAULTS.
 function event(raw,kind,date,source,c=DEFAULTS){
   const title=clean(raw?.title||raw?.name,160),venue=clean(raw?.venue||raw?.place||raw?.location,140);
   const time=clean(raw?.time||raw?.startTime,16),href=url(raw?.href||raw?.url||raw?.site_url||raw?.sourceUrl);
-  const genre=kind==='concert'?clean(raw?.genre||raw?.musicGenre||'',80):'';
+  const genre=['concert','cinema'].includes(kind)?clean(raw?.genre||raw?.musicGenre||'',80):'';
   if(!title||!validDate(date)||!['concert','standup','cinema'].includes(kind))return null;
   if(kind==='standup'&&!isKnown(title,c))return null;
   if(kind==='concert'&&(/^(кавер|джем|открытый микрофон|трибьют)/iu.test(title)||/\b(бар|pub|паб)\b/iu.test(venue)))return null;
