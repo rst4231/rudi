@@ -176,3 +176,62 @@ html[data-theme="dark"] .rudi-duel-finish{color:#ffa8be;border-color:rgba(252,13
  .rudi-games-stats>div{padding:11px 4px}
  .rudi-duel-player{padding:9px 7px}
 }
+
+
+/* RUDI v4.242: new games, compact status badges, installable app badges. */
+#rudiHomeGamesButton{position:relative!important;overflow:visible!important}
+#rudiHomeGamesButton .rudi-games-alert{
+ position:absolute;top:-5px;right:-7px;z-index:10;min-width:14px;height:14px;box-sizing:border-box;
+ padding:0 3px;border-radius:99px;background:#e72c48;color:#fff;border:2px solid #fff;
+ display:grid;place-items:center;font-size:9px;font-style:normal;font-weight:900;line-height:1;
+ box-shadow:0 1px 7px #e72c4877;pointer-events:none;
+}
+#rudiHomeGamesButton .rudi-games-alert[hidden]{display:none!important}
+.rudi-games-page .rudi-game-card{position:relative}
+.rudi-game-card .rudi-game-card-copy{display:grid;gap:5px;flex:1;min-width:0}
+.rudi-game-card .rudi-game-live-chip{
+ display:inline-flex;width:max-content;max-width:100%;align-items:center;gap:5px;
+ padding:4px 8px;margin-top:4px;border-radius:99px;font-size:10px;font-style:normal;
+ font-weight:800;line-height:1.2;color:#ac2538;background:rgba(232,56,82,.11)
+}
+.rudi-game-card .rudi-game-live-chip::before{content:"";width:6px;height:6px;border-radius:50%;background:#e7324c;flex:none}
+.rudi-game-card .rudi-game-live-chip[hidden]{display:none!important}
+.rudi-game-card.has-live-game{border-color:rgba(230,52,77,.50)!important}
+.rudi-game-card.has-live-game .rudi-game-glyph{position:relative}
+.rudi-game-card.has-live-game .rudi-game-glyph::after{
+ content:"";position:absolute;right:-4px;top:-4px;width:11px;height:11px;
+ border-radius:50%;background:#e7324c;border:2px solid var(--game-card,#fff)
+}
+.rudi-battle-work{width:min(100%,480px);margin:0 auto;box-sizing:border-box}
+.rudi-battle-work section{display:grid;gap:8px}
+.rudi-battle-work h2{font-size:15px}
+.rudi-battle-info{display:grid;gap:6px;text-align:center}
+.rudi-battle-info span{font-size:11px;opacity:.63}
+.rudi-battle-info strong{font-size:16px}
+.rudi-battle-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;width:min(100%,355px);margin:0 auto}
+.rudi-battle-cell{aspect-ratio:1;min-width:0;padding:0;border:1px solid var(--game-border);
+ border-radius:8px;color:var(--game-ink);background:rgba(105,135,204,.11);
+ font-size:clamp(15px,5.8vw,27px);font-weight:800;line-height:1;touch-action:manipulation;
+ display:grid;place-items:center;cursor:pointer;font-family:inherit}
+.rudi-battle-cell.is-ship{background:rgba(64,118,225,.22);color:#5076dc}
+.rudi-battle-cell.is-hit{background:rgba(230,62,79,.18);color:#db334a}
+.rudi-battle-cell.is-miss{background:rgba(118,143,178,.16);color:#768cac}
+.rudi-battle-cell:disabled{cursor:default}
+.rudi-battle-cell:focus-visible{outline:2px solid #587cee;outline-offset:1px}
+.rudi-word-work,.rudi-thinking-work{width:min(100%,450px);margin:0 auto;box-sizing:border-box}
+.rudi-word-board{display:grid;gap:6px;width:min(100%,330px);margin:0 auto}
+.rudi-word-row{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.rudi-word-letter{display:grid;place-items:center;aspect-ratio:1;border-radius:10px;
+ border:1px solid var(--game-border);font-size:clamp(19px,6vw,27px);font-weight:850;
+ color:var(--game-ink);background:rgba(113,136,189,.09)}
+.rudi-word-letter.is-hit{background:#3b9e7c;color:#fff;border-color:#3b9e7c}
+.rudi-word-letter.is-near{background:#e3b858;color:#fff;border-color:#e3b858}
+.rudi-word-letter.is-miss{background:#8793a6;color:#fff;border-color:#8793a6}
+.rudi-word-form{display:grid;gap:9px}
+.rudi-word-form input{min-height:48px;border-radius:13px;background:var(--game-card);
+ border:1px solid var(--game-border);color:var(--game-ink);text-align:center;
+ letter-spacing:.17em;font-size:21px;font-weight:800;text-transform:uppercase}
+.rudi-word-result{text-align:center;color:#3b9e7c}
+.rudi-thinking-explanation{font-weight:650;font-size:13px}
+html[data-theme="dark"] .rudi-game-card .rudi-game-live-chip{color:#ff9fae;background:rgba(236,62,90,.19)}
+@media(max-width:370px){.rudi-battle-grid{gap:3px}.rudi-battle-cell{border-radius:6px}}
