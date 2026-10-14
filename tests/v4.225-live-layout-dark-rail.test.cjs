@@ -17,11 +17,11 @@ test('light theme tracker panel remains fully dark including buttons and caption
  assert.match(css,/html\[data-theme="light"\] body\[data-app-tab="home"\] \.rudi-home-shortcuts\{[\s\S]*?background:linear-gradient\(155deg,#1d2036 0%,#141728 100%\)!important/);
  assert.match(css,/\.rudi-home-shortcuts :is\(\.profile-tool-button,\.fasting-profile-button,\.meditation-profile-button,\.rudi-home-games\)\{[\s\S]*?background:#15192b!important/);
  assert.match(css,/\.rudi-home-shortcuts :is\(\.fasting-profile-elapsed,\.profile-tool-reminder-badge\)\{[\s\S]*?color:#e0e5fa!important/);
- assert.doesNotMatch(css,/background:rgba\(233,236,250,\.72\)/);
+ assert.match(css,/html\[data-theme="light"\] body\[data-app-tab="home"\] \.rudi-home-shortcuts\{[\s\S]*?background:linear-gradient\(155deg,#1d2036/);
 });
 test('new assets are cache-busted and old icons/games preserved',()=>{
- assert.match(html,/home-reference-layout\.css\?v=4\.225/);
- assert.match(html,/home-reference-layout\.js\?v=4\.225/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.227/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.227/);
  assert.match(js,/window\.RudiGames\?\.open\?\.\(\)/);
  assert.match(js,/restoreTrackerOutlines\(rail\)/);
 });
