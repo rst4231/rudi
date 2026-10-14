@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.244';
+const CACHE_NAME='rudi-shell-v4.245';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -6,7 +6,7 @@ const PRECACHE=[
   "/",
   "/manifest.webmanifest",
   "/rudi-games.js?v=4.242",
-  "/rudi-games-extra.js?v=4.244",
+  "/rudi-games-extra.js?v=4.245",
   "/rudi-games.css?v=4.244",
   "/favicon-rudi-v460.png",
   "/apple-touch-icon-rudi-v460.png",
@@ -308,14 +308,8 @@ async function readPushDeviceAuth(){
   }finally{db.close()}
 }
 
-// Set a supported PWA launcher badge when a new multiplayer party is pushed.
-// The client replaces it with the current live status when the app is opened.
-async function badgeNewGamePush(row){
- const tag=String(row?.tag||''),url=String(row?.url||'');
- if(!/^rudi-(duel-start|battle-start)-/.test(tag)||!/[?&]game=(duel|battleship)(?:&|$)/.test(url))return;
- try{if(typeof self.navigator?.setAppBadge==='function')await self.navigator.setAppBadge()}
- catch(_){}
-}
+// A game-start push does not prove the recipient's turn.
+// Only verified client game state may set the installed PWA launcher badge.
 
 async function deliverPendingPushNotifications(){
   const [seenIds,auth,subscription]=await Promise.all([
@@ -348,7 +342,6 @@ async function deliverPendingPushNotifications(){
       shown.push(id);
       continue;
     }
-    await badgeNewGamePush(row);
     await self.registration.showNotification(String(row?.title||'RUDI'),{
       body:String(row?.body||''),
       tag:notificationTag,
@@ -380,7 +373,6 @@ async function deliverDirectPushNotification(row){
   }
   const notificationTag=String(row?.tag||id);
   const notificationUrl=String(row?.url||'/');
-  await badgeNewGamePush(row);
   await self.registration.showNotification(String(row?.title||'RUDI'),{
     body:String(row?.body||''),
     tag:notificationTag,
