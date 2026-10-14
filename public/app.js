@@ -9964,20 +9964,8 @@
           if(actor!==currentActor){
             const actions=document.createElement('div');
             actions.className='profile-person-actions';
-            const partnerFastingButton=document.createElement('button');
-            partnerFastingButton.id='partnerFastingProfileButton';
-            partnerFastingButton.className='fasting-profile-button partner-mood-value partner-fasting-button';
-            partnerFastingButton.type='button';
-            partnerFastingButton.hidden=true;
-            partnerFastingButton.setAttribute('aria-label','Голодание партнёра');
-            partnerFastingButton.innerHTML='<span class="mood-emoji" aria-hidden="true">🍽️</span><span id="partnerFastingElapsed" class="fasting-profile-elapsed" aria-hidden="true" hidden></span>';
-            partnerFastingButton.addEventListener('click',event=>{
-              event.preventDefault();
-              event.stopPropagation();
-              showPartnerFastingGoal(partnerFastingButton);
-              try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-            });
-            actions.append(partnerFastingButton,makeProfileContactButton('telegram',actor),makeProfileContactButton('phone',actor));
+            // Fasting now lives on the partner's avatar, not beside Telegram.
+            actions.append(makeProfileContactButton('telegram',actor),makeProfileContactButton('phone',actor));
             head.appendChild(actions);
           }
           const energy=document.createElement('div');
@@ -19584,7 +19572,63 @@
       }
 
       function renderFastingProfileOutline(active,partner=false){
-        const button=document.getElementById(partner?'partnerFastingProfileButton':'fastingProfileButton');
+        if(partner){
+          // Reuse the existing fasting timer and progress palette, without extra requests.
+          const partnerActor=currentActor==='Диана'?'Рустам':'Диана';
+          const tile=document.getElementById(partnerActor==='Диана'?'homeDianaTile':'homeRustamTile');
+          const wrap=tile?.querySelector('.profile-person-head .score-avatar-wrap');
+          if(!wrap)return;
+          const startMs=Date.parse(String(active?.startedAt||''));
+          const activeNow=Number.isFinite(startMs);
+          wrap.classList.toggle('rudi-partner-fasting-active',activeNow);
+          const oldHours=wrap.querySelector('.rudi-partner-fasting-hours');
+          const oldOutline=wrap.querySelector('.rudi-partner-fasting-outline');
+          if(!activeNow){
+            if(oldHours){oldHours.hidden=true;oldHours.textContent=''}
+            if(oldOutline)oldOutline.hidden=true;
+            wrap.style.removeProperty('--rudi-partner-fasting-color');
+            return;
+          }
+          const elapsedMs=Math.max(0,Date.now()-startMs);
+          const hours=Math.floor(elapsedMs/3600000);
+          const goalHours=Number(active?.goalHours)>0?Number(active.goalHours):16;
+          const progress=Math.min(100,Math.max(0,elapsedMs/(goalHours*3600000)*100));
+          const reached=elapsedMs>=goalHours*3600000;
+          // Exactly the old outlined fasting indicator's lavender and completed green.
+          const color=reached?'#38dc8f':'#a59af9';
+          wrap.style.setProperty('--rudi-partner-fasting-color',color);
+          let hoursNode=oldHours;
+          if(!hoursNode){
+            hoursNode=document.createElement('span');
+            hoursNode.className='rudi-partner-fasting-hours';
+            wrap.appendChild(hoursNode);
+          }
+          hoursNode.hidden=false;
+          hoursNode.textContent=hours+' ч';
+          hoursNode.title='Голодание '+partnerActor+': '+hours+' ч · цель '+goalHours+' ч';
+          hoursNode.setAttribute('aria-label',hoursNode.title);
+          let outline=oldOutline;
+          if(!outline){
+            const ns='http://www.w3.org/2000/svg';
+            outline=document.createElementNS(ns,'svg');
+            outline.classList.add('rudi-partner-fasting-outline');
+            outline.setAttribute('viewBox','0 0 100 100');
+            outline.setAttribute('aria-hidden','true');
+            outline.setAttribute('focusable','false');
+            for(const className of ['rudi-partner-fasting-track','rudi-partner-fasting-value']){
+              const path=document.createElementNS(ns,'path');
+              path.classList.add(className);
+              path.setAttribute('d','M50 3 H71 C85.36 3 97 14.64 97 29 V71 C97 85.36 85.36 97 71 97 H29 C14.64 97 3 85.36 3 71 V29 C3 14.64 14.64 3 29 3 H50');
+              outline.appendChild(path);
+            }
+            wrap.appendChild(outline);
+          }
+          outline.hidden=false;
+          const total=168+52*Math.PI;
+          outline.querySelector('.rudi-partner-fasting-value').style.strokeDasharray=(total*progress/100)+' '+total;
+          return;
+        }
+        const button=document.getElementById('fastingProfileButton');
         if(!button)return;
         const startMs=Date.parse(String(active?.startedAt||''));
         const activeNow=Number.isFinite(startMs);
