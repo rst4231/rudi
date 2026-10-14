@@ -1,4 +1,4 @@
-/* RUDI v4.243: personalized sea-battle player labels and low-request online presence; offline word and thinking games. */
+/* RUDI v4.245: own-turn-only Home/PWA badge, personalized sea-battle and offline thinking games. */
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
 const g=()=>window.RudiGames;
