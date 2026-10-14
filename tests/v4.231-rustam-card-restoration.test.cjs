@@ -31,8 +31,8 @@ test('new width and chart styles contain only Diana-specific selectors',()=>{
 });
 test('PWA version bump does not change game assets',()=>{
  assert.match(html,/home-reference-layout\.js\?v=4\.231/);
- assert.match(html,/home-reference-layout\.css\?v=4\.232/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.233/);
  assert.match(html,/rudi-games\.js\?v=4\.230/);
  assert.match(html,/rudi-games\.css\?v=4\.230/);
- assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.232/);
+ assert.match(fs.readFileSync('public/sw.js','utf8'),/rudi-shell-v4\.233/);
 });

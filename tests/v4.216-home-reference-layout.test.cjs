@@ -12,7 +12,7 @@ test('six shortcuts sit before conditional meditation hint and profile',()=>{
  assert.match(js,/rudiHomeShortcuts/);
  assert.match(js,/const anchor=hint&&hint.parentElement===self.parentElement&&!hint.hidden\?hint:self/);
  assert.match(js,/anchor.parentElement.insertBefore\(rail,anchor\)/);
- assert.match(css,/width:min\(92%,470px\)/);
+ assert.match(css,/body\[data-app-tab="home"\] \.rudi-home-shortcuts\{[\s\S]*?width:100%!important/);
  assert.match(css,/\.rudi-home-self-line/);
 });
 test('games button is executable and its scripts are loaded',()=>{

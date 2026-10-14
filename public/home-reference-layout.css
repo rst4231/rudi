@@ -861,3 +861,148 @@ body[data-app-tab="home"] #homeDianaTile .profile-energy-plot .rudi-energy-point
   text-shadow:0 1px 5px rgba(0,4,12,.7)!important;
   pointer-events:none!important;
 }
+
+/* RUDI v4.233: quick-access rail matches the width of the car card.
+   The fasting caption is the ONLY reason for additional bottom space. */
+body[data-app-tab="home"] .rudi-home-shortcuts{
+  width:100%!important;
+  max-width:100%!important;
+  margin-inline:0!important;
+  box-sizing:border-box!important;
+  padding-bottom:var(--rudi-shortcuts-idle-padding,11px)!important;
+}
+@media(max-width:375px){
+  body[data-app-tab="home"] .rudi-home-shortcuts{--rudi-shortcuts-idle-padding:9px}
+}
+body[data-app-tab="home"] .rudi-home-shortcuts:has(#fastingProfileElapsed:not([hidden]):not(:empty)){
+  padding-bottom:23px!important;
+}
+
+/* Diana as PARTNER only: compact, single-row layout that fits mobile.
+   Rustam's card and Diana's own logged-in layout are intentionally unchanged. */
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)){
+  display:grid!important;
+  grid-template-columns:minmax(0,43%) minmax(0,1fr) auto!important;
+  grid-template-rows:minmax(66px,auto) auto!important;
+  align-items:center!important;
+  column-gap:6px!important;
+  row-gap:0!important;
+  padding:8px 9px!important;
+  min-height:82px!important;
+  box-sizing:border-box!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) > .profile-person-head{
+  display:contents!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-person-head > .identity{
+  grid-column:1!important;
+  grid-row:1!important;
+  grid-template-columns:40px minmax(0,1fr)!important;
+  gap:6px!important;
+  align-items:center!important;
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .score-avatar-wrap,
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .score-avatar-wrap > .avatar{
+  width:40px!important;
+  height:40px!important;
+  min-width:40px!important;
+  min-height:40px!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .identity > .person{
+  min-width:0!important;
+  gap:3px!important;
+  padding:0!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .identity .name{
+  font-size:16px!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .identity :is(.profile-work-status,.profile-cycle-mood,.profile-rhythm-status){
+  font-size:9px!important;
+  line-height:1.15!important;
+  white-space:nowrap!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) > .profile-energy-strip{
+  grid-column:2!important;
+  grid-row:1!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:35px 11px!important;
+  align-self:center!important;
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0 1px 0 6px!important;
+  border-left:1px solid rgba(177,186,222,.13)!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-energy-strip .profile-energy-plot{
+  grid-column:1!important;
+  grid-row:1!important;
+  width:100%!important;
+  height:35px!important;
+  min-width:0!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-energy-strip .profile-energy-times{
+  grid-column:1!important;
+  grid-row:2!important;
+  width:100%!important;
+  font-size:6px!important;
+  line-height:1.1!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-person-head > .profile-person-actions{
+  grid-column:3!important;
+  grid-row:1!important;
+  position:static!important;
+  inset:auto!important;
+  transform:none!important;
+  align-self:center!important;
+  justify-self:end!important;
+  display:flex!important;
+  flex-wrap:nowrap!important;
+  gap:4px!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-person-actions > .profile-contact-button{
+  width:29px!important;
+  height:29px!important;
+  min-width:29px!important;
+  min-height:29px!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-person-actions > .block-collapse-button{
+  display:none!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) > .rudi-collapse-body{
+  grid-column:1 / -1!important;
+  grid-row:2!important;
+  min-width:0!important;
+}
+@media(max-width:375px){
+  body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)){
+    grid-template-columns:minmax(0,43%) minmax(0,1fr) auto!important;
+    column-gap:4px!important;
+    padding-inline:8px!important;
+  }
+  body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-person-head > .identity{
+    grid-template-columns:38px minmax(0,1fr)!important;
+    gap:5px!important;
+  }
+  body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .score-avatar-wrap,
+  body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .score-avatar-wrap > .avatar{
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+    min-height:38px!important;
+  }
+  body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-person-actions > .profile-contact-button{
+    width:27px!important;
+    height:27px!important;
+    min-width:27px!important;
+    min-height:27px!important;
+  }
+  body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-person-head > .profile-person-actions{gap:3px!important}
+  body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-energy-strip .profile-energy-times{font-size:5.6px!important}
+}
