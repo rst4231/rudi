@@ -54,3 +54,38 @@ test('UI adds an independent event group above existing holidays and keeps Thurs
   assert.match(html,/calendar-entertainment\.js/);
   assert.equal(vercel.crons.find(c=>c.path==='/api/cinema-premieres-cron')?.schedule,'2 21 * * 3');
 });
+
+test('standup card parser extracts only famous artists, dates, venues, and ticket URLs',()=>{
+  const {standupFromHtml}=require('../api/calendar-entertainment-sources.cjs');
+  const {event}=require('../api/calendar-entertainment.cjs');
+  const card=(title,date)=>'<article class="event-card" itemscope itemtype="https://schema.org/Event"><button data-event-title="'+title+'" data-event-url="/standup-1/" data-event-date="'+date+'" data-venue-name="КСК Арена"></button></article>';
+  const c={...DEFAULTS,knownStandups:[...DEFAULTS.knownStandups,'Сергей Орлов']};
+  const rows=standupFromHtml(card('Сергей Орлов','2026-11-22')+card('Неизвестный новичок','2026-11-22')+card('Сергей Орлов','2026-09-22'),c,'2026-10-14','2027-01-14',event);
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].title,'Сергей Орлов');
+  assert.equal(rows[0].date,'2026-11-22');
+  assert.equal(rows[0].venue,'КСК Арена');
+  assert.equal(rows[0].href,'https://spb.events/standup-1/');
+});
+test('Russian theatrical release list maps named movies to their actual premiere dates',()=>{
+  const {cinemaFromHtml}=require('../api/calendar-entertainment-sources.cjs');
+  const {event}=require('../api/calendar-entertainment.cjs');
+  const fixture='<div class="movieList_title grid_cell12">15 октября 2026</div><div class="movieList_item movieItem"><a class="movieItem_title" href="https://www.kinoafisha.info/movies/8382173/">Руки вверх 2</a></div>'+
+    '<div class="movieList_title grid_cell12">1 января 2027</div><div class="movieList_item movieItem"><a class="movieItem_title" href="https://www.kinoafisha.info/movies/123/">Чебурашка 3</a></div>'+
+    '<div class="movieList_title grid_cell12">1 февраля 2027</div><a class="movieItem_title" href="/movies/456/">Позже</a>';
+  const rows=cinemaFromHtml(fixture,DEFAULTS,'2026-10-14','2027-01-14',event);
+  assert.deepEqual(rows.map(x=>x.date),['2026-10-15','2027-01-01']);
+  assert.deepEqual(rows.map(x=>x.kind),['cinema','cinema']);
+  assert.ok(rows.every(x=>x.href.startsWith('https://www.kinoafisha.info/')));
+});
+test('same-day source schema upgrade bypasses stale refresh guard exactly once',async()=>{
+  const {refresh}=require('../api/calendar-entertainment.cjs');
+  const data=new Map([['rolling-quarter',{refreshedDate:'2026-10-14',events:[{date:'2026-10-14'}]}]]);
+  const cache={get:async k=>data.get(k),set:async(k,v)=>{data.set(k,v)}};
+  const x=await refresh({cache,config:DEFAULTS,now:new Date('2026-10-14T12:00:00Z'),
+    previewImpl:async date=>({date,results:{events:{concerts:[],stage:[]}},sections:{events:{parts:[]}}}),
+    fetchImpl:async()=>({ok:false,status:503})});
+  assert.equal(x.successDays,93);
+  assert.equal(data.get('rolling-quarter').schemaVersion,2);
+  assert.equal((await refresh({cache,config:DEFAULTS,now:new Date('2026-10-14T12:00:00Z')})).skipped,'already-refreshed');
+});

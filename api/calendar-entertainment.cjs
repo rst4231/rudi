@@ -2,6 +2,8 @@
 const {createStrictRuntimeCache}=require('./strict-runtime-cache.cjs');
 const {readFeedSnapshot,moscowDateKey}=require('./feed-store.cjs');
 const {loadEventsConfig}=require('./events-config.cjs');
+const {loadStandup,loadCinema}=require('./calendar-entertainment-sources.cjs');
+const SCHEMA_VERSION=2;
 const KEY='rolling-quarter', NAMESPACE='rudi-calendar-entertainment-v1';
 const CONFIG_URL='https://raw.githubusercontent.com/rst4231/rudi/main/config/calendar-entertainment.json';
 const DEFAULTS={enabled:true,monthsAhead:3,yandexStandupUrl:'https://afisha.yandex.ru/saint-petersburg/selections/standup',knownStandups:['Андрей Бебуришвили','Алексей Щербаков','Гурам Амарян','Иван Абрамов','Нурлан Сабуров','Ольга Малащенко','Варвара Щербакова','Дмитрий Романов','Виктор Комаров','Валентин Сидоров','Слава Комиссаренко','Денис Дорохов','Comedy Club','Женский форум','Женский стендап','StandUp на ТНТ']};
@@ -64,7 +66,7 @@ async function fetchPreview(day,o={}){if(o.previewImpl)return o.previewImpl(day)
 }
 async function refresh(o={}){const now=o.now instanceof Date?o.now:new Date(o.now||Date.now()),today=moscowDateKey(now),c=await loadConfig(o);
   if(c.enabled===false)return {skipped:'disabled'};const until=endDate(today,Math.max(1,Math.min(3,Number(c.monthsAhead)||3))),store=cacheOf(o),prev=await store.get(KEY).catch(()=>null);
-  if(prev?.refreshedDate===today&&!o.force)return {skipped:'already-refreshed',count:prev.events?.length||0};
+  if(prev?.refreshedDate===today&&prev?.schemaVersion===SCHEMA_VERSION&&!o.force)return {skipped:'already-refreshed',count:prev.events?.length||0};
   const prior=new Map();for(const item of prev?.events||[])if(item.date>=today&&item.date<=until){if(!prior.has(item.date))prior.set(item.date,[]);prior.get(item.date).push(item)}
   const dates=[];for(let d=today;d<=until;d=addDays(d,1))dates.push(d);let cursor=0,success=0,failed=0;
   async function worker(){while(cursor<dates.length){const day=dates[cursor++];
@@ -72,6 +74,13 @@ async function refresh(o={}){const now=o.now instanceof Date?o.now:new Date(o.no
     catch(e){failed++;if(failed<=3)console.warn('RUDI_CALENDAR_PREVIEW_WARN',day,String(e?.message||e))}
   }}
   await Promise.all(Array.from({length:Math.min(6,dates.length)},()=>worker()));
+  const [standupListing,cinemaListing]=await Promise.allSettled([
+    loadStandup(c,today,until,event,o),loadCinema(c,today,until,event,o)
+  ]);
+  const listedStandups=standupListing.status==='fulfilled'?standupListing.value:[];
+  const listedMovies=cinemaListing.status==='fulfilled'?cinemaListing.value:[];
+  if(standupListing.status==='rejected')console.warn('RUDI_CALENDAR_STANDUP_LISTING_WARN',String(standupListing.reason?.message||standupListing.reason));
+  if(cinemaListing.status==='rejected')console.warn('RUDI_CALENDAR_CINEMA_LISTING_WARN',String(cinemaListing.reason?.message||cinemaListing.reason));
   let extra=[];try{extra=await yandexStandup(c,today,until,o)}catch(e){console.warn('RUDI_CALENDAR_YANDEX_STANDUP_WARN',String(e?.message||e))}
   let movies=[];try{const [feed,cfg]=await Promise.all([readFeedSnapshot(o),loadEventsConfig(o)]);
     for(const row of feed?.sections?.cinema?.items||[]){const day=clean(row.releaseDate,10);if(day>=today&&day<=until)
@@ -79,11 +88,11 @@ async function refresh(o={}){const now=o.now instanceof Date?o.now:new Date(o.no
     for(const [day,rows] of Object.entries(cfg.cinemaPremieres?.manualByDate||{}))if(day>=today&&day<=until)
       for(const row of rows)movies.push(event({title:row.title,href:row.sourceUrl},'cinema',day,row.source||'Кинотеатр'));
   }catch(e){console.warn('RUDI_CALENDAR_CINEMA_WARN',String(e?.message||e))}
-  if(!success&&!extra.length&&!movies.filter(Boolean).length)return {skipped:'sources-unavailable',failed,keptPrevious:Boolean(prev)};
+  if(!success&&!extra.length&&!listedStandups.length&&!listedMovies.length&&!movies.filter(Boolean).length)return {skipped:'sources-unavailable',failed,keptPrevious:Boolean(prev)};
   const keep=[...prior.values()].flat().filter(v=>v.kind!=='cinema');const oldMovies=(prev?.events||[]).filter(v=>v.kind==='cinema'&&v.date>=today&&v.date<=until);
-  const events=unique([...keep,...extra,...oldMovies,...movies].filter(Boolean));
-  await store.set(KEY,{refreshedDate:today,refreshedAt:now.toISOString(),until,events},{ttl:60*60*24*150,tags:['rudi-calendar-entertainment']});
-  return {date:today,until,count:events.length,successDays:success,failedDays:failed,yandexStandupItems:extra.length,movies:movies.filter(Boolean).length};
+  const events=unique([...keep,...extra,...listedStandups,...oldMovies,...movies,...listedMovies].filter(Boolean));
+  await store.set(KEY,{schemaVersion:SCHEMA_VERSION,refreshedDate:today,refreshedAt:now.toISOString(),until,events},{ttl:60*60*24*150,tags:['rudi-calendar-entertainment']});
+  return {date:today,until,count:events.length,successDays:success,failedDays:failed,yandexStandupItems:extra.length,listedStandups:listedStandups.length,movies:movies.filter(Boolean).length+listedMovies.length};
 }
 async function month(monthKey,o={}){const today=moscowDateKey(o.now||new Date()),until=endDate(today,3);
   const selected=/^20\d{2}-(0[1-9]|1[0-2])$/u.test(String(monthKey||''))?monthKey:today.slice(0,7);

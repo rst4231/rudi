@@ -1,18 +1,18 @@
 // Read-only events from the same weekly collectors that power RUDI's feed.
 (function(){
  'use strict';
- const lists=new Map(),busy=new Set(),names={concert:'🎤 Концерты',standup:'🎙 Stand Up',cinema:'🎬 Кинопремьеры'};
+ const lists=new Map(),busy=new Set(),lastFetch=new Map(),names={concert:'🎤 Концерты',standup:'🎙 Stand Up',cinema:'🎬 Кинопремьеры'};
  const localDay=()=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(p=>[p.type,p.value]));return [parts.year,parts.month,parts.day].join('-')};
  let scheduled=false;
  function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;render()})}
  function load(key){
-  if(lists.has(key)||busy.has(key))return;
+  if(busy.has(key))return;
   const storage='rudi-entertainment-'+key;
-  try{const cached=JSON.parse(localStorage.getItem(storage)||'null');
-    if(cached?.days){lists.set(key,cached.days);if(Date.now()-cached.at<21600000||!navigator.onLine)return}}
+  if(!lists.has(key))try{const cached=JSON.parse(localStorage.getItem(storage)||'null');
+    if(cached?.days){lists.set(key,cached.days);lastFetch.set(key,Number(cached.at)||0)}}
   catch(_){}
-  if(!navigator.onLine)return;
-  busy.add(key);
+  if(!navigator.onLine||Date.now()-(lastFetch.get(key)||0)<300000)return;
+  busy.add(key);lastFetch.set(key,Date.now());
   fetch('/api/calendar-entertainment?month='+encodeURIComponent(key),{cache:'no-store'})
    .then(r=>r.ok?r.json():null).then(row=>{
     if(!row?.ok||!Array.isArray(row.days))return;
@@ -70,7 +70,8 @@
    const el=document.getElementById(id);if(el)new MutationObserver(schedule).observe(el,{subtree:true,childList:true});
   }
   new MutationObserver(schedule).observe(document.body,{attributes:true,attributeFilter:['data-calendar-scope']});
-  window.addEventListener('online',()=>{lists.clear();schedule()});schedule();
+  window.addEventListener('online',()=>{lastFetch.clear();schedule()});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedule()});schedule();
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })();

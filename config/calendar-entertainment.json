@@ -18,6 +18,13 @@
     "Женский форум",
     "Женский стендап",
     "StandUp на ТНТ",
-    "Варвара Щербакова"
-  ]
+    "Варвара Щербакова",
+    "Сергей Орлов",
+    "Павел Дедищев",
+    "Саша Малой",
+    "Илья Соболев",
+    "Ярослава Тринадцатко"
+  ],
+  "standupListingUrl": "https://spb.events/standup/",
+  "cinemaReleasesUrl": "https://www.kinoafisha.info/releases/"
 }
