@@ -1,4 +1,4 @@
-/* RUDI v4.242: offline word and thinking games, plus economical online battleship and badges. */
+/* RUDI v4.243: personalized sea-battle player labels and low-request online presence; offline word and thinking games. */
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
 const g=()=>window.RudiGames;
