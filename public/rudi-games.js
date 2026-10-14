@@ -1,26 +1,12 @@
 /* RUDI v4.212: offline personal cognitive and finance trainers. No real money. */
 (()=>{'use strict';
-const QUIZ=[
- ['Что лучше снижает риск потери всех инвестиций?',['Одна акция','Диверсификация','Кредитное плечо'],'Диверсификация распределяет риск между активами.',1],
- ['Что означает инфляция?',['Рост покупательной способности','Рост общего уровня цен','Гарантированный рост доходов'],'При инфляции на те же деньги в среднем можно купить меньше.',1],
- ['Зачем нужен финансовый резерв?',['Для спекуляций','Для непредвиденных расходов','Для повышения кредитного лимита'],'Резерв помогает пережить потерю дохода и неожиданные траты.',1],
- ['Что обычно наиболее ликвидно?',['Деньги на доступном счёте','Земельный участок','Редкая картина'],'Ликвидность означает возможность быстро получить деньги без существенной потери стоимости.',0],
- ['Что такое сложный процент?',['Процент только на первоначальную сумму','Процент на сумму с уже начисленными процентами','Скрытая комиссия'],'Сложный процент работает, когда доход тоже начинает приносить доход.',1],
- ['Почему высокая доходность не гарантирована?',['Потому что рынок всегда растёт','Потому что доход зависит от риска и условий','Потому что инфляции нет'],'У потенциально высокой доходности обычно есть неопределённость и риск убытков.',1],
- ['Что сначала стоит проверить у кредита?',['Полную стоимость кредита','Цвет карты','Размер рекламного баннера'],'Полная стоимость включает не только рекламную процентную ставку.',0],
- ['Какие расходы легче всего контролировать?',['Те, которые записываются и анализируются','Только наличные','Только подписки'],'Учёт даёт основу для осмысленных решений.',0],
- ['Почему опасно инвестировать весь резерв?',['Он перестаёт быть доступным в нужный момент','Любая инвестиция незаконна','Резерв обязательно обесценится за день'],'Экстренные деньги должны оставаться доступными.',0],
- ['Что такое реальная доходность?',['Номинальная доходность с учётом инфляции','Любые дивиденды','Размер вклада'],'Сравнивай результат с ростом цен и издержками.',0],
- ['Что такое просадка портфеля?',['Снижение стоимости относительно предыдущего пика','Комиссия банка','Рост номинального капитала'],'Просадка показывает глубину временного или постоянного падения капитала.',0],
- ['Когда стоит сравнивать инвестиции?',['С учётом риска, горизонта и комиссий','Только по доходности прошлого года','Только по рекламе'],'Горизонт, риск и комиссии влияют на итоговый результат.',0]
-];
 const $=id=>document.getElementById(id);
 const safe=x=>String(x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const actor=()=>document.body?.dataset?.rudiActor==='Диана'?'Диана':'Рустам';
 const storageKey=()=> 'rudi-games-v1:'+actor();
 let duelRoom=null,duelTimer=null,duelBusy=false,duelMessage='',duelPresence=null,duelSession='',duelLastHeartbeat=0;
-let page=null,mode='home',memoryTimer=null,level=1,sequence='',quiz=[],index=0,correct=0,answered=false;
-function stats(){try{const v=JSON.parse(localStorage.getItem(storageKey())||'{}');return {memory:Number(v.memory)||0,quiz:Number(v.quiz)||0,market:Number.isFinite(Number(v.market))?Number(v.market):-100,sessions:Number(v.sessions)||0}}catch{return {memory:0,quiz:0,market:-100,sessions:0}}}
+let page=null,mode='home',memoryTimer=null,level=1,sequence='';
+function stats(){try{const v=JSON.parse(localStorage.getItem(storageKey())||'{}');return {memory:Number(v.memory)||0}}catch{return {memory:0}}}
 function save(patch){const data={...stats(),...patch};try{localStorage.setItem(storageKey(),JSON.stringify(data))}catch{}return data}
 function haptic(){try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch{}}
 function header(title,subtitle=''){
@@ -29,15 +15,19 @@ function header(title,subtitle=''){
 }
 function section(html){$('rudiGamesContent').innerHTML=html}
 function menu(){
- stopDuel();mode='home';clearTimeout(memoryTimer);memoryTimer=null;
+ stopDuel();window.RudiGameExtras?.stop?.();mode='home';
+ clearTimeout(memoryTimer);memoryTimer=null;
  header('Игры и тренажёры','Твоя игровая комната');
  const s=stats();
  section('<div class="rudi-game-hero"><span class="rudi-games-overline">АРКАДНАЯ ЗОНА · RUDI</span><h2>Выбирай игру ✨</h2></div>'+
-  '<div class="rudi-games-stats"><div><small>Память</small><strong>'+s.memory+' ур.</strong></div><div><small>Викторина</small><strong>'+s.quiz+'/10</strong></div><div><small>Игроки</small><strong>Р × Д</strong></div></div>'+
+  '<div class="rudi-games-stats"><div><small>Память</small><strong>'+s.memory+' ур.</strong></div><div><small>Игроки</small><strong>Р × Д</strong></div><div><small>Игры</small><strong>5</strong></div></div>'+
   '<div class="rudi-games-list">'+
-  '<button data-rudi-game="memory" class="rudi-game-card"><span class="rudi-game-glyph">◎</span><span><b>Тренировка памяти</b><small>Запомни последовательность цифр. С каждым раундом сложнее.</small></span><span class="rudi-game-arrow">›</span></button>'+
-  '<button data-rudi-game="quiz" class="rudi-game-card"><span class="rudi-game-glyph">?</span><span><b>Финансовая викторина</b><small>10 вопросов на риск, бюджет и инвестиции.</small></span><span class="rudi-game-arrow">›</span></button>'+
-  '<button data-rudi-game="duel" class="rudi-game-card is-duel"><span class="rudi-game-glyph">×○</span><span><b>Крестики-нолики · онлайн</b><small>Рустам против Дианы. Общее поле и живые партии.</small></span><span class="rudi-game-arrow">›</span></button></div>');
+  '<button data-rudi-game="memory" class="rudi-game-card"><span class="rudi-game-glyph">◎</span><span class="rudi-game-card-copy"><b>Тренировка памяти</b><small>Запомни последовательность чисел.</small></span><span class="rudi-game-arrow">›</span></button>'+
+  '<button data-rudi-game="thinking" class="rudi-game-card"><span class="rudi-game-glyph">◈</span><span class="rudi-game-card-copy"><b>Тренировка мышления</b><small>Задачи на логику, закономерности и внимательность.</small></span><span class="rudi-game-arrow">›</span></button>'+
+  '<button data-rudi-game="word" class="rudi-game-card"><span class="rudi-game-glyph">АБ</span><span class="rudi-game-card-copy"><b>Угадай слово</b><small>Одно слово каждый день. 6 попыток.</small></span><span class="rudi-game-arrow">›</span></button>'+
+  '<button data-rudi-game="duel" class="rudi-game-card is-duel"><span class="rudi-game-glyph">×○</span><span class="rudi-game-card-copy"><b>Крестики-нолики · онлайн</b><small>Общее поле. Рустам против Дианы.</small></span><span class="rudi-game-arrow">›</span></button>'+
+  '<button data-rudi-game="battleship" class="rudi-game-card is-duel"><span class="rudi-game-glyph">⚓</span><span class="rudi-game-card-copy"><b>Морской бой · онлайн</b><small>Общее поле 7×7, корабли расставляются автоматически.</small></span><span class="rudi-game-arrow">›</span></button></div>');
+ window.RudiGameExtras?.decorateMenu?.();
 }
 function memoryShow(){
  mode='memory';
@@ -71,34 +61,6 @@ function memoryCheck(){
  // Replace the original handler so the next click never resubmits the answer.
  const old=$('rudiMemoryCheck'),fresh=old.cloneNode(true);old.replaceWith(fresh);
  fresh.addEventListener('click',guess===sequence?memoryShow:()=>{level=1;memoryShow()});
-}
-function quizStart(){
- mode='quiz';correct=0;index=0;answered=false;
- quiz=[...QUIZ].sort(()=>Math.random()-.5).slice(0,10);
- quizRender();
-}
-function quizRender(){
- if(index>=quiz.length){
-   const s=stats();save({quiz:Math.max(s.quiz,correct),sessions:s.sessions+1});
-   header('Викторина','Готово');
-   section('<div class="rudi-game-result"><span>Результат</span><strong>'+correct+' / '+quiz.length+'</strong><p>'+(correct>=8?'Отличное понимание основ.':'Есть что потренировать. Попробуй ещё раз.')+'</p><button class="rudi-game-primary" data-rudi-game="quiz">Повторить</button></div>');return;
- }
- answered=false;const [q,answers]=quiz[index];
- header('Финансовая викторина',(index+1)+' из '+quiz.length);
- section('<div class="rudi-game-work"><div class="rudi-games-progress"><i style="width:'+((index+1)/quiz.length*100)+'%"></i></div><h2>'+safe(q)+'</h2><div class="rudi-quiz-options">'+answers.map((a,i)=>'<button type="button" data-quiz-answer="'+i+'">'+safe(a)+'</button>').join('')+'</div><p id="rudiQuizExplanation" class="rudi-game-hint" role="status"></p><button id="rudiQuizNext" class="rudi-game-primary" hidden>Дальше</button></div>');
- $('rudiQuizNext').addEventListener('click',()=>{index++;quizRender()});
-}
-function quizAnswer(choice){
- if(mode!=='quiz'||answered)return;answered=true;
- const [q,answers,explanation,answer]=quiz[index];if(choice===answer)correct++;
- document.querySelectorAll('#rudiGamesPage [data-quiz-answer]').forEach(btn=>{
-   const idx=Number(btn.dataset.quizAnswer);btn.disabled=true;
-   if(idx===answer)btn.classList.add('correct');
-   else if(idx===choice)btn.classList.add('wrong');
- });
- $('rudiQuizExplanation').textContent=(choice===answer?'Верно. ':'Неверно. ')+explanation;
- $('rudiQuizNext').hidden=false;
- $('rudiQuizNext').textContent=index+1>=quiz.length?'Результат':'Следующий вопрос';
 }
 /* Online duel: active while open, limited polling to protect D1 quotas. */
 function stopDuel(){
@@ -142,7 +104,7 @@ function duelRender(){
     '<button type="button" data-duel-action="start" class="rudi-game-primary">'+(room.round?'Новая партия':'Начать игру')+'</button>')+
   '<p class="rudi-game-hint">'+(duelMessage?safe(duelMessage):'Поле автоматически синхронизируется.')+'</p></div>');
 }
-function queueDuelPoll(delay=6500){
+function queueDuelPoll(delay=15000){
  if(duelTimer)clearTimeout(duelTimer);
  if(mode!=='duel'||page?.hidden||document.hidden)return;
  duelTimer=setTimeout(()=>{duelTimer=null;void duelPoll()},delay);
@@ -159,7 +121,7 @@ async function duelPoll(){
   if(heartbeat)duelLastHeartbeat=Date.now();
   const changed=duelRoom?.version!==result.room?.version||!!duelMessage||
    JSON.stringify(duelPresence)!==JSON.stringify(result.presence||null);
-  duelRoom=result.room;duelPresence=result.presence||null;duelMessage='';if(changed)duelRender();
+  duelRoom=result.room;duelPresence=result.presence||null;duelMessage='';window.RudiGameExtras?.onExistingDuel?.(duelRoom);if(changed)duelRender();
  }catch(error){if(mode==='duel'){duelMessage=!navigator.onLine?'Ожидаем интернет':error.message;duelRender()}}
  finally{duelBusy=false;queueDuelPoll()}
 }
@@ -169,7 +131,7 @@ async function duelAction(action,index){
  try{
   const extra=(action==='move'||action==='end')?{...(action==='move'?{index}:{}),version:duelRoom?.version}:{};
   const result=await duelRequest(action,extra);
-  duelRoom=result.room;duelRender();haptic();
+  duelRoom=result.room;window.RudiGameExtras?.onExistingDuel?.(duelRoom);duelRender();haptic();
  }catch(error){
   if(error.server?.room)duelRoom=error.server.room;
   duelMessage=error.message;duelRender();
@@ -188,7 +150,7 @@ function open(){
  window.scrollTo({top:0,behavior:'instant'});menu();haptic();
 }
 function close(){
- stopDuel();if(!page)return;page.hidden=true;document.body.classList.remove('rudi-games-open');
+ stopDuel();window.RudiGameExtras?.stop?.();if(!page)return;page.hidden=true;document.body.classList.remove('rudi-games-open');
  clearTimeout(memoryTimer);memoryTimer=null;mode='home';
 }
 function ensurePage(){
@@ -200,12 +162,11 @@ function ensurePage(){
  page.addEventListener('click',e=>{
    const game=e.target.closest('[data-rudi-game]')?.dataset?.rudiGame;
    if(game==='memory'){level=1;memoryShow();return}
-   if(game==='quiz'){quizStart();return}
     if(game==='duel'){duelStart();return}
+   if(['battleship','word','thinking'].includes(game)){window.RudiGameExtras?.openGame?.(game);return}
    const cell=e.target.closest('[data-duel-index]');if(cell){void duelAction('move',Number(cell.dataset.duelIndex));return}
    const duel=e.target.closest('[data-duel-action]');if(duel){void duelAction(duel.dataset.duelAction);return}
-   const answer=e.target.closest('[data-quiz-answer]');if(answer){quizAnswer(Number(answer.dataset.quizAnswer));return}
-   const action=e.target.closest('[data-market-action]');if(action)marketAction(action.dataset.marketAction);
+   if(window.RudiGameExtras?.onClick?.(e))return;
  });
  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&page&&!page.hidden){if(mode==='home')close();else menu()}});
  let edge=null;
@@ -238,5 +199,6 @@ window.addEventListener('pagehide',()=>{if(mode==='duel')stopDuel()});
 window.addEventListener('online',()=>{if(mode==='duel')queueDuelPoll(150)});
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{ensureShortcut();openDuelDeepLink()},{once:true});
 else{ensureShortcut();openDuelDeepLink()}
-window.RudiGames={open,close};
+window.RudiGames={open,close,menu,header,section,actor,safe,stats,save,
+ getPage:()=>page,getMode:()=>mode,setMode:value=>{mode=value}};
 })();
