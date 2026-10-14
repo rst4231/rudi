@@ -81,7 +81,7 @@ function stop(){
 function scheduleBattle(){
  if(battleTimer)clearTimeout(battleTimer);
  if(activeGame!=='battleship'||document.hidden||!navigator.onLine)return;
- battleTimer=setTimeout(()=>{battleTimer=null;void pollBattle()},15000);
+ battleTimer=setTimeout(()=>{battleTimer=null;void pollBattle()},20000);
 }
 async function pollBattle(){
  if(activeGame!=='battleship'||document.hidden||battleBusy)return;
@@ -142,8 +142,8 @@ function startBattle(){
  activeGame='battleship';battleRoom=null;battleMessage='';g().setMode('battleship');
  renderBattle();void pollBattle();
 }
-const WORDS=['АРБУЗ','ГОРОД','КНИГА','ПАРУС','ЛАМПА','СОСНА','ГЕРОЙ','ОКЕАН','СТЕНА','ШКОЛА','ГРУША','ЛИМОН','ДОСКА','САПОГ','МОТОР','РОМАН','ПИЛОТ','ПЕСНЯ','МАСКА','РЫБАК','ТРАВА','МЕЧТА','ВЕТЕР','РОБОТ','СЛОВО','ДОЖДЬ','КРЫША','ЛИСТЬ','МЫШКА','ЧАШКА','НОЖКА','ЗАМОК','ДЕНЬГ','ПОЛКА','СЦЕНА','ТУМАН','ВОЛНА','ОГОНЬ','ШТУКА','ЯГОДА'];
-function moscowDay(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date())}
+const WORDS=['АРБУЗ','ГОРОД','КНИГА','ПАРУС','ЛАМПА','СОСНА','ГЕРОЙ','ОКЕАН','СТЕНА','ШКОЛА','ГРУША','ЛИМОН','ДОСКА','САПОГ','МОТОР','РОМАН','ПИЛОТ','ПЕСНЯ','МАСКА','РЫБАК','ТРАВА','МЕЧТА','ВЕТЕР','РОБОТ','СЛОВО','ДОЖДЬ','КРЫША','ЛИСТЫ','МЫШКА','ЧАШКА','НОЖКА','ЗАМОК','ДЕНЕК','ПОЛКА','СЦЕНА','ТУМАН','ВОЛНА','ОГОНЬ','ШТУКА','ЯГОДА'];
+function moscowDay(){const parts=new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()); const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));return p.year+'-'+p.month+'-'+p.day}
 function targetForDay(day){
  let n=2166136261;
  for(const c of day){n^=c.charCodeAt(0);n=Math.imul(n,16777619)}
@@ -257,6 +257,18 @@ window.addEventListener('online',()=>{if(activeGame==='battleship')void pollBatt
 window.addEventListener('focus',()=>{if(activeGame!=='battleship')void refreshStatus()});
 document.addEventListener('rudi:home-tiles-ready',()=>{renderBadges();void refreshStatus()});
 window.addEventListener('rudi:profile-ready',()=>{renderBadges();void refreshStatus()});
+function openBattleDeepLink(){
+ if(new URLSearchParams(window.location.search).get('game')!=='battleship'||!isVisible())return;
+ const url=new URL(window.location.href);url.searchParams.delete('game');
+ window.history.replaceState(window.history.state,'',url.pathname+url.search+url.hash);
+ g()?.open?.();startBattle();
+}
+window.addEventListener('popstate',openBattleDeepLink);
+document.addEventListener('rudi:home-tiles-ready',openBattleDeepLink);
+window.addEventListener('rudi:profile-ready',openBattleDeepLink);
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',openBattleDeepLink,{once:true});
+else queueMicrotask(openBattleDeepLink);
+window.addEventListener('message',event=>{if(event.data?.type==='RUDI_PUSH_RECEIVED')void refreshStatus(true)});
 const ticker=setInterval(()=>{if(statusAllowed())void refreshStatus()},90000);
 window.addEventListener('pagehide',()=>{clearInterval(ticker);stop()});
 window.RudiGameExtras={openGame,onClick,stop,renderBadges,decorateMenu,refreshStatus,onExistingDuel,updateOne};
