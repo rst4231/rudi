@@ -783,3 +783,29 @@ body[data-app-tab="home"] .rudi-home-shortcuts[hidden]{
 
 /* RUDI v4.228: fallback for home-only profile on every non-Home tab. */
 body[data-app-tab]:not([data-app-tab="home"]) :is(#homeRustamTile,#homeDianaTile,#rudiHomeShortcuts){display:none!important;}
+
+/* RUDI v4.229: reduce empty space on the morning card. */
+body[data-app-tab="home"] .home-dashboard-summary{
+  padding-block:8px!important;
+  row-gap:4px!important;
+}
+body[data-app-tab="home"] .home-dashboard-summary .home-dashboard-head{
+  min-height:0!important;
+  margin-block:0!important;
+  padding-block:5px!important;
+  row-gap:4px!important;
+}
+/* Even in light mode, the advice and today-intake cards share even gutters. */
+body[data-app-tab="home"] .profile-person-card .profile-person-details:has(.profile-supplement-intakes){
+  gap:10px!important;
+  padding-block:5px 8px!important;
+}
+body[data-app-tab="home"] .profile-person-card .profile-person-details:has(.profile-supplement-intakes) .rhythm-advice{
+  margin:0!important;
+  padding:9px 11px!important;
+}
+body[data-app-tab="home"] .profile-person-card .profile-supplement-intakes{
+  margin-top:0!important;
+  padding:11px 12px!important;
+  gap:9px!important;
+}

@@ -1,5 +1,5 @@
 {
-  "current": "v4.228",
+  "current": "v4.229",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -64,7 +64,8 @@
     "v4.225: use live mounted DOM layout and measured center correction for profile alignment, preserve permanently dark opaque tracker panel including in light theme.",
     "v4.226: move native mood badges beside names for both profiles; circular partner badge, no empty white placeholder, reduce own card bottom padding, preserve dark shortcut rail in light mode.",
     "v4.227: suppress late-mounted home tiles while on Finances/other tabs; preserve v4.226 name-side emoji and dark shortcut-rail improvements.",
-    "v4.228: fix home profile on Finances and Calendar by overriding inline-important display outside Home, restoring original state when returning, and watching tab changes and late mounts."
+    "v4.228: fix home profile on Finances and Calendar by overriding inline-important display outside Home, restoring original state when returning, and watching tab changes and late mounts.",
+    "v4.229: restore home shortcut rail and own profile after navigation; tighten hero top/bottom and supplement/advice gutters; fix stale task binding and iOS date/time controls."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [

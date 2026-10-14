@@ -33,5 +33,5 @@ test('route CSS and existing mood & dark rail remain in place',()=>{
  assert.match(css,/html\[data-theme="light"\] body\[data-app-tab="home"\] \.rudi-home-shortcuts\{[\s\S]*?background:linear-gradient\(155deg,#1d2036/);
  assert.match(css,/\.profile-name-row > :is\(#moodCurrentButton,#partnerMoodValue\)\.avatar-mood-badge\{/);
  assert.match(css,/\.profile-name-row > #partnerMoodValue\[hidden\]/);
- assert.match(html,/home-reference-layout\.css\?v=4\.228/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.229/);
 });

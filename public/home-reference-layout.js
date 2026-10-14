@@ -148,6 +148,14 @@
          delete d.rudiPreviousDisplay;
          delete d.rudiPreviousPriority;
        }
+       // Navigation can set hidden before the guard runs. Home-only shortcuts
+       // and the current user's own profile must always reappear on Home.
+       const currentProfile=guarded&&tile.id!=='rudiHomeShortcuts'&&
+         tile.contains?.(document.getElementById('displayName'));
+       if(tile.id==='rudiHomeShortcuts'||currentProfile){
+         tile.hidden=false;
+         if(tile.style?.getPropertyValue('display')==='none')tile.style.removeProperty('display');
+       }
        if(guarded&&tile.dataset)tile.dataset.rudiLastHomeHidden=tile.hidden?'1':'0';
        continue;
      }
@@ -217,6 +225,10 @@
    const anchor=hint&&hint.parentElement===self.parentElement&&!hint.hidden?hint:self;
    if(rail.parentElement!==anchor.parentElement||rail.nextElementSibling!==anchor)
      anchor.parentElement.insertBefore(rail,anchor);
+   // Ensure the shortcut rail is restored after any internal route switch.
+   rail.hidden=false;
+   if(rail.style.getPropertyValue('display')==='none')rail.style.removeProperty('display');
+   rail.dataset.rudiLastHomeHidden='0';
    let main=self.querySelector('.rudi-home-self-line');
    const profileHead=self.querySelector('.profile-person-head');
    const energy=self.querySelector('.profile-energy-strip');

@@ -161,9 +161,13 @@ function open(task,ctx={}){
   byId('rudiPersonalTaskForm').reset();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
   const {date,time}=normalizedEditorWhen(active.task);
-  // Reuse the same inputs; switch only task-specific values.
+  // Reset iOS-native date/time before applying THIS task's values.
+  f('date').value='';
+  f('time').value='';
   f('date').value=date;
   f('time').value=date?time:'';
+  f('date').defaultValue=date;
+  f('time').defaultValue=date?time:'';
   f('description').value=String(task.description||'');
   f('project').replaceChildren(new Option(task.projectName||'Текущий список',task.projectId||''));
   f('project').value=task.projectId||'';
@@ -266,7 +270,14 @@ function showMenu(task,ctx,event){
   menu.querySelector('[data-personal-date-action]')?.focus({preventScroll:true});
 }
 function bind(element,task,ctx){
- if(!task?.personal||!element||element.dataset.personalTaskBound==='1')return;
+ if(!task?.personal||!element)return;
+ // The calendar reuses task cards. Refresh their current data on every bind,
+ // not only the first one; older handlers must not keep the first task.
+ const binding=element.__rudiPersonalTaskBinding||
+   (element.__rudiPersonalTaskBinding={task:null,ctx:null});
+ binding.task={...task};
+ binding.ctx=ctx;
+ if(element.dataset.personalTaskBound==='1')return;
  element.dataset.personalTaskBound='1';
  let start=null,suppressUntil=0,holdTimer=0;
  const reset=()=>{clearTimeout(holdTimer);holdTimer=0;start=null;element.classList.remove('rudi-personal-holding')};
@@ -276,7 +287,7 @@ function bind(element,task,ctx){
   holdTimer=setTimeout(()=>{
    if(!start)return;
    suppressUntil=Date.now()+1600;reset();
-   ctx.openTickTick?.();
+   element.__rudiPersonalTaskBinding?.ctx?.openTickTick?.();
   },550);
  };
  // On iOS, touch events survive native pointercancel during a long press.
@@ -303,7 +314,10 @@ function bind(element,task,ctx){
  element.addEventListener('contextmenu',event=>{
   event.preventDefault();event.stopPropagation();
   if(start||Date.now()<suppressUntil)return;
-  if(event.pointerType==='mouse')showMenu(task,ctx,event);
+  if(event.pointerType==='mouse'){
+    const current=element.__rudiPersonalTaskBinding;
+    if(current?.task)showMenu(current.task,current.ctx,event);
+  }
  });
  element.addEventListener('click',event=>{
   if(Date.now()<suppressUntil){event.preventDefault();event.stopImmediatePropagation()}

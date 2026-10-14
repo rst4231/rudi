@@ -33,7 +33,7 @@ test('Home navigation restores profile display and keeps previously hidden contr
  assert.equal(s.profile.style.getPropertyValue('display'),'flex');
  assert.equal(s.profile.style.getPropertyPriority('display'),'important');
  assert.equal(s.profile.hidden,false);
- assert.equal(s.shortcuts.hidden,true);
+ assert.equal(s.shortcuts.hidden,false);
 });
 test('CSS fallback and route observers remain active',()=>{
  assert.match(js,/attributeFilter:\['data-app-tab'\]/);
