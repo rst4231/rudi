@@ -810,14 +810,14 @@ body[data-app-tab="home"] .profile-person-card .profile-supplement-intakes{
   gap:9px!important;
 }
 
-/* RUDI v4.231: ONLY Diana has the revised energy layout and a slightly narrower card. */
+/* RUDI v4.232: Diana keeps her energy graph; outer width matches Rustam. */
 body[data-app-tab="home"] #homeDianaTile:has(#displayName),
 body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)){
-  width:96%!important;
-  max-width:96%!important;
-  margin-left:auto!important;
-  margin-right:auto!important;
-  justify-self:center!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin-left:0!important;
+  margin-right:0!important;
+  justify-self:stretch!important;
 }
 body[data-app-tab="home"] #homeDianaTile .profile-energy-strip{
   grid-template-columns:minmax(0,1fr)!important;
