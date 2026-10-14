@@ -43,8 +43,8 @@ test('the Home games button shows a red dot without digits, even with two active
  assert.equal(button.child,badge);
  assert.equal(badge.hidden,false);
  assert.equal(badge.textContent,'','two active games must never show 2');
- assert.equal(badgeCalls.length,2,'native badge updates only for active/inactive change');
- assert.deepEqual(Array.from(badgeCalls[1]),[],'native installed-PWA badge is a dot, not a number');
+ assert.equal(badgeCalls.length,1,'native badge must not update twice when both games are active');
+ assert.deepEqual(Array.from(badgeCalls[0]),[],'native installed-PWA badge is a dot, not a number');
  ui.updateOne('duel',{status:'ended'});
  ui.updateOne('battleship',{status:'ended'});
  assert.equal(badge.hidden,true);
