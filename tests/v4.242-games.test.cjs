@@ -44,13 +44,18 @@ test('battle alternates turns, rejects repeated, stale and opponent moves',async
  assert.equal(start.body.room.turn,'Рустам');
  assert.equal(start.body.room.opponentShips,undefined);
  assert.equal((await d.call('Диана','move',{index:0,version:1})).code,409);
- const first=await d.call('Рустам','move',{index:0,version:1});assert.equal(first.code,200);
+ const first=await d.call('Рустам','move',{index:6,version:1});assert.equal(first.code,200);
  assert.equal(first.body.room.turn,'Диана');
  assert.equal((await d.call('Рустам','move',{index:1,version:2})).code,409);
  assert.equal((await d.call('Диана','move',{index:0,version:1})).code,409);
- const second=await d.call('Диана','move',{index:1,version:2});assert.equal(second.code,200);
+ const second=await d.call('Диана','move',{index:6,version:2});assert.equal(second.code,200);
  assert.equal(second.body.room.ownShots.length,1);
  assert.equal((await d.call('Рустам','move',{index:0,version:3})).code,409);
+});
+test('hit grants another turn; miss passes turn',()=>{
+ const a=battle.nextMove(null,'Рустам','start',null,'2026-10-14T12:00:00Z',mockShips).room;
+ const hit=battle.nextMove(a,'Рустам','move',0);assert.equal(hit.room.turn,'Рустам');
+ const miss=battle.nextMove(hit.room,'Рустам','move',6);assert.equal(miss.room.turn,'Диана');
 });
 test('start sends one push to partner only after durable success; shots do not spam',async()=>{
  const d=dbFixture();
