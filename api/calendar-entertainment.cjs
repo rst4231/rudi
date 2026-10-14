@@ -3,7 +3,7 @@ const {createStrictRuntimeCache}=require('./strict-runtime-cache.cjs');
 const {readFeedSnapshot,moscowDateKey}=require('./feed-store.cjs');
 const {loadEventsConfig}=require('./events-config.cjs');
 const {loadStandup,loadCinema}=require('./calendar-entertainment-sources.cjs');
-const SCHEMA_VERSION=2;
+const SCHEMA_VERSION=3;
 const KEY='rolling-quarter', NAMESPACE='rudi-calendar-entertainment-v1';
 const CONFIG_URL='https://raw.githubusercontent.com/rst4231/rudi/main/config/calendar-entertainment.json';
 const DEFAULTS={enabled:true,monthsAhead:3,yandexStandupUrl:'https://afisha.yandex.ru/saint-petersburg/selections/standup',knownStandups:['Андрей Бебуришвили','Алексей Щербаков','Гурам Амарян','Иван Абрамов','Нурлан Сабуров','Ольга Малащенко','Варвара Щербакова','Дмитрий Романов','Виктор Комаров','Валентин Сидоров','Слава Комиссаренко','Денис Дорохов','Comedy Club','Женский форум','Женский стендап','StandUp на ТНТ']};
@@ -18,13 +18,14 @@ const isKnown=(name,c=DEFAULTS)=>Boolean(fold(name)&&(c.knownStandups||DEFAULTS.
 function event(raw,kind,date,source,c=DEFAULTS){
   const title=clean(raw?.title||raw?.name,160),venue=clean(raw?.venue||raw?.place||raw?.location,140);
   const time=clean(raw?.time||raw?.startTime,16),href=url(raw?.href||raw?.url||raw?.site_url||raw?.sourceUrl);
+  const genre=kind==='concert'?clean(raw?.genre||raw?.musicGenre||'',80):'';
   if(!title||!validDate(date)||!['concert','standup','cinema'].includes(kind))return null;
   if(kind==='standup'&&!isKnown(title,c))return null;
   if(kind==='concert'&&(/^(кавер|джем|открытый микрофон|трибьют)/iu.test(title)||/\b(бар|pub|паб)\b/iu.test(venue)))return null;
   const clock=time.match(/\b(\d{1,2}:\d{2})\b/u);
-  return {kind,date,title,time:clock?clock[1].padStart(5,'0'):'',venue,href,source:clean(source,80)};
+  return {kind,date,title,time:clock?clock[1].padStart(5,'0'):'',venue,href,genre,source:clean(source,80)};
 }
-function unique(items){const map=new Map();for(const item of items||[]){if(!item)continue;const key=[item.kind,item.date,fold(item.title),item.time].join('|');const prev=map.get(key);map.set(key,prev?{...prev,venue:prev.venue||item.venue,href:prev.href||item.href,source:prev.source||item.source}:item)}return [...map.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.kind.localeCompare(b.kind)||a.time.localeCompare(b.time)||a.title.localeCompare(b.title,'ru'))}
+function unique(items){const map=new Map();for(const item of items||[]){if(!item)continue;const key=[item.kind,item.date,fold(item.title),item.time].join('|');const prev=map.get(key);map.set(key,prev?{...prev,venue:prev.venue||item.venue,href:prev.href||item.href,genre:prev.genre||item.genre||'',source:prev.source||item.source}:item)}return [...map.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.kind.localeCompare(b.kind)||a.time.localeCompare(b.time)||a.title.localeCompare(b.title,'ru'))}
 const stripHtml=s=>String(s||'').replace(/<[^>]+>/gu,'').replace(/&amp;/gu,'&').replace(/&nbsp;/gu,' ').replace(/&quot;/gu,'"').trim();
 function parsePart(part,kind,date,c){const lines=String(part||'').replace(/\\n/gu,'\n').split(/\r?\n/gu);const out=[];let current=null;
   const push=()=>{if(current)out.push(event(current,kind,date,kind==='concert'?'Яндекс Афиша':'Stage StandUp Club',c));current=null};
@@ -32,6 +33,7 @@ function parsePart(part,kind,date,c){const lines=String(part||'').replace(/\\n/g
     if(m){push();current={title:m[1]};continue}if(!current)continue;
     const link=raw.match(/href=["'](https?:\/\/[^"']+)/iu);if(link)current.href=link[1].replace(/&amp;/gu,'&');
     const t=text.match(/\b(\d{1,2}:\d{2})\b/u);if(t)current.time=t[1];
+    if(kind==='concert'&&/^🎵/u.test(text))current.genre=text.replace(/^🎵\s*/u,'');
     if(/^📍/u.test(text))current.venue=text.replace(/^📍\s*/u,'');
   }push();return out.filter(Boolean);
 }

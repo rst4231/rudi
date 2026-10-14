@@ -86,6 +86,36 @@ test('same-day source schema upgrade bypasses stale refresh guard exactly once',
     previewImpl:async date=>({date,results:{events:{concerts:[],stage:[]}},sections:{events:{parts:[]}}}),
     fetchImpl:async()=>({ok:false,status:503})});
   assert.equal(x.successDays,93);
-  assert.equal(data.get('rolling-quarter').schemaVersion,2);
+  assert.equal(data.get('rolling-quarter').schemaVersion,3);
   assert.equal((await refresh({cache,config:DEFAULTS,now:new Date('2026-10-14T12:00:00Z')})).skipped,'already-refreshed');
+});
+
+test('concert genres follow source metadata, but standup and cinema never show genre',()=>{
+  const {event,unique}=require('../api/calendar-entertainment.cjs');
+  const rows=fromPreview({results:{events:{concerts:[
+    {title:'Виктор Салтыков',genre:'Поп',time:'19:00',url:'https://example.org/concert'}
+  ],stage:[{title:'Гурам Амарян',genre:'Комедия',time:'19:30',url:'https://example.org/standup'}]}},sections:{events:{parts:[]}}},'2026-10-20');
+  assert.equal(rows.find(x=>x.kind==='concert').genre,'Поп');
+  assert.equal(rows.find(x=>x.kind==='standup').genre,'');
+  assert.equal(event({title:'Кинопремьера',genre:'Драма'},'cinema','2026-10-20','Cinema').genre,'');
+  const merged=unique([{kind:'concert',date:'2026-10-20',title:'Тест',time:'20:00',genre:'',href:'',venue:''},
+    {kind:'concert',date:'2026-10-20',title:'Тест',time:'20:00',genre:'Рэп',href:'https://example.org',venue:'КСК'}]);
+  assert.equal(merged.length,1);
+  assert.equal(merged[0].genre,'Рэп');
+});
+test('entertainment list is one time-sorted direct-link list, with centered calendar markers',()=>{
+  const root=path.join(__dirname,'..');
+  const js=fs.readFileSync(path.join(root,'public/calendar-entertainment.js'),'utf8');
+  const css=fs.readFileSync(path.join(root,'public/calendar-entertainment.css'),'utf8');
+  const html=fs.readFileSync(path.join(root,'public/index.html'),'utf8');
+  assert.match(js,/sortedByTime\(items\)/);
+  assert.match(js,/clock\(a\.time\)\.localeCompare\(clock\(b\.time\)\)/);
+  assert.match(js,/createElement\(linked\?'a':'span'\)/);
+  assert.match(js,/row\.href=item\.href/);
+  assert.match(js,/item\.kind==='concert'&&item\.genre/);
+  assert.doesNotMatch(js,/createElement\('details'\)|createElement\('summary'\)/);
+  assert.match(js,/querySelector\('\.calendar-day-indicators'\)/);
+  assert.match(css,/\.calendar-day-indicators \.rudi-entertainment-marker/);
+  assert.match(css,/position:static!important/);
+  assert.match(html,/calendar-entertainment\.js\?v=4\.238/);
 });
