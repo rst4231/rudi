@@ -33,9 +33,13 @@ function cinemaFromHtml(html,c,from,to,makeEvent){
     const date=match[3]+'-'+String(MONTHS[match[2]]).padStart(2,'0')+'-'+match[1].padStart(2,'0');
     if(date<from||date>to)continue;
     const block=htmlText.slice(headers[i].index+headers[i][0].length,headers[i+1]?.index||htmlText.length);
-    for(const film of block.matchAll(/<a\b[^>]*class=["'][^"']*\bmovieItem_title\b[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/giu)){
-      const title=plain(film[2]),href=absolute(decode(film[1]),DEFAULT_CINEMA_URL);
-      const item=makeEvent({title,href},'cinema',date,'Киноафиша · прокат РФ',c);
+    const films=[...block.matchAll(/<a\b[^>]*class=["'][^"']*\bmovieItem_title\b[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/giu)];
+    for(let j=0;j<films.length;j++){
+      const film=films[j],title=plain(film[2]),href=absolute(decode(film[1]),DEFAULT_CINEMA_URL);
+      // Genres appear after this film's title; stop before the next film title.
+      const details=block.slice(film.index+film[0].length,films[j+1]?.index||block.length);
+      const genre=plain(details.match(/<span\b[^>]*class=["'][^"']*\bmovieItem_genres\b[^"']*["'][^>]*>([\s\S]*?)<\/span>/iu)?.[1]);
+      const item=makeEvent({title,href,genre},'cinema',date,'Киноафиша · прокат РФ',c);
       if(item)rows.push(item);
     }
   }
