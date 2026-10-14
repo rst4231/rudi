@@ -1066,3 +1066,7 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-pl
   outline:2px solid #fff!important;
   outline-offset:5px!important;
 }
+
+/* RUDI v4.241: bring the status closer to the name without resizing the card. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person{gap:1px!important}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .identity > .person{gap:1px!important}
