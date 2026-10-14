@@ -76,7 +76,7 @@ test('personal calendar interactions and labels are wired in UI',()=>{
  assert.ok(html.includes('<span class="work-page-subtitle">Дела и события</span>'));
  assert.ok(html.indexOf('id="calendarFinanceShortcut"')>html.indexOf('id="calendarSearchButton"'));
  assert.ok(html.indexOf('id="calendarFinanceShortcut"')<html.indexOf('id="calendarConnectionsGear"'));
- assert.ok(editor.includes("ctx.openTickTick?.()"));
+ assert.ok(editor.includes("element.__rudiPersonalTaskBinding?.ctx?.openTickTick?.()"));
  assert.ok(editor.includes("element.addEventListener('contextmenu'"));
  assert.ok(editor.includes('rudiPersonalTaskProject'));
  assert.ok(app.includes('calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable)'));
