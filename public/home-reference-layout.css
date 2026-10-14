@@ -1098,7 +1098,7 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .rudi-partner-fast
   transition:stroke-dasharray .5s linear,stroke .2s ease;
 }
 body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .score-avatar-wrap > .rudi-partner-fasting-hours{
-  position:absolute!important;top:-20px!important;left:50%!important;
+  position:absolute!important;top:-15px!important;left:50%!important;
   transform:translateX(-50%)!important;z-index:40!important;
   display:block!important;width:max-content!important;max-width:none!important;
   min-width:32px!important;box-sizing:border-box!important;
