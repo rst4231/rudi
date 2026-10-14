@@ -370,3 +370,10 @@ html[data-theme="dark"] .rudi-battle-vessel{filter:drop-shadow(0 2px 3px rgba(2,
  .rudi-battle-work{gap:11px}
  .rudi-battle-work .rudi-battle-info{padding:0 37px}
 }
+
+/* v4.251: green active turn. */
+.rudi-battle-work .rudi-battle-field{padding:10px;border:2px solid transparent;border-radius:17px;transition:background .16s,border-color .16s,box-shadow .16s}
+.rudi-battle-work .rudi-battle-field.is-current-turn{background:rgba(42,188,101,.13);border-color:rgba(45,188,101,.76);box-shadow:0 0 0 3px rgba(42,188,101,.10),inset 0 0 18px rgba(42,188,101,.055)}
+.rudi-battle-work .rudi-battle-field.is-current-turn h2{color:#158b4b}
+html[data-theme="dark"] .rudi-battle-work .rudi-battle-field.is-current-turn{background:rgba(48,203,119,.18);border-color:rgba(81,231,145,.78)}
+html[data-theme="dark"] .rudi-battle-work .rudi-battle-field.is-current-turn h2{color:#8aefb5}

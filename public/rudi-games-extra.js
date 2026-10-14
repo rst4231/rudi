@@ -5,6 +5,7 @@ const $=id=>document.getElementById(id);
 const g=()=>window.RudiGames;
 const actor=()=>document.body?.dataset?.rudiActor==='Диана'?'Диана':'Рустам';
 const opponentName=()=>actor()==='Рустам'?'Диана':'Рустам';
+const battleGenitive=name=>name==='Диана'?'Дианы':name==='Рустам'?'Рустама':name;
 const safe=s=>String(s).replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]));
 const key=name=>'rudi-game-v4242:'+actor()+':'+name;
 const read=(name,fallback)=>{try{return JSON.parse(localStorage.getItem(key(name)))??fallback}catch{return fallback}};
@@ -95,7 +96,7 @@ function stop(){
 function scheduleBattle(){
  if(battleTimer)clearTimeout(battleTimer);
  if(activeGame!=='battleship'||document.hidden||!navigator.onLine)return;
- battleTimer=setTimeout(()=>{battleTimer=null;void pollBattle()},20000);
+ battleTimer=setTimeout(()=>{battleTimer=null;void pollBattle()},5000);
 }
 async function pollBattle(){
  if(activeGame!=='battleship'||document.hidden||battleBusy)return;
@@ -208,7 +209,7 @@ function cells(kind,room){
   (room.sunkShips||[]):vesselGroups(room.opponentShips)).filter(group=>
   group.length&&group.every(i=>hitmap.get(i)===true)).flat());
  const turn=room.status==='playing'&&room.turn===actor();
- return '<div class="rudi-battle-grid" role="group" aria-label="'+(own?'Мой флот':'Поле '+opponentName())+'">'+
+ return '<div class="rudi-battle-grid" role="group" aria-label="'+('Поле '+battleGenitive(own?actor():opponentName()))+'">'+
  Array.from({length:49},(_,i)=>{
   const has=hitmap.has(i),hit=hitmap.get(i),ship=shipset.has(i);
   const label='Клетка '+String.fromCharCode(65+Math.floor(i/7))+(i%7+1);
@@ -234,12 +235,12 @@ function renderBattle(){
   r.status==='won'?(r.winner===actor()?'Победа! Все корабли соперника потоплены.':'Победил'+(r.winner==='Диана'?'а':'')+' '+r.winner):
   ended?'Партия завершена.':r.round?'Можно начать новую партию.':'Игра ещё не началась.';
  g().section('<div class="rudi-game-work rudi-battle-work">'+presenceHtml+'<div class="rudi-battle-info"><span>Раунд '+r.round+'</span><strong>'+safe(message)+'</strong>'+'<button type="button" class="rudi-battle-sound" data-battle-sound aria-label="'+(battleSoundEnabled?'Выключить звуки':'Включить звуки')+'" title="'+(battleSoundEnabled?'Выключить звуки':'Включить звуки')+'">'+(battleSoundEnabled?'🔊':'🔇')+'</button></div>'+
-  '<section><h2>Поле '+safe(other)+'</h2>'+
-  cells('enemy',r)+'</section><section><h2>Мои корабли</h2>'+
+  '<section class="rudi-battle-field'+(playing&&r.turn===other?' is-current-turn':'')+'"><h2>Поле '+safe(battleGenitive(other))+'</h2>'+
+  cells('enemy',r)+'</section><section class="rudi-battle-field'+(turn?' is-current-turn':'')+'"><h2>Поле '+safe(battleGenitive(actor()))+'</h2>'+
   cells('own',r)+'</section>'+
   (playing?'<button class="rudi-duel-finish" type="button" data-battle-action="end">Завершить партию</button>':
    '<button class="rudi-game-primary" type="button" data-battle-action="start">'+(r.round?'Новая партия':'Начать игру')+'</button>')+
-  '<p class="rudi-game-hint" role="status">'+safe(battleMessage||'Ходы сохраняются. Поле обновляется раз в 20 секунд, пока игра открыта.')+'</p></div>');
+  '<p class="rudi-game-hint" role="status">'+safe(battleMessage||'Ходы сохраняются. Поле обновляется каждые 5 секунд, пока игра открыта.')+'</p></div>');
 }
 async function battleAction(action,index){
  if(activeGame!=='battleship'||battleBusy)return;

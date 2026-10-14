@@ -17693,7 +17693,8 @@
           });
           if(!r.ok) throw new Error('partner-message');
           const data=await r.json();
-          renderPartnerMessage(data.message);
+          if(partnerMessageBootstrapHandler)partnerMessageBootstrapHandler(data.message);
+          else renderPartnerMessage(data.message);
           return data.message||null;
         }catch(_){
           const textEl=document.getElementById('partnerMessageText');
@@ -17711,7 +17712,9 @@
         const cancelButton=document.getElementById('partnerCancelButton');
         const status=document.getElementById('partnerStatus');
         let currentMessage=null;
+        let recentSave=null;
         partnerMessageBootstrapHandler=message=>{
+          if(recentSave&&Date.now()-recentSave.at<30000&&String(message?.text||'')!==recentSave.text)return;
           currentMessage=message||null;
           renderPartnerMessage(currentMessage);
         };
@@ -17781,36 +17784,39 @@
         cancelButton.addEventListener('click',closeEditor);
 
         saveButton.addEventListener('click',async()=>{
+          if(saveButton.disabled)return;
           const text=input.value.trim();
-          if(!text){
-            status.textContent='Напиши текст послания.';
-            return;
-          }
+          if(!text){status.textContent='Напиши текст послания.';return}
+          const previous=currentMessage;
+          const optimistic={...(currentMessage||{}),text,authorName:currentActor,likes:[]};
+          recentSave={text,at:Date.now()};
+          currentMessage=optimistic;
           saveButton.disabled=true;
-          status.textContent='Сохраняю…';
+          renderPartnerMessage(optimistic);
+          closeEditor();
           try{
-            const backupContext=backupRequestContext();
-            const r=await fetch('/api/partner-message',{
-              method:'POST',
-              headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({text,initData:telegramInitData(),backupToken:backupContext.token}),
-              cache:'no-store'
-            });
-            const data=await r.json().catch(()=>({}));
-            if(!r.ok) throw new Error(data.error||'save');
-            if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
-            currentMessage=data.message;
-            partnerMessageBootstrapHandler(currentMessage);
-            closeEditor();
-            if(!data.backupToken) setTimeout(()=>refreshStateBackup(),250);
+            const backup=backupRequestContext();
+            const response=await fetch('/api/partner-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,initData:telegramInitData(),backupToken:backup.token}),cache:'no-store'});
+            const data=await response.json().catch(()=>({}));
+            if(!response.ok)throw new Error(data.error||'save');
+            currentMessage=data.message||optimistic;
+            recentSave={text:String(currentMessage.text||text),at:Date.now()};
+            renderPartnerMessage(currentMessage);
+            try{
+              if(data.backupToken)await storeStateBackupToken(data.backupToken,backup);
+              else setTimeout(()=>refreshStateBackup(),250);
+            }catch(error){console.warn('RUDI_PARTNER_BACKUP_SYNC_WARN',String(error?.message||error))}
             setTimeout(()=>loadActivityJournal({silent:true}),320);
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
-            status.textContent=String(error?.message||'Ошибка сохранения');
+            recentSave=null;currentMessage=previous;
+            renderPartnerMessage(previous);
+            input.value=text;editor.classList.add('open');
+            status.textContent='Не удалось сохранить. Текст остался в редакторе.';
+            console.warn('RUDI_PARTNER_MESSAGE_SAVE_ERROR',String(error?.message||error));
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-          }finally{
-            saveButton.disabled=false;
-          }
+          }finally{saveButton.disabled=false}
+
         });
 
         if(currentAppTab==='home'){

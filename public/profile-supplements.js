@@ -14,6 +14,8 @@ const READ_CACHE_TTL_MS=5*60*1000;
 const HABIT_READ_CACHE_TTL_MS=5*60*1000;
 const supplementReadCache=new Map();
 const habitReadCache=new Map();
+const habitOptimisticStatuses=new Map();
+const habitOptimisticKey=(date,id)=>actor+'|'+date+'|'+id;
 function requestCacheKey(operation,payload){return String(operation||'')+'|'+JSON.stringify(payload||{})}
 function cachedRead(cache,key,ttl=READ_CACHE_TTL_MS){
   const row=cache.get(key);
@@ -161,24 +163,29 @@ function renderHabitYesterdayQuote(){
   habitYesterdayQuote.hidden=false;
 }
 function applyHabitView(data){
-  if(String(data?.date||data?.today||'')===String(data?.today||'')){
-    habitTodayReminder={today:String(data?.today||''),habits:Array.isArray(data?.habits)?data.habits:[],statuses:data?.statuses&&typeof data.statuses==='object'?{...data.statuses}:{}};
+  const date=String(data?.date||data?.today||'');
+  const statuses={...(data?.statuses&&typeof data.statuses==='object'?data.statuses:{})};
+  const prefix=actor+'|'+date+'|';
+  for(const [key,status] of habitOptimisticStatuses)if(key.startsWith(prefix))statuses[key.slice(prefix.length)]=status;
+  const view={...data,statuses};
+  if(String(view?.date||view?.today||'')===String(view?.today||'')){
+    habitTodayReminder={today:String(view?.today||''),habits:Array.isArray(view?.habits)?view.habits:[],statuses:view?.statuses&&typeof view.statuses==='object'?{...view.statuses}:{}};
   }
   habitState={
-    habits:Array.isArray(data?.habits)?data.habits:[],
-    archivedHabits:Array.isArray(data?.archivedHabits)?data.archivedHabits:[],
-    completedIds:Array.isArray(data?.completedIds)?data.completedIds:[],
-    notDoneIds:Array.isArray(data?.notDoneIds)?data.notDoneIds:[],
-    statuses:data?.statuses&&typeof data.statuses==='object'?data.statuses:{},
-    streaks:data?.streaks&&typeof data.streaks==='object'?data.streaks:{},
-    stats:data?.stats&&typeof data.stats==='object'?data.stats:{},
-    bonusIds:Array.isArray(data?.bonusIds)?data.bonusIds:[],
-    collapsed:habitState.collapsed===true,today:String(data?.today||''),date:String(data?.date||data?.today||''),
-    done:Number(data?.done||0),total:Number(data?.total||0),canCompleteToday:Boolean(data?.canCompleteToday)
+    habits:Array.isArray(view?.habits)?view.habits:[],
+    archivedHabits:Array.isArray(view?.archivedHabits)?view.archivedHabits:[],
+    completedIds:Array.isArray(view?.completedIds)?view.completedIds:[],
+    notDoneIds:Array.isArray(view?.notDoneIds)?view.notDoneIds:[],
+    statuses:view?.statuses&&typeof view.statuses==='object'?view.statuses:{},
+    streaks:view?.streaks&&typeof view.streaks==='object'?view.streaks:{},
+    stats:view?.stats&&typeof view.stats==='object'?view.stats:{},
+    bonusIds:Array.isArray(view?.bonusIds)?view.bonusIds:[],
+    collapsed:habitState.collapsed===true,today:String(view?.today||''),date:String(view?.date||view?.today||''),
+    done:Number(view?.done||0),total:Number(view?.total||0),canCompleteToday:Boolean(view?.canCompleteToday)
   };
-  if(data?.history&&typeof data.history==='object'){
-    habitHistory={...habitHistory,...data.history};
-    for(const [date,view] of Object.entries(data.history)){
+  if(view?.history&&typeof view.history==='object'){
+    habitHistory={...habitHistory,...view.history};
+    for(const [date,view] of Object.entries(view.history)){
       if(date&&view&&typeof view==='object')saveCachedRead(habitReadCache,requestCacheKey('list',{date}),{ok:true,actor,...view});
     }
   }
@@ -281,12 +288,23 @@ function showHabitUndo({id,date,previousStatus,nextStatus}){
   button.addEventListener('click',async()=>{
     button.disabled=true;
     try{
+      const key=habitOptimisticKey(date,id);
+      habitOptimisticStatuses.set(key,previousStatus||'pending');
+      if(habitSelectedDate===date){
+        habitState={...habitState,statuses:{...habitState.statuses,[id]:previousStatus||'pending'}};
+        renderHabits();updateReminderBadges();
+      }
       const data=await habitRequest('status',{id,status:previousStatus||'pending',date});
-      applyHabitView(data);
+      if(habitSelectedDate===date)applyHabitView(data);
       setHabitStatus('Изменение отменено.');
       bar.classList.remove('is-visible');
       try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch{}
     }catch(error){
+      habitOptimisticStatuses.set(habitOptimisticKey(date,id),nextStatus);
+      if(habitSelectedDate===date){
+        habitState={...habitState,statuses:{...habitState.statuses,[id]:nextStatus}};
+        renderHabits();updateReminderBadges();
+      }
       button.disabled=false;
       setHabitStatus('Не удалось отменить изменение.',true);
     }
@@ -373,22 +391,26 @@ function renderHabits(){
       const previousStatus=status;
       const actionDate=habitSelectedDate||habitState.today;
       paintHabitChoice(row,yes,no,next);
-      yes.disabled=true;no.disabled=true;remove.disabled=true;setHabitStatus('');
+      const key=habitOptimisticKey(actionDate,id);
+      habitOptimisticStatuses.set(key,next);
+      habitState={...habitState,statuses:{...habitState.statuses,[id]:next}};
+      if(actionDate===habitTodayReminder.today)habitTodayReminder={...habitTodayReminder,statuses:{...habitTodayReminder.statuses,[id]:next}};
+      if(next==='done'&&previousStatus!=='done')launchHabitConfetti(button);
+      setHabitStatus('');renderHabits();updateReminderBadges();
       try{
         const data=await habitRequest('status',{id,status:next,date:actionDate});
-        if(next==='done'&&previousStatus!=='done')launchHabitConfetti(yes);
-        applyHabitView(data);
+        if(habitSelectedDate===actionDate)applyHabitView(data);
         setHabitStatus(habitScoreMessage(data,id,next));
-        if(previousStatus!==next){
-          showHabitUndo({id,date:actionDate,previousStatus,nextStatus:next});
+        if(previousStatus!==next)showHabitUndo({id,date:actionDate,previousStatus,nextStatus:next});
+      }catch(error){
+        habitOptimisticStatuses.delete(key);
+        if(habitSelectedDate===actionDate){
+          habitState={...habitState,statuses:{...habitState.statuses,[id]:previousStatus}};
+          if(actionDate===habitTodayReminder.today)habitTodayReminder={...habitTodayReminder,statuses:{...habitTodayReminder.statuses,[id]:previousStatus}};
+          renderHabits();updateReminderBadges();
         }
-      }
-      catch(error){
-        paintHabitChoice(row,yes,no,previousStatus);
         console.error('RUDI_HABIT_STATUS_UI_ERROR',error);
-        const code=String(error?.message||'');
-        if(code!=='habit-status-too-early'&&code!=='habit-done-too-early')setHabitStatus('Не удалось сохранить статус.',true);
-        yes.disabled=choiceLocked;no.disabled=choiceLocked;remove.disabled=false;
+        if(!['habit-status-too-early','habit-done-too-early'].includes(String(error?.message||'')))setHabitStatus('Не удалось сохранить статус.',true);
       }
     };
     yes.addEventListener('click',()=>save('done',yes));no.addEventListener('click',()=>save('notdone',no));
