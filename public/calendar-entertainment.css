@@ -1,0 +1,16 @@
+
+/* Shared calendar entertainment, independent of tasks and holidays */
+.rudi-entertainment-marker{position:absolute;right:4px;bottom:3px;width:5px;height:5px;border-radius:50%;background:#a770d6;pointer-events:none}
+.rudi-entertainment-group{display:grid;gap:7px;margin-bottom:12px}
+.rudi-entertainment-group>b{display:block;margin:8px 0 2px;font-size:.86rem}
+.rudi-entertainment-event{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;padding:9px 11px;text-align:left;background:rgba(130,112,200,.07);border:1px solid rgba(130,112,200,.14);border-radius:12px;color:inherit;cursor:pointer;font:inherit}
+.rudi-entertainment-event-title{font-weight:650}
+.rudi-entertainment-event-meta{opacity:.72;font-size:.77rem}
+.rudi-entertainment-dialog{width:min(92vw,420px);max-height:85dvh;border:0;padding:0;border-radius:18px;background:var(--surface,#fff);color:var(--text,#20202a);box-shadow:0 14px 50px rgba(0,0,0,.25)}
+.rudi-entertainment-dialog::backdrop{background:rgba(0,0,0,.42)}
+.rudi-entertainment-dialog-body{position:relative;padding:24px 22px;display:grid;gap:10px}
+.rudi-entertainment-dialog h2{font-size:1.18rem;line-height:1.25;margin:0;padding-right:15px}
+.rudi-entertainment-kind{opacity:.7;font-size:.85rem}
+.rudi-entertainment-details p{margin:4px 0;line-height:1.4}
+.rudi-entertainment-close{position:absolute;right:12px;top:10px;border:0;background:none;font-size:28px;cursor:pointer;color:inherit}
+.rudi-entertainment-tickets{color:var(--accent,#7655b8);text-decoration:none;font-weight:650;padding-top:6px}
