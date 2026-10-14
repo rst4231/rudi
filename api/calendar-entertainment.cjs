@@ -4,7 +4,7 @@ const {readFeedSnapshot,moscowDateKey}=require('./feed-store.cjs');
 const {loadEventsConfig}=require('./events-config.cjs');
 const KEY='rolling-quarter', NAMESPACE='rudi-calendar-entertainment-v1';
 const CONFIG_URL='https://raw.githubusercontent.com/rst4231/rudi/main/config/calendar-entertainment.json';
-const DEFAULTS={enabled:true,monthsAhead:3,yandexStandupUrl:'https://afisha.yandex.ru/saint-petersburg/selections/standup',knownStandups:['Андрей Бебуришвили','Алексей Щербаков','Гурам Амарян','Иван Абрамов','Нурлан Сабуров','Ольга Малащенко','Дмитрий Романов','Виктор Комаров','Валентин Сидоров','Слава Комиссаренко','Денис Дорохов','Comedy Club','Женский форум','Женский стендап','StandUp на ТНТ']};
+const DEFAULTS={enabled:true,monthsAhead:3,yandexStandupUrl:'https://afisha.yandex.ru/saint-petersburg/selections/main-standup',knownStandups:['Андрей Бебуришвили','Алексей Щербаков','Гурам Амарян','Иван Абрамов','Нурлан Сабуров','Ольга Малащенко','Варвара Щербакова','Дмитрий Романов','Виктор Комаров','Валентин Сидоров','Слава Комиссаренко','Денис Дорохов','Comedy Club','Женский форум','Женский стендап','StandUp на ТНТ']};
 const clean=(x,n=240)=>String(x||'').replace(/\s+/gu,' ').trim().slice(0,n);
 const fold=x=>clean(x).toLocaleLowerCase('ru-RU').replace(/ё/gu,'е').replace(/[^a-zа-я0-9]+/giu,' ').trim();
 const url=x=>{try{const u=new URL(String(x||''));return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}};
