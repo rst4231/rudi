@@ -22,7 +22,7 @@ test('both biorhythm points glow, can be tapped, and keep original chart geometr
  assert.match(glow,/box-shadow:0 0 0 2px/);
  assert.match(glow,/::before\{[\s\S]*?inset:-18px/);
  assert.match(glow,/pointer-events:auto!important/);
- assert.match(html,/home-reference-layout\.js\?v=4\.234/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.235/);
  assert.match(html,/home-reference-layout\.css\?v=4\.234/);
 });
 test('tap or Enter expands only the corresponding collapsed profile, no duplicate bindings',()=>{

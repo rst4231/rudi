@@ -21,7 +21,7 @@ test('light theme tracker panel remains fully dark including buttons and caption
 });
 test('new assets are cache-busted and old icons/games preserved',()=>{
  assert.match(html,/home-reference-layout\.css\?v=4\.234/);
- assert.match(html,/home-reference-layout\.js\?v=4\.234/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.235/);
  assert.match(js,/window\.RudiGames\?\.open\?\.\(\)/);
  assert.match(js,/restoreTrackerOutlines\(rail\)/);
 });

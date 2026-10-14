@@ -240,6 +240,31 @@
    }
    return !home;
  }
+
+ // Diana's work status is supplied by the existing schedule runtime.
+ // Keep its real hours; remove only the duplicated "Работаю" prefix.
+ function dianaStatusWithoutVerb(value){
+   const text=String(value||'').trim();
+   return /^Работаю(?:\s|[·•:]|$)/u.test(text)
+     ?text.slice('Работаю'.length).replace(/^[\s·•:—–-]+/u,'').trim()
+     :text;
+ }
+ function bindDianaShiftHours(){
+   const node=$('homeDianaTile')?.querySelector('.profile-work-status');
+   if(!node)return;
+   const sync=()=>{
+     const value=String(node.textContent||'').trim();
+     const next=dianaStatusWithoutVerb(value);
+     if(next===value)return;
+     node.textContent=next;
+     if(!next)node.hidden=true; // No shift hours were supplied; never invent them.
+   };
+   sync();
+   if(node.dataset.rudiShiftTimeOnly==='1')return;
+   node.dataset.rudiShiftTimeOnly='1';
+   if(typeof MutationObserver==='function')
+     new MutationObserver(sync).observe(node,{childList:true,characterData:true,subtree:true});
+ }
  function arrange(){
    pending=false;
    if(suppressLateHomeTiles())return;
@@ -319,6 +344,7 @@
    }
    // Both cards need the same name-side sticker geometry.
    placeMoodBadgesByName();
+   bindDianaShiftHours();
  }
  function schedule(){
    if(pending)return;pending=true;
