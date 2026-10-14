@@ -246,3 +246,5 @@ html[data-theme="dark"] .rudi-duel-finish{color:#ffa8be;border-color:rgba(252,13
 .rudi-thinking-explanation{font-weight:650;font-size:13px}
 html[data-theme="dark"] .rudi-game-card .rudi-game-live-chip{color:#ff9fae;background:rgba(236,62,90,.19)}
 @media(max-width:370px){.rudi-battle-grid{gap:3px}.rudi-battle-cell{border-radius:6px}}
+
+/* RUDI v4.244: nonnumeric game status dot; deployed build marker. */
