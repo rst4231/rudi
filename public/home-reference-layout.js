@@ -1,4 +1,4 @@
-/* RUDI v4.249 production marker: biorhythm phase stays above curve in both role views. */
+/* RUDI v4.250: both owners' photo/name/status align to their card-row centre. */
 /* RUDI home arrangement: preserve original controls and profile energy logic. */
 (()=>{'use strict';
  const $=id=>document.getElementById(id);
@@ -106,14 +106,15 @@
      axisFrame=0;
      if(!profileHead.isConnected||!energy.isConnected)return;
      const avatar=profileHead.querySelector('.score-avatar-wrap');
-     const plot=energy.querySelector('.profile-energy-plot');
-     if(!avatar||!plot)return;
+     const row=profileHead.closest('.rudi-home-self-line');
+     if(!avatar||!row)return;
      // Never compound previous corrections on refresh or orientation change.
      profileHead.style.setProperty('transform','none','important');
-     const a=avatar.getBoundingClientRect(),p=plot.getBoundingClientRect();
-     if(!a.height||!p.height)return;
-     const distance=(p.top+p.height/2)-(a.top+a.height/2);
-     const adjustment=Math.max(-48,Math.min(48,distance));
+     const a=avatar.getBoundingClientRect(),r=row.getBoundingClientRect();
+     if(!a.height||!r.height)return;
+     // The owner identity moves together; the phase-caption plot is not the centre.
+     const distance=(r.top+r.height/2)-(a.top+a.height/2);
+     const adjustment=Math.max(-24,Math.min(24,distance));
      if(Math.abs(adjustment)>0.75)
        profileHead.style.setProperty('transform','translateY('+adjustment.toFixed(2)+'px)','important');
    });
