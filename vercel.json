@@ -212,6 +212,10 @@
       "destination": "/api/index?route=personal-center-cron"
     },
     {
+      "source": "/api/calendar-entertainment",
+      "destination": "/api/index?route=calendar-entertainment"
+    },
+    {
       "source": "/api/calendar-day-summary",
       "destination": "/api/index?route=calendar-day-summary"
     },
