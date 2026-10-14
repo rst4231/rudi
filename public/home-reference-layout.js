@@ -130,8 +130,18 @@
      if(row&&badge&&badge.parentElement!==row)row.appendChild(badge);
    }
  }
+ // Home cards may mount after initial tab visibility was applied.
+ function suppressLateHomeTiles(){
+   const tab=document.body?.dataset?.appTab;
+   if(!tab||tab==='home')return false;
+   for(const tile of document.querySelectorAll('[data-app-tab-section="home"]')){
+     if(!tile.hidden)tile.hidden=true;
+   }
+   return true;
+ }
  function arrange(){
    pending=false;
+   if(suppressLateHomeTiles())return;
    const dashboard=$('homeDashboard'),self=$('homeRustamTile')?.contains($('displayName'))
      ?$('homeRustamTile'):$('homeDianaTile')?.contains($('displayName'))?$('homeDianaTile'):null;
    if(!dashboard||!self||!self.parentElement)return;
@@ -205,7 +215,7 @@
  if(document.fonts?.ready)document.fonts.ready.then(schedule).catch(()=>{});
  window.addEventListener('rudi:profile-ready',schedule);
  document.addEventListener('rudi:home-tiles-ready',schedule);
- window.addEventListener('rudi:app-tab-change',event=>{if(event.detail?.tab==='home')schedule()});
+ window.addEventListener('rudi:app-tab-change',schedule);
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});
  else schedule();
 })();

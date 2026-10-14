@@ -768,3 +768,15 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) 
     max-height:23px!important;
   }
 }
+
+/* RUDI v4.227: hide late-mounted home cards outside the Home tab.
+   Finances must not render a floating collapsed personal profile above its title. */
+body:not([data-app-tab="home"]) [data-app-tab-section="home"]{
+  display:none!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName)[hidden]{
+  display:none!important;
+}
+body[data-app-tab="home"] .rudi-home-shortcuts[hidden]{
+  display:none!important;
+}
