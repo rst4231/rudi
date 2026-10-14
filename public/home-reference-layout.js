@@ -62,6 +62,63 @@
    new MutationObserver(()=>updateEnergyPointCaption(energy))
      .observe(energy,{childList:true,characterData:true,subtree:true});
  }
+ // The profile is assembled by the runtime after page load. Layout must be
+ // enforced on those live DOM nodes, not only through the cascading stylesheets.
+ let selfAxisObserver=null,selfAxisObserved=null,axisFrame=0;
+ function setImportant(node,styles){
+   if(!node)return;
+   for(const [key,value] of Object.entries(styles)){
+     if(node.style.getPropertyValue(key)!==value||node.style.getPropertyPriority(key)!=='important')
+       node.style.setProperty(key,value,'important');
+   }
+ }
+ function alignLiveProfileAxis(profileHead,energy){
+   if(axisFrame)cancelAnimationFrame(axisFrame);
+   axisFrame=requestAnimationFrame(()=>{
+     axisFrame=0;
+     if(!profileHead.isConnected||!energy.isConnected)return;
+     const avatar=profileHead.querySelector('.score-avatar-wrap');
+     const plot=energy.querySelector('.profile-energy-plot');
+     if(!avatar||!plot)return;
+     // Never compound previous corrections on refresh or orientation change.
+     profileHead.style.setProperty('transform','none','important');
+     const a=avatar.getBoundingClientRect(),p=plot.getBoundingClientRect();
+     if(!a.height||!p.height)return;
+     const distance=(p.top+p.height/2)-(a.top+a.height/2);
+     const adjustment=Math.max(-48,Math.min(48,distance));
+     if(Math.abs(adjustment)>0.75)
+       profileHead.style.setProperty('transform','translateY('+adjustment.toFixed(2)+'px)','important');
+   });
+ }
+ function layoutLiveSelf(self,main,profileHead,energy){
+   self.dataset.rudiSelfLayout='inline';
+   setImportant(self,{'display':'flex','flex-direction':'column','justify-content':'center','align-items':'stretch','gap':'0','min-height':'92px'});
+   setImportant(main,{'display':'grid','grid-template-columns':'minmax(0,43%) minmax(0,1fr)',
+     'grid-template-rows':'72px','grid-auto-rows':'72px','align-items':'center',
+     'align-content':'center','height':'72px','min-height':'72px','max-height':'72px','width':'100%','gap':'10px',
+     'margin':'0','padding':'0'});
+   setImportant(profileHead,{'grid-column':'1','grid-row':'1','display':'flex','align-items':'center',
+     'justify-content':'flex-start','align-self':'center','height':'72px','min-height':'72px',
+     'margin':'0','padding':'0'});
+   setImportant(energy,{'grid-column':'2','grid-row':'1','align-self':'center','height':'44px','margin':'0'});
+   const identity=profileHead.querySelector('.identity');
+   setImportant(identity,{'display':'grid','align-items':'center','align-self':'center','margin':'0',
+     'padding':'0','min-height':'44px'});
+   const avatar=profileHead.querySelector('.score-avatar-wrap');
+   setImportant(avatar,{'align-self':'center','margin':'0'});
+   const person=identity?.querySelector('.person');
+   setImportant(person,{'display':'flex','flex-direction':'column','justify-content':'center',
+     'align-self':'center','margin':'0','padding':'0'});
+   if(selfAxisObserved!==main&&typeof ResizeObserver==='function'){
+     selfAxisObserver?.disconnect();
+     selfAxisObserved=main;
+     selfAxisObserver=new ResizeObserver(()=>alignLiveProfileAxis(profileHead,energy));
+     selfAxisObserver.observe(main);
+     if(identity)selfAxisObserver.observe(identity);
+     selfAxisObserver.observe(energy);
+   }
+   alignLiveProfileAxis(profileHead,energy);
+ }
  function arrange(){
    pending=false;
    const dashboard=$('homeDashboard'),self=$('homeRustamTile')?.contains($('displayName'))
@@ -123,6 +180,7 @@
      }
      if(profileHead.parentElement!==main||energy.parentElement!==main)
        main.append(profileHead,energy);
+     layoutLiveSelf(self,main,profileHead,energy);
      watchEnergyPointCaption(energy);
    }
  }
@@ -130,6 +188,8 @@
    if(pending)return;pending=true;
    requestAnimationFrame(arrange);
  }
+ window.addEventListener('resize',schedule,{passive:true});
+ if(document.fonts?.ready)document.fonts.ready.then(schedule).catch(()=>{});
  window.addEventListener('rudi:profile-ready',schedule);
  document.addEventListener('rudi:home-tiles-ready',schedule);
  window.addEventListener('rudi:app-tab-change',event=>{if(event.detail?.tab==='home')schedule()});

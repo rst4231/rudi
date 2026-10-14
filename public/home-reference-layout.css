@@ -29,7 +29,7 @@ body[data-app-tab="home"] .rudi-home-shortcuts{
   width:min(92%,470px);margin:0 auto;
   border:1px solid rgba(134,141,230,.22);
   border-radius:22px;padding:11px 9px;
-  background:linear-gradient(150deg,rgba(42,46,84,.38),rgba(22,26,48,.22));
+  background:linear-gradient(155deg,#1d2036 0%,#141728 100%);
   box-shadow:0 8px 25px rgba(0,0,0,.12);
 }
 body[data-app-tab="home"] .rudi-home-shortcuts-inner{
@@ -49,7 +49,7 @@ body[data-app-tab="home"] .rudi-home-shortcuts :is(.profile-tool-button,.fasting
   padding:0!important;margin:0!important;
   border-radius:14px!important;
   border:1px solid rgba(171,177,210,.24)!important;
-  background:rgba(20,24,40,.52)!important;
+  background:#15192b!important;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05)!important;
   color:var(--text,#f5f7fb)!important;
   cursor:pointer;touch-action:manipulation;
@@ -119,8 +119,39 @@ body[data-app-tab="home"] .meditation-mood-nudge{
   body[data-app-tab="home"] .rudi-home-self-line .profile-person-head .avatar{width:38px!important;height:38px!important}
   body[data-app-tab="home"] .rudi-home-self-line .profile-energy-times{font-size:6px!important}
 }
+/* RUDI v4.225: tracker rail retains its DARK surface even in the light app theme.
+   Use opaque surfaces so the light page cannot bleed through the container/buttons. */
 html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts{
-  background:rgba(233,236,250,.72);
+  color-scheme:dark!important;
+  color:#f3f5ff!important;
+  background:linear-gradient(155deg,#1d2036 0%,#141728 100%)!important;
+  border-color:rgba(115,121,201,.32)!important;
+  box-shadow:0 8px 25px rgba(0,0,0,.19),inset 0 1px 0 rgba(255,255,255,.045)!important;
+  --text:#f3f5ff;
+  --line:rgba(125,134,175,.31);
+}
+html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts :is(.profile-tool-button,.fasting-profile-button,.meditation-profile-button,.rudi-home-games){
+  background:#15192b!important;
+  background-color:#15192b!important;
+  border-color:rgba(123,132,174,.40)!important;
+  color:#f3f5ff!important;
+  -webkit-text-fill-color:initial!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.045)!important;
+  opacity:1!important;
+}
+html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts :is(.fasting-profile-elapsed,.profile-tool-reminder-badge){
+  color:#e0e5fa!important;
+  -webkit-text-fill-color:#e0e5fa!important;
+  opacity:1!important;
+}
+html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts #fastingProfileButton .rudi-fasting-progress-track{
+  stroke:rgba(157,142,246,.26)!important;
+}
+html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts #fastingProfileButton .rudi-fasting-progress-value{
+  stroke:#a794ff!important;
+}
+html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts #supplementProfileButton:not([data-supplement-complete="1"]) .rudi-supplement-progress-value{
+  stroke:#ffca65!important;
 }
 
 /* Compact-grid display rules must never override native hidden state. */
@@ -612,4 +643,17 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) 
   body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) > .rudi-home-self-line > .profile-energy-strip{
     padding-left:6px!important;
   }
+}
+
+/* Runtime-attached identity: visual center must track the graph's current marker.
+   Inline !important geometry is applied by home-reference-layout.js after mount. */
+body[data-app-tab="home"] [data-rudi-self-layout="inline"]{
+  overflow:hidden!important;
+}
+body[data-app-tab="home"] [data-rudi-self-layout="inline"] > .rudi-home-self-line{
+  position:relative!important;
+  overflow:visible!important;
+}
+body[data-app-tab="home"] [data-rudi-self-layout="inline"] .profile-person-head .profile-person-actions .block-collapse-button{
+  display:none!important;
 }

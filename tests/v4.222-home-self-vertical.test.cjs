@@ -17,6 +17,6 @@ test('name, photo and graph share the exact 72px row center',()=>{
 });
 test('mood badge stays tied to avatar and PWA gets new CSS',()=>{
  assert.match(current,/\.score-avatar-wrap > :is\(#moodCurrentButton,#partnerMoodValue\)\.avatar-mood-badge\{[\s\S]*?top:-3px!important/);
- assert.match(html,/home-reference-layout\.css\?v=4\.224/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.225/);
  assert.doesNotMatch(css,/\/\* RUDI v4\.223 — unified compact SELF/);
 });
