@@ -10,6 +10,7 @@ const write=(name,data)=>{try{localStorage.setItem(key(name),JSON.stringify(data
 const isVisible=()=>!document.hidden&&!!document.body?.dataset?.rudiActor;
 const status={duel:{active:false,turn:null},battleship:{active:false,turn:null}};
 let statusLast=0,statusBusy=false,battleRoom=null,battleMessage='',battleBusy=false,battleTimer=null,activeGame='',think=null,word=null,wordDate='';
+let previousLauncherBadge=null;
 function sum(){return Object.values(status).filter(x=>x.active).length}
 function myTurns(){return Object.values(status).filter(x=>x.active&&x.turn===actor()).length}
 function statusText(name){
@@ -37,10 +38,13 @@ function renderBadges(){
   }
  }
  const badgeCount=myTurns()||sum();
- if(badgeCount){
-  if(typeof navigator.setAppBadge==='function')void Promise.resolve(navigator.setAppBadge(badgeCount)).catch(()=>{});
- }else if(typeof navigator.clearAppBadge==='function')
-  void Promise.resolve(navigator.clearAppBadge()).catch(()=>{});
+ if(previousLauncherBadge!==badgeCount){
+  previousLauncherBadge=badgeCount;
+  if(badgeCount&&typeof navigator.setAppBadge==='function')
+   void Promise.resolve(navigator.setAppBadge(badgeCount)).catch(()=>{previousLauncherBadge=null});
+  else if(!badgeCount&&typeof navigator.clearAppBadge==='function')
+   void Promise.resolve(navigator.clearAppBadge()).catch(()=>{previousLauncherBadge=null});
+ }
 }
 function updateOne(name,room){
  if(!room)return;
@@ -268,8 +272,13 @@ document.addEventListener('rudi:home-tiles-ready',openBattleDeepLink);
 window.addEventListener('rudi:profile-ready',openBattleDeepLink);
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',openBattleDeepLink,{once:true});
 else queueMicrotask(openBattleDeepLink);
-window.addEventListener('message',event=>{if(event.data?.type==='RUDI_PUSH_RECEIVED')void refreshStatus(true)});
+navigator.serviceWorker?.addEventListener?.('message',event=>{if(event.data?.type==='RUDI_PUSH_RECEIVED')void refreshStatus(true)});
 const ticker=setInterval(()=>{if(statusAllowed())void refreshStatus()},90000);
-window.addEventListener('pagehide',()=>{clearInterval(ticker);stop()});
+window.addEventListener('pagehide',stop);
+window.addEventListener('pageshow',event=>{
+ if(!event.persisted)return;
+ if(g()?.getMode?.()==='battleship'){startBattle();return}
+ void refreshStatus(true);
+});
 window.RudiGameExtras={openGame,onClick,stop,renderBadges,decorateMenu,refreshStatus,onExistingDuel,updateOne};
 })();
