@@ -26,7 +26,7 @@ function menu(){
   '<button data-rudi-game="thinking" class="rudi-game-card"><span class="rudi-game-glyph">◈</span><span class="rudi-game-card-copy"><b>Тренировка мышления</b><small>Задачи на логику, закономерности и внимательность.</small></span><span class="rudi-game-arrow">›</span></button>'+
   '<button data-rudi-game="word" class="rudi-game-card"><span class="rudi-game-glyph">АБ</span><span class="rudi-game-card-copy"><b>Угадай слово</b><small>Одно слово каждый день. 6 попыток.</small></span><span class="rudi-game-arrow">›</span></button>'+
   '<button data-rudi-game="duel" class="rudi-game-card is-duel"><span class="rudi-game-glyph">×○</span><span class="rudi-game-card-copy"><b>Крестики-нолики · онлайн</b><small>Общее поле. Рустам против Дианы.</small></span><span class="rudi-game-arrow">›</span></button>'+
-  '<button data-rudi-game="battleship" class="rudi-game-card is-duel"><span class="rudi-game-glyph">⚓</span><span class="rudi-game-card-copy"><b>Морской бой · онлайн</b><small>Общее поле 7×7, корабли расставляются автоматически.</small></span><span class="rudi-game-arrow">›</span></button></div>');
+  '<button data-rudi-game="battleship" class="rudi-game-card is-duel"><span class="rudi-game-glyph">⚓</span><span class="rudi-game-card-copy"><b>Морской бой · онлайн</b><small>Общее поле 7×7. Рустам против Дианы.</small></span><span class="rudi-game-arrow">›</span></button></div>');
  window.RudiGameExtras?.decorateMenu?.();
 }
 function memoryShow(){
