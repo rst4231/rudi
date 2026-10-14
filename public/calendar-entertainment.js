@@ -2,7 +2,7 @@
 (function(){
  'use strict';
  const lists=new Map(),busy=new Set(),names={concert:'🎤 Концерты',standup:'🎙 Stand Up',cinema:'🎬 Кинопремьеры'};
- const localDay=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const localDay=()=>{const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(p=>[p.type,p.value]));return [parts.year,parts.month,parts.day].join('-')};
  let scheduled=false;
  function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;render()})}
  function load(key){
