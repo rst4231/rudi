@@ -25,7 +25,7 @@
    (lists.get(key.slice(0,7))||[]).find(row=>row.date===key)?.items||[]:[];
  function sortedByTime(items){
   // Unknown showtimes (including theatrical premiere dates) follow timed performances.
-  const clock=value=>/^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(String(value||''))?value:'99:99';
+  const clock=value=>/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(value||''))?value:'99:99';
   return [...items].sort((a,b)=>clock(a.time).localeCompare(clock(b.time))||a.title.localeCompare(b.title,'ru'));
  }
  function group(items){
@@ -33,14 +33,14 @@
   wrapper.dataset.rudiEntertainment='1';
   for(const item of sortedByTime(items)){
    if(!icons[item.kind])continue;
-   const linked=/^https?:\\/\\/[^\\s]+$/i.test(item.href||'');
+   const linked=/^https?:\/\/[^\s]+$/i.test(item.href||'');
    const row=document.createElement(linked?'a':'span');
    row.className='rudi-entertainment-event calendar-selected-row';
    if(linked){row.href=item.href;row.target='_blank';row.rel='noopener noreferrer'}
    else row.classList.add('rudi-entertainment-event-unlinked');
    const icon=document.createElement('span');icon.className='rudi-entertainment-icon';
    icon.textContent=icons[item.kind];icon.setAttribute('aria-hidden','true');row.append(icon);
-   if(/^(?:[01]\\d|2[0-3]):[0-5]\\d$/.test(item.time||'')){
+   if(/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(item.time||'')){
     const clock=document.createElement('time');clock.className='rudi-entertainment-time';
     clock.textContent=item.time;clock.dateTime=item.time;row.append(clock);
    }
