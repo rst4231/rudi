@@ -176,7 +176,7 @@ function syncWebVersion(env = process.env) {
   // Feature modules stay outside the large legacy application bundle.
   // Inject only absent tags, and version every URL on subsequent builds.
   const featureStyles=['finance-nav-icons.css','rudi-games.css'];
-  const featureScripts=['finance-nav-icons.js','rudi-games.js'];
+  const featureScripts=['finance-nav-icons.js','rudi-games.js','rudi-games-extra.js'];
   for(const name of featureStyles){
     const pattern=new RegExp('/'+name.replace(/\./g,'\\.')+'\\?v=[^"\\s]+','g');
     if(pattern.test(html)) html=html.replace(pattern,'/'+name+'?v='+assetVersion);

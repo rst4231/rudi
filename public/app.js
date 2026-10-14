@@ -17428,7 +17428,9 @@
         return name;
       }
 
+      let partnerMessagePendingDraft=null;
       function renderPartnerMessage(message){
+        message=partnerMessagePendingDraft||message;
         homeDashboardState.message=message||null;
         renderHomeDashboard();
         const textEl=document.getElementById('partnerMessageText');
@@ -17696,6 +17698,7 @@
           renderPartnerMessage(data.message);
           return data.message||null;
         }catch(_){
+          if(partnerMessagePendingDraft)return partnerMessagePendingDraft;
           const textEl=document.getElementById('partnerMessageText');
           textEl.textContent='Не удалось загрузить послание.';
           textEl.classList.add('partner-empty');
@@ -17710,9 +17713,9 @@
         const saveButton=document.getElementById('partnerSaveButton');
         const cancelButton=document.getElementById('partnerCancelButton');
         const status=document.getElementById('partnerStatus');
-        let currentMessage=null;
+        let currentMessage=null,saveInFlight=false;
         partnerMessageBootstrapHandler=message=>{
-          currentMessage=message||null;
+          currentMessage=partnerMessagePendingDraft||message||null;
           renderPartnerMessage(currentMessage);
         };
 
@@ -17781,35 +17784,55 @@
         cancelButton.addEventListener('click',closeEditor);
 
         saveButton.addEventListener('click',async()=>{
+          if(saveInFlight)return;
           const text=input.value.trim();
           if(!text){
             status.textContent='Напиши текст послания.';
             return;
           }
+          const previousMessage=currentMessage;
+          const optimisticMessage={...(previousMessage||{}),text,authorName:currentActor,likes:[]};
+          saveInFlight=true;
           saveButton.disabled=true;
-          status.textContent='Сохраняю…';
+          editButton.disabled=true;
+          partnerMessagePendingDraft=optimisticMessage;
+          partnerMessageBootstrapHandler(optimisticMessage);
+          closeEditor();
+          const authorEl=document.getElementById('partnerMessageAuthor');
+          if(authorEl)authorEl.textContent='Сохраняется на сервере…';
+          const controller=new AbortController();
+          const timeout=setTimeout(()=>controller.abort(),30000);
           try{
             const backupContext=backupRequestContext();
             const r=await fetch('/api/partner-message',{
               method:'POST',
               headers:{'Content-Type':'application/json'},
               body:JSON.stringify({text,initData:telegramInitData(),backupToken:backupContext.token}),
-              cache:'no-store'
+              cache:'no-store',
+              signal:controller.signal
             });
             const data=await r.json().catch(()=>({}));
-            if(!r.ok) throw new Error(data.error||'save');
-            if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
-            currentMessage=data.message;
-            partnerMessageBootstrapHandler(currentMessage);
-            closeEditor();
-            if(!data.backupToken) setTimeout(()=>refreshStateBackup(),250);
+            if(!r.ok)throw new Error(data.error||'save');
+            partnerMessagePendingDraft=null;
+            partnerMessageBootstrapHandler(data.message||optimisticMessage);
+            if(data.backupToken)void storeStateBackupToken(data.backupToken,backupContext).catch(()=>refreshStateBackup());
+            else setTimeout(()=>refreshStateBackup(),250);
             setTimeout(()=>loadActivityJournal({silent:true}),320);
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           }catch(error){
-            status.textContent=String(error?.message||'Ошибка сохранения');
+            partnerMessagePendingDraft=null;
+            partnerMessageBootstrapHandler(previousMessage);
+            input.value=text;
+            editor.classList.add('open');
+            status.textContent=error?.name==='AbortError'
+              ?'Сервер долго не отвечает. Послание не подтверждено, попробуй ещё раз.'
+              :'Не удалось сохранить послание. Попробуй ещё раз.';
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{
+            clearTimeout(timeout);
+            saveInFlight=false;
             saveButton.disabled=false;
+            editButton.disabled=!canEdit;
           }
         });
 

@@ -4,6 +4,8 @@ const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
 const HOME_TOOLS_STALE_MS=10*60*1000;
 let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadedAt=0,homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null,supplementReminderBadge=null,habitReminderBadge=null,reminderBadgeTimer=0,habitTodayReminder={today:'',habits:[],statuses:{}};
+const habitOptimisticStatuses=new Map();
+let habitMutationEpoch=0;
 let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},stats:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitYesterdayQuote=null,habitHistory={},habitSelectedDate='',habitArchiveExpanded=false,habitDateRequestSeq=0,habitDateInputLastValue='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
@@ -92,6 +94,7 @@ async function loadHabitsForDate(date){
   const target=String(date||'').trim();if(!target)return;
   if(target===habitState.date&&target===habitSelectedDate){renderHabitDates();return}
   const requestId=++habitDateRequestSeq;
+  const readEpoch=habitMutationEpoch;
   habitSelectedDate=target;setHabitStatus('');renderHabitDates();
   const cacheKey=requestCacheKey('list',{date:target});
   const cached=cachedRead(habitReadCache,cacheKey,HABIT_READ_CACHE_TTL_MS);
@@ -102,7 +105,7 @@ async function loadHabitsForDate(date){
   if(habitTile)habitTile.classList.add('is-date-loading');
   try{
     const data=await habitRequest('list',{date:target});
-    if(requestId!==habitDateRequestSeq)return;
+    if(requestId!==habitDateRequestSeq||readEpoch!==habitMutationEpoch)return;
     applyHabitView(data);
   }
   catch(error){
@@ -169,13 +172,18 @@ function applyHabitView(data){
     archivedHabits:Array.isArray(data?.archivedHabits)?data.archivedHabits:[],
     completedIds:Array.isArray(data?.completedIds)?data.completedIds:[],
     notDoneIds:Array.isArray(data?.notDoneIds)?data.notDoneIds:[],
-    statuses:data?.statuses&&typeof data.statuses==='object'?data.statuses:{},
+    statuses:data?.statuses&&typeof data.statuses==='object'?{...data.statuses}:{},
     streaks:data?.streaks&&typeof data.streaks==='object'?data.streaks:{},
     stats:data?.stats&&typeof data.stats==='object'?data.stats:{},
     bonusIds:Array.isArray(data?.bonusIds)?data.bonusIds:[],
     collapsed:habitState.collapsed===true,today:String(data?.today||''),date:String(data?.date||data?.today||''),
     done:Number(data?.done||0),total:Number(data?.total||0),canCompleteToday:Boolean(data?.canCompleteToday)
   };
+  for(const [key,value] of habitOptimisticStatuses){
+    const sep=key.indexOf('|'),date=key.slice(0,sep),id=key.slice(sep+1);
+    if(date===habitState.date)habitState.statuses[id]=value;
+    if(date===habitTodayReminder.today)habitTodayReminder.statuses[id]=value;
+  }
   if(data?.history&&typeof data.history==='object'){
     habitHistory={...habitHistory,...data.history};
     for(const [date,view] of Object.entries(data.history)){
@@ -262,6 +270,34 @@ function launchHabitConfetti(anchor){
   document.body.appendChild(layer);
   setTimeout(()=>layer.remove(),1400);
 }
+function applyOptimisticHabitStatus(id,date,status){
+  const key=date+'|'+id;
+  habitMutationEpoch++;
+  habitOptimisticStatuses.set(key,status);
+  clearReadCache(habitReadCache);
+  if(habitState.date===date){
+    habitState={...habitState,statuses:{...(habitState.statuses||{}),[id]:status}};
+    renderHabits();
+  }
+  if(habitTodayReminder.today===date){
+    habitTodayReminder={...habitTodayReminder,statuses:{...habitTodayReminder.statuses,[id]:status}};
+  }
+  updateReminderBadges();
+  return key;
+}
+function finishOptimisticHabitStatus(key,id,date,rollbackStatus){
+  habitOptimisticStatuses.delete(key);
+  clearReadCache(habitReadCache);
+  if(rollbackStatus!==undefined&&habitState.date===date){
+    habitMutationEpoch++;
+    habitState={...habitState,statuses:{...(habitState.statuses||{}),[id]:rollbackStatus}};
+    renderHabits();
+  }
+  if(rollbackStatus!==undefined&&habitTodayReminder.today===date){
+    habitTodayReminder={...habitTodayReminder,statuses:{...habitTodayReminder.statuses,[id]:rollbackStatus}};
+  }
+  updateReminderBadges();
+}
 function showHabitUndo({id,date,previousStatus,nextStatus}){
   if(!id||!date)return;
   let bar=document.getElementById('personalHabitsUndo');
@@ -280,14 +316,18 @@ function showHabitUndo({id,date,previousStatus,nextStatus}){
   button.textContent='Отменить';
   button.addEventListener('click',async()=>{
     button.disabled=true;
+    const key=applyOptimisticHabitStatus(id,date,previousStatus||'pending');
+    bar.classList.remove('is-visible');
     try{
       const data=await habitRequest('status',{id,status:previousStatus||'pending',date});
-      applyHabitView(data);
+      finishOptimisticHabitStatus(key,id,date);
+      if(habitSelectedDate===date)applyHabitView(data);
       setHabitStatus('Изменение отменено.');
-      bar.classList.remove('is-visible');
       try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch{}
     }catch(error){
+      finishOptimisticHabitStatus(key,id,date,nextStatus);
       button.disabled=false;
+      bar.classList.add('is-visible');
       setHabitStatus('Не удалось отменить изменение.',true);
     }
   });
@@ -372,23 +412,21 @@ function renderHabits(){
       if(status!=='pending')return;
       const previousStatus=status;
       const actionDate=habitSelectedDate||habitState.today;
-      paintHabitChoice(row,yes,no,next);
-      yes.disabled=true;no.disabled=true;remove.disabled=true;setHabitStatus('');
+      if(next==='done'&&previousStatus!=='done')launchHabitConfetti(button);
+      const key=applyOptimisticHabitStatus(id,actionDate,next);
+      setHabitStatus('');
       try{
         const data=await habitRequest('status',{id,status:next,date:actionDate});
-        if(next==='done'&&previousStatus!=='done')launchHabitConfetti(yes);
-        applyHabitView(data);
+        finishOptimisticHabitStatus(key,id,actionDate);
+        if(habitSelectedDate===actionDate)applyHabitView(data);
         setHabitStatus(habitScoreMessage(data,id,next));
-        if(previousStatus!==next){
-          showHabitUndo({id,date:actionDate,previousStatus,nextStatus:next});
-        }
+        if(previousStatus!==next)showHabitUndo({id,date:actionDate,previousStatus,nextStatus:next});
       }
       catch(error){
-        paintHabitChoice(row,yes,no,previousStatus);
+        finishOptimisticHabitStatus(key,id,actionDate,previousStatus);
         console.error('RUDI_HABIT_STATUS_UI_ERROR',error);
         const code=String(error?.message||'');
         if(code!=='habit-status-too-early'&&code!=='habit-done-too-early')setHabitStatus('Не удалось сохранить статус.',true);
-        yes.disabled=choiceLocked;no.disabled=choiceLocked;remove.disabled=false;
       }
     };
     yes.addEventListener('click',()=>save('done',yes));no.addEventListener('click',()=>save('notdone',no));
@@ -817,15 +855,16 @@ async function loadHomeTools({force=false}={}){
   actor=nextActor;build();
   if(homeToolsLoadedActor!==actor){applyCollapse(false);habitState={...habitState,collapsed:false};habitArchiveExpanded=false;}
   setStatus('Загружаю…');setHabitStatus('');
+  const habitReadEpoch=habitMutationEpoch;
   homeToolsLoadPromise=(async()=>{
     const [supplementsResult,habitsResult]=await Promise.allSettled([request('list',{}, {force}),habitRequest('list',{}, {force})]);
     if(supplementsResult.status==='fulfilled'){
       const data=supplementsResult.value;items=Array.isArray(data.items)?data.items:[];profile=data.profile||null;renderProfileMeta();render();setStatus('');enrichExistingSupplementGuidance();
     }else{console.error('RUDI_SUPPLEMENTS_HOME_LOAD_ERROR',supplementsResult.reason);setStatus(errorText(supplementsResult.reason),true)}
-    if(habitsResult.status==='fulfilled'){
+    if(habitsResult.status==='fulfilled'&&habitReadEpoch===habitMutationEpoch){
       const habitData=habitsResult.value;
       habitSelectedDate=String(habitData?.date||habitData?.today||'');applyHabitView(habitData);
-    }else{
+    }else if(habitsResult.status==='rejected'){
       console.error('RUDI_HABITS_HOME_LOAD_ERROR',habitsResult.reason);habitProgressText.textContent='Не удалось загрузить';habitList.replaceChildren();setHabitStatus('Не удалось загрузить привычки.',true);
     }
     homeToolsLoadedActor=actor;homeToolsLoadedAt=Date.now();
