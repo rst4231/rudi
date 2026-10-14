@@ -1,3 +1,4 @@
+/* RUDI v4.249 production marker: biorhythm phase stays above curve in both role views. */
 /* RUDI home arrangement: preserve original controls and profile energy logic. */
 (()=>{'use strict';
  const $=id=>document.getElementById(id);
