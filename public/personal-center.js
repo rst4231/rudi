@@ -165,8 +165,8 @@ function renderRhythm(){
  showText('pcRhythmPeriod','7 дней');
  showText('pcRhythmFoot',mode==='expenses'?'Показаны только дни с записанными расходами.':mode==='mood'?'Доля позитивных отметок из дневника настроения.':'Показаны дни с отмеченными результатами привычек.');
  const empty=$('pcRhythmEmpty');if(empty)empty.hidden=valid.length>0;
- svg.hidden=false;
- svg.replaceChildren();
+ svg.hidden=!valid.length;
+ svg.replaceChildren();if(!valid.length)return;
  const ns='http://www.w3.org/2000/svg',create=(tag,attrs,text)=>{
    const item=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs||{}))item.setAttribute(k,String(v));
    if(text!==undefined)item.textContent=String(text);svg.appendChild(item);return item;
@@ -503,7 +503,6 @@ function sheet(name){
     '<h3>По неделям</h3>'+weekly.map(([k,v])=>'<div class="rudi-center__item"><p>С '+esc(k)+' · '+value(v)+' · '+v.n+' дней</p></div>').join('')+
     '<h3>По месяцам</h3>'+monthly.map(([k,v])=>'<div class="rudi-center__item"><p>'+esc(k)+' · '+value(v)+' · '+v.n+' дней</p></div>').join('')+
     '<h3>По дням</h3>'+days.slice(0,70).map(v=>'<div class="rudi-center__item"><p>'+esc(v.date)+' · '+v.positive+' из '+v.total+' позитивных ('+positiveShare(v)+'%)</p></div>').join('');
-  html+='<h3>AI-сводки</h3><div id="pcReportsList"><p class="rudi-center__meta">Загружаю историю сводок…</p></div>';
  }else if(name==='settings'){
   title='Управление данными';
   html='<div class="rudi-center__actions"><button class="rudi-center__btn rudi-center__btn--danger" type="button" data-erase="all">Удалить все данные AI-центра</button></div>';
@@ -516,7 +515,6 @@ function sheet(name){
  content.querySelectorAll('[data-symptom]').forEach(s=>s.onchange=()=>mutate('symptom-status',{id:s.dataset.symptom,state:s.value}));
  content.querySelectorAll('[data-clear]').forEach(b=>b.onclick=()=>{if(confirm('Удалить все записи этой категории и старые AI-выводы?'))mutate('clear-category',{type:b.dataset.clear});});
  content.querySelectorAll('[data-erase]').forEach(b=>b.onclick=async()=>{if(!confirm('Удаление необратимо. Подтвердить?'))return;try{await call('erase',{scope:b.dataset.erase});sessionStorage.removeItem(cacheKey());if(b.dataset.erase==='all'){data={profile:{height:who==='Рустам'?181:null},checkins:{},symptoms:[],weights:[]};}report=null;markHalo(false);draw();closeSheet();setStatus('Данные удалены');}catch(e){setStatus('Ошибка удаления');}});
- if(name==='history'){call('history').then(r=>{if(activeSheet!=='history')return;const node=$('pcReportsList');node.replaceChildren();const rows=r.history||[];if(!rows.length){node.textContent='Сводок пока нет';return;}for(const x of rows.slice(0,100)){const row=document.createElement('div');row.className='rudi-center__item';const title=document.createElement('strong');title.textContent=(x.slot==='morning'?'Утро':'Вечер')+' · '+asDate(x.createdAt);const p=document.createElement('p');p.textContent=x.narrative?.overview||'Отчёт';row.append(title,p);node.append(row);}}).catch(()=>{if($('pcReportsList'))$('pcReportsList').textContent='История временно недоступна';});}
 }
 function boot(){
  if(!$('avatar'))return;

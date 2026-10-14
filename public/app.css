@@ -18412,3 +18412,6 @@ body[data-app-tab="home"] .priority-section .ticktick-today-task:has(.is-shared-
 body[data-app-tab="home"] .priority-section .ticktick-agenda-time .ticktick-agenda-start{
   display:block;max-width:100%;white-space:normal;text-align:right;overflow-wrap:normal;
 }
+
+/* Relative due dates are supplementary; payment amount and original due day remain unchanged. */
+.finance-obligation-copy small .finance-obligation-relative{display:inline;color:var(--finance-accent);font-weight:760;white-space:nowrap}
