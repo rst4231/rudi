@@ -371,9 +371,15 @@ html[data-theme="dark"] .rudi-battle-vessel{filter:drop-shadow(0 2px 3px rgba(2,
  .rudi-battle-work .rudi-battle-info{padding:0 37px}
 }
 
-/* v4.251: green active turn. */
-.rudi-battle-work .rudi-battle-field{padding:10px;border:2px solid transparent;border-radius:17px;transition:background .16s,border-color .16s,box-shadow .16s}
-.rudi-battle-work .rudi-battle-field.is-current-turn{background:rgba(42,188,101,.13);border-color:rgba(45,188,101,.76);box-shadow:0 0 0 3px rgba(42,188,101,.10),inset 0 0 18px rgba(42,188,101,.055)}
-.rudi-battle-work .rudi-battle-field.is-current-turn h2{color:#158b4b}
-html[data-theme="dark"] .rudi-battle-work .rudi-battle-field.is-current-turn{background:rgba(48,203,119,.18);border-color:rgba(81,231,145,.78)}
-html[data-theme="dark"] .rudi-battle-work .rudi-battle-field.is-current-turn h2{color:#8aefb5}
+/* v4.252: highlight the current player's name card, not the boards. */
+.rudi-battle-work .rudi-duel-player.is-current-turn{
+ background:rgba(42,188,101,.16);border:2px solid rgba(45,188,101,.82);
+ box-shadow:0 0 0 3px rgba(42,188,101,.10),inset 0 0 14px rgba(42,188,101,.055);
+ padding:8px 9px;transition:background .16s,border-color .16s,box-shadow .16s;
+}
+.rudi-battle-work .rudi-duel-player.is-current-turn b{color:#147e45}
+html[data-theme="dark"] .rudi-battle-work .rudi-duel-player.is-current-turn{
+ background:rgba(48,203,119,.20);border-color:rgba(81,231,145,.86)
+}
+html[data-theme="dark"] .rudi-battle-work .rudi-duel-player.is-current-turn b{color:#8aefb5}
+@media(max-width:400px){.rudi-battle-work .rudi-duel-player.is-current-turn{padding:8px 6px}}

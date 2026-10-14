@@ -230,13 +230,13 @@ function renderBattle(){
  const presenceStatus=name=>battlePresence===null?'Проверяем…':battlePresence[name]?'В игре':'Не в игре';
  const presenceClass=name=>battlePresence===null?'is-checking':battlePresence[name]?'is-online':'is-offline';
  const presenceHtml='<div class="rudi-duel-presence" aria-label="Сейчас в Морском бое">'+
-  [actor(),other].map(name=>'<span class="rudi-duel-player '+presenceClass(name)+'"><i aria-hidden="true"></i><b>'+safe(name)+'</b><small>'+presenceStatus(name)+'</small></span>').join('')+'</div>';
+  [actor(),other].map(name=>'<span class="rudi-duel-player '+presenceClass(name)+(playing&&r.turn===name?' is-current-turn':'')+'"><i aria-hidden="true"></i><b>'+safe(name)+'</b><small>'+presenceStatus(name)+'</small></span>').join('')+'</div>';
  const message=playing?(turn?'Твой ход — выбирай клетку':'Ходит '+r.turn):
   r.status==='won'?(r.winner===actor()?'Победа! Все корабли соперника потоплены.':'Победил'+(r.winner==='Диана'?'а':'')+' '+r.winner):
   ended?'Партия завершена.':r.round?'Можно начать новую партию.':'Игра ещё не началась.';
  g().section('<div class="rudi-game-work rudi-battle-work">'+presenceHtml+'<div class="rudi-battle-info"><span>Раунд '+r.round+'</span><strong>'+safe(message)+'</strong>'+'<button type="button" class="rudi-battle-sound" data-battle-sound aria-label="'+(battleSoundEnabled?'Выключить звуки':'Включить звуки')+'" title="'+(battleSoundEnabled?'Выключить звуки':'Включить звуки')+'">'+(battleSoundEnabled?'🔊':'🔇')+'</button></div>'+
-  '<section class="rudi-battle-field'+(playing&&r.turn===other?' is-current-turn':'')+'"><h2>Поле '+safe(battleGenitive(other))+'</h2>'+
-  cells('enemy',r)+'</section><section class="rudi-battle-field'+(turn?' is-current-turn':'')+'"><h2>Поле '+safe(battleGenitive(actor()))+'</h2>'+
+  '<section class="rudi-battle-field"><h2>Поле '+safe(battleGenitive(other))+'</h2>'+
+  cells('enemy',r)+'</section><section class="rudi-battle-field"><h2>Поле '+safe(battleGenitive(actor()))+'</h2>'+
   cells('own',r)+'</section>'+
   (playing?'<button class="rudi-duel-finish" type="button" data-battle-action="end">Завершить партию</button>':
    '<button class="rudi-game-primary" type="button" data-battle-action="start">'+(r.round?'Новая партия':'Начать игру')+'</button>')+
