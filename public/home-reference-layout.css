@@ -1122,3 +1122,5 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .rudi-partner-fast
     transition:none!important;
   }
 }
+
+/* RUDI v4.246: partner avatar fasting halo verified; production build marker. */
