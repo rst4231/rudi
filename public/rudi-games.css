@@ -96,3 +96,83 @@ html[data-theme="dark"] .rudi-market-price span.gain{color:#59dea3}
 .rudi-duel-work .rudi-game-primary{width:100%}
 .rudi-duel-work .rudi-game-hint{font-size:11px;line-height:1.5;margin:0}
 @media(max-width:375px){.rudi-duel-board{gap:6px}.rudi-duel-cell{border-radius:14px}}
+
+/* RUDI v4.230: playful game room, readable in light and dark themes. */
+.rudi-games-page{
+ --game-ink:#213153;--game-border:rgba(97,89,193,.20);
+ background:radial-gradient(ellipse at 96% 2%,rgba(178,145,255,.30),transparent 39%),
+  radial-gradient(ellipse at 5% 65%,rgba(103,181,245,.19),transparent 49%),
+  linear-gradient(155deg,#edf1ff,#e8efff 55%,#eef9ff);
+}
+.rudi-games-head{margin-bottom:15px;gap:12px}
+.rudi-games-head>button{background:rgba(255,255,255,.87);border-color:rgba(91,94,169,.19);box-shadow:0 6px 22px rgba(71,80,151,.12)}
+.rudi-games-head h1{font-weight:900;letter-spacing:-.045em}
+.rudi-games-content{gap:13px}
+.rudi-game-hero{
+ position:relative;overflow:hidden;padding:19px 22px 20px;
+ border:1px solid rgba(255,255,255,.38);
+ background:radial-gradient(circle at 92% 28%,rgba(255,241,160,.24),transparent 18%),
+  radial-gradient(circle at 75% 110%,rgba(136,83,232,.72),transparent 52%),
+  linear-gradient(125deg,#3346ca,#5269e0 65%,#7662de);
+ box-shadow:0 16px 32px rgba(63,70,181,.24);
+}
+.rudi-game-hero::after{content:"★";position:absolute;right:18px;top:0;font-size:115px;color:rgba(255,255,255,.085);pointer-events:none;transform:rotate(-17deg)}
+.rudi-game-hero h2{position:relative;z-index:1;margin:7px 0 0;font-size:clamp(26px,5.7vw,34px);font-weight:900}
+.rudi-games-overline{letter-spacing:.14em}
+.rudi-games-stats{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.rudi-games-stats>div{
+ background:linear-gradient(150deg,rgba(255,255,255,.96),rgba(239,239,255,.89));
+ border-color:rgba(115,105,199,.16);border-radius:17px;gap:5px;padding:11px 6px;
+ box-shadow:0 4px 14px rgba(73,73,131,.06);
+}
+.rudi-games-list{gap:10px}
+.rudi-game-card{
+ background:linear-gradient(110deg,rgba(255,255,255,.95),rgba(244,248,255,.91));
+ border:1px solid rgba(112,105,188,.14);border-radius:19px;
+ padding:14px 15px;gap:12px;box-shadow:0 7px 17px rgba(64,75,132,.08);
+ transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease;
+}
+.rudi-game-card:active{transform:scale(.985)}
+.rudi-game-card.is-duel{border-color:rgba(114,91,225,.35);background:linear-gradient(105deg,#fff,#f2edff)}
+.rudi-game-card .rudi-game-glyph{
+ width:48px;height:48px;flex:0 0 48px;
+ background:linear-gradient(140deg,#e1e7ff,#d8d5ff);
+ color:#5965dc;border-radius:14px;
+}
+.rudi-game-card.is-duel .rudi-game-glyph{background:linear-gradient(135deg,#754fd7,#bd62d5);color:white}
+.rudi-game-arrow{color:#6f5de1;opacity:.72}
+.rudi-duel-presence{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.rudi-duel-player{
+ display:flex;flex-wrap:wrap;align-items:center;gap:5px 8px;min-width:0;
+ border:1px solid rgba(100,107,179,.15);background:rgba(98,113,170,.08);
+ border-radius:13px;padding:9px 10px;
+}
+.rudi-duel-player b{font-size:13px}
+.rudi-duel-player small{font-size:10px;width:100%;padding-left:12px;color:#75829b;font-weight:650}
+.rudi-duel-player>i{width:8px;height:8px;flex:0 0 8px;border-radius:50%;background:#a7afc3}
+.rudi-duel-player.is-online>i{background:#29bb79;box-shadow:0 0 0 3px rgba(41,187,121,.15)}
+.rudi-duel-player.is-online small{color:#13975e}
+.rudi-duel-finish{
+ display:block;width:100%;min-height:44px;border-radius:13px;cursor:pointer;font:inherit;
+ font-size:13px;font-weight:800;border:1px solid rgba(217,85,121,.32);
+ background:rgba(231,91,121,.10);color:#c03d63;
+}
+.rudi-duel-finish:active{background:rgba(231,91,121,.18)}
+html[data-theme="dark"] .rudi-games-page{
+ --game-ink:#e9eafa;--game-border:rgba(146,153,229,.18);
+ background:radial-gradient(ellipse at 96% 0%,rgba(108,64,174,.31),transparent 43%),
+  linear-gradient(155deg,#10182e,#192340 60%,#181c37);
+}
+html[data-theme="dark"] .rudi-game-card,html[data-theme="dark"] .rudi-games-stats>div{
+ background:linear-gradient(135deg,rgba(38,48,83,.95),rgba(30,36,67,.95));border-color:rgba(162,147,230,.23)
+}
+html[data-theme="dark"] .rudi-game-card.is-duel{border-color:rgba(188,134,244,.45);background:linear-gradient(110deg,#34335a,#302749)}
+html[data-theme="dark"] .rudi-duel-player{background:rgba(125,144,200,.12);border-color:rgba(155,166,213,.19)}
+html[data-theme="dark"] .rudi-duel-player.is-offline small{color:#9ea9bb}
+html[data-theme="dark"] .rudi-duel-finish{color:#ffa8be;border-color:rgba(252,131,162,.38)}
+@media(max-width:400px){
+ .rudi-game-hero{padding:16px 17px 18px}
+ .rudi-game-card{padding:13px 11px}
+ .rudi-games-stats>div{padding:11px 4px}
+ .rudi-duel-player{padding:9px 7px}
+}

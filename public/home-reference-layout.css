@@ -809,3 +809,83 @@ body[data-app-tab="home"] .profile-person-card .profile-supplement-intakes{
   padding:11px 12px!important;
   gap:9px!important;
 }
+
+/* RUDI v4.230: stretch the live daily rhythm curve over the full profile card.
+   Keep phase annotation above its moving dot, not in an adjacent column. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName){
+  min-height:118px!important;
+  padding-top:6px!important;
+  padding-bottom:7px!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) > .rudi-home-self-line{
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:48px 58px!important;
+  width:100%!important;
+  height:106px!important;
+  min-height:106px!important;
+  max-height:none!important;
+  gap:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .rudi-home-self-line > .profile-person-head{
+  grid-column:1!important;
+  grid-row:1!important;
+  min-height:48px!important;
+  height:48px!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .rudi-home-self-line > .profile-energy-strip{
+  grid-column:1!important;
+  grid-row:2!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:43px 12px!important;
+  width:100%!important;
+  min-width:0!important;
+  height:58px!important;
+  min-height:58px!important;
+  box-sizing:border-box!important;
+  padding:0 7px!important;
+  border-left:none!important;
+  overflow:visible!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-energy-label{
+  display:none!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-energy-strip .profile-energy-plot{
+  width:100%!important;height:43px!important;
+  grid-column:1!important;grid-row:1!important;
+  overflow:visible!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-energy-strip .profile-energy-times{
+  width:100%!important;grid-column:1!important;grid-row:2!important;
+  font-size:8px!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-energy-plot .rudi-energy-point-caption{
+  bottom:calc(100% + 5px)!important;
+  font-size:10px!important;
+}
+
+/* v4.230: Diana's energy chart uses the full timeline even when it is not the active profile. */
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-energy-strip{
+ grid-template-columns:minmax(0,1fr)!important;
+ grid-template-rows:43px 12px!important;
+ width:100%!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-energy-strip .profile-energy-label{display:none!important;}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-energy-strip .profile-energy-plot{
+ grid-column:1!important;grid-row:1!important;width:100%!important;height:43px!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-energy-strip .profile-energy-times{
+ grid-column:1!important;grid-row:2!important;width:100%!important;
+}
+
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-energy-plot .profile-energy-now{
+ overflow:visible!important;z-index:5!important;
+}
+body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .profile-energy-plot .rudi-energy-point-caption{
+ position:absolute!important;bottom:calc(100% + 5px)!important;left:50%!important;
+ transform:translateX(-50%)!important;
+ display:block!important;width:max-content!important;max-width:none!important;
+ padding:0 2px!important;font-size:10px!important;line-height:1.1!important;
+ font-weight:800!important;color:rgba(236,241,252,.95)!important;
+ white-space:nowrap!important;text-align:center!important;
+ text-shadow:0 1px 5px rgba(0,4,12,.7)!important;pointer-events:none!important;
+}

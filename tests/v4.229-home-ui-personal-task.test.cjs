@@ -63,6 +63,6 @@ test('home spacing and cache version stay scoped to this release',()=>{
  assert.match(css,/home-dashboard-summary\{[\s\S]{0,75}padding-block:8px!important/);
  assert.match(css,/profile-person-details:has\(\.profile-supplement-intakes\)/);
  assert.match(css,/profile-supplement-intakes\{[\s\S]{0,60}margin-top:0!important/);
- assert.match(html,/home-reference-layout\.js\?v=4\.229/);
- assert.match(html,/personal-task-editor\.js\?v=4\.229/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.230/);
+ assert.match(html,/personal-task-editor\.js\?v=4\.230/);
 });
