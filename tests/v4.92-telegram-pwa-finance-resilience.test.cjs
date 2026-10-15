@@ -40,11 +40,23 @@ test('health endpoint cannot mutate old Telegram forum topics',()=>{
   assert.doesNotMatch(source,/deleteLegacyLaborTopicOnce|syncConfiguredForumTopicNames/);
 });
 
-test('core web assets disable stale HTTP cache and PWA checks for updates',()=>{
+test('versioned assets are cached but HTML and update machinery remain fresh',()=>{
   const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
-  for(const source of ['/app.js','/app.css','/pwa-extras.js']){
-    const header=config.headers.find(row=>row.source===source);
-    assert.match(header.headers[0].value,/no-store/);
+  const cacheValue=(source)=>{
+    const row=config.headers.find(item=>item.source===source);
+    assert.ok(row,'missing cache rule for '+source);
+    return row.headers.find(header=>header.key.toLowerCase()==='cache-control')?.value||'';
+  };
+  for(const source of ['/app.js','/app.css','/pwa-extras.js','/pwa-extras.css','/personal-center.js','/personal-center.css']){
+    assert.match(cacheValue(source),/public.*immutable/);
+  }
+  for(const source of ['/','/index.html','/sw.js','/version.json']){
+    assert.match(cacheValue(source),/no-store/);
+  }
+  const html=fs.readFileSync('public/index.html','utf8');
+  for(const asset of ['app.js','app.css','pwa-extras.js','personal-center.js']){
+    const versioned=new RegExp('/'+asset.replace(/\./g,'\\.')+'\\?v=\\d+\\.\\d+');
+    assert.match(html,versioned,'release-versioned URL missing for '+asset);
   }
   const pwa=fs.readFileSync('public/pwa-extras.js','utf8');
   assert.match(pwa,/checkForUpdate\(true\);/);
