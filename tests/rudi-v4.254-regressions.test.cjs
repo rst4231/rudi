@@ -61,7 +61,7 @@ test('habit list is read-only and clients cannot hang forever',()=>{
  const server=fs.readFileSync('api/habits.js','utf8'),client=fs.readFileSync('public/profile-supplements.js','utf8');
  assert.match(server,/const shouldFinalize=operation!=='list'/);
  assert.doesNotMatch(server,/reconcileTodayHabitScores\(actor,state,\{now\}\);score=sync\.score;scoreDelta=sync\.deltaPoints;\s*state=await readHabits\(actor,\{now\}\)/);
- assert.match(client,/AbortSignal\.timeout\(9500\)/);
+ assert.match(client,/Promise\.race\(\[task\(ctrl\?\.signal\),deadline\]\)/);
  assert.match(client,/lastHabitSnapshot\(\)/);
  assert.match(client,/homeToolsLoadedAt=0/);
 });
