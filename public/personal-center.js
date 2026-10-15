@@ -11,6 +11,7 @@ function positiveShare(entry){
  return Number.isFinite(total)&&total>0&&Number.isFinite(positive)?Math.round(100*positive/total):null;
 }
 let root=null,open=false,who='',data=null,report=null,lastStatus=0,loading=false,manualLoading=false,activeSheet='',cycleInfo=null,overviewAt=0,refreshing=false,overviewPromise=null,rhythmMode='habits',translatingReportId='';
+let centerCloseTimer=0,sheetCloseTimer=0;
 const cachePrefix='rudi-personal-center-session:';
 const HALO_CHECK_INTERVAL_MS=90*1000;
 function setStatus(t){if($('pcStatus'))$('pcStatus').textContent=String(t||'')}
@@ -49,8 +50,8 @@ function attach(){
  root.addEventListener('click',e=>{
   const btn=e.target.closest('[data-open],[data-external],[data-tab]');if(!btn)return;
   if(btn.dataset.open)sheet(btn.dataset.open);
-  if(btn.dataset.external){hide();$(btn.dataset.external)?.click();}
-  if(btn.dataset.tab){hide();document.querySelector('[data-app-tab="'+btn.dataset.tab+'"]')?.click();}
+  if(btn.dataset.external)closeAndNavigate(()=>$(btn.dataset.external)?.click());
+  if(btn.dataset.tab)closeAndNavigate(()=>{if(typeof window.RUDI_NAVIGATE_TO_TAB==='function')window.RUDI_NAVIGATE_TO_TAB(btn.dataset.tab,{scroll:true});else document.querySelector('[data-app-tab="'+btn.dataset.tab+'"]')?.click();});
  });
  document.addEventListener('keydown',e=>{if(!open||e.key!=='Escape')return;if(activeSheet)closeSheet();else hide();});
  const av=$('avatar');if(av){
@@ -73,6 +74,15 @@ function attach(){
    .observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
  installCenterPullRefresh();
  installCenterSwipeBack();
+ window.addEventListener('popstate',()=>{
+  const state=history.state;
+  if(open&&state?.rudiOverlay!=='personal-ai'){hide({fromHistory:true});return;}
+  if(!open&&state?.rudiOverlay==='personal-ai'){void show({fromHistory:true});return;}
+  if(!open)return;
+  const targetSheet=String(state?.rudiAiSheet||'');
+  if(!targetSheet&&activeSheet)closeSheet({fromHistory:true});
+  else if(targetSheet&&targetSheet!==activeSheet)sheet(targetSheet,{fromHistory:true});
+ });
 }
 async function checkStatus(force=false){
  if(open||document.hidden||document.body.classList.contains('auth-pending'))return;
@@ -110,15 +120,51 @@ async function fetchOverview(force=false){
  })().finally(()=>{overviewPromise=null;});
  return overviewPromise;
 }
-async function show(){
- if(open)return;attach();open=true;root.hidden=false;document.body.classList.add('rudi-center-open');
+async function show({fromHistory=false}={}){
+ if(open)return;
+ attach();
+ clearTimeout(centerCloseTimer);
+ root.classList.remove('is-closing');
+ open=true;root.hidden=false;document.body.classList.add('rudi-center-open');
+ if(!fromHistory){
+  try{
+   const state=history.state&&typeof history.state==='object'?history.state:{};
+   history.pushState({...state,rudiOverlay:'personal-ai',rudiAiSheet:null},'',window.location.href);
+  }catch(_){}
+ }else if(history.state?.rudiAiSheet){
+  sheet(String(history.state.rudiAiSheet),{fromHistory:true});
+ }
  if(!data)showOffline();
  updateReportButton();
  setStatus('');
  try{await fetchOverview(false);}
  catch(_){if(!data&&!showOffline())setStatus('Нет соединения с RUDI · попробуй позже');}
 }
-function hide(){closeSheet();open=false;if(root)root.hidden=true;document.body.classList.remove('rudi-center-open');}
+function motionReduced(){
+ try{return Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)}catch(_){return false}
+}
+function hide({fromHistory=false}={}){
+ if(!open)return;
+ if(!fromHistory&&history.state?.rudiOverlay==='personal-ai'){
+  try{history.go(history.state?.rudiAiSheet?-2:-1);return}catch(_){}
+ }
+ closeSheet({fromHistory:true,immediate:true});
+ open=false;
+ if(!root)return;
+ clearTimeout(centerCloseTimer);
+ root.classList.add('is-closing');
+ const finish=()=>{if(open)return;root.hidden=true;root.classList.remove('is-closing');document.body.classList.remove('rudi-center-open')};
+ if(motionReduced()){finish();return}
+ centerCloseTimer=setTimeout(finish,225);
+}
+function closeAndNavigate(action){
+ if(typeof action!=='function')return;
+ if(history.state?.rudiOverlay==='personal-ai'){
+  const steps=history.state?.rudiAiSheet?-2:-1;
+  window.addEventListener('popstate',()=>requestAnimationFrame(action),{once:true});
+  history.go(steps);
+ }else{hide({fromHistory:true});requestAnimationFrame(action)}
+}
 function showText(id,text){if($(id))$(id).textContent=String(text??'');}
 function safeNarrative(row){
  const original=row?.narrative;if(!original)return null;
@@ -406,10 +452,31 @@ async function mutate(operation,payload={}){
  catch(e){setStatus('Не удалось сохранить. Проверь подключение.');}
  finally{loading=false;}
 }
-function closeSheet(){activeSheet='';if($('pcOverlay'))$('pcOverlay').hidden=true;root?.style.removeProperty('--pc-visual-height');root?.style.removeProperty('--pc-visual-top');}
+function closeSheet({fromHistory=false,immediate=false}={}){
+ if(!fromHistory&&history.state?.rudiOverlay==='personal-ai'&&history.state?.rudiAiSheet){
+  try{history.back();return}catch(_){}
+ }
+ activeSheet='';
+ const overlay=$('pcOverlay');
+ clearTimeout(sheetCloseTimer);
+ if(overlay&&!overlay.hidden){
+  overlay.classList.add('is-closing');
+  const finish=()=>{if(activeSheet)return;overlay.hidden=true;overlay.classList.remove('is-closing');root?.style.removeProperty('--pc-visual-height');root?.style.removeProperty('--pc-visual-top')};
+  if(immediate||motionReduced())finish();
+  else sheetCloseTimer=setTimeout(finish,195);
+ }
+}
 function itemDelete(type,id,label){return '<button class="rudi-center__link" type="button" data-delete="'+esc(type)+'" data-id="'+esc(id)+'">Удалить '+esc(label||'')+'</button>';}
-function sheet(name){
- const same=activeSheet===name,priorScroll=same?$('pcSheetContent')?.scrollTop||0:0;activeSheet=name;const box=$('pcOverlay'),content=$('pcSheetContent');if(!box)return;box.hidden=false;syncSheetViewport();let html='',title='';
+function sheet(name,{fromHistory=false}={}){
+ const same=activeSheet===name,priorScroll=same?$('pcSheetContent')?.scrollTop||0:0;activeSheet=name;const box=$('pcOverlay'),content=$('pcSheetContent');if(!box)return;
+ clearTimeout(sheetCloseTimer);box.classList.remove('is-closing');box.hidden=false;syncSheetViewport();
+ if(!fromHistory&&history.state?.rudiOverlay==='personal-ai'){
+  try{
+   const state=history.state;
+   history[state.rudiAiSheet?'replaceState':'pushState']({...state,rudiAiSheet:name},'',window.location.href);
+  }catch(_){}
+ }
+ let html='',title='';
  if(name==='symptoms'){
   title='Дневник здоровья';
   html='<p class="rudi-center__meta">Свободный текст, интенсивность и длительность. Для продолжающихся состояний можно отмечать изменения.</p><form class="rudi-center__form" id="pcSymptomForm">'+

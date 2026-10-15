@@ -4,7 +4,14 @@
 .rudi-center{--pc-bg:#f5f7fb;--pc-panel:#fff;--pc-text:#161c29;--pc-muted:#758094;--pc-border:rgba(22,36,62,.08);--pc-accent:#16a879;--pc-blue:#5b83f7;position:fixed;inset:0;z-index:6000;background:var(--pc-bg);color:var(--pc-text);font:inherit;overflow:hidden;isolation:isolate;animation:pc-enter .26s cubic-bezier(.16,1,.3,1)}
 :root[data-theme="dark"] .rudi-center,.rudi-center[data-theme="dark"]{--pc-bg:#0c101a;--pc-panel:#161d2b;--pc-text:#f2f6fc;--pc-muted:#98a6ba;--pc-border:rgba(232,241,255,.09);--pc-accent:#35d4a5;--pc-blue:#94aeff}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .rudi-center{--pc-bg:#0c101a;--pc-panel:#161d2b;--pc-text:#f2f6fc;--pc-muted:#98a6ba;--pc-border:rgba(232,241,255,.09);--pc-accent:#35d4a5;--pc-blue:#94aeff}}
-@keyframes pc-enter{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pc-enter{from{opacity:0;transform:translate3d(20px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes pc-exit{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(28px,0,0)}}
+@keyframes pc-sheet-enter{from{opacity:0;transform:translate3d(18px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes pc-sheet-exit{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(22px,0,0)}}
+.rudi-center.is-closing{animation:pc-exit 220ms cubic-bezier(.4,0,.8,.35) both!important;pointer-events:none}
+.rudi-center__overlay:not([hidden]){animation:pc-sheet-enter 260ms cubic-bezier(.2,.82,.2,1) both}
+.rudi-center__overlay.is-closing{animation:pc-sheet-exit 190ms cubic-bezier(.4,0,.8,.35) both!important;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.rudi-center.is-closing,.rudi-center__overlay:not([hidden]),.rudi-center__overlay.is-closing{animation:none!important}}
 /* The main profile forces its box-shadow with !important. An independent outline
    and drop-shadow keep the unread indicator visible in both themes and on iOS. */
 @keyframes pc-halo-pulse{
@@ -117,7 +124,7 @@ body.rudi-center-open{overflow:hidden!important}
 .rudi-center__actions{margin-top:0;display:block}
 .rudi-center__actions>.rudi-center__btn--danger{width:100%;min-width:0}
 @media(max-width:799px){
- .rudi-center{height:100dvh;animation:none!important;transform:none!important}
+ .rudi-center{height:100dvh}
  .rudi-center__overlay{position:absolute;z-index:5;inset:auto 0 auto 0;top:var(--pc-visual-top,0px);height:var(--pc-visual-height,100%);background:var(--pc-bg);display:block;overflow:hidden}
  .rudi-center__sheet{width:100%;height:100%;max-height:none!important;border-radius:0!important;background:var(--pc-bg);box-shadow:none;animation:none!important}
  .rudi-center__sheet-head{padding-top:max(10px,env(safe-area-inset-top));background:var(--pc-bg);z-index:2}

@@ -7,6 +7,11 @@
 
   function routeTo(tab,item=''){
     try{
+      const next=tab==='saves'?'dates':tab;
+      if(typeof window.RUDI_NAVIGATE_TO_TAB==='function'){
+        window.RUDI_NAVIGATE_TO_TAB(next,{item,scroll:true});
+        return;
+      }
       const url=new URL(window.location.href);
       if(tab&&tab!=='home') url.searchParams.set('tab',tab);
       else url.searchParams.delete('tab');
@@ -1417,7 +1422,7 @@
     const back=byId('datesBackButton');
     if(back&&back.dataset.bound!=='1'){
       back.dataset.bound='1';
-      back.addEventListener('click',()=>routeTo('home'));
+      back.addEventListener('click',()=>{if(typeof window.RUDI_GO_BACK==='function')window.RUDI_GO_BACK();else routeTo('home');});
     }
     if(document.body.dataset.appTab==='products'&&!savesKitchenInitialLoadStarted){
       savesKitchenInitialLoadStarted=true;
@@ -1743,7 +1748,7 @@
     const back=byId('forDiBackButton');
     if(back&&back.dataset.bound!=='1'){
       back.dataset.bound='1';
-      back.addEventListener('click',()=>routeTo('home'));
+      back.addEventListener('click',()=>{if(typeof window.RUDI_GO_BACK==='function')window.RUDI_GO_BACK();else routeTo('home');});
     }
     document.querySelectorAll('[data-for-di-toggle]').forEach(button=>{
       if(button.dataset.forDiBound==='1') return;

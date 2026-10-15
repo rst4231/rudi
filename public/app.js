@@ -103,6 +103,8 @@
       const sharedAlbumHdLoads = new Map();
       let currentAppTab = 'home';
       let appViewTransitionActive = false;
+      let appTransitionRevision = 0;
+      let routeHistoryDepth = 0;
       let requestedAppTab = '';
       let requestedItemId = '';
       let deferredPwaInstallPrompt = null;
@@ -2190,6 +2192,17 @@
         }catch(_){}
       }
 
+      function ensureAppHistoryState(){
+        try{
+          const existing=history.state&&typeof history.state==='object'?history.state:{};
+          if(Number.isInteger(existing.rudiNavDepth)&&existing.rudiNavDepth>=0){
+            routeHistoryDepth=existing.rudiNavDepth;
+            return;
+          }
+          history.replaceState({...existing,rudiNavDepth:0},'',window.location.href);
+          routeHistoryDepth=0;
+        }catch(_){}
+      }
       function updateAppRoute(tab,{item='',replace=false}={}){
         try{
           const next=APP_TABS.includes(tab)?tab:'home';
@@ -2201,7 +2214,11 @@
           const target=url.pathname+(url.search||'')+(url.hash||'');
           const current=window.location.pathname+window.location.search+window.location.hash;
           if(target===current) return;
-          history[replace?'replaceState':'pushState']({rudiTab:next,rudiItem:item||''},'',target);
+          const existing=history.state&&typeof history.state==='object'?history.state:{};
+          const prior=Number.isInteger(existing.rudiNavDepth)?Math.max(0,existing.rudiNavDepth):routeHistoryDepth;
+          const depth=replace?prior:prior+1;
+          history[replace?'replaceState':'pushState']({...existing,rudiTab:next,rudiItem:item||'',rudiNavDepth:depth,rudiOverlay:null},'',target);
+          routeHistoryDepth=depth;
         }catch(_){}
       }
 
@@ -6286,6 +6303,7 @@
 
       function runFallbackAppTransition(update,{kind='page',direction='forward',from=''}={}){
         if(typeof update!=='function') return null;
+        const revision=++appTransitionRevision;
         if(rudiMotionReduced()){
           update();
           return null;
@@ -6299,6 +6317,7 @@
           section.classList.add('rudi-route-leave');
         });
         setTimeout(()=>{
+          if(revision!==appTransitionRevision)return;
           oldSections.forEach(section=>section.classList.remove('rudi-route-leave'));
           update();
           const newSections=[...document.querySelectorAll('[data-app-tab-section="'+currentAppTab+'"]:not([hidden])')];
@@ -6308,6 +6327,7 @@
             section.classList.add('rudi-route-enter');
           }));
           setTimeout(()=>{
+            if(revision!==appTransitionRevision)return;
             newSections.forEach(section=>section.classList.remove('rudi-route-enter'));
             appViewTransitionActive=false;
             clearAppTransitionState();
@@ -6317,11 +6337,17 @@
         return null;
       }
 
-      function runAppViewTransition(update,{from='',to=''}={}){
+      function runAppViewTransition(update,{from='',to='',direction=''}={}){
         if(typeof update!=='function') return null;
         const meta=appTransitionMeta(from,to);
+        if(direction==='back'||direction==='forward')meta.direction=direction;
         if(appViewTransitionActive){
+          ++appTransitionRevision;
+          document.querySelectorAll('.rudi-route-enter,.rudi-route-leave').forEach(section=>section.classList.remove('rudi-route-enter','rudi-route-leave'));
+          appViewTransitionActive=false;
+          clearAppTransitionState();
           update();
+          restorePrimaryTabBar();
           return null;
         }
         if(!canUseAppViewTransition()){
@@ -6361,6 +6387,52 @@
       }
 
       window.RUDI_NAVIGATE_TO_TAB=(tab,options={})=>navigateToAppTab(tab,options);
+      function navigateBackInApp(fallback='home'){
+        const depth=Number(history.state?.rudiNavDepth);
+        if(Number.isInteger(depth)&&depth>0){
+          history.back();
+          return;
+        }
+        navigateToAppTab(APP_TABS.includes(fallback)?fallback:'home',{scroll:true,replace:true});
+      }
+      window.RUDI_GO_BACK=navigateBackInApp;
+      // Edge swipe is limited to installed PWA / Telegram, where the browser
+      // does not reliably provide native swipe navigation.
+      function installAppEdgeSwipeBack(){
+        if(window.__rudiAppEdgeSwipeBackBound==='1')return;
+        window.__rudiAppEdgeSwipeBackBound='1';
+        let gesture=null;
+        document.addEventListener('touchstart',event=>{
+          gesture=null;
+          if(!appAccessReady||!currentActor||event.touches?.length!==1||appViewTransitionActive)return;
+          if(!(isStandalonePwa()||tg?.initData))return;
+          if(document.body.classList.contains('rudi-center-open')||
+             document.body.classList.contains('rudi-games-open')||
+             document.body.classList.contains('score-modal-open')||
+             document.body.classList.contains('finance-coin-modal-open'))return;
+          if(currentAppTab==='schedule'&&calendarDisplayMode==='week')return;
+          if(event.target?.closest?.('input,textarea,select,[contenteditable="true"],[data-no-swipe-back],.photo-viewer-stage,.calendar-week-grid,.finance-category-list.is-editing,.finance-wallet-list.is-editing'))return;
+          const point=event.touches[0];
+          if(point.clientX>44)return;
+          gesture={x:point.clientX,y:point.clientY,at:Date.now(),tab:currentAppTab,url:window.location.href,depth:history.state?.rudiNavDepth};
+        },{passive:true,capture:true});
+        document.addEventListener('touchmove',event=>{
+          if(!gesture||event.touches?.length!==1)return;
+          const dx=event.touches[0].clientX-gesture.x;
+          const dy=Math.abs(event.touches[0].clientY-gesture.y);
+          if(dx>25&&dy<dx*.52&&event.cancelable)event.preventDefault();
+        },{passive:false,capture:true});
+        document.addEventListener('touchend',event=>{
+          if(!gesture||!event.changedTouches?.length)return;
+          const start=gesture;gesture=null;
+          const dx=event.changedTouches[0].clientX-start.x;
+          const dy=Math.abs(event.changedTouches[0].clientY-start.y);
+          if(dx<90||dy>Math.max(42,dx*.5)||Date.now()-start.at>1000)return;
+          if(start.url!==window.location.href||start.tab!==currentAppTab||start.depth!==history.state?.rudiNavDepth)return;
+          navigateBackInApp();
+        },{passive:true,capture:true});
+        document.addEventListener('touchcancel',()=>{gesture=null},{passive:true,capture:true});
+      }
 
       // Subpages and iOS page restoration can leave the 5-tab bar hidden,
       // even though the app has returned to a primary tab.
@@ -6489,7 +6561,7 @@
         if(carBack&&carBack.dataset.bound!=='1'){
           carBack.dataset.bound='1';
           carBack.addEventListener('click',()=>{
-            navigateToAppTab('home',{scroll:true});
+            navigateBackInApp();
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         }
@@ -6503,13 +6575,15 @@
           const button=document.getElementById(buttonId);
           if(!button||button.dataset.bound==='1') return;
           button.dataset.bound='1';
-          button.addEventListener('click',()=>{appTabScroll[tab]=0;navigateToAppTab('home',{scroll:true});try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
+          button.addEventListener('click',()=>{appTabScroll[tab]=0;navigateBackInApp();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}});
         });
 
         setupRudiTemporalControls();
         setupFinancePage();
         setupFinanceShortcuts();
 
+        ensureAppHistoryState();
+        installAppEdgeSwipeBack();
         const initial=routeFromLocation();
         const initialTab=requestedInitialTab();
         const initialItem=requestedItemId||initial.item||'';
@@ -6553,12 +6627,15 @@
             persistAppTabScroll();
             const route=routeFromLocation();
             const previous=currentAppTab;
+            const nextDepth=Number.isInteger(history.state?.rudiNavDepth)?Math.max(0,history.state.rudiNavDepth):routeHistoryDepth;
+            const direction=nextDepth<routeHistoryDepth?'back':'forward';
+            routeHistoryDepth=nextDepth;
             const update=()=>{
               applyAppTab(route.tab,{scroll:true});
               runTabSideEffects(currentAppTab,{item:route.item});
               focusDeepLinkedItem(currentAppTab,route.item);
             };
-            if(route.tab!==previous) runAppViewTransition(update,{from:previous,to:route.tab});
+            if(route.tab!==previous) runAppViewTransition(update,{from:previous,to:route.tab,direction});
             else update();
           });
         }
@@ -7603,7 +7680,7 @@
         closeScoreRulesDialog();
         const target=APP_TABS.includes(scoreReturnTab)&&scoreReturnTab!=='score'?scoreReturnTab:'home';
         scoreModalActor='';
-        navigateToAppTab(target,{scroll:true,replace:true});
+        navigateBackInApp(target);
       }
 
       function actorDativeName(actor){return actor==='Диана'?'Диане':actor==='Рустам'?'Рустаму':String(actor||'')}
@@ -8490,7 +8567,7 @@
           refreshSettingsPageUi();
           if(currentAppTab!=='settings') navigateToAppTab('settings',{scroll:true});
         }else if(currentAppTab==='settings'){
-          navigateToAppTab('home',{scroll:true});
+          navigateBackInApp();
         }
         if(button) button.setAttribute('aria-expanded',(next&&currentAppTab==='settings')?'true':'false');
       }
@@ -8514,7 +8591,7 @@
         if(back&&back.dataset.bound!=='1'){
           back.dataset.bound='1';
           back.addEventListener('click',()=>{
-            navigateToAppTab('home',{scroll:true});
+            navigateBackInApp();
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         }
@@ -8537,7 +8614,7 @@
         if(document.documentElement.dataset.settingsEscapeBound!=='1'){
           document.documentElement.dataset.settingsEscapeBound='1';
           document.addEventListener('keydown',event=>{
-            if(event.key==='Escape'&&currentAppTab==='settings') navigateToAppTab('home',{scroll:true});
+            if(event.key==='Escape'&&currentAppTab==='settings') navigateBackInApp();
           });
         }
         refreshSettingsPageUi();
@@ -9406,12 +9483,12 @@
             navigateToAppTab('schedule',{scroll:true});
           });
         }
-        const calendarBack=document.getElementById('workCalendarBack');if(calendarBack&&calendarBack.dataset.bound!=='1'){calendarBack.dataset.bound='1';calendarBack.addEventListener('click',()=>navigateToAppTab('home',{scroll:true}))}
+        const calendarBack=document.getElementById('workCalendarBack');if(calendarBack&&calendarBack.dataset.bound!=='1'){calendarBack.dataset.bound='1';calendarBack.addEventListener('click',()=>navigateBackInApp())}
         const nearestOpen=document.getElementById('homeNearestOpen');if(nearestOpen&&nearestOpen.dataset.bound!=='1'){nearestOpen.dataset.bound='1';nearestOpen.addEventListener('click',()=>navigateToAppTab('schedule',{scroll:true}))}
         const smartMore=document.getElementById('smartSavesHomeMore');if(smartMore&&smartMore.dataset.bound!=='1'){smartMore.dataset.bound='1';smartMore.addEventListener('click',()=>navigateToAppTab('smart-saves',{scroll:true}))}
         document.querySelectorAll('[data-smart-saves-filter]').forEach(button=>{if(button.dataset.bound==='1')return;button.dataset.bound='1';button.addEventListener('click',()=>{smartSavesFilter=button.dataset.smartSavesFilter||'all';renderSmartSaves();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}})});
-        const smartBack=document.getElementById('smartSavesBackButton');if(smartBack&&smartBack.dataset.bound!=='1'){smartBack.dataset.bound='1';smartBack.addEventListener('click',()=>navigateToAppTab('home',{scroll:true}))}
-        const wishlistBack=document.getElementById('wishlistBackButton');if(wishlistBack&&wishlistBack.dataset.bound!=='1'){wishlistBack.dataset.bound='1';wishlistBack.addEventListener('click',()=>navigateToAppTab('home',{scroll:true}))}
+        const smartBack=document.getElementById('smartSavesBackButton');if(smartBack&&smartBack.dataset.bound!=='1'){smartBack.dataset.bound='1';smartBack.addEventListener('click',()=>navigateBackInApp())}
+        const wishlistBack=document.getElementById('wishlistBackButton');if(wishlistBack&&wishlistBack.dataset.bound!=='1'){wishlistBack.dataset.bound='1';wishlistBack.addEventListener('click',()=>navigateBackInApp())}
         loadSmartSaves({silent:true}).catch(()=>{});
         document.querySelectorAll('[data-home-quick]').forEach(button=>{
           if(button.dataset.bound==='1') return;
@@ -20110,7 +20187,7 @@
         });
 
         back?.addEventListener('click',()=>{
-          navigateToAppTab(fastingReturnTab==='home'?'home':'products',{scroll:true});
+          navigateBackInApp(fastingReturnTab==='home'?'home':'products');
         });
 
         start?.addEventListener('click',async()=>{
