@@ -61,7 +61,7 @@ test('client shows other participant actual name and reuses duel online/offline 
  const js=fs.readFileSync('public/rudi-games-extra.js','utf8');
  assert.match(js,/const opponentName=\(\)=>actor\(\)==='Рустам'\?'Диана':'Рустам'/);
  assert.doesNotMatch(js,/Поле соперника/);
- assert.match(js,/Поле '\+safe\(other\)/);
+ assert.match(js,/Поле '\+safe\(battleGenitive\(other\)\)/);
  assert.match(js,/presenceHtml.*rudi-duel-presence/);
  assert.match(js,/battlePresence\[name\]\?'В игре':'Не в игре'/);
  assert.match(js,/45000/);
