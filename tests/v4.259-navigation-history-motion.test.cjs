@@ -88,7 +88,7 @@ test('AI centre participates in route history and animates both exit paths',()=>
  assert.match(aiCss,/prefers-reduced-motion:reduce/);
 });
 test('loading order and auxiliary routes use shared navigation',()=>{
- assert.ok(index.indexOf('/navigation-history.js?v=4.259')<index.indexOf('/app.js?v=4.258'));
+ assert.ok(index.indexOf('/navigation-history.js?v=4.259')<index.indexOf('/app.js?v='));
  assert.match(index,/\/navigation-history\.css\?v=4\.259/);
  assert.match(pwa,/typeof window\.RUDI_NAVIGATE_TO_TAB==='function'/);
  assert.match(navigation,/#datesBackButton/);
