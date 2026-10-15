@@ -1,6 +1,8 @@
 const {test,expect}=require('@playwright/test');
 
 async function setup(page,mode){
+  page.on('console',msg=>{if(msg.type()==='error')console.log('RUDI_TEST_BROWSER_CONSOLE:',msg.text())});
+  page.on('pageerror',error=>console.log('RUDI_TEST_BROWSER_PAGEERROR:',error.message));
   await page.setContent('<main id="homeTileHost"></main><span id="displayName"></span>');
   await page.evaluate(mode=>{
     document.body.dataset.rudiActor='Рустам';
