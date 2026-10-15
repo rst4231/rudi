@@ -10,6 +10,7 @@ function positiveShare(entry){
  const total=Number(entry?.total),positive=Number(entry?.positive);
  return Number.isFinite(total)&&total>0&&Number.isFinite(positive)?Math.round(100*positive/total):null;
 }
+let closeTimer=0,sheetCloseTimer=0;
 let root=null,open=false,who='',data=null,report=null,lastStatus=0,loading=false,manualLoading=false,activeSheet='',cycleInfo=null,overviewAt=0,refreshing=false,overviewPromise=null,rhythmMode='habits',translatingReportId='';
 const cachePrefix='rudi-personal-center-session:';
 const HALO_CHECK_INTERVAL_MS=90*1000;
@@ -49,8 +50,8 @@ function attach(){
  root.addEventListener('click',e=>{
   const btn=e.target.closest('[data-open],[data-external],[data-tab]');if(!btn)return;
   if(btn.dataset.open)sheet(btn.dataset.open);
-  if(btn.dataset.external){hide();$(btn.dataset.external)?.click();}
-  if(btn.dataset.tab){hide();document.querySelector('[data-app-tab="'+btn.dataset.tab+'"]')?.click();}
+  if(btn.dataset.external){hide({navigation:true});$(btn.dataset.external)?.click();}
+  if(btn.dataset.tab){hide({navigation:true});document.querySelector('[data-app-tab="'+btn.dataset.tab+'"]')?.click();}
  });
  document.addEventListener('keydown',e=>{if(!open||e.key!=='Escape')return;if(activeSheet)closeSheet();else hide();});
  const av=$('avatar');if(av){
@@ -111,14 +112,34 @@ async function fetchOverview(force=false){
  return overviewPromise;
 }
 async function show(){
- if(open)return;attach();open=true;root.hidden=false;document.body.classList.add('rudi-center-open');
+ if(open)return;
+ attach();
+ clearTimeout(closeTimer);
+ root.classList.remove('is-leaving');
+ open=true;root.hidden=false;document.body.classList.add('rudi-center-open');
+ window.RUDI_NAV_PUSH_OVERLAY?.('personal-ai');
  if(!data)showOffline();
  updateReportButton();
  setStatus('');
  try{await fetchOverview(false);}
  catch(_){if(!data&&!showOffline())setStatus('Нет соединения с RUDI · попробуй позже');}
 }
-function hide(){closeSheet();open=false;if(root)root.hidden=true;document.body.classList.remove('rudi-center-open');}
+function hide({fromPopstate=false,navigation=false}={}){
+ if(!open)return;
+ if(!fromPopstate&&!navigation&&history.state?.rudiOverlay==='personal-ai'
+   &&window.RUDI_NAV_BACK?.({overlayOnly:true}))return;
+ if(navigation)window.RUDI_NAV_DISCARD_OVERLAY?.('personal-ai');
+ closeSheet({immediate:true});
+ open=false;
+ document.body.classList.remove('rudi-center-open');
+ if(!root)return;
+ clearTimeout(closeTimer);
+ if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches){
+  root.hidden=true;root.classList.remove('is-leaving');return;
+ }
+ root.classList.add('is-leaving');
+ closeTimer=setTimeout(()=>{if(!open){root.hidden=true;root.classList.remove('is-leaving');}},215);
+}
 function showText(id,text){if($(id))$(id).textContent=String(text??'');}
 function safeNarrative(row){
  const original=row?.narrative;if(!original)return null;
@@ -406,9 +427,25 @@ async function mutate(operation,payload={}){
  catch(e){setStatus('Не удалось сохранить. Проверь подключение.');}
  finally{loading=false;}
 }
-function closeSheet(){activeSheet='';if($('pcOverlay'))$('pcOverlay').hidden=true;root?.style.removeProperty('--pc-visual-height');root?.style.removeProperty('--pc-visual-top');}
+function closeSheet({immediate=false}={}){
+ activeSheet='';
+ const overlay=$('pcOverlay');
+ clearTimeout(sheetCloseTimer);
+ if(overlay){
+  if(immediate||overlay.hidden||window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches){
+   overlay.classList.remove('is-closing');overlay.hidden=true;
+  }else{
+   overlay.classList.add('is-closing');
+   sheetCloseTimer=setTimeout(()=>{overlay.hidden=true;overlay.classList.remove('is-closing');},175);
+  }
+ }
+ root?.style.removeProperty('--pc-visual-height');
+ root?.style.removeProperty('--pc-visual-top');
+}
 function itemDelete(type,id,label){return '<button class="rudi-center__link" type="button" data-delete="'+esc(type)+'" data-id="'+esc(id)+'">Удалить '+esc(label||'')+'</button>';}
 function sheet(name){
+ clearTimeout(sheetCloseTimer);
+ $('pcOverlay')?.classList.remove('is-closing');
  const same=activeSheet===name,priorScroll=same?$('pcSheetContent')?.scrollTop||0:0;activeSheet=name;const box=$('pcOverlay'),content=$('pcSheetContent');if(!box)return;box.hidden=false;syncSheetViewport();let html='',title='';
  if(name==='symptoms'){
   title='Дневник здоровья';
@@ -522,5 +559,8 @@ function boot(){
  attach();
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+window.addEventListener('popstate',event=>{
+ if(open&&event.state?.rudiOverlay!=='personal-ai')hide({fromPopstate:true});
+});
 window.addEventListener('pageshow',()=>{if(root&&document.body.classList.contains('auth-pending')===false)void checkStatus();});
 })();
