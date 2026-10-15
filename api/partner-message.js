@@ -57,7 +57,7 @@ const { readHabits, viewHabits, habitCreatedByDate } = require('./habit-tracker-
 const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai.cjs');
 const { generateDateIdeas, buildDateWeatherContext } = require('./date-ai.cjs');
 const { readDateGenerationQuota, readDateGenerationHistory, recordSuccessfulDateGeneration } = require('./date-generation-limit-store.cjs');
-const { readDailyQuestion, answerDailyQuestion } = require('./daily-question-store.cjs');
+const { readDailyQuestion, readDailyQuestionCached, answerDailyQuestion } = require('./daily-question-store.cjs');
 const { generateMoodMessage } = require('./mood-notification-ai.cjs');
 const { generateMoodAnalysis } = require('./mood-analysis-ai.cjs');
 const { getWeather } = require('./weather.cjs');
@@ -638,11 +638,12 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     readLuluState(options).catch(() => null),
     readScoreState(options).catch(() => null),
     readDailyMood(date, options).catch(() => null),
-    readDailyQuestion(actor, questionOptions).catch(() => null),
+    readDailyQuestionCached(actor, questionOptions).catch(() => null),
     readCycleState(options).catch(() => null),
     readWishlist(options).catch(() => null),
     readProductList(options).catch(() => null),
-    readFeedSnapshot(options).then((current) => refreshFeedFromPreviewIfNeeded(current, options)).catch(() => null),
+    // Feed regeneration/scraping belongs to the feed route or scheduled jobs, not home startup.
+    readFeedSnapshot(options).catch(() => null),
     getWorkWeek({ ...options, view:'week' }).catch(() => null),
     getLatestPhotos(options).catch(() => null),
     readHabits(partnerActor, options).catch(() => null),
