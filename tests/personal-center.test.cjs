@@ -319,8 +319,8 @@ test('strict JSON output, all-domain factual coach and compact 7-day dashboard a
  const css=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
  assert.match(aiCode,/response_format:format==='schema'\?\{type:'json_schema'/);
  assert.match(aiCode,/strict:true/);
- assert.match(aiCode,/Ты RUDI — личный тренер, коуч и аналитик/);
- assert.match(aiCode,/Не объявляй запланированные задачи выполненными/);
+ assert.match(aiCode,/Ты RUDI — личный коуч/);
+ assert.match(aiCode,/Не называй запланированные задачи выполненными/);
  assert.match(app,/id="pcRhythmGraph"/);
  assert.match(app,/data-rhythm="habits"/);
  assert.match(app,/data-rhythm="expenses"/);
@@ -413,7 +413,7 @@ test('AI personal review prioritizes genuine life domains instead of financial d
  assert.match(source,/Это личный обзор ВСЕЙ жизни, а НЕ отчёт о расходах/);
  assert.match(source,/Деньги — только один из разделов/);
  assert.match(source,/lifeAreas:\{type:'array',items:/);
- assert.match(source,/availableDomains,data:\{tasks:payload\.data\.tasks/);
+ assert.match(source,/tasks:list\(d\.tasks,10\)/);
  assert.match(front,/Глубокий анализ/);
  assert.match(front,/rudi-center__deep-list/);
  assert.match(styles,/grid-template-columns:1fr/);

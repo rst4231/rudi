@@ -70,7 +70,7 @@ function parseBars(data,now=Date.now()){
     .filter(x=>x.at>0&&x.at+INTERVAL<=now-1000&&x.open>0&&x.high>=x.low&&x.close>0)
     .sort((a,b)=>a.at-b.at);
 }
-const MARKET_LIMIT=50;
+const MARKET_LIMIT=40;
 function marketUniverse(response){
   const eligible=(response?.result?.list||[])
     .filter(v=>/^([A-Z0-9]+)USDT$/.test(String(v.symbol||''))&&
@@ -79,7 +79,7 @@ function marketUniverse(response){
   // Liquid majors + high-turnover positive movers, not only BTC/ETH.
   const liquid=eligible.slice(0,20);
   const movers=eligible.filter(v=>num(v.price24hPcnt)>0.04)
-    .sort((a,b)=>num(b.price24hPcnt)-num(a.price24hPcnt)).slice(0,50);
+    .sort((a,b)=>num(b.price24hPcnt)-num(a.price24hPcnt)).slice(0,MARKET_LIMIT);
   return [...new Map([...liquid,...movers,...eligible].map(v=>[v.symbol,v])).values()]
     .slice(0,MARKET_LIMIT).map(v=>({symbol:v.symbol,price:num(v.lastPrice)}));
 }
@@ -214,18 +214,21 @@ async function scan(options={}){
     let markets=[],failed=0;
     try{
       const tickerResponse=await marketRequest('/v5/market/tickers?category=linear');
-      markets=marketUniverse(tickerResponse);
-      if(!markets.length)throw Error('okx-empty-universe');
-      // Open symbols must remain monitored even after leaving the top movers.
+      const universe=marketUniverse(tickerResponse);
+      if(!universe.length)throw Error('okx-empty-universe');
+      // Reserve slots for open positions FIRST, while respecting the hard
+      // 40-candle-request market budget. Never stop monitoring a live paper position.
       const rawTickers=new Map((tickerResponse?.result?.list||[]).map(t=>[t.symbol,t]));
+      const protectedMarkets=[];
       for(const p of Object.values(state.portfolios)){
         for(const position of p.positions){
-          if(markets.some(m=>m.symbol===position.symbol))continue;
+          if(protectedMarkets.some(m=>m.symbol===position.symbol))continue;
           const ticker=rawTickers.get(position.symbol);
           if(ticker&&num(ticker.lastPrice)>0)
-            markets.push({symbol:position.symbol,price:num(ticker.lastPrice)});
+            protectedMarkets.push({symbol:position.symbol,price:num(ticker.lastPrice)});
         }
       }
+      markets=[...new Map([...protectedMarkets,...universe].map(m=>[m.symbol,m])).values()].slice(0,MARKET_LIMIT);
       const prices=Object.fromEntries(markets.map(m=>[m.symbol,m.price]));
       for(const p of Object.values(state.portfolios))for(const position of p.positions)
         if(!prices[position.symbol])prices[position.symbol]=position.lastPrice;

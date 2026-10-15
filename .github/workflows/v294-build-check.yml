@@ -33,6 +33,9 @@ jobs:
           node --check api/calendar-entertainment.cjs
           node --check api/partner-message.js
           node --check api/personal-center-ai.cjs
+          node --check api/crypto-author-reference.cjs
+          node --check public/profile-supplements.js
+          node --check api/crypto-signals.cjs
           node --check api/personal-center-cron-handler.cjs
           node --check api/personal-center-store.cjs
           node --check api/personal-center-handler.cjs
@@ -40,7 +43,7 @@ jobs:
           node --check public/personal-center.js
           node --check public/calendar-entertainment.js
           node --check public/sw.js
-          node --test tests/calendar-entertainment.test.cjs tests/feed-store.test.cjs tests/rudi-v4.253-release.test.cjs
+          node --test tests/calendar-entertainment.test.cjs tests/feed-store.test.cjs tests/rudi-v4.253-release.test.cjs tests/rudi-v4.254-regressions.test.cjs
       - run: npm run build
       - run: |
           node -e "JSON.parse(require('fs').readFileSync('rudi-version.json','utf8')); JSON.parse(require('fs').readFileSync('vercel.json','utf8'));"
