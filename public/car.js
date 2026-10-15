@@ -52,7 +52,7 @@
     const response=await fetch(FINANCE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'});
     const data=await response.json().catch(()=>({}));if(!response.ok||!data.ok)throw new Error(data.error||'finance-request-failed');return data;
   }
-  const CAR_EXPENSE_LABELS=['Бензин','Паркинг','Ремонт','Страховка','ТО'];
+  const CAR_EXPENSE_LABELS=['Бензин','Паркинг','Мойка','Ремонт','Страховка','ТО'];
   function normalizeFinanceText(value){return String(value||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/\s+/g,' ')}
   function carExpenseMoney(value){const n=Number(value||0);return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:Number.isInteger(n)?0:2}).format(n)+' ₽'}
   function carExpenseMonthLabel(month){const m=String(month||'').match(/^(\d{4})-(\d{2})$/);if(!m)return String(month||'');const t=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'Europe/Moscow'}).format(new Date(Date.UTC(Number(m[1]),Number(m[2])-1,1)));return t.charAt(0).toLocaleUpperCase('ru-RU')+t.slice(1)}
@@ -84,7 +84,7 @@
     const list=document.getElementById('carExpensesList'),status=document.getElementById('carExpensesStatus'),meta=document.getElementById('carExpensesMeta');if(!list)return;list.replaceChildren();
     if(state.financeLoading&&!state.finance){if(status){status.hidden=false;status.textContent='Загружаю расходы…'}if(meta)meta.textContent='';return}
     const groups=carExpenseGroups(state.finance||{});if(meta)meta.textContent=groups.length?groups.length+' мес.':'';
-    if(!groups.length){if(status){status.hidden=false;status.textContent='Расходов по меткам Бензин, Паркинг, Ремонт, Страховка и ТО пока нет'}return}if(status)status.hidden=true;
+    if(!groups.length){if(status){status.hidden=false;status.textContent='Расходов по меткам Бензин, Паркинг, Мойка, Ремонт, Страховка и ТО пока нет'}return}if(status)status.hidden=true;
     for(const group of groups){
       const section=document.createElement('section');section.className='car-expense-month';const head=document.createElement('div');head.className='car-expense-month-head';
       const title=document.createElement('strong');title.textContent=carExpenseMonthLabel(group.month);const total=document.createElement('b');total.textContent=carExpenseMoney(group.total);head.append(title,total);

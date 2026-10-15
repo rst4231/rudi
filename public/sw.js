@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.256';
+const CACHE_NAME='rudi-shell-v4.257';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -39,7 +39,7 @@ const PRECACHE=[
   "/pwa-extras.js?v=4.194",
   "/weather.js?v=4.149",
   "/smart-home.js?v=4.149",
-  "/car.js?v=4.149",
+  "/car.js?v=4.257",
   "/profile-supplements.js?v=4.255",
   "/mood-history.js?v=4.149",
   "/supplement-editor.js?v=4.149",
