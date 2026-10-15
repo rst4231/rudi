@@ -6408,6 +6408,8 @@
           if(!(isStandalonePwa()||tg?.initData))return;
           if(document.body.classList.contains('rudi-center-open')||
              document.body.classList.contains('rudi-games-open')||
+             document.body.classList.contains('meditation-page-open')||
+             document.body.classList.contains('mood-history-open')||
              document.body.classList.contains('score-modal-open')||
              document.body.classList.contains('finance-coin-modal-open'))return;
           if(currentAppTab==='schedule'&&calendarDisplayMode==='week')return;

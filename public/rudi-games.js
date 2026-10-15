@@ -6,6 +6,7 @@ const actor=()=>document.body?.dataset?.rudiActor==='Диана'?'Диана':'�
 const storageKey=()=> 'rudi-games-v1:'+actor();
 let duelRoom=null,duelTimer=null,duelBusy=false,duelMessage='',duelPresence=null,duelSession='',duelLastHeartbeat=0;
 let page=null,mode='home',memoryTimer=null,level=1,sequence='';
+let pageCloseTimer=0;
 function stats(){try{const v=JSON.parse(localStorage.getItem(storageKey())||'{}');return {memory:Number(v.memory)||0}}catch{return {memory:0}}}
 function save(patch){const data={...stats(),...patch};try{localStorage.setItem(storageKey(),JSON.stringify(data))}catch{}return data}
 function haptic(){try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch{}}
@@ -146,11 +147,15 @@ function open(){
  const active=document.body?.dataset?.rudiActor;
  if(!active)return;
  if(!page)ensurePage();
+ clearTimeout(pageCloseTimer);page.classList.remove('is-closing');
  page.hidden=false;document.body.classList.add('rudi-games-open');
  window.scrollTo({top:0,behavior:'instant'});menu();haptic();
 }
 function close(){
- stopDuel();window.RudiGameExtras?.stop?.();if(!page)return;page.hidden=true;document.body.classList.remove('rudi-games-open');
+ stopDuel();window.RudiGameExtras?.stop?.();if(!page)return;
+ clearTimeout(pageCloseTimer);page.classList.add('is-closing');
+ const finish=()=>{if(!page?.classList.contains('is-closing'))return;page.hidden=true;page.classList.remove('is-closing');document.body.classList.remove('rudi-games-open')};
+ if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)finish();else pageCloseTimer=setTimeout(finish,210);
  clearTimeout(memoryTimer);memoryTimer=null;mode='home';
 }
 function ensurePage(){

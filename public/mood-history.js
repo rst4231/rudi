@@ -12,6 +12,7 @@ const META={
 const REASONS={work:'Работа',food:'Еда',relationship:'Отношения',money:'Деньги',health:'Здоровье',sport:'Спорт',fatigue:'Усталость',sleep:'Сон',fasting:'Голодание',other:'Другое'};
 function reasonLabel(sample){const custom=String(sample?.reasonText||'').trim();return sample?.reason==='other'&&custom?custom:(REASONS[sample?.reason]||'')}
 let state=null,visibleWeekEnd='',windowDays=30,selectedDate='',restoreAnalysisWindow=true;
+let moodCloseTimer=0;
 
 function initData(){
   const direct=String(window.Telegram?.WebApp?.initData||'').trim();
@@ -44,8 +45,11 @@ async function api(operation,extra={}){
 function close(){
   const page=document.getElementById('moodHistoryPage');
   if(!page)return;
-  page.hidden=true;
-  document.body.classList.remove('mood-history-open');
+  clearTimeout(moodCloseTimer);
+  page.classList.add('is-closing');
+  const finish=()=>{if(!page.classList.contains('is-closing'))return;page.hidden=true;page.classList.remove('is-closing');document.body.classList.remove('mood-history-open')};
+  if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)finish();
+  else moodCloseTimer=setTimeout(finish,210);
 }
 
 function setupEdgeSwipeBack(page){
@@ -387,6 +391,8 @@ async function reload(){
 
 async function open(){
   const page=ensure();
+  clearTimeout(moodCloseTimer);
+  page.classList.remove('is-closing');
   page.hidden=false;
   document.body.classList.add('mood-history-open');
   visibleWeekEnd=todayKey();

@@ -3,6 +3,7 @@
 const API='/api/meditation',GOALS=[5,10,20,30,60],ACTORS=['Рустам','Диана'];
 const $=id=>document.getElementById(id);
 let actor='',state=null,partner=null,quote=null,page=null,clock=0,busy=false,goal=10,lastPartnerFetch=0,fetching=false,lastFinishAttempt=0,wakeLock=null,wakeLockPending=false;
+let meditationCloseTimer=0;
 let todayProgress={};
 const SAD_MOODS=new Set(['sadness','anger','fatigue','boredom']);
 const formatDailyTime=minutes=>{const n=Math.max(0,Math.round(Number(minutes)||0));return n>=60?Math.floor(n/60)+' ч'+(n%60?' '+n%60+' мин':''):n+' мин'};
@@ -222,6 +223,7 @@ function open(){
  actor=current;ensurePage();
  window.RudiMeditationAudio?.onActor(actor);
  window.RudiMeditationAudio?.onState(null);
+ clearTimeout(meditationCloseTimer);page.classList.remove('is-closing');
  page.hidden=false;document.body.classList.add('meditation-page-open');
  window.scrollTo({top:0,behavior:'instant'});
  state=null;quote=null;partner=null;status('Загружаю…');
@@ -244,7 +246,11 @@ async function quickStart(){
  }finally{quickStartBusy=false;}
 }
 function close(){
- if(!page)return;page.hidden=true;document.body.classList.remove('meditation-page-open');window.RudiMeditationAudio?.onClose();void syncWakeLock();updatePartner();
+ if(!page)return;
+ clearTimeout(meditationCloseTimer);page.classList.add('is-closing');
+ const finish=()=>{if(!page?.classList.contains('is-closing'))return;page.hidden=true;page.classList.remove('is-closing');document.body.classList.remove('meditation-page-open')};
+ if(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)finish();else meditationCloseTimer=setTimeout(finish,210);
+ window.RudiMeditationAudio?.onClose();void syncWakeLock();updatePartner();
 }
 function updatePartner(){
  if(!actor||!partner)return;
