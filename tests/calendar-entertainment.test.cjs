@@ -8,13 +8,13 @@ test('three-month horizon clamps month end and shifts with the date',()=>{
   assert.equal(endDate('2026-10-14'),'2027-01-14');
   assert.equal(endDate('2026-11-30'),'2027-02-28');
 });
-test('feed sources keep concerts and famous comedians without novice standup',()=>{
+test('Stage keeps all its acts, other standup sources keep only famous names',()=>{
   const payload={results:{events:{
     concerts:[{title:'Рэп концерт',time:'20:00',url:'https://example.com/live'}],
-    stage:[{title:'Гурам Амарян',time:'19:00',url:'https://example.com/standup'},{title:'Неизвестный комик',time:'21:00'}]
+    stage:[{title:'Гурам Амарян',time:'19:00',url:'https://example.com/standup'},{title:'Неизвестный комик',time:'21:00',url:'https://example.com/newbie'}]
   }},sections:{events:{parts:[]}}};
   const rows=fromPreview(payload,'2026-10-20');
-  assert.deepEqual(rows.map(row=>row.title).sort(),['Гурам Амарян','Рэп концерт']);
+  assert.deepEqual(rows.map(row=>row.title).sort(),['Гурам Амарян','Неизвестный комик','Рэп концерт']);
   assert.ok(rows.every(row=>row.href.startsWith('https://')));
 });
 test('Yandex standup structured dates only include known names in the window',()=>{
@@ -86,7 +86,7 @@ test('same-day source schema upgrade bypasses stale refresh guard exactly once',
     previewImpl:async date=>({date,results:{events:{concerts:[],stage:[]}},sections:{events:{parts:[]}}}),
     fetchImpl:async()=>({ok:false,status:503})});
   assert.equal(x.successDays,93);
-  assert.equal(data.get('rolling-quarter').schemaVersion,3);
+  assert.equal(data.get('rolling-quarter').schemaVersion,4);
   assert.equal((await refresh({cache,config:DEFAULTS,now:new Date('2026-10-14T12:00:00Z')})).skipped,'already-refreshed');
 });
 
@@ -117,7 +117,7 @@ test('entertainment list is one time-sorted direct-link list, with centered cale
   assert.match(js,/querySelector\('\.calendar-day-indicators'\)/);
   assert.match(css,/\.calendar-day-indicators \.rudi-entertainment-marker/);
   assert.match(css,/position:static!important/);
-  assert.match(html,/calendar-entertainment\.js\?v=4\.239/);
+  assert.match(html,/calendar-entertainment\.js\?v=4\.253/);
 });
 
 test('premiere genres are extracted individually from the Russian cinema release cards',()=>{
@@ -152,4 +152,30 @@ test('event section titles and deduplicated grouping preserve links, chronologic
   assert.match(css,/min-height:0!important;height:auto!important/);
   assert.match(css,/row-gap:0!important/);
   assert.match(css,/padding:3px 0!important/);
+});
+
+
+test('Stage retains unknown comedians, times, venues and links without duplicates',()=>{
+  const {event}=require('../api/calendar-entertainment.cjs');
+  const rows=fromPreview({results:{events:{stage:[
+    {title:'Восемь комиков',time:'20:00',venue:'Stage StandUp Club',url:'https://stage.example/8'},
+    {title:'Большой стендап',time:'21:00',venue:'Stage StandUp Club',url:'https://stage.example/big'},
+    {title:'Вася Шакулин / Стендап-концерт',time:'21:30',url:'https://stage.example/vasya'}
+  ]}},sections:{events:{parts:[]}}},'2026-10-15');
+  assert.deepEqual(rows.map(x=>x.time),['20:00','21:00','21:30']);
+  assert.equal(rows[0].venue,'Stage StandUp Club');
+  assert.equal(rows[2].href,'https://stage.example/vasya');
+  assert.equal(event({title:'Восемь комиков'},'standup','2026-10-15','СПБ.Events'),null);
+});
+test('legacy calendar cache repairs only the requested Stage month once',async()=>{
+  const saved=new Map([['rolling-quarter',{schemaVersion:3,refreshedDate:'2026-10-15',events:[]}]]);
+  const cache={get:async key=>saved.get(key)||null,set:async(key,value)=>{saved.set(key,value)},delete:async key=>saved.delete(key),setIfAbsent:async key=>{if(saved.has(key))return false;saved.set(key,true);return true}};
+  let previews=0;
+  const opts={cache,now:new Date('2026-10-15T07:00:00Z'),config:DEFAULTS,
+    previewImpl:async(date)=>{previews++;return {date,results:{events:{stage:date==='2026-10-15'?[{title:'Большой стендап',time:'21:00'}]:[]}},sections:{events:{parts:[]}}}}};
+  const first=await month('2026-10',opts);
+  assert.equal(first.days.flatMap(x=>x.items).filter(x=>x.kind==='standup').length,1);
+  assert.equal(previews,17);
+  await month('2026-10',opts);
+  assert.equal(previews,17);
 });

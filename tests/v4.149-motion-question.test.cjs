@@ -3,7 +3,7 @@ const js=fs.readFileSync('public/app.js','utf8');
 const css=fs.readFileSync('public/app.css','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
 test('question opens until answered and keeps accessible disclosure state',()=>{
- assert.match(js,/const shouldCollapse=mineAnswered&&previous==='unanswered'/);
+ assert.match(js,/const shouldCollapse=mineAnswered&&\(previous==='unanswered'\|\|questionChanged\)/);
  assert.match(js,/if\(!mineAnswered\|\|shouldCollapse\)/);
  assert.match(js,/dailyQuestionAnswerState=mineAnswered\?'answered':'unanswered'/);
  assert.match(js,/block-collapse-button'\)\?\.setAttribute\('aria-expanded'/);

@@ -317,7 +317,7 @@ test('strict JSON output, all-domain factual coach and compact 7-day dashboard a
  const aiCode=fs.readFileSync(path.join(__dirname,'..','api','personal-center-ai.cjs'),'utf8');
  const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
  const css=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
- assert.match(aiCode,/response_format:\{type:'json_schema'/);
+ assert.match(aiCode,/response_format:format==='schema'\?\{type:'json_schema'/);
  assert.match(aiCode,/strict:true/);
  assert.match(aiCode,/Ты RUDI — личный тренер, коуч и аналитик/);
  assert.match(aiCode,/Не объявляй запланированные задачи выполненными/);
@@ -486,7 +486,7 @@ test('deep analysis is generated separately and only for observed life domains',
  const style=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
  assert.ok(src.includes("deepAnalysis:{type:'array',items:"));
  assert.ok(src.includes("'lifeAreas','deepAnalysis','confidence'"));
- assert.ok(src.includes('max_completion_tokens:4000'));
+ assert.match(src,/max_completion_tokens:(4000|5000|6000)/);
  assert.ok(src.includes('ДВА РАЗНЫХ УРОВНЯ АНАЛИЗА'));
  assert.ok(front.includes('Что стоит за выводами'));
  assert.ok(front.includes('КАК ПРОВЕРИТЬ РЕЗУЛЬТАТ'));

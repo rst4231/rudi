@@ -18415,3 +18415,57 @@ body[data-app-tab="home"] .priority-section .ticktick-agenda-time .ticktick-agen
 
 /* Relative due dates are supplementary; payment amount and original due day remain unchanged. */
 .finance-obligation-copy small .finance-obligation-relative{display:inline;color:var(--finance-accent);font-weight:760;white-space:nowrap}
+
+/* RUDI v4.253: question-of-the-day spacing and the name-only Lulu disclosure. */
+body[data-app-tab="home"] #dailyQuestionTile{
+  padding:16px 16px 18px!important;
+  gap:0!important;
+}
+body[data-app-tab="home"] #dailyQuestionTile .daily-question-head{
+  min-height:32px!important;
+  margin-bottom:3px!important;
+}
+body[data-app-tab="home"] #dailyQuestionTile .daily-question-body{
+  min-width:0;
+  padding-top:9px;
+  display:grid;
+  gap:12px;
+}
+body[data-app-tab="home"] #dailyQuestionTile #dailyQuestionContent{
+  min-width:0;
+}
+body[data-app-tab="home"] #dailyQuestionTile .daily-question-text{
+  margin:0 0 12px;
+  font-size:15px;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+body[data-app-tab="home"] #dailyQuestionTile .daily-question-form textarea{
+  box-sizing:border-box;
+  max-width:100%;
+}
+body[data-app-tab="home"] #dailyQuestionTile .daily-question-status:empty{
+  display:none;
+}
+#homeLuluTile .lulu-name-button{
+  appearance:none;
+  border:0;
+  background:none;
+  box-shadow:none;
+  padding:3px 2px;
+  margin:-3px 0;
+  border-radius:7px;
+  color:inherit;
+  font:inherit;
+  font-size:inherit;
+  font-weight:inherit;
+  line-height:inherit;
+  cursor:pointer;
+  text-align:left;
+  -webkit-tap-highlight-color:transparent;
+}
+#homeLuluTile .lulu-name-button:focus-visible{
+  outline:2px solid currentColor;
+  outline-offset:3px;
+}
+#homeLuluTile .lulu-head-actions{margin-left:auto}

@@ -149,3 +149,21 @@ test('empty cinema update cannot erase the current weekly selection', async () =
   assert.equal(replaced.sections.cinema.items[0].title, 'Новый фильм недели');
   assert.equal(JSON.stringify(replaced).includes('Текущая четверговая подборка'), false);
 });
+
+
+test('bootstrap restores published cinema from journal without new film crawl',async()=>{
+  const {refreshFeedFromPreviewIfNeeded}=require('../api/partner-message.js');
+  let syncCalls=0,scrapes=0,feedReads=0;
+  const existing={date:'2026-10-15',sections:{events:{parts:['today']}}};
+  const output=await refreshFeedFromPreviewIfNeeded(existing,{
+    now:new Date('2026-10-15T06:00:00Z'),
+    syncCinemaFromJournal:async()=>{syncCalls++;return {synced:true}},
+    publishCinemaForFeed:async()=>{scrapes++;return {feedMessage:'should not happen'}},
+    fetchImpl:async()=>({ok:false}),
+    feedCache:{get:async()=>{feedReads++;return {date:'2026-10-15',sections:{cinema:{parts:['premieres']}}}},set:async()=>{}},
+  });
+  assert.equal(syncCalls,1);
+  assert.equal(scrapes,0);
+  assert.equal(output.sections.cinema.parts[0],'premieres');
+  assert.equal(feedReads>0,true);
+});

@@ -98,11 +98,11 @@ test('halo matches the original colors and uses only the existing 60-second tick
 test('v4.246 ships updated local avatar assets, not other app resources',()=>{
  const html=fs.readFileSync('public/index.html','utf8');
  const sw=fs.readFileSync('public/sw.js','utf8');
- assert.match(html,/app\.js\?v=4\.246/);
- assert.match(html,/home-reference-layout\.css\?v=4\.246/);
- assert.match(sw,/app\.js\?v=4\.246/);
- assert.match(sw,/home-reference-layout\.css\?v=4\.246/);
- assert.match(sw,/CACHE_NAME='rudi-shell-v4\.246'/);
- assert.equal(fs.readFileSync('VERSION','utf8').trim(),'v4.246');
- assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,'v4.246');
+ assert.match(html,/app\.js\?v=4\.\d+/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.\d+/);
+ assert.match(sw,/app\.js\?v=4\.\d+/);
+ assert.match(sw,/home-reference-layout\.css\?v=4\.\d+/);
+ assert.match(sw,/CACHE_NAME='rudi-shell-v4\.\d+'/);
+ assert.match(fs.readFileSync('VERSION','utf8').trim(),/^v4\.\d+$/);
+ assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,fs.readFileSync('VERSION','utf8').trim());
 });

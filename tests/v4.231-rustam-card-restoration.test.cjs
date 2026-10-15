@@ -8,7 +8,7 @@ test('Rustam keeps exact v4.229 inline layout settings',()=>{
  assert.ok(source.includes("'min-height':'82px','padding-top':'6px','padding-bottom':'3px'"));
  assert.ok(source.includes("'grid-template-rows':'72px','grid-auto-rows':'72px'"));
  assert.ok(source.includes("'height':'72px','min-height':'72px','max-height':'72px'"));
- assert.ok(source.includes("'grid-column':'2','grid-row':'1','align-self':'center','height':'44px'"));
+ assert.ok(source.includes("'grid-column':'2','grid-row':'1','align-self':'center','height':'54px'"));
  assert.ok(source.includes("'grid-template-columns':narrow?'minmax(0,53%) minmax(0,1fr)':'minmax(0,50%) minmax(0,1fr)'"));
 });
 test('both accounts share Rustam proven layout and Diana-only stacked variant is removed',()=>{

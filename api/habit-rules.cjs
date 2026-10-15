@@ -123,11 +123,18 @@ async function finalizeOutstandingHabitDays(actor,options={}){
   const today=moscowDateKey(options.now||Date.now()),last=shiftDateKey(today,-1);
   const state=await readHabits(actor,options),start=String(state.scoringStartedDate||SCORING_START_DATE);
   if(!start||start>last)return{actor,days:0,penalized:0,results:[]};
-  const results=[];let key=start,guard=0,total=0;
-  while(key&&key<=last&&guard<MAX_DAYS){
-    const result=await finalizeHabitDay(actor,key,options);
-    if(result?.penalized)total+=Number(result.penalized||0);
-    results.push(result);key=shiftDateKey(key,1);guard+=1;
+  const results=[];let key=start,guard=0,total=0,processed=0;
+  const budget=Number.isFinite(Number(options.maxDays))
+    ?Math.max(0,Math.trunc(Number(options.maxDays))):MAX_DAYS;
+  while(key&&key<=last&&guard<MAX_DAYS&&processed<budget){
+    // Do not re-read the DB and write score state for already finalized dates.
+    if(!state.finalizedDates?.[key]){
+      const result=await finalizeHabitDay(actor,key,options);
+      processed+=1;
+      if(result?.penalized)total+=Number(result.penalized||0);
+      results.push(result);
+    }
+    key=shiftDateKey(key,1);guard+=1;
   }
   return{actor,days:results.filter(row=>row?.finalized).length,penalized:Number(total.toFixed(2)),results};
 }

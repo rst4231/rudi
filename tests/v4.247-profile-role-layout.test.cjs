@@ -69,15 +69,15 @@ test('partner roles share left/avatar/chart/contact/collapse rules',()=>{
  assert.match(css,/\.rudi-partner-fasting-outline/,'fasting halo untouched');
 });
 test('v4.247 serves new JS CSS from offline cache and preserves other modules',()=>{
- assert.match(html,/home-reference-layout\.js\?v=4\.247/);
- assert.match(html,/home-reference-layout\.css\?v=4\.247/);
- assert.match(html,/rudi-games-extra\.js\?v=4\.245/);
+ assert.match(html,/home-reference-layout\.js\?v=4\.\d+/);
+ assert.match(html,/home-reference-layout\.css\?v=4\.\d+/);
+ assert.match(html,/rudi-games-extra\.js\?v=4\.\d+/);
  const sw=fs.readFileSync('public/sw.js','utf8');
- assert.match(sw,/CACHE_NAME='rudi-shell-v4\.247'/);
- assert.match(sw,/home-reference-layout\.js\?v=4\.247/);
- assert.match(sw,/home-reference-layout\.css\?v=4\.247/);
- assert.equal(fs.readFileSync('VERSION','utf8').trim(),'v4.247');
- assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,'v4.247');
+ assert.match(sw,/CACHE_NAME='rudi-shell-v4\.\d+'/);
+ assert.match(sw,/home-reference-layout\.js\?v=4\.\d+/);
+ assert.match(sw,/home-reference-layout\.css\?v=4\.\d+/);
+ assert.match(fs.readFileSync('VERSION','utf8').trim(),/^v4\.\d+$/);
+ assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,fs.readFileSync('VERSION','utf8').trim());
 });
 test('games Back button keeps readable arrow against dark background',()=>{
  const gameCss=fs.readFileSync('public/rudi-games.css','utf8');
@@ -92,6 +92,6 @@ test('games Back button keeps readable arrow against dark background',()=>{
  assert.match(content,/id="rudiGamesBack" class="rudi-app-page-back"/);
  const html=fs.readFileSync('public/index.html','utf8');
  const sw=fs.readFileSync('public/sw.js','utf8');
- assert.match(html,/rudi-games\.css\?v=4\.247/);
- assert.match(sw,/rudi-games\.css\?v=4\.247/);
+ assert.match(html,/rudi-games\.css\?v=4\.\d+/);
+ assert.match(sw,/rudi-games\.css\?v=4\.\d+/);
 });

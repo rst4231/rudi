@@ -6311,6 +6311,7 @@
             newSections.forEach(section=>section.classList.remove('rudi-route-enter'));
             appViewTransitionActive=false;
             clearAppTransitionState();
+            restorePrimaryTabBar();
           },430);
         },150);
         return null;
@@ -6333,6 +6334,7 @@
         const finish=()=>{
           appViewTransitionActive=false;
           clearAppTransitionState();
+          restorePrimaryTabBar();
         };
         try{
           transition=document.startViewTransition(()=>update());
@@ -6359,6 +6361,22 @@
       }
 
       window.RUDI_NAVIGATE_TO_TAB=(tab,options={})=>navigateToAppTab(tab,options);
+
+      // Subpages and iOS page restoration can leave the 5-tab bar hidden,
+      // even though the app has returned to a primary tab.
+      function restorePrimaryTabBar(){
+        const tab=String(document.body.dataset.appTab||currentAppTab||'home');
+        if(!document.body.classList.contains('auth-ok')||document.body.classList.contains('rudi-games-open'))return;
+        const show=PRIMARY_NAV_TABS.has(tab),bar=document.getElementById('appTabBar');
+        if(!bar)return;
+        document.body.dataset.primaryNav=show?'visible':'hidden';
+        bar.classList.toggle('is-hidden',!show);
+        bar.setAttribute('aria-hidden',show?'false':'true');
+        try{bar.inert=!show}catch(_){}
+      }
+      window.addEventListener('pageshow',()=>requestAnimationFrame(restorePrimaryTabBar));
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden)requestAnimationFrame(restorePrimaryTabBar)});
+      window.addEventListener('rudi:app-tab-change',()=>requestAnimationFrame(restorePrimaryTabBar));
 
       function applyAppTab(tab,{scroll=false}={}){
         let next=APP_TABS.includes(tab)?tab:'home';
@@ -8073,7 +8091,7 @@
         panel.classList.toggle('is-open',open);
         panel.setAttribute('aria-hidden',open?'false':'true');
         toggle.setAttribute('aria-expanded',open?'true':'false');
-        toggle.setAttribute('aria-label',open?'Скрыть историю прогулок':'Показать историю прогулок');
+        toggle.setAttribute('aria-label',open?'Лулу, скрыть историю прогулок':'Лулу, показать историю прогулок');
       }
 
       function renderLulu(value){
@@ -10117,15 +10135,13 @@
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
               '<img class="lulu-avatar" src="/lulu-normal.webp?v=2.118" alt="Лулу" width="58" height="58">'+
-              '<div class="lulu-copy"><h2><span class="lulu-name">Лулу</span><span class="lulu-age">'+luluAgeLabel()+'</span></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет пока не отмечен</div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
+              '<div class="lulu-copy"><h2><button id="luluWalkHistoryToggle" class="lulu-name lulu-name-button" type="button" aria-controls="luluWalkHistory" aria-expanded="false" aria-label="Лулу, показать историю прогулок">Лулу</button><span class="lulu-age">'+luluAgeLabel()+'</span></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет пока не отмечен</div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
             '</div>'+
             '<div class="lulu-head-actions">'+
               '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
                 '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM15.5 10.2c1.1 0 2-1.2 2-2.7s-.9-2.7-2-2.7-2 1.2-2 2.7.9 2.7 2 2.7ZM5.2 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3ZM18.8 14.2c1 0 1.8-1 1.8-2.3s-.8-2.3-1.8-2.3-1.8 1-1.8 2.3.8 2.3 1.8 2.3Z"/><path d="M12 11.2c-2.7 0-5.2 2.4-5.2 4.9 0 1.8 1.4 3.1 3.2 3.1.8 0 1.4-.4 2-.4s1.2.4 2 .4c1.8 0 3.2-1.3 3.2-3.1 0-2.5-2.5-4.9-5.2-4.9Z"/></svg>'+
               '</button>'+
-              '<button id="luluWalkHistoryToggle" class="lulu-walk-history-toggle" type="button" aria-label="Показать историю прогулок" aria-expanded="false" title="История прогулок">'+
-                '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>'+
-              '</button>'+
+
             '</div>'+
           '</div>'+
           '<div id="luluWalkHistory" class="lulu-walk-history" aria-hidden="true"></div>';
@@ -10275,6 +10291,8 @@
         apply(!persist||resetCollapsedOnInit?Boolean(defaultCollapsed):getBlockCollapsed(key,defaultCollapsed));
         const toggleCollapsed=()=>{
           const collapsed=!section.classList.contains('is-collapsed');
+          // The current question must remain visible until the actor answers.
+          if(key==='daily-question'&&collapsed&&section.dataset.dailyQuestionAnswerState!=='answered')return;
           apply(collapsed);
           if(persist) setBlockCollapsed(key,collapsed);
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
@@ -10356,7 +10374,9 @@
         setupPersistentCollapsible({
           selector:'#dailyQuestionTile',key:'daily-question',
           bodySelectors:['#dailyQuestionBody'],
-          hostSelector:'.daily-question-head'
+          hostSelector:'.daily-question-head',
+          defaultCollapsed:false,
+          resetCollapsedOnInit:true
         });
       }
 
@@ -17500,7 +17520,7 @@
         // Collapse once after answering, but allow manual reopening afterwards.
         if(tile){
           const previous=String(tile.dataset.dailyQuestionAnswerState||'');
-          const shouldCollapse=mineAnswered&&previous==='unanswered';
+          const shouldCollapse=mineAnswered&&(previous==='unanswered'||questionChanged);
           if(!mineAnswered||shouldCollapse){
             tile.classList.toggle('is-collapsed',shouldCollapse);
             tile.querySelector(':scope > .rudi-collapse-body')?.setAttribute('aria-hidden',shouldCollapse?'true':'false');

@@ -74,7 +74,7 @@ test('background start push never sets an unverified red PWA badge',()=>{
  assert.doesNotMatch(sw,/badgeNewGamePush|self\.navigator\.setAppBadge/);
  assert.match(sw,/deliverDirectPushNotification\(row\)/);
  assert.match(sw,/registration\.showNotification\(/);
- assert.match(sw,/CACHE_NAME='rudi-shell-v4\.245'/);
+ assert.match(sw,/CACHE_NAME='rudi-shell-v4\.\d+'/);
 });
 test('turn-only source and offline assets use the current release',()=>{
  const js=fs.readFileSync('public/rudi-games-extra.js','utf8');
@@ -82,7 +82,7 @@ test('turn-only source and offline assets use the current release',()=>{
  assert.match(js,/badge\.hidden=mine===0/);
  assert.match(js,/const badgeActive=myTurns\(\)>0/);
  assert.match(js,/card\.classList\.toggle\('has-live-game',!!text\)/);
- assert.match(html,/rudi-games-extra\.js\?v=4\.245/);
- assert.equal(fs.readFileSync('VERSION','utf8').trim(),'v4.245');
- assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,'v4.245');
+ assert.match(html,/rudi-games-extra\.js\?v=4\.\d+/);
+ assert.match(fs.readFileSync('VERSION','utf8').trim(),/^v4\.\d+$/);
+ assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,fs.readFileSync('VERSION','utf8').trim());
 });

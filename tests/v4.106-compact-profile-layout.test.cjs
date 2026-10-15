@@ -36,7 +36,7 @@ test('iPhone layout, actions, energy updates and version remain present',()=>{
   assert.match(release,/@media\(max-width:360px\)\{/);
   assert.match(app,/renderProfileEnergy\('Рустам',now\)/);
   assert.match(app,/renderProfileEnergy\('Диана',now\)/);
-  assert.match(app,/actions\.append\(partnerFastingButton,makeProfileContactButton\('telegram',actor\),makeProfileContactButton\('phone',actor\)\)/);
+  assert.match(app,/actions\.append\(makeProfileContactButton\('telegram',actor\),makeProfileContactButton\('phone',actor\)\)/);
   const version=JSON.parse(fs.readFileSync("rudi-version.json","utf8")).current;
   assert.ok(html.includes('name="rudi-version" content="'+version+'"'));
   assert.ok(sw.includes("rudi-shell-"+version));

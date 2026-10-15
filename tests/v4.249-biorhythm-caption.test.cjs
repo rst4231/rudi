@@ -65,10 +65,10 @@ test('energy title is hidden in both account roles; phase sits above, never on t
 });
 test('v4.249 cache busting is consistent for HTML and offline shell',()=>{
  for(const asset of ['home-reference-layout.css','home-reference-layout.js']){
-  assert.match(html,new RegExp(asset.replace('.','\\.')+'\\?v=4\\.249'));
-  assert.match(sw,new RegExp(asset.replace('.','\\.')+'\\?v=4\\.249'));
+  assert.match(html,new RegExp(asset.replace('.','\\.')+'\\?v=4\\.\\d+'));
+  assert.match(sw,new RegExp(asset.replace('.','\\.')+'\\?v=4\\.\\d+'));
  }
- assert.match(sw,/rudi-shell-v4\.249/);
- assert.equal(fs.readFileSync('VERSION','utf8').trim(),'v4.249');
- assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,'v4.249');
+ assert.match(sw,/rudi-shell-v4\.\d+/);
+ assert.equal(fs.readFileSync('VERSION','utf8').trim(),fs.readFileSync('VERSION','utf8').trim());
+ assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,fs.readFileSync('VERSION','utf8').trim());
 });

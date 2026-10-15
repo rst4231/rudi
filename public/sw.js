@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.250';
+const CACHE_NAME='rudi-shell-v4.253';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -9,13 +9,13 @@ const PRECACHE=[
   "/home-reference-layout.js?v=4.250",
   "/rudi-games.js?v=4.248",
   "/rudi-games-extra.js?v=4.248",
-  "/rudi-games.css?v=4.248",
+  "/rudi-games.css?v=4.253",
   "/favicon-rudi-v460.png",
   "/apple-touch-icon-rudi-v460.png",
   "/icon-192-rudi-v460.png",
   "/icon-512.svg",
   "/icon-maskable.svg",
-  "/app.css?v=4.240",
+  "/app.css?v=4.253",
   "/finance-obligation-dates.js?v=4.240",
   "/finance-bank.css?v=4.149",
   "/rudi-design-system.css?v=4.149",
@@ -28,7 +28,7 @@ const PRECACHE=[
   "/supplement-advanced.css?v=4.149",
   "/rudi-effects.css?v=4.199",
   "/rudi-effects.js?v=4.199",
-  "/app.js?v=4.246",
+  "/app.js?v=4.253",
   "/meditation.js?v=4.197",
   "/personal-task-editor.js?v=4.209",
   "/personal-task-editor.css?v=4.209",
