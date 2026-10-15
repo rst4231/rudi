@@ -14784,6 +14784,73 @@
         });
       }
 
+      // Personal lists are read-only in RUDI, but TickTick can open the original task.
+      // HTTPS links allow iOS Universal Links to open the native app when installed,
+      // and otherwise fall back to the same task in the browser.
+      function calendarTickTickTaskWebUrl(task){
+        const taskId=String(task?.id||'').trim(),projectId=String(task?.projectId||'').trim();
+        if(!/^[A-Za-z0-9_-]+$/.test(taskId)||!/^[A-Za-z0-9_-]+$/.test(projectId))return '';
+        return 'https://ticktick.com/webapp/#p/'+encodeURIComponent(projectId)+'/tasks/'+encodeURIComponent(taskId);
+      }
+      function calendarOpenPersonalTickTickTask(task){
+        if(currentActor!=='Рустам'||calendarScope!=='personal'||task?.personal!==true)return false;
+        const url=calendarTickTickTaskWebUrl(task);
+        if(!url)return false;
+        // Telegram's openLink delegates to the operating system; installed TickTick
+        // can handle the universal link, while missing apps fall back to HTTPS.
+        if(tg?.initData&&typeof tg.openLink==='function'){
+          try{tg.openLink(url);return true}catch(_){}
+        }
+        const link=document.createElement('a');
+        link.href=url;link.target='_blank';link.rel='noopener noreferrer';
+        document.body.appendChild(link);
+        try{link.click()}finally{link.remove()}
+        return true;
+      }
+
+      // TickTick documents opening its iOS app via a URL scheme, but does not
+      // document a blank quick-add composer link. Open Today (where users can
+      // tap TickTick's native +) without creating an empty task automatically.
+      function calendarOpenPersonalTickTickComposer(){
+        if(currentActor!=='Рустам'||calendarScope!=='personal'||!calendarPersonalTickTickConnected)return false;
+        const webUrl='https://ticktick.com/webapp/#p/inbox/tasks';
+        const openWeb=()=>{
+          if(tg?.initData&&typeof tg.openLink==='function'){
+            try{tg.openLink(webUrl);return}catch(_){}
+          }
+          if(typeof window.location?.assign==='function')window.location.assign(webUrl);
+        };
+        const onIphone=/iPhone|iPad|iPod/i.test(String(navigator.userAgent||''));
+        if(!onIphone){
+          if(tg?.initData&&typeof tg.openLink==='function'){
+            try{tg.openLink(webUrl);return true}catch(_){}
+          }
+          const link=document.createElement('a');
+          link.href=webUrl;link.target='_blank';link.rel='noopener noreferrer';
+          document.body.appendChild(link);
+          try{link.click()}finally{link.remove()}
+          return true;
+        }
+        // If iOS cannot find the native TickTick app, navigate to TickTick web.
+        const nativeUrl='ticktick://v1/show?smartlist=today';
+        let leaving=false,timer=0;
+        const onHidden=()=>{if(document.hidden){leaving=true;clearTimeout(timer);cleanup()}};
+        const onPageHide=()=>{leaving=true;clearTimeout(timer);cleanup()};
+        const cleanup=()=>{
+          document.removeEventListener('visibilitychange',onHidden);
+          window.removeEventListener('pagehide',onPageHide);
+        };
+        document.addEventListener('visibilitychange',onHidden);
+        window.addEventListener('pagehide',onPageHide);
+        timer=setTimeout(()=>{
+          cleanup();
+          if(!leaving&&!document.hidden)openWeb();
+        },1300);
+        try{window.location.assign(nativeUrl)}
+        catch(_){clearTimeout(timer);cleanup();openWeb()}
+        return true;
+      }
+
       function calendarPersonalTaskEditorContext(task){
         return {
           initData:telegramInitData(),
