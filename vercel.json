@@ -112,7 +112,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate, max-age=0"
+          "value": "public, max-age=31536000, s-maxage=31536000, immutable"
         },
         {
           "key": "Pragma",
@@ -129,7 +129,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate, max-age=0"
+          "value": "public, max-age=31536000, s-maxage=31536000, immutable"
         },
         {
           "key": "Pragma",
@@ -146,7 +146,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate, max-age=0"
+          "value": "public, max-age=31536000, s-maxage=31536000, immutable"
         }
       ]
     },
@@ -155,7 +155,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate, max-age=0"
+          "value": "public, max-age=31536000, s-maxage=31536000, immutable"
         }
       ]
     },
@@ -164,7 +164,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate, max-age=0"
+          "value": "public, max-age=31536000, s-maxage=31536000, immutable"
         }
       ]
     },
@@ -173,7 +173,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "no-store, no-cache, must-revalidate, max-age=0"
+          "value": "public, max-age=31536000, s-maxage=31536000, immutable"
         }
       ]
     }
@@ -199,8 +199,14 @@
       "source": "/api/duel-game",
       "destination": "/api/index?route=duel-game"
     },
-    {"source":"/api/battleship-game","destination":"/api/index?route=battleship-game"},
-    {"source":"/api/game-status","destination":"/api/index?route=game-status"},
+    {
+      "source": "/api/battleship-game",
+      "destination": "/api/index?route=battleship-game"
+    },
+    {
+      "source": "/api/game-status",
+      "destination": "/api/index?route=game-status"
+    },
     {
       "source": "/api/home-note",
       "destination": "/api/index?route=home-note"
