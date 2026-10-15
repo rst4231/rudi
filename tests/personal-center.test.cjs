@@ -413,7 +413,7 @@ test('AI personal review prioritizes genuine life domains instead of financial d
  assert.match(source,/Это личный обзор ВСЕЙ жизни, а НЕ отчёт о расходах/);
  assert.match(source,/Деньги — только один из разделов/);
  assert.match(source,/lifeAreas:\{type:'array',items:/);
- assert.match(source,/availableDomains,data:\{tasks:payload\.data\.tasks/);
+ assert.match(source,/tasks:list\(d\.tasks,10\)/);
  assert.match(front,/Глубокий анализ/);
  assert.match(front,/rudi-center__deep-list/);
  assert.match(styles,/grid-template-columns:1fr/);
