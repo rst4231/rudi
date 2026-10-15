@@ -7,6 +7,11 @@
 
   function routeTo(tab,item=''){
     try{
+      // Reuse the app router: it owns history, scroll state and page animations.
+      if(typeof window.RUDI_NAVIGATE_TO_TAB==='function'){
+        window.RUDI_NAVIGATE_TO_TAB(tab==='saves'?'dates':tab,{scroll:true,item});
+        return;
+      }
       const url=new URL(window.location.href);
       if(tab&&tab!=='home') url.searchParams.set('tab',tab);
       else url.searchParams.delete('tab');
