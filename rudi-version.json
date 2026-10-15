@@ -1,5 +1,5 @@
 {
-  "current": "v4.259",
+  "current": "v4.260",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -7,6 +7,7 @@
   "createdAt": "2026-10-14",
   "basedOnProduction": "v4.214",
   "notes": [
+    "v4.260: persistent authenticated last-seen timestamps, tappable online status, symmetric avatar mood and status alignment, double-tap tab scroll to top, stabilized PWA restore background and composited transitions.",
     "Includes v4.198 prepared fixes: 100-star wishlist reward, updated earning guide, expense label, and native iOS date/time field refresh.",
     "Global rain and snow effects driven by live Open-Meteo current weather, individually toggleable and enabled by default with sync.",
     "New Year fireworks on Dec 31 23:55 to Jan 1 05:00 in Europe/Moscow.",

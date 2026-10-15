@@ -8,7 +8,7 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f4f5f7",
+  "background_color": "#0b0d12",
   "theme_color": "#0b0d12",
   "categories": [
     "lifestyle",

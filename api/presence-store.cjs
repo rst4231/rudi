@@ -2,7 +2,7 @@
 const {createStrictRuntimeCache}=require('./strict-runtime-cache.cjs');
 const NAMESPACE='rudi-presence-v1';
 const ACTIVE_WINDOW_MS=110000;
-const RECORD_TTL_SECONDS=240;
+const RECORD_TTL_SECONDS=90*24*60*60;
 const ACTORS=['Рустам','Диана'];
 const cacheFor=o=>o.cache||createStrictRuntimeCache({namespace:NAMESPACE,...(o.cacheOptions||{})});
 function isActive(record,now=Date.now()){
@@ -15,6 +15,12 @@ async function heartbeat(actor,options={}){
   await cache.set('actor:'+actor,{seenAt:now},{ttl:RECORD_TTL_SECONDS,tags:['rudi-presence']});
   const other=actor==='Рустам'?'Диана':'Рустам';
   const partner=await cache.get('actor:'+other);
-  return {checkedAt:new Date(now).toISOString(),online:{[actor]:true,[other]:isActive(partner,now)}};
+  const partnerSeenAt=Number(partner?.seenAt||0);
+  const validPartnerSeen=Number.isFinite(partnerSeenAt)&&partnerSeenAt>0&&partnerSeenAt<=now;
+  return {
+    checkedAt:new Date(now).toISOString(),
+    online:{[actor]:true,[other]:isActive(partner,now)},
+    lastSeen:{[actor]:new Date(now).toISOString(),[other]:validPartnerSeen?new Date(partnerSeenAt).toISOString():null}
+  };
 }
 module.exports={NAMESPACE,ACTIVE_WINDOW_MS,RECORD_TTL_SECONDS,ACTORS,isActive,heartbeat};

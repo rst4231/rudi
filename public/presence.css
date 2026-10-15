@@ -1,13 +1,101 @@
-/* Live RUDI presence on profile avatars. Separate from mood and star badges. */
+/* Live status indicators on both profile avatars. The dot remains independently tappable. */
 .profile-person-card .score-avatar-wrap>.rudi-online-dot{
- position:absolute!important;right:-3px!important;bottom:-3px!important;
- top:auto!important;left:auto!important;
- width:12px!important;height:12px!important;min-width:12px!important;min-height:12px!important;
- border:2px solid var(--surface-strong,#fff)!important;border-radius:50%!important;
+ position:absolute!important;right:-5px!important;bottom:-5px!important;
+ top:auto!important;left:auto!important;width:18px!important;height:18px!important;
+ min-width:18px!important;min-height:18px!important;padding:0!important;
+ border:3px solid var(--surface-strong,#fff)!important;border-radius:50%!important;
+ appearance:none;-webkit-appearance:none;cursor:pointer;touch-action:manipulation;
  background:#9aa1ac!important;box-shadow:0 1px 4px rgba(0,0,0,.24)!important;
- pointer-events:none!important;z-index:30!important;box-sizing:border-box!important;
+ pointer-events:auto!important;z-index:30!important;box-sizing:border-box!important;
+ -webkit-tap-highlight-color:transparent;
 }
 .profile-person-card .score-avatar-wrap>.rudi-online-dot.is-online{background:#21c55d!important}
-@media(max-width:430px){
- .profile-person-card .score-avatar-wrap>.rudi-online-dot{right:-3px!important;bottom:-3px!important}
+.profile-person-card .score-avatar-wrap>.rudi-online-dot:focus-visible{outline:2px solid #87bcff;outline-offset:2px}
+.rudi-presence-overlay{position:fixed;inset:0;z-index:10050;display:grid;place-items:center;padding:20px;box-sizing:border-box}
+.rudi-presence-backdrop{position:absolute;inset:0;background:rgba(4,7,15,.62);-webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px)}
+.rudi-presence-dialog{position:relative;width:min(100%,350px);box-sizing:border-box;
+ padding:30px 24px 24px;border-radius:24px;border:1px solid var(--line,rgba(255,255,255,.14));
+ background:var(--surface-strong,#192131);color:var(--text,#f2f5fb);
+ box-shadow:0 25px 70px rgba(0,0,0,.35);text-align:center;
+ animation:rudi-presence-in .2s cubic-bezier(.2,.82,.2,1) both}
+.rudi-presence-close{position:absolute;right:12px;top:12px;width:34px;height:34px;border:none;
+ border-radius:10px;background:var(--soft,rgba(255,255,255,.1));color:inherit;
+ font:inherit;font-size:24px;line-height:1;cursor:pointer}
+.rudi-presence-symbol{color:#22bf65;font-size:21px;line-height:1}
+.rudi-presence-dialog h2{margin:9px 0 6px;font-size:21px;line-height:1.2}
+.rudi-presence-state{margin:0;font-size:15px;font-weight:750;color:var(--muted,#9ba7bc)}
+.rudi-presence-state.is-online{color:#27c967}
+.rudi-presence-stamp{margin:13px 0 0;font-size:13px;line-height:1.45;color:var(--text,#f2f5fb)}
+@keyframes rudi-presence-in{from{opacity:.96;transform:translate3d(0,7px,0)}to{opacity:1;transform:none}}
+
+/* Identical owner/partner name, mood, and status geometry on both accounts. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person{
+ gap:3px!important;align-self:center!important;justify-content:center!important;
+ min-width:0!important;margin:0!important;padding:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .profile-name-row{
+ display:inline-flex!important;align-items:center!important;gap:4px!important;
+ line-height:1.12!important;min-height:26px!important;margin:0!important;padding:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .profile-name-row > .name{
+ line-height:1.12!important;margin:0!important;padding:0!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person > :is(.profile-work-status,.profile-cycle-mood,.profile-rhythm-status){
+ font-size:9px!important;line-height:1.15!important;letter-spacing:0!important;
+ margin:0!important;padding:0!important;min-height:0!important;
+}
+/* The live owner's legacy inline rules are more specific; normalize those too. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person > :is(.profile-work-status,.profile-cycle-mood,.profile-rhythm-status){
+ font-size:9px!important;line-height:1.15!important;letter-spacing:0!important;
+ margin:0!important;padding:0!important;
+}
+/* Remove the round sticker and its rim, not the clickable native mood control. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .profile-name-row > :is(#moodCurrentButton,#partnerMoodValue).avatar-mood-badge{
+ width:26px!important;height:26px!important;min-width:26px!important;min-height:26px!important;
+ max-width:26px!important;max-height:26px!important;flex:0 0 26px!important;
+ display:grid!important;place-items:center!important;vertical-align:middle!important;
+ border:0!important;border-radius:0!important;outline:0!important;
+ background:none!important;box-shadow:none!important;overflow:visible!important;
+ padding:0!important;margin:0!important;transform:none!important;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .profile-name-row > :is(#moodCurrentButton,#partnerMoodValue) :is(.partner-mood-icon,.mood-emoji){
+ background:transparent!important;box-shadow:none!important;border:0!important;
+ border-radius:0!important;transform:none!important;
+}
+
+/* Persistent opaque canvas prevents white/black seams on iOS resume and tab switches. */
+html{background-color:var(--bg,#0b0d12)!important}
+body{background-color:var(--bg,#0b0d12)!important}
+html[data-theme="dark"]{background-color:#0b0d12!important}
+html[data-theme="light"]{background-color:#f4f5f7!important}
+/* Never fade both full-screen snapshots to transparency at once. */
+::view-transition-new(root),
+::view-transition-new(rudi-content){animation:none!important}
+::view-transition-old(root),
+::view-transition-old(rudi-content){animation:rudi-opaque-route-exit 175ms ease-out both!important}
+@keyframes rudi-opaque-route-exit{from{opacity:1}to{opacity:0}}
+/* The JS fallback is only a small opacity/transform move, not a blank page. */
+body[data-rudi-fallback-transition] [data-app-tab-section].rudi-route-enter,
+[data-app-tab-section].rudi-internal-view-enter{
+ animation:rudi-opaque-route-enter 210ms cubic-bezier(.2,.82,.2,1) both!important;
+}
+body[data-rudi-fallback-transition] [data-app-tab-section].rudi-route-leave{animation:rudi-opaque-route-leave 160ms ease-out both!important}
+@keyframes rudi-opaque-route-enter{from{opacity:.92;transform:translate3d(0,5px,0)}to{opacity:1;transform:none}}
+@keyframes rudi-opaque-route-leave{from{opacity:1}to{opacity:.93}}
+/* Background restore should not replay enter animations or animate large page surfaces. */
+html[data-rudi-resuming] [data-app-tab-section].rudi-route-enter,
+html[data-rudi-resuming] [data-app-tab-section].rudi-route-leave,
+html[data-rudi-resuming] .rudi-internal-view-enter,
+html[data-rudi-resuming] .app-tabbar,
+html[data-rudi-resuming] .shell{
+ animation:none!important;transition:none!important;
+}
+html[data-rudi-resuming]::view-transition-old(root),
+html[data-rudi-resuming]::view-transition-new(root),
+html[data-rudi-resuming]::view-transition-old(rudi-content),
+html[data-rudi-resuming]::view-transition-new(rudi-content){animation:none!important}
+@media(prefers-reduced-motion:reduce){
+ .rudi-presence-dialog,body[data-rudi-fallback-transition] [data-app-tab-section].rudi-route-enter,
+ body[data-rudi-fallback-transition] [data-app-tab-section].rudi-route-leave,
+ [data-app-tab-section].rudi-internal-view-enter{animation:none!important}
 }
