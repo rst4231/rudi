@@ -328,3 +328,19 @@ body.rudi-center-open{overflow:hidden!important}
 .rudi-center__chart{aspect-ratio:350/168;max-height:none;padding:4px 2px;overflow:visible}
 .rudi-center__deep-card{box-shadow:0 4px 17px rgba(16,38,46,.04);border-radius:18px}
 @media(max-width:520px){.rudi-center__hero{padding:22px 19px;border-radius:24px}.rudi-center__hero-avatar{width:64px;height:64px}.rudi-center__head{flex-wrap:wrap}.rudi-center__rhythm-chart{min-height:155px}.rudi-center__tile-grid{gap:10px}}
+
+
+/* RUDI 4.259: balanced app-like navigation, including iPhone PWA. */
+@keyframes pcNavEnter{from{opacity:.25;transform:translate3d(24px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes pcNavExit{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(35px,0,0)}}
+@keyframes pcSubpageEnter{from{opacity:.35;transform:translate3d(22px,0,0)}to{opacity:1;transform:translate3d(0,0,0)}}
+@keyframes pcSubpageExit{from{opacity:1;transform:translate3d(0,0,0)}to{opacity:0;transform:translate3d(27px,0,0)}}
+.rudi-center:not([hidden]):not(.is-leaving){animation:pcNavEnter 270ms cubic-bezier(.2,.82,.2,1) both!important}
+.rudi-center.is-leaving{animation:pcNavExit 205ms cubic-bezier(.4,0,.8,.45) both!important;pointer-events:none}
+.rudi-center__overlay:not([hidden]):not(.is-closing) .rudi-center__sheet{animation:pcSubpageEnter 245ms cubic-bezier(.2,.82,.2,1) both!important}
+.rudi-center__overlay.is-closing .rudi-center__sheet{animation:pcSubpageExit 165ms ease-in both!important;pointer-events:none}
+@media(prefers-reduced-motion:reduce){
+ .rudi-center:not([hidden]),.rudi-center.is-leaving,
+ .rudi-center__overlay:not([hidden]) .rudi-center__sheet,
+ .rudi-center__overlay.is-closing .rudi-center__sheet{animation:none!important}
+}
