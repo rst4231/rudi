@@ -1,0 +1,27 @@
+/* RUDI navigation gestures and history-aware transition direction. */
+.rudi-swipe-back-indicator{
+  position:fixed;left:2px;top:50%;z-index:7000;
+  display:flex;align-items:center;justify-content:center;
+  width:35px;height:58px;border-radius:0 18px 18px 0;
+  background:color-mix(in srgb,var(--surface, #262d3c) 88%,transparent);
+  color:var(--text,#fff);font-size:38px;font-weight:300;
+  pointer-events:none;opacity:0;
+  transform:translate3d(-15px,-50%,0);
+  transition:opacity 130ms ease,transform 180ms cubic-bezier(.2,.8,.2,1);
+  box-shadow:0 4px 18px rgba(0,0,0,.1);
+}
+html[data-rudi-history-direction="back"][data-rudi-route-transition="tab"]::view-transition-old(root){animation:rudiTabOldBack 170ms ease both!important}
+html[data-rudi-history-direction="back"][data-rudi-route-transition="tab"]::view-transition-new(root){animation:rudiTabNewBack 320ms cubic-bezier(.2,.82,.2,1) both!important}
+html[data-rudi-history-direction="back"][data-rudi-route-transition="page"]::view-transition-old(root){animation:rudiPageOldBack 160ms ease both!important}
+html[data-rudi-history-direction="back"][data-rudi-route-transition="page"]::view-transition-new(root){animation:rudiPageNewBack 340ms cubic-bezier(.2,.82,.2,1) both!important}
+body[data-rudi-history-direction="back"][data-rudi-fallback-transition="tab"] [data-app-tab-section].rudi-route-leave{animation:rudiTabOldBack 150ms ease both!important}
+body[data-rudi-history-direction="back"][data-rudi-fallback-transition="tab"] [data-app-tab-section].rudi-route-enter{animation:rudiTabNewBack 300ms cubic-bezier(.2,.82,.2,1) both!important}
+body[data-rudi-history-direction="back"][data-rudi-fallback-transition="page"] [data-app-tab-section].rudi-route-leave{animation:rudiPageOldBack 150ms ease both!important}
+body[data-rudi-history-direction="back"][data-rudi-fallback-transition="page"] [data-app-tab-section].rudi-route-enter{animation:rudiPageNewBack 330ms cubic-bezier(.2,.82,.2,1) both!important}
+@media(prefers-reduced-motion:reduce){
+ .rudi-swipe-back-indicator{transition:none!important}
+ html[data-rudi-history-direction]::view-transition-old(root),
+ html[data-rudi-history-direction]::view-transition-new(root),
+ body[data-rudi-history-direction] [data-app-tab-section].rudi-route-leave,
+ body[data-rudi-history-direction] [data-app-tab-section].rudi-route-enter{animation:none!important}
+}
