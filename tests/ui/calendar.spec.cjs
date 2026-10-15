@@ -635,7 +635,7 @@ test('v4.97 analyst is above literacy article',async({page})=>{
  expect(await page.evaluate(()=>[...document.querySelector('#financeLiteracyPanel').children].slice(0,2).map(e=>e.classList[0]))).toEqual(['finance-analyst-card','finance-literacy-card']);
 });
 
-test('personal TickTick fields stay single and retain DOM identity across 10 task openings',async({page})=>{
+test('personal TickTick fields stay single and reset native node state across 10 task openings',async({page})=>{
   await page.setViewportSize({width:390,height:844});
   await mockRudi(page);
   await page.goto('/');
@@ -663,13 +663,14 @@ test('personal TickTick fields stay single and retain DOM identity across 10 tas
     await expect(time).toHaveValue(task.startTime);
     await expect(row.locator('button')).toHaveCount(0);
     await expect.poll(async()=>((await row.boundingBox())?.height||Infinity)).toBeLessThan(85);
-    const stable=await page.evaluate(()=>{
+    const fresh=await page.evaluate(()=>{
       const d=document.querySelector('#rudiPersonalTaskDate');
       const t=document.querySelector('#rudiPersonalTaskTime');
-      if(!window.__rudiTestDateNodes){window.__rudiTestDateNodes={d,t};return true;}
-      return d===window.__rudiTestDateNodes.d&&t===window.__rudiTestDateNodes.t;
+      const previous=window.__rudiTestDateNodes;
+      window.__rudiTestDateNodes={d,t};
+      return !previous||(d!==previous.d&&t!==previous.t);
     });
-    expect(stable).toBeTruthy();
+    expect(fresh).toBeTruthy();
     await page.locator('#rudiPersonalTaskModal .ticktick-task-modal-close').click();
     await expect(row).toBeHidden();
   }

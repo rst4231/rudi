@@ -4166,7 +4166,12 @@ async function handleRudiAction(req, res, action, options = {}) {
       const { actor } = authorizeRequest(req, body.initData, options);
       const current = await readFeedSnapshot(options);
       const feed = await refreshFeedFromPreviewIfNeeded(current, options);
-      return res.status(200).json({ ok: true, actor, ...feed });
+      // Enhance the in-app feed only; this does not affect Telegram publishing
+      // or the persisted daily journal. Missing artwork remains a microphone.
+      let display=feed;
+      try{display=await (options.enrichFeedEvents||require('./feed-event-enrichment.cjs').enrichFeedEvents)(feed,options)}
+      catch(error){console.warn('RUDI_FEED_EVENT_ENRICH_WARN',String(error?.message||error))}
+      return res.status(200).json({ ok: true, actor, ...display });
     } catch (error) {
       const status = statusForError(error);
       if (status === 500) console.error('RUDI_FEED_ERROR', String(error?.message || error));

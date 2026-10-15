@@ -8,10 +8,12 @@ test('calendar restores view by actor',()=>{
  assert.match(app,/setWorkCalendarRangeActive\(saved.mode\|\|'month'\)/);
  assert.match(app,/calendarSetScope\(saved.scope\|\|'personal'/);
 });
-test('search button positioned between scope and settings',()=>{
- const a=html.indexOf('id="calendarScopeSwitch"'),b=html.indexOf('id="calendarSearchButton"'),c=html.indexOf('id="calendarConnectionsGear"');
- assert.ok(a>=0&&a<b&&b<c);
- assert.match(app,/function calendarOpenSearchResult\(task\)/);
+test('calendar search removed and four controls share title row',()=>{
+ const head=html.slice(html.indexOf('class="rudi-app-page-head work-page-head"'),html.indexOf('</header>',html.indexOf('class="rudi-app-page-head work-page-head"')));
+ assert.equal((head.match(/class="calendar-header-control/g)||[]).length,3);
+ assert.match(head,/id="calendarConnectionsGear"/);
+ assert.doesNotMatch(html,/id="calendarSearchButton"|id="calendarSearchPanel"|id="calendarSearchInput"/);
+ assert.match(app,/function calendarSetScope\(/);
  assert.match(api,/tickTickTaskDateKeys\(task\)/);
 });
 test('Together tasks in personal, without other personal lists',()=>{

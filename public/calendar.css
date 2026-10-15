@@ -1732,3 +1732,47 @@ body[data-app-tab="schedule"] .work-page #workCalendarCard .calendar-navigation
 :is(#calendarCreateTask,#calendarPersonalCreateTask)[hidden]{
   display:none!important;
 }
+
+/* RUDI v4.256 — calendar actions belong to page title row, not a second row. */
+body[data-app-tab="schedule"] #workCalendarSection .work-page-head{
+  display:grid!important;
+  grid-template-columns:38px minmax(0,1fr) auto!important;
+  align-items:center!important;
+  column-gap:7px!important;
+  row-gap:0!important;
+  margin:0!important;
+  padding:0 1px!important;
+  min-height:44px;
+}
+body[data-app-tab="schedule"] #workCalendarSection .work-page-head-copy{min-width:0!important;gap:1px!important}
+body[data-app-tab="schedule"] #workCalendarSection #calendarPageTitle{font-size:clamp(19px,5.4vw,26px)!important;white-space:nowrap}
+body[data-app-tab="schedule"] #workCalendarSection .calendar-header-actions{
+ display:flex!important;align-items:center!important;justify-content:flex-end!important;
+ gap:clamp(2px,1vw,5px)!important;min-width:0!important;flex:none!important;
+}
+body[data-app-tab="schedule"] #workCalendarSection .calendar-header-actions>.calendar-header-control{
+ display:grid!important;place-items:center!important;
+ flex:0 0 clamp(31px,8.3vw,40px)!important;
+ width:clamp(31px,8.3vw,40px)!important;height:40px!important;
+ min-width:0!important;min-height:40px!important;max-height:40px!important;
+ padding:0!important;margin:0!important;border-radius:12px!important;
+ border:1px solid var(--line);background:var(--surface-strong);color:var(--text);
+ font-size:0!important;line-height:0!important;
+}
+body[data-app-tab="schedule"] #workCalendarSection .calendar-header-actions>.calendar-header-control svg{
+ width:20px!important;height:20px!important;display:block!important;
+ fill:none;stroke:currentColor;
+}
+body[data-app-tab="schedule"] #workCalendarSection .calendar-header-actions>#calendarScopeSwitch{color:#23966a!important}
+body[data-app-tab="schedule"][data-calendar-scope="shared"] #workCalendarSection .calendar-header-actions>#calendarScopeSwitch{color:#4578e6!important}
+body[data-app-tab="schedule"] #workCalendarSection #workCalendarCard{
+ padding-top:0!important;margin-top:0!important;
+}
+@media(max-width:375px){
+ body[data-app-tab="schedule"] #workCalendarSection .work-page-head{grid-template-columns:34px minmax(0,1fr) auto!important;column-gap:4px!important}
+ body[data-app-tab="schedule"] #workCalendarSection #calendarPageTitle{font-size:19px!important}
+ body[data-app-tab="schedule"] #workCalendarSection .calendar-header-actions>.calendar-header-control{
+  flex-basis:30px!important;width:30px!important;height:36px!important;min-height:36px!important
+ }
+ body[data-app-tab="schedule"] #workCalendarSection .calendar-header-actions>.calendar-header-control svg{width:18px!important;height:18px!important}
+}

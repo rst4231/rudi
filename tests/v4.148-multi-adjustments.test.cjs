@@ -26,12 +26,14 @@ test('long press no longer enters wallet or category editing',()=>{
   assert.doesNotMatch(wallet,/setTimeout\(\(\)=>\s*\{[\s\S]*?setFinanceWalletEditMode\(true\)/);
   assert.doesNotMatch(cat,/setTimeout\(\(\)=>\s*\{[\s\S]*?setFinanceCategoryEditMode\(true\)/);
 });
-test('calendar icon actions share one size while scope button stays untouched',()=>{
-  assert.match(css,/:is\(#calendarFinanceShortcut,#calendarModeSwitch,#calendarSearchButton,#calendarConnectionsGear\)/);
+test('calendar scope, view, finance and settings are compact icon controls in title row',()=>{
+  const header=html.slice(html.indexOf('class="rudi-app-page-head work-page-head"'),html.indexOf('</header>',html.indexOf('class="rudi-app-page-head work-page-head"')));
+  for(const id of ['calendarScopeSwitch','calendarModeSwitch','calendarFinanceShortcut','calendarConnectionsGear'])
+    assert.match(header,new RegExp('id="'+id+'"'));
+  assert.doesNotMatch(header,/calendarSearchButton/);
+  assert.match(css,/calendar-header-actions>\.calendar-header-control/);
   assert.match(css,/width:20px!important;/);
-  assert.match(css,/height:44px!important;/);
-  const final=css.slice(css.indexOf('/* RUDI v4.148: unify four calendar icon buttons'));
-  assert.doesNotMatch(final,/#calendarScopeSwitch/);
+  assert.match(app,/scopeSwitch\.innerHTML=nextScope==='shared'/);
 });
 test('unpaid obligations have no hollow circle; paid obligations keep checkmark',()=>{
   assert.doesNotMatch(reminder,/"○ "|'○ '/);

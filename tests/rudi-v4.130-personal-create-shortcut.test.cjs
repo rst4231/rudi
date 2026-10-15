@@ -38,7 +38,7 @@ function harness({iphone=false,connected=true,actor='Рустам',scope='person
     tg,setTimeout(fn,delay){timers.push({fn,delay});return timers.length},clearTimeout(){},
   };
   const first=app.indexOf('function calendarOpenPersonalTickTickComposer(){');
-  const last=app.indexOf('function calendarOpenSearchResult(task){',first);
+  const last=app.indexOf('function setupWorkCalendarDisclosure(){',first);
   assert.ok(first>=0&&last>first);
   vm.runInNewContext(app.slice(first,last)+';this.openComposer=calendarOpenPersonalTickTickComposer;',ctx);
   return {ctx,navigation,timers,elements,document,listeners};

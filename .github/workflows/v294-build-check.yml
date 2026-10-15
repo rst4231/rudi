@@ -23,6 +23,7 @@ jobs:
           node --check public/mood-history.js
           node --check public/profile-supplements.js
           node --check api/partner-message.js
+          node --check api/feed-event-enrichment.cjs
           node --check api/d1-state-client.cjs
           node --check api/rudi-auth-db.cjs
           node --check api/poster-proxy.js

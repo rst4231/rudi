@@ -57,7 +57,7 @@ test('each task provides independent date and time to the native editor',()=>{
  assert.equal(normalize({date:'2026-10-14',startTime:'08:15'}).time,'08:15');
  assert.deepEqual(JSON.parse(JSON.stringify(normalize({date:'2026-10-20',startTime:'17:30'}))),{date:'2026-10-20',time:'17:30'});
  assert.match(task,/f\('date'\)\.value='';[\s\S]{0,100}f\('time'\)\.value='';/);
- assert.match(task,/f\('date'\)\.defaultValue=date;/);
+ assert.match(task,/f\('date'\)\.defaultValue='';/);
 });
 test('home spacing and cache version stay scoped to this release',()=>{
  assert.match(css,/home-dashboard-summary\{[\s\S]{0,75}padding-block:8px!important/);

@@ -14635,7 +14635,11 @@
           const nextScope=calendarScope==='personal'?'shared':'personal';
           const nextName=nextScope==='shared'?'Совместный':'Личный';
           scopeSwitch.dataset.calendarScope=nextScope;
-          scopeSwitch.textContent=nextName;
+          // The glyph describes the destination: two people for Shared,
+          // one person for Personal. Keep a stable icon-only button.
+          scopeSwitch.innerHTML=nextScope==='shared'
+            ?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8.3" cy="8" r="3"/><path d="M2 19v-1.7a6.3 6.3 0 0 1 12.6 0V19"/><circle cx="17.7" cy="9" r="2.4"/><path d="M15.5 14.3A5 5 0 0 1 22 19"/></svg>'
+            :'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>';
           scopeSwitch.title=nextName+' календарь';
           scopeSwitch.setAttribute('aria-label','Переключить на '+(nextScope==='shared'?'совместный':'личный')+' календарь');
         }
@@ -14647,7 +14651,6 @@
         applyDianaPeriodDots();
         calendarSaveView();
         if(reload)loadWorkCalendar('month',{silent:false}).catch(()=>{});
-        if(reload&&!document.getElementById('calendarSearchPanel')?.hidden)calendarRunSearch();
       }
       function syncCalendarWeeklyOverscroll(){
         const active=document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week';
@@ -14781,24 +14784,6 @@
         });
       }
 
-      let calendarSearchEpoch=0,calendarSearchTimer=0,calendarSearchController=null;
-      function calendarCloseSearch(){
-        document.getElementById('calendarSearchPanel').hidden=true;
-        clearTimeout(calendarSearchTimer);calendarSearchEpoch++;
-        calendarSearchController?.abort();calendarSearchController=null;
-        document.getElementById('calendarSearchButton')?.setAttribute('aria-expanded','false');
-      }
-      function calendarShowSearchDetails(task){
-        const box=document.getElementById('calendarSearchReadOnly');
-        if(!box)return;
-        document.getElementById('calendarSearchDetailTitle').textContent=String(task.title||'Дело');
-        document.getElementById('calendarSearchDetailDate').textContent=
-          new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})
-            .format(dateFromKey(task.date))+(task.startTime?' · '+task.startTime:'')+(task.projectName?' · '+task.projectName:'');
-        const description=document.getElementById('calendarSearchDetailDescription');
-        description.textContent=String(task.description||'');description.hidden=!description.textContent;
-        box.hidden=false;document.getElementById('calendarSearchDetailClose')?.focus({preventScroll:true});
-      }
       // Personal lists are read-only in RUDI, but TickTick can open the original task.
       // HTTPS links allow iOS Universal Links to open the native app when installed,
       // and otherwise fall back to the same task in the browser.
@@ -14873,90 +14858,6 @@
           openTickTick:()=>calendarOpenPersonalTickTickTask(task)
         };
       }
-      function calendarOpenSearchResult(task){
-        if(!calendarValidDateKey(task?.date))return;
-        if(task?.personal===true&&currentActor==='Рустам'){
-          calendarCloseSearch();
-          window.RUDIPersonalTaskEditor?.open(task,calendarPersonalTaskEditorContext(task));
-          return;
-        }
-        calendarCloseSearch();calendarDateCursor=task.date;currentSelectedWorkDate=task.date;
-        calendarSaveView();currentWorkCalendarRenderSignature='';
-        loadWorkCalendar('month',{silent:true}).catch(()=>{});
-        if(task.canEdit===true&&!task.personal&&typeof openTickTickTaskForEditing==='function')
-          openTickTickTaskForEditing(task);
-        else calendarShowSearchDetails(task);
-      }
-      function calendarRenderSearchResults(rows,truncated){
-        const list=document.getElementById('calendarSearchResults');
-        const status=document.getElementById('calendarSearchStatus');
-        list.replaceChildren();
-        status.textContent=rows.length?'Найдено: '+rows.length+(truncated?' · показаны первые результаты':''):'Ничего не найдено';
-        for(const task of rows){
-          if(!calendarValidDateKey(task?.date))continue;
-          const row=document.createElement('button');row.type='button';row.className='calendar-search-result';
-          const title=document.createElement('strong');title.textContent=String(task.title||'Дело');
-          const date=document.createElement('span');
-          date.textContent=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'})
-            .format(dateFromKey(task.date))+(task.startTime?' · '+task.startTime:'')+
-            (task.personal?' · Личный':task.together?' · Вместе':task.responsible?' · '+task.responsible:'');
-          row.append(title,date);row.addEventListener('click',()=>calendarOpenSearchResult(task));
-          if(task.personal===true&&currentActor==='Рустам'&&calendarTickTickTaskWebUrl(task))
-            window.RUDIPersonalTaskEditor?.bind(row,task,calendarPersonalTaskEditorContext(task));
-          list.appendChild(row);
-        }
-      }
-      async function calendarRunSearch(){
-        const panel=document.getElementById('calendarSearchPanel');
-        if(!panel||panel.hidden)return;
-        const query=String(document.getElementById('calendarSearchInput')?.value||'').trim();
-        const status=document.getElementById('calendarSearchStatus');
-        const list=document.getElementById('calendarSearchResults');
-        const epoch=++calendarSearchEpoch;calendarSearchController?.abort();calendarSearchController=null;
-        list.replaceChildren();
-        if(query.length<2){status.textContent='Введите минимум 2 символа';return}
-        status.textContent='Ищу дела…';
-        const scope=calendarScope,controller=new AbortController();
-        calendarSearchController=controller;
-        try{
-          const response=await fetch('/api/ticktick/calendar',{
-            method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({initData:telegramInitData(),backupToken:currentStateBackupToken,
-              scope:scope==='shared'?'shared':currentActor==='Диана'?'diana':'rustam',search:query}),
-            cache:'no-store',signal:controller.signal
-          });
-          const data=await response.json().catch(()=>({}));
-          if(!response.ok||data.ok===false)throw Error(data.error||'calendar-search-failed');
-          if(epoch!==calendarSearchEpoch||panel.hidden||scope!==calendarScope)return;
-          calendarRenderSearchResults(Array.isArray(data.results)?data.results:[],Boolean(data.truncated));
-        }catch(error){
-          if(error?.name==='AbortError'||epoch!==calendarSearchEpoch)return;
-          status.textContent='Не удалось выполнить поиск. Попробуй ещё раз.';
-        }finally{if(calendarSearchController===controller)calendarSearchController=null}
-      }
-      function setupCalendarSearch(){
-        const button=document.getElementById('calendarSearchButton'),panel=document.getElementById('calendarSearchPanel'),
-          input=document.getElementById('calendarSearchInput');
-        if(!button||!panel||button.dataset.bound==='1')return;
-        button.dataset.bound='1';
-        button.addEventListener('click',()=>{
-          if(!panel.hidden){calendarCloseSearch();return}
-          panel.hidden=false;button.setAttribute('aria-expanded','true');
-          input?.focus({preventScroll:true});calendarRunSearch();
-        });
-        input?.addEventListener('input',()=>{clearTimeout(calendarSearchTimer);calendarSearchTimer=setTimeout(calendarRunSearch,300)});
-        document.getElementById('calendarSearchClose')?.addEventListener('click',calendarCloseSearch);
-        const closeDetails=()=>{document.getElementById('calendarSearchReadOnly').hidden=true};
-        document.getElementById('calendarSearchDetailClose')?.addEventListener('click',closeDetails);
-        document.getElementById('calendarSearchReadOnlyBackdrop')?.addEventListener('click',closeDetails);
-        document.addEventListener('keydown',event=>{
-          if(event.key!=='Escape')return;
-          const detail=document.getElementById('calendarSearchReadOnly');
-          if(detail&&!detail.hidden)closeDetails();
-          else if(!panel.hidden)calendarCloseSearch();
-        });
-      }
-
       function setupWorkCalendarDisclosure(){
         setupCalendarConnections();
         const saved=calendarReadSavedView();
@@ -14964,7 +14865,6 @@
         currentSelectedWorkDate=calendarDateCursor;
         setWorkCalendarRangeActive(saved.mode||'month');
         calendarSetScope(saved.scope||'personal',{reload:false});
-        setupCalendarSearch();
         document.querySelectorAll('[data-calendar-scope]').forEach(button=>button.addEventListener('click',()=>{
           if(button.dataset.calendarScope===calendarScope)return;
           calendarSetScope(button.dataset.calendarScope);
@@ -15414,11 +15314,13 @@
             const ctx=calendarPersonalTaskEditorContext(task);
             row.addEventListener('click',event=>{
               if(event.target===checkbox||checkbox.contains(event.target))return;
-              window.RUDIPersonalTaskEditor?.open(task,ctx);
+              window.RUDIPersonalTaskEditor?.open(row.__rudiPersonalTaskBinding?.task||task,
+                row.__rudiPersonalTaskBinding?.ctx||ctx);
             });
             row.addEventListener('keydown',event=>{
               if(event.target!==row||(event.key!=='Enter'&&event.key!==' '))return;
-              event.preventDefault();window.RUDIPersonalTaskEditor?.open(task,ctx);
+              event.preventDefault();window.RUDIPersonalTaskEditor?.open(row.__rudiPersonalTaskBinding?.task||task,
+                row.__rudiPersonalTaskBinding?.ctx||ctx);
             });
             // Timed weekly events use their drag handler for long press;
             // avoid a second timer that would open the same task twice.
@@ -18567,6 +18469,17 @@
           const isLink=/^https?:\/\//i.test(eventHref);
           const card=document.createElement('article');
           card.className='feed-event-item'+(isLink?' feed-event-item-link':'');
+          const posterUrl=String(item?.posterUrl||'').trim();
+          if(/^https:\/\//i.test(posterUrl)){
+            const photo=document.createElement('img');
+            photo.className='feed-event-artwork';photo.src=posterUrl;
+            photo.alt='';photo.loading='lazy';photo.decoding='async';
+            photo.referrerPolicy='no-referrer';
+            photo.addEventListener('error',()=>{
+              photo.remove();card.classList.remove('has-artwork');
+            },{once:true});
+            card.classList.add('has-artwork');card.appendChild(photo);
+          }
           if(isLink){
             card.tabIndex=0;
             card.setAttribute('role','link');
@@ -18839,7 +18752,9 @@
         let firstTime=9999;
 
         if(name==='concerts'||name==='standup'){
-          const items=raw?parseFeedEventItems(raw,name):[];
+          const enriched=Array.isArray(section?.[name==='standup'?'standupItems':'concertItems'])
+            ?section[name==='standup'?'standupItems':'concertItems']:[];
+          const items=enriched.length?enriched:(raw?parseFeedEventItems(raw,name):[]);
           count=items.length;
           for(const item of items){
             const time=item.details.map(value=>value.match(/(?:^|\s)(\d{1,2}):(\d{2})(?:\s|$)/u)).find(Boolean);

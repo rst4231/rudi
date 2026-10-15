@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.255';
+const CACHE_NAME='rudi-shell-v4.256';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -15,12 +15,12 @@ const PRECACHE=[
   "/icon-192-rudi-v460.png",
   "/icon-512.svg",
   "/icon-maskable.svg",
-  "/app.css?v=4.253",
+  "/app.css?v=4.256",
   "/finance-obligation-dates.js?v=4.240",
   "/finance-bank.css?v=4.149",
   "/rudi-design-system.css?v=4.149",
   "/pwa-extras.css?v=4.149",
-  "/calendar.css?v=4.149",
+  "/calendar.css?v=4.256",
   "/calendar-offline.js?v=4.149",
   "/smart-home.css?v=4.149",
   "/car.css?v=4.149",
@@ -28,9 +28,9 @@ const PRECACHE=[
   "/supplement-advanced.css?v=4.149",
   "/rudi-effects.css?v=4.199",
   "/rudi-effects.js?v=4.199",
-  "/app.js?v=4.253",
+  "/app.js?v=4.256",
   "/meditation.js?v=4.197",
-  "/personal-task-editor.js?v=4.209",
+  "/personal-task-editor.js?v=4.256",
   "/personal-task-editor.css?v=4.209",
   "/meditation.css?v=4.197",
   "/calendar-day-recap.js?v=4.194",
