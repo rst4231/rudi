@@ -4,6 +4,7 @@ const HABITS_API='/api/habits';
 const STORAGE='rudi-personal-profile-v1:';
 const HOME_TOOLS_STALE_MS=10*60*1000;
 let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadedAt=0,homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null,supplementReminderBadge=null,habitReminderBadge=null,reminderBadgeTimer=0,habitTodayReminder={today:'',habits:[],statuses:{}};
+let homeToolsRequestActor='',homeToolsLoadSequence=0;
 let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},stats:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitYesterdayQuote=null,habitHistory={},habitSelectedDate='',habitArchiveExpanded=false,habitDateRequestSeq=0,habitDateInputLastValue='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
@@ -16,8 +17,30 @@ const supplementReadCache=new Map();
 const habitReadCache=new Map();
 const habitOptimisticStatuses=new Map();
 const habitOptimisticKey=(date,id)=>actor+'|'+date+'|'+id;
-function requestCacheKey(operation,payload){return String(operation||'')+'|'+JSON.stringify(payload||{})}
-function rudiReadTimeout(readOnly){return readOnly&&typeof AbortSignal?.timeout==='function'?AbortSignal.timeout(9500):undefined}
+function requestCacheKey(operation,payload){return String(actor||'')+'|'+String(operation||'')+'|'+JSON.stringify(payload||{})}
+async function withReadDeadline(task,readOnly){
+  if(!readOnly)return task(undefined);
+  const ctrl=typeof AbortController==='function'?new AbortController():null;
+  let timer;
+  const deadline=new Promise((_,reject)=>{timer=setTimeout(()=>{
+    try{ctrl?.abort()}catch(_){}
+    reject(new Error('rudi-read-timeout'));
+  },10500)});
+  try{return await Promise.race([task(ctrl?.signal),deadline])}
+  finally{clearTimeout(timer)}
+}
+function showHabitLoadFailure(message='Не удалось загрузить привычки.'){
+  if(habitProgressText)habitProgressText.textContent='Не удалось загрузить';
+  if(habitList)habitList.replaceChildren();
+  if(!habitStatusNode)return;
+  habitStatusNode.replaceChildren();
+  habitStatusNode.appendChild(document.createTextNode(message+' '));
+  const retry=document.createElement('button');
+  retry.type='button';retry.className='personal-habits-retry';retry.textContent='Повторить загрузку';
+  retry.addEventListener('click',()=>{setHabitStatus('');void loadHomeTools({force:true})});
+  habitStatusNode.appendChild(retry);
+  habitStatusNode.hidden=false;habitStatusNode.classList.add('is-error');
+}
 function persistHabitSnapshot(data){try{if(actor&&data?.ok)localStorage.setItem(STORAGE+'habits-last:'+actor,JSON.stringify({data,at:Date.now()}))}catch(_){}}
 function lastHabitSnapshot(){try{const row=JSON.parse(localStorage.getItem(STORAGE+'habits-last:'+actor)||'null');return row?.data?.ok?row:null}catch(_){return null}}
 function cachedRead(cache,key,ttl=READ_CACHE_TTL_MS){
@@ -35,8 +58,11 @@ async function request(operation,payload={},options={}){
     const cached=cachedRead(supplementReadCache,cacheKey);
     if(cached)return cached;
   }
-  const response=await fetch(API,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({operation,initData:initData(),...payload}),signal:rudiReadTimeout(readOnly)});
-  const data=await response.json().catch(()=>({}));
+  const {response,data}=await withReadDeadline(async signal=>{
+    const response=await fetch(API,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
+      body:JSON.stringify({operation,initData:initData(),...payload}),...(signal?{signal}:{})});
+    const data=await response.json().catch(()=>({}));return {response,data};
+  },readOnly);
   if(!response.ok||!data?.ok){const error=new Error(String(data?.error||'supplements-request-failed'));error.status=response.status;throw error}
   if(readOnly)return saveCachedRead(supplementReadCache,cacheKey,data);
   clearReadCache(supplementReadCache);
@@ -49,8 +75,11 @@ async function habitRequest(operation,payload={},options={}){
     const cached=cachedRead(habitReadCache,cacheKey,HABIT_READ_CACHE_TTL_MS);
     if(cached)return cached;
   }
-  const response=await fetch(HABITS_API,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({operation,initData:initData(),...payload}),signal:rudiReadTimeout(readOnly)});
-  const data=await response.json().catch(()=>({}));
+  const {response,data}=await withReadDeadline(async signal=>{
+    const response=await fetch(HABITS_API,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},
+      body:JSON.stringify({operation,initData:initData(),...payload}),...(signal?{signal}:{})});
+    const data=await response.json().catch(()=>({}));return {response,data};
+  },readOnly);
   if(!response.ok||!data?.ok){const error=new Error(String(data?.error||'habits-request-failed'));error.status=response.status;throw error}
   if(data.score)document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:data.score}}));
   if(readOnly){if(operation==='list'&&!payload.date)persistHabitSnapshot(data);return saveCachedRead(habitReadCache,cacheKey,data)}
@@ -67,7 +96,8 @@ function errorText(error){
 }
 function setStatus(text,error=false){if(!statusNode)return;statusNode.textContent=text||'';statusNode.hidden=!text;statusNode.classList.toggle('is-error',Boolean(error))}
 function setHabitStatus(text,error=false){if(!habitStatusNode)return;habitStatusNode.textContent=text||'';habitStatusNode.hidden=!text;habitStatusNode.classList.toggle('is-error',Boolean(error))}
-function habitDateKey(date){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(date)}
+function habitDateKey(date){const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
+  const map=Object.fromEntries(parts.map(p=>[p.type,p.value]));return [map.year,map.month,map.day].join('-')}
 function habitParseDateKey(value){const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return match?new Date(Date.UTC(Number(match[1]),Number(match[2])-1,Number(match[3]),12)):null}
 function habitDateLabel(value){
   const date=habitParseDateKey(value);if(!date)return'';
@@ -188,8 +218,8 @@ function applyHabitView(data){
   };
   if(view?.history&&typeof view.history==='object'){
     habitHistory={...habitHistory,...view.history};
-    for(const [date,view] of Object.entries(view.history)){
-      if(date&&view&&typeof view==='object')saveCachedRead(habitReadCache,requestCacheKey('list',{date}),{ok:true,actor,...view});
+    for(const [dayKey,dayView] of Object.entries(view.history)){
+      if(dayKey&&dayView&&typeof dayView==='object')saveCachedRead(habitReadCache,requestCacheKey('list',{date:dayKey}),{ok:true,actor,...dayView});
     }
   }
   habitSelectedDate=habitState.date||habitState.today||habitSelectedDate;
@@ -718,6 +748,8 @@ function build(){
   const habitTitleWrap=document.createElement('div');habitTitleWrap.className='personal-habits-title-wrap';
   const habitHeading=document.createElement('h2');habitHeading.textContent='Трекер привычек';
   habitProgressText=document.createElement('div');habitProgressText.className='personal-habits-progress-text';habitProgressText.textContent='Загружаю…';
+  setTimeout(()=>{if(habitProgressText?.textContent==='Загружаю…')
+    showHabitLoadFailure('Загрузка не завершилась. Проверь соединение или повтори запрос.')},14500);
   habitTitleWrap.append(habitHeading,habitProgressText);habitLead.append(habitIcon,habitTitleWrap);
   const habitHeadActions=document.createElement('div');habitHeadActions.className='personal-habits-head-actions';
   habitInfoButton=document.createElement('button');habitInfoButton.type='button';habitInfoButton.className='personal-habits-info';habitInfoButton.textContent='ⓘ';habitInfoButton.setAttribute('aria-label','Как работают звёзды за привычки');
@@ -836,44 +868,79 @@ function build(){
   applyCollapse(false);applyHabitCollapse();startReminderBadgeClock();updateReminderBadges();document.dispatchEvent(new CustomEvent('rudi:home-tiles-ready'));setupEdgeSwipeBack();return overlay;
 }
 async function loadHomeTools({force=false}={}){
-  const nextActor=String(document.body.dataset.rudiActor||'').trim();if(!nextActor)return;
+  const nextActor=String(document.body.dataset.rudiActor||'').trim();
+  if(!['Рустам','Диана'].includes(nextActor)){
+    if(habitProgressText)showHabitLoadFailure('Дождись входа в RUDI и повтори загрузку.');
+    return;
+  }
   if(!force&&homeToolsLoadedActor===nextActor&&Date.now()-homeToolsLoadedAt<HOME_TOOLS_STALE_MS)return;
-  if(homeToolsLoadPromise)return homeToolsLoadPromise;
-  actor=nextActor;build();
-  if(homeToolsLoadedActor!==actor){applyCollapse(false);habitState={...habitState,collapsed:false};habitArchiveExpanded=false;}
+  if(!force&&homeToolsLoadPromise&&homeToolsRequestActor===nextActor)return homeToolsLoadPromise;
+  const changedActor=actor!==nextActor;
+  actor=nextActor;
+  if(changedActor){
+    clearReadCache(supplementReadCache);clearReadCache(habitReadCache);
+    homeToolsLoadedActor='';homeToolsLoadedAt=0;habitArchiveExpanded=false;
+  }
+  try{build()}catch(error){
+    console.error('RUDI_HOME_TOOLS_BUILD_ERROR',String(error?.stack||error));
+    showHabitLoadFailure('Не удалось открыть трекер. Повтори попытку.');
+    return;
+  }
+  if(changedActor){applyCollapse(false);habitState={...habitState,collapsed:false}}
   setStatus('Загружаю…');setHabitStatus('');
-  homeToolsLoadPromise=(async()=>{
-    const [supplementsResult,habitsResult]=await Promise.allSettled([request('list',{}, {force}),habitRequest('list',{}, {force})]);
-    if(supplementsResult.status==='fulfilled'){
-      const data=supplementsResult.value;items=Array.isArray(data.items)?data.items:[];profile=data.profile||null;renderProfileMeta();render();setStatus('');enrichExistingSupplementGuidance();
-    }else{console.error('RUDI_SUPPLEMENTS_HOME_LOAD_ERROR',supplementsResult.reason);setStatus(errorText(supplementsResult.reason),true)}
-    if(habitsResult.status==='fulfilled'){
-      const habitData=habitsResult.value;
-      habitSelectedDate=String(habitData?.date||habitData?.today||'');applyHabitView(habitData);
+  if(habitProgressText)habitProgressText.textContent='Загружаю…';
+  const token=++homeToolsLoadSequence;
+  homeToolsRequestActor=nextActor;
+  let supplementOk=false,habitOk=false;
+  const supplementsJob=Promise.resolve().then(()=>request('list',{}, {force})).then(data=>{
+    if(token!==homeToolsLoadSequence||actor!==nextActor)return;
+    items=Array.isArray(data.items)?data.items:[];profile=data.profile||null;
+    renderProfileMeta();render();setStatus('');supplementOk=true;
+    void enrichExistingSupplementGuidance();
+  }).catch(error=>{
+    if(token!==homeToolsLoadSequence||actor!==nextActor)return;
+    console.error('RUDI_SUPPLEMENTS_HOME_LOAD_ERROR',String(error?.message||error));
+    setStatus(errorText(error),true);
+  });
+  const habitsJob=Promise.resolve().then(()=>habitRequest('list',{}, {force})).then(data=>{
+    if(token!==homeToolsLoadSequence||actor!==nextActor)return;
+    habitSelectedDate=String(data?.date||data?.today||'');
+    applyHabitView(data);habitOk=true;
+  }).catch(error=>{
+    if(token!==homeToolsLoadSequence||actor!==nextActor)return;
+    console.error('RUDI_HABITS_HOME_LOAD_ERROR',String(error?.message||error));
+    const backup=lastHabitSnapshot();
+    if(backup){
+      habitSelectedDate=String(backup.data.date||backup.data.today||'');
+      applyHabitView(backup.data);
+      setHabitStatus('Нет свежих данных. Показана сохранённая копия. Повтори загрузку позже.',true);
     }else{
-      console.error('RUDI_HABITS_HOME_LOAD_ERROR',habitsResult.reason);
-      const backup=lastHabitSnapshot();
-      if(backup){
-        habitSelectedDate=String(backup.data.date||backup.data.today||'');applyHabitView(backup.data);
-        setHabitStatus('Нет свежих данных. Показана сохранённая копия; попробуй обновить позже.',true);
-      }else{
-        habitProgressText.textContent='Не удалось загрузить';habitList.replaceChildren();
-        setHabitStatus('Нет ответа сервера. Попробуй открыть раздел ещё раз.',true);
-      }
+      const reason=String(error?.message||error);
+      const message=/rudi-session|telegram-auth|access-denied/i.test(reason)
+        ?'Сессия истекла или вход не подтверждён. Вернись на главный экран и войди снова.'
+        :reason==='rudi-read-timeout'?'Сервер не ответил за 10 секунд. Повтори загрузку.'
+        :'Ошибка соединения с сервером привычек. Попробуй ещё раз.';
+      showHabitLoadFailure(message);
     }
-    if(habitsResult.status==='fulfilled'&&supplementsResult.status==='fulfilled'){
-      homeToolsLoadedActor=actor;homeToolsLoadedAt=Date.now();
-    }else homeToolsLoadedAt=0;
-  })().finally(()=>{homeToolsLoadPromise=null});
-  return homeToolsLoadPromise;
+  });
+  const flight=Promise.allSettled([habitsJob,supplementsJob]).then(()=>{
+    if(token!==homeToolsLoadSequence||actor!==nextActor)return;
+    if(habitOk&&supplementOk){homeToolsLoadedActor=nextActor;homeToolsLoadedAt=Date.now()}
+    else{homeToolsLoadedActor='';homeToolsLoadedAt=0}
+  }).finally(()=>{if(homeToolsLoadPromise===flight)homeToolsLoadPromise=null});
+  homeToolsLoadPromise=flight;
+  return flight;
 }
 async function open(){return loadHomeTools()}
 function close(){}
 function bindName(){
   const name=document.getElementById('displayName');
   if(name)name.classList.remove('personal-profile-name-link');
-  const update=()=>{const who=String(document.body.dataset.rudiActor||'').trim();if(who)loadHomeTools()};
+  const update=()=>{const who=String(document.body.dataset.rudiActor||'').trim();
+    if(who)void loadHomeTools().catch(error=>{console.error('RUDI_HABIT_LOAD_UNHANDLED',error);showHabitLoadFailure('Ошибка загрузки. Попробуй ещё раз.')})};
   update();new MutationObserver(update).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
+  window.addEventListener('pageshow',update);
+  window.addEventListener('rudi:app-tab-change',()=>{if(document.body.dataset.appTab==='habits')update()});
 }
 window.RudiSupplementApp={
   request,
