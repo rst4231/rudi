@@ -97,7 +97,7 @@ test('assets are wired and the service worker can mirror battle start pushes',()
  assert.match(html,/rudi-games\.js\?v=4\.\d+/);
  assert.match(html,/rudi-games\.css\?v=4\.\d+/);
  assert.match(sw,/rudi-games-extra\.js\?v=4\.\d+/);
- assert.match(sw,/rudi-\(duel-start\|battle-start\)/);
+ assert.match(sw,/direct\?\.rudiPush===1&&direct\?\.notification\?\.id/);
  assert.match(build,/'rudi-games-extra\.js'/);
  assert.match(fs.readFileSync('VERSION','utf8').trim(),/^v4\.\d+$/);
  assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,fs.readFileSync('VERSION','utf8').trim());
