@@ -319,8 +319,8 @@ test('strict JSON output, all-domain factual coach and compact 7-day dashboard a
  const css=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
  assert.match(aiCode,/response_format:format==='schema'\?\{type:'json_schema'/);
  assert.match(aiCode,/strict:true/);
- assert.match(aiCode,/Ты RUDI — личный тренер, коуч и аналитик/);
- assert.match(aiCode,/Не объявляй запланированные задачи выполненными/);
+ assert.match(aiCode,/Ты RUDI — личный коуч/);
+ assert.match(aiCode,/Не называй запланированные задачи выполненными/);
  assert.match(app,/id="pcRhythmGraph"/);
  assert.match(app,/data-rhythm="habits"/);
  assert.match(app,/data-rhythm="expenses"/);

@@ -70,7 +70,7 @@ function parseBars(data,now=Date.now()){
     .filter(x=>x.at>0&&x.at+INTERVAL<=now-1000&&x.open>0&&x.high>=x.low&&x.close>0)
     .sort((a,b)=>a.at-b.at);
 }
-const MARKET_LIMIT=50;
+const MARKET_LIMIT=40;
 function marketUniverse(response){
   const eligible=(response?.result?.list||[])
     .filter(v=>/^([A-Z0-9]+)USDT$/.test(String(v.symbol||''))&&
@@ -79,7 +79,7 @@ function marketUniverse(response){
   // Liquid majors + high-turnover positive movers, not only BTC/ETH.
   const liquid=eligible.slice(0,20);
   const movers=eligible.filter(v=>num(v.price24hPcnt)>0.04)
-    .sort((a,b)=>num(b.price24hPcnt)-num(a.price24hPcnt)).slice(0,50);
+    .sort((a,b)=>num(b.price24hPcnt)-num(a.price24hPcnt)).slice(0,MARKET_LIMIT);
   return [...new Map([...liquid,...movers,...eligible].map(v=>[v.symbol,v])).values()]
     .slice(0,MARKET_LIMIT).map(v=>({symbol:v.symbol,price:num(v.lastPrice)}));
 }

@@ -153,6 +153,7 @@ function render(data){
     if(!s.backfillComplete)parts.push('История за 30 дней загружена не полностью.');
     if(s.sourceError)parts.push('Telegram временно недоступен. Показаны последние сохранённые данные.');
     if(s.priceError)parts.push('Некоторые котировки Bybit не удалось проверить.');
+    if(s.referencePricesCount)parts.push('Bybit ограничивает доступ (HTTP 403). Для '+s.referencePricesCount+' сигналов использованы справочные котировки OKX — они не входят в подтверждённую статистику Bybit.');
     if(stats.excluded)parts.push('Исключено неопределённых сделок: '+stats.excluded+'.');
     if(!p.netIncludesFunding)parts.push('Funding по некоторым сделкам неизвестен; итог учитывает оценочные комиссии, но не претендует на полный net PNL.');
     if(s.gapsEstimate)parts.push('Обнаружены разрывы ID публикаций ('+s.gapsEstimate+'). Это могут быть удалённые посты, полнота истории не подтверждена.');

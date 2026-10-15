@@ -19,7 +19,7 @@ async function handler(req,res){
     const {actor}=authorizeRequest(req,body.initData);
     const operation=String(body.operation||'list').trim(),now=Date.now(),today=moscowDateKey(now);
     const requestedDate=String(body.date||'').trim()||today;
-    const shouldFinalize=operation!=='list'||requestedDate===today;
+    const shouldFinalize=operation!=='list';
     if(shouldFinalize){
       try{await finalizeOutstandingHabitDays(actor,{now,maxDays:1})}catch(error){console.error('RUDI_HABIT_SELF_HEAL_FINALIZE_ERROR',actor,String(error?.message||error))}
     }
@@ -27,10 +27,8 @@ async function handler(req,res){
 
     if(operation==='list'){
       state=requestedDate===today?await ensureHabitDay(actor,today,{now}):await readHabits(actor,{now});
-      if(requestedDate===today){
-        const sync=await reconcileTodayHabitScores(actor,state,{now});score=sync.score;scoreDelta=sync.deltaPoints;
-        state=await readHabits(actor,{now});
-      }
+      // A read must not block on three sequential score calculations and DB writes.
+      // Status changes and the scheduled cron still reconcile scores idempotently.
     }else if(operation==='add'){
       state=await addHabit(actor,body.name,{now,purpose:body.purpose});
       state=await ensureHabitDay(actor,today,{now});

@@ -1,5 +1,5 @@
 {
-  "current": "v4.253",
+  "current": "v4.254",
   "versionBranch": "feature/rudi-v4217-home-and-author-entry",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -84,7 +84,8 @@
     "v4.248: Морской бой — цельные силуэты кораблей размером 3/2 клетки, огонь на попаданиях, полное зачёркивание затонувшего корабля, Web Audio залпы/всплески/потопление с управлением звуком, компактные подписи без подсказок. Враг раскрывает только целиком потопленные корабли до завершения партии; API и очередь ходов сохранены.",
     "v4.249: скрыта надпись Энергия в обеих партнёрских карточках; подпись фазы биоритма привязана к живой точке по X, удерживается в границах графика и находится в отдельной строке над кривой. Приведены к одинаковой разметке карточки Рустама и Дианы, график и его интерактивность сохранены.",
     "v4.250: у Рустама и Дианы личная аватарка, имя и статус выровнены по центру собственной строки, как в карточке партнёра. Убрана привязка вертикального положения к графику биоритма, остальные элементы не изменены.",
-    "v4.253: restore cinema from journal; show all Stage events; month-scoped calendar repair; resilient personal daily AI; compact iPhone word game; Lulu name toggles history; unanswered daily question stays open; fix bottom tab bar restoration."
+    "v4.253: restore cinema from journal; show all Stage events; month-scoped calendar repair; resilient personal daily AI; compact iPhone word game; Lulu name toggles history; unanswered daily question stays open; fix bottom tab bar restoration.",
+    "v4.254: restore fast habit-list loading with request timeouts and offline last snapshot; cap algorithm scan to 40; label read-only OKX references if Bybit blocks HTTP 403; shrink personal daily Groq request to avoid HTTP 413; prevent proxy prices from entering verified Bybit winrate."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала проверка и PR, затем подтверждение пользователя.",
   "changes": [

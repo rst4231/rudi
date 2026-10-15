@@ -17,6 +17,9 @@ const habitReadCache=new Map();
 const habitOptimisticStatuses=new Map();
 const habitOptimisticKey=(date,id)=>actor+'|'+date+'|'+id;
 function requestCacheKey(operation,payload){return String(operation||'')+'|'+JSON.stringify(payload||{})}
+function rudiReadTimeout(readOnly){return readOnly&&typeof AbortSignal?.timeout==='function'?AbortSignal.timeout(9500):undefined}
+function persistHabitSnapshot(data){try{if(actor&&data?.ok)localStorage.setItem(STORAGE+'habits-last:'+actor,JSON.stringify({data,at:Date.now()}))}catch(_){}}
+function lastHabitSnapshot(){try{const row=JSON.parse(localStorage.getItem(STORAGE+'habits-last:'+actor)||'null');return row?.data?.ok?row:null}catch(_){return null}}
 function cachedRead(cache,key,ttl=READ_CACHE_TTL_MS){
   const row=cache.get(key);
   if(!row||Date.now()-Number(row.savedAt||0)>Math.max(1000,Number(ttl)||READ_CACHE_TTL_MS)){cache.delete(key);return null}
@@ -32,7 +35,7 @@ async function request(operation,payload={},options={}){
     const cached=cachedRead(supplementReadCache,cacheKey);
     if(cached)return cached;
   }
-  const response=await fetch(API,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({operation,initData:initData(),...payload})});
+  const response=await fetch(API,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({operation,initData:initData(),...payload}),signal:rudiReadTimeout(readOnly)});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data?.ok){const error=new Error(String(data?.error||'supplements-request-failed'));error.status=response.status;throw error}
   if(readOnly)return saveCachedRead(supplementReadCache,cacheKey,data);
@@ -46,11 +49,11 @@ async function habitRequest(operation,payload={},options={}){
     const cached=cachedRead(habitReadCache,cacheKey,HABIT_READ_CACHE_TTL_MS);
     if(cached)return cached;
   }
-  const response=await fetch(HABITS_API,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({operation,initData:initData(),...payload})});
+  const response=await fetch(HABITS_API,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({operation,initData:initData(),...payload}),signal:rudiReadTimeout(readOnly)});
   const data=await response.json().catch(()=>({}));
   if(!response.ok||!data?.ok){const error=new Error(String(data?.error||'habits-request-failed'));error.status=response.status;throw error}
   if(data.score)document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:data.score}}));
-  if(readOnly)return saveCachedRead(habitReadCache,cacheKey,data);
+  if(readOnly){if(operation==='list'&&!payload.date)persistHabitSnapshot(data);return saveCachedRead(habitReadCache,cacheKey,data)}
   clearReadCache(habitReadCache);
   document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
   return data;
@@ -848,9 +851,19 @@ async function loadHomeTools({force=false}={}){
       const habitData=habitsResult.value;
       habitSelectedDate=String(habitData?.date||habitData?.today||'');applyHabitView(habitData);
     }else{
-      console.error('RUDI_HABITS_HOME_LOAD_ERROR',habitsResult.reason);habitProgressText.textContent='Не удалось загрузить';habitList.replaceChildren();setHabitStatus('Не удалось загрузить привычки.',true);
+      console.error('RUDI_HABITS_HOME_LOAD_ERROR',habitsResult.reason);
+      const backup=lastHabitSnapshot();
+      if(backup){
+        habitSelectedDate=String(backup.data.date||backup.data.today||'');applyHabitView(backup.data);
+        setHabitStatus('Нет свежих данных. Показана сохранённая копия; попробуй обновить позже.',true);
+      }else{
+        habitProgressText.textContent='Не удалось загрузить';habitList.replaceChildren();
+        setHabitStatus('Нет ответа сервера. Попробуй открыть раздел ещё раз.',true);
+      }
     }
-    homeToolsLoadedActor=actor;homeToolsLoadedAt=Date.now();
+    if(habitsResult.status==='fulfilled'&&supplementsResult.status==='fulfilled'){
+      homeToolsLoadedActor=actor;homeToolsLoadedAt=Date.now();
+    }else homeToolsLoadedAt=0;
   })().finally(()=>{homeToolsLoadPromise=null});
   return homeToolsLoadPromise;
 }

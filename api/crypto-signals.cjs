@@ -3,6 +3,7 @@ const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const {linkUpdates}=require('./crypto-trade-events.cjs');
 const {tradeOutcome,screenLiquidationRisk}=require('./crypto-signal-outcome.cjs');
 const {createMarketRequest}=require('./crypto-market-client.cjs');
+const {createResilientAuthorMarketRequest}=require('./crypto-author-reference.cjs');
 const NS='rudi-crypto-signal-monitor-v1', KEY='ne_investor', PERIOD_MS=30*86400000, INTERVAL_MS=15*60000;
 const cleanText=s=>String(s||'').slice(0,1800);
 function entities(text){
@@ -242,7 +243,7 @@ async function refreshSignals(options={}){
     if(!options.force&&previous.updatedAt&&now-Date.parse(previous.updatedAt)<INTERVAL_MS)
       return buildView(previous,now);
     const cutoff=now-PERIOD_MS;
-    const marketRequest=createMarketRequest({fetchImpl:options.fetchImpl});
+    const marketRequest=createResilientAuthorMarketRequest({fetchImpl:options.fetchImpl,primary:options.marketRequest,fallback:options.referenceRequest});
     let posts=new Map((Array.isArray(previous.messages)?previous.messages:[])
       .filter(m=>Date.parse(m.at)>=cutoff).map(m=>[m.id,m]));
     let cursor=Number(previous.cursor||0)||null,complete=Boolean(previous.backfillComplete);
@@ -294,10 +295,12 @@ async function refreshSignals(options={}){
             const livePrice=await marketPriceForSignal(s,marketRequest);
             const openedAt=new Date(now).toISOString();
             results[s.id]={status:'open',entry:livePrice,entryAt:openedAt,marketPrice:livePrice,
-              lastPriceAt:openedAt,execution:'market-at-sync',market:s.market,checkedAt:openedAt};
+              lastPriceAt:openedAt,execution:'market-at-sync',market:s.market,checkedAt:openedAt,
+              marketDataSource:marketRequest.lastSource||'bybit'};
             continue;
           }
           const candles=await candlesForSignal(s,{...options,marketRequest});
+          const dataSource=marketRequest.lastSource||'bybit';
           let outcome=tradeOutcome(s,candles,{now,openedPosition:acceptedPrev?.execution==='market-at-sync'?acceptedPrev:null});
           if(s.market==='linear'&&['open','won','lost','breakeven'].includes(outcome.status)){
             const [mark,funding]=await Promise.allSettled([
@@ -317,7 +320,7 @@ async function refreshSignals(options={}){
               outcome.fundingComplete=funding.value.complete;
             }else outcome.fundingComplete=false;
           }else if(s.market==='spot')outcome.fundingComplete=true;
-          results[s.id]={...outcome,market:s.market,checkedAt:new Date(now).toISOString()};
+          results[s.id]={...outcome,market:s.market,checkedAt:new Date(now).toISOString(),marketDataSource:dataSource};
         }
         catch(e){priceError=String(e?.message||e);results[s.id]={...(acceptedPrev||{status:'market-unavailable'}),market:s.market,checkedAt:new Date(now).toISOString()};}
       }
@@ -351,7 +354,8 @@ function buildView(state,now=Date.now()){
   attachTradeUpdates(signals,messages);
   linkUpdates(signals,messages);
   signals.sort((a,b)=>b.at.localeCompare(a.at));
-  const verified=signals.filter(s=>(s.status==='won'||s.status==='lost')&&s.execution!=='next-hour-model');
+  // OKX reference prices are NEVER counted as Bybit-verified results.
+   const verified=signals.filter(s=>(s.status==='won'||s.status==='lost')&&s.execution!=='next-hour-model'&&s.marketDataSource!=='okx-reference');
   const won=verified.filter(s=>s.status==='won');
   const knownChange=verified.filter(s=>Number.isFinite(s.priceChangePct));
   const avgChange=knownChange.length?Math.round(knownChange.reduce((s,r)=>s+r.priceChangePct,0)*100/knownChange.length)/100:null;
@@ -362,6 +366,7 @@ function buildView(state,now=Date.now()){
     gapsEstimate,scanComplete:Boolean(state.backfillComplete),
     backfillComplete:Boolean(state.backfillComplete),sourceError:state.sourceError||null,
     priceError:state.priceError||null,
+    referencePricesCount:signals.filter(s=>s.marketDataSource==='okx-reference').length,
     stats:{total:signals.length,verified:verified.length,won:won.length,lost:verified.length-won.length,
       open:signals.filter(s=>s.status==='open').length,
       unverified:signals.length-verified.length,
