@@ -44,13 +44,13 @@ test('partner last expense contains emoji but no unnecessary heading',()=>{
   assert.doesNotMatch(app,/node\.textContent='Последний расход: '/);
 });
 
-test('personal task form keeps one native date and time input across opens',()=>{
+test('personal task form has one visible native date/time pair and recreates it for each new task',()=>{
  const editor=source('public/personal-task-editor.js');
  const markup=editor.slice(editor.indexOf('modal.innerHTML='),editor.indexOf('document.body.appendChild(modal);'));
  assert.equal((markup.match(/id="rudiPersonalTaskDate"/g)||[]).length,1);
  assert.equal((markup.match(/id="rudiPersonalTaskTime"/g)||[]).length,1);
- assert.doesNotMatch(editor,/replaceTemporalInputs|\.replaceWith\(fresh\)/);
- assert.match(editor,/byId\('rudiPersonalTaskForm'\)\.reset\(\);active=/);
+ assert.match(editor,/existing\.replaceWith\(input\)/);
+ assert.match(editor,/byId\('rudiPersonalTaskForm'\)\.reset\(\);refreshTemporalInputs\(\);active=/);
  assert.match(editor,/f\('date'\)\.value=date;/);
  assert.match(editor,/f\('time'\)\.value=date\?time:'';/);
 });
