@@ -360,7 +360,7 @@ async function requestDailyReport(){
   if(result.status==='already-running'){
    setStatus('Сводка уже формируется. Попробуй ещё раз через минуту.');return;
   }
-  if(result.report){
+  if(result.report&&result.report.model!=='deterministic'&&result.report.narrative){
    report=result.report;who=result.actor;
    if(data){
     draw();
@@ -368,7 +368,8 @@ async function requestDailyReport(){
    }else await fetchOverview(true);
   }
   if(result.status==='unavailable'){
-   setStatus('AI пока не ответил. Предыдущая сводка сохранена, можно повторить позже.');return;
+   const reason=String(result.failureReason||'');
+   setStatus((reason==='rate-limited'?'Лимит AI, повтори чуть позже.':reason==='timeout'?'AI не успел ответить, повтори попытку.':reason.startsWith('provider-')?'AI вернул ошибку '+reason.slice(9)+'.':'AI пока не ответил.')+' Предыдущая успешная сводка сохранена.');return;
   }
   setStatus(report?.model==='deterministic'?'AI пока недоступен. Нажми «Обновить анализ» немного позже.':
    result.status==='upgraded'?'Полноценный AI-анализ готов!':

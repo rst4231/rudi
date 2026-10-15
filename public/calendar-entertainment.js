@@ -7,7 +7,7 @@
  function schedule(){if(scheduled)return;scheduled=true;requestAnimationFrame(()=>{scheduled=false;render()})}
  function load(key){
   if(busy.has(key))return;
-  const storage='rudi-entertainment-'+key;
+  const storage='rudi-entertainment-v4.253-'+key;
   if(!lists.has(key))try{const cached=JSON.parse(localStorage.getItem(storage)||'null');
     if(cached?.days){lists.set(key,cached.days);lastFetch.set(key,Number(cached.at)||0)}}
   catch(_){}

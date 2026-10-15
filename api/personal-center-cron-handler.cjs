@@ -48,7 +48,7 @@ async function generateForActor(actor,date,options={}){
   // authentic AI report is absent. A deterministic placeholder is retryable.
   if(manual){
    if(result.model==='deterministic') return {
-    actor,status:'unavailable',report:existing||null,failureReason:result.failureReason||'provider-unavailable'
+    actor,status:'unavailable',report:existing||null,failureReason:result.failureReason||'provider-unavailable',retryAfterSeconds:result.failureReason==='rate-limited'?90:0
    };
    if(existing){
     const upgraded=await state.upgradeFallbackReport(actor,date,slot,result,{client,now});

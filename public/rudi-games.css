@@ -383,3 +383,39 @@ html[data-theme="dark"] .rudi-battle-work .rudi-duel-player.is-current-turn{
 }
 html[data-theme="dark"] .rudi-battle-work .rudi-duel-player.is-current-turn b{color:#8aefb5}
 @media(max-width:400px){.rudi-battle-work .rudi-duel-player.is-current-turn{padding:8px 6px}}
+
+/* RUDI v4.253: six Wordle attempts plus input remain accessible in iPhone PWA. */
+.rudi-games-page{
+ box-sizing:border-box;
+ height:100dvh;
+ min-height:0;
+ max-height:100dvh;
+ overflow-y:auto;
+ -webkit-overflow-scrolling:touch;
+ padding-bottom:calc(18px + max(env(safe-area-inset-bottom),0px));
+}
+.rudi-games-page:has(.rudi-word-work) .rudi-games-head{margin-bottom:9px}
+.rudi-games-page:has(.rudi-word-work) .rudi-games-content{gap:8px}
+.rudi-games-page .rudi-word-work{
+ gap:10px;
+ padding:13px 14px;
+ border-radius:19px;
+}
+.rudi-games-page .rudi-word-work>p{font-size:12px;line-height:1.35}
+.rudi-games-page .rudi-word-board{width:min(100%,270px);gap:4px}
+.rudi-games-page .rudi-word-row{gap:4px}
+.rudi-games-page .rudi-word-letter{border-radius:8px;font-size:clamp(18px,5.5vw,24px)}
+.rudi-games-page .rudi-word-form{gap:7px}
+.rudi-games-page .rudi-word-form input{min-height:43px;font-size:18px}
+.rudi-games-page .rudi-word-form .rudi-game-primary{min-height:44px}
+@media(max-height:740px){
+ .rudi-games-page:has(.rudi-word-work){padding-top:calc(7px + env(safe-area-inset-top))}
+ .rudi-games-page:has(.rudi-word-work) .rudi-games-head{margin-bottom:6px}
+ .rudi-games-page .rudi-word-work{gap:8px;padding:10px 12px}
+ .rudi-games-page .rudi-word-board{width:min(100%,235px);gap:3px}
+ .rudi-games-page .rudi-word-row{gap:3px}
+}
+@media(max-height:610px){
+ .rudi-games-page .rudi-word-board{width:min(100%,205px)}
+ .rudi-games-page .rudi-word-work{gap:6px}
+}

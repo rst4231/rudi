@@ -3,7 +3,7 @@ const {createStrictRuntimeCache}=require('./strict-runtime-cache.cjs');
 const {readFeedSnapshot,moscowDateKey}=require('./feed-store.cjs');
 const {loadEventsConfig}=require('./events-config.cjs');
 const {loadStandup,loadCinema}=require('./calendar-entertainment-sources.cjs');
-const SCHEMA_VERSION=3;
+const SCHEMA_VERSION=4;
 const KEY='rolling-quarter', NAMESPACE='rudi-calendar-entertainment-v1';
 const CONFIG_URL='https://raw.githubusercontent.com/rst4231/rudi/main/config/calendar-entertainment.json';
 const DEFAULTS={enabled:true,monthsAhead:3,yandexStandupUrl:'https://afisha.yandex.ru/saint-petersburg/selections/standup',knownStandups:['Андрей Бебуришвили','Алексей Щербаков','Гурам Амарян','Иван Абрамов','Нурлан Сабуров','Ольга Малащенко','Варвара Щербакова','Дмитрий Романов','Виктор Комаров','Валентин Сидоров','Слава Комиссаренко','Денис Дорохов','Comedy Club','Женский форум','Женский стендап','StandUp на ТНТ']};
@@ -20,7 +20,7 @@ function event(raw,kind,date,source,c=DEFAULTS){
   const time=clean(raw?.time||raw?.startTime,16),href=url(raw?.href||raw?.url||raw?.site_url||raw?.sourceUrl);
   const genre=['concert','cinema'].includes(kind)?clean(raw?.genre||raw?.musicGenre||'',80):'';
   if(!title||!validDate(date)||!['concert','standup','cinema'].includes(kind))return null;
-  if(kind==='standup'&&!isKnown(title,c))return null;
+  if(kind==='standup'&&source!=='Stage StandUp Club'&&!isKnown(title,c))return null;
   if(kind==='concert'&&(/^(кавер|джем|открытый микрофон|трибьют)/iu.test(title)||/\b(бар|pub|паб)\b/iu.test(venue)))return null;
   const clock=time.match(/\b(\d{1,2}:\d{2})\b/u);
   return {kind,date,title,time:clock?clock[1].padStart(5,'0'):'',venue,href,genre,source:clean(source,80)};
@@ -96,12 +96,56 @@ async function refresh(o={}){const now=o.now instanceof Date?o.now:new Date(o.no
   await store.set(KEY,{schemaVersion:SCHEMA_VERSION,refreshedDate:today,refreshedAt:now.toISOString(),until,events},{ttl:60*60*24*150,tags:['rudi-calendar-entertainment']});
   return {date:today,until,count:events.length,successDays:success,failedDays:failed,yandexStandupItems:extra.length,listedStandups:listedStandups.length,movies:movies.filter(Boolean).length+listedMovies.length};
 }
+// An existing v3 snapshot can be fixed one month at a time. Do not crawl
+// three months merely because a person opened the calendar.
+async function repairStageMonth(monthKey,o={}){
+  const now=o.now instanceof Date?o.now:new Date(o.now||Date.now()),today=moscowDateKey(now),until=endDate(today,3);
+  const store=cacheOf(o),before=await store.get(KEY).catch(()=>null);
+  if(!before||before.schemaVersion===SCHEMA_VERSION||before.stageRepairMonths?.includes(monthKey))
+    return {skipped:'not-needed'};
+  const first=[today,monthKey+'-01'].sort().at(-1);
+  const [year,mon]=monthKey.split('-').map(Number);
+  const last=[until,new Date(Date.UTC(year,mon,0)).toISOString().slice(0,10)].sort()[0];
+  if(first>last)return {skipped:'outside-range'};
+  const lock='stage-repair-v4-'+monthKey;
+  const acquired=typeof store.setIfAbsent!=='function'||await store.setIfAbsent(lock,{started:now.toISOString()},{ttl:120});
+  if(!acquired)return {skipped:'in-progress'};
+  try{
+    const dates=[];for(let day=first;day<=last;day=addDays(day,1))dates.push(day);
+    const config=await loadConfig(o),stage=[],complete=new Set();
+    let cursor=0;
+    async function worker(){while(cursor<dates.length){
+      const day=dates[cursor++];
+      try{const preview=await fetchPreview(day,o);
+        if(preview?.date!==day)continue;
+        complete.add(day);
+        stage.push(...fromPreview(preview,day,config).filter(row=>row.source==='Stage StandUp Club'));
+      }catch(error){console.warn('RUDI_STAGE_REPAIR_WARN',day,String(error?.message||error))}
+    }}
+    await Promise.all(Array.from({length:Math.min(5,dates.length)},()=>worker()));
+    if(!complete.size)return {skipped:'source-unavailable'};
+    const recent=await store.get(KEY).catch(()=>null)||before;
+    if(recent.schemaVersion===SCHEMA_VERSION||recent.stageRepairMonths?.includes(monthKey))return {skipped:'already-repaired'};
+    const existing=(recent.events||[]).filter(row=>!(row.source==='Stage StandUp Club'&&complete.has(row.date)));
+    const events=unique([...existing,...stage]);
+    const allDone=complete.size===dates.length;
+    await store.set(KEY,{...recent,events,stageRepairMonths:allDone?[...new Set([...(recent.stageRepairMonths||[]),monthKey])]:recent.stageRepairMonths||[],refreshedAt:now.toISOString()},
+      {ttl:60*60*24*150,tags:['rudi-calendar-entertainment']});
+    return {month:monthKey,days:complete.size,stage:stage.length};
+  }finally{await store.delete(lock).catch(()=>{});}
+}
 async function month(monthKey,o={}){const today=moscowDateKey(o.now||new Date()),until=endDate(today,3);
   const selected=/^20\d{2}-(0[1-9]|1[0-2])$/u.test(String(monthKey||''))?monthKey:today.slice(0,7);
-  const snapshot=await cacheOf(o).get(KEY).catch(()=>null);const days=new Map();
+  const store=cacheOf(o);
+  let snapshot=await store.get(KEY).catch(()=>null);
+  if(snapshot&&snapshot.schemaVersion!==SCHEMA_VERSION&&!snapshot.stageRepairMonths?.includes(selected)){
+    await repairStageMonth(selected,{...o,cache:store});
+    snapshot=await store.get(KEY).catch(()=>null)||snapshot;
+  }
+  const days=new Map();
   for(const e of snapshot?.events||[])if(e.date>=today&&e.date<=until&&e.date.slice(0,7)===selected){
     if(!days.has(e.date))days.set(e.date,[]);days.get(e.date).push(e)}
   return {ok:true,month:selected,updatedAt:snapshot?.refreshedAt||null,until,days:[...days.entries()].map(([date,items])=>({date,items:unique(items)}))};
 }
 module.exports={DEFAULTS,KEY,NAMESPACE,endDate,fromPreview,unique,event,isKnown,
-  yandexStandupFromHtml,fetchPreview,refresh,month};
+  yandexStandupFromHtml,fetchPreview,refresh,repairStageMonth,month};

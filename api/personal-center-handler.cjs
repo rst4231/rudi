@@ -47,7 +47,7 @@ module.exports=async function handler(req,res){
     if(result.status==='failed')return res.status(503).json({ok:false,error:'report-generation-failed'});
     const localized=await ensureRussianReport(actor,result.report);
     return res.status(200).json({ok:true,actor,status:result.status,report:localized,
-      retryAfterSeconds:result.retryAfterSeconds||0});
+      retryAfterSeconds:result.retryAfterSeconds||0,failureReason:result.status==='unavailable'?String(result.failureReason||''):''});
   }
   if(operation==='read-report'){await state.seen(actor);return res.status(200).json({ok:true});}
   if(operation==='history'){const history=await state.history(actor);return res.status(200).json({ok:true,actor,history});}

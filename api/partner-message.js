@@ -1430,7 +1430,18 @@ async function refreshFeedFromPreviewIfNeeded(feed, options = {}) {
     console.warn('RUDI_FEED_PREVIEW_BOOTSTRAP_WARN', String(error?.message || error));
   }
 
-  if (isThursdayMoscow(now)) {
+  // Reuse the authoritative cinema journal on Thursday before attempting scraping.
+  // A missing feed record must not cause repeated film selection or duplicates.
+  let recoveredCinema = false;
+  if (isThursdayMoscow(now) && !cinemaFreshToday) {
+    try {
+      const recovery = await (options.syncCinemaFromJournal || require('./preview.js').syncCinemaFeedFromJournal)(date, options);
+      recoveredCinema = recovery?.synced === true;
+    } catch (error) {
+      console.warn('RUDI_FEED_CINEMA_JOURNAL_WARN', String(error?.message || error));
+    }
+  }
+  if (isThursdayMoscow(now) && !cinemaFreshToday && !recoveredCinema) {
     try {
       const publishCinema = options.publishCinemaForFeed
         || ((runOptions) => require('./cinema-premieres-collage.cjs').publishWeeklyCinemaPremieres(runOptions));
@@ -1458,7 +1469,7 @@ async function refreshFeedFromPreviewIfNeeded(feed, options = {}) {
     }
   }
 
-  if (!Object.keys(sections).length) return feed;
+  if (!Object.keys(sections).length) return recoveredCinema ? readFeedSnapshot(options) : feed;
   return updateFeedSections(sections, { ...options, date, now });
 }
 
