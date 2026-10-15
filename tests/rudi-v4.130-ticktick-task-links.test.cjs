@@ -6,7 +6,7 @@ const vm=require('node:vm');
 
 const app=fs.readFileSync('public/app.js','utf8');
 const start=app.indexOf('function calendarTickTickTaskWebUrl(task){');
-const end=app.indexOf('function calendarOpenSearchResult(task){',start);
+const end=app.indexOf('function setupWorkCalendarDisclosure(){',start);
 assert.ok(start>=0&&end>start,'TickTick task link helpers must exist');
 const helperSource=app.slice(start,end);
 const ownedTask={id:'task123',projectId:'inbox122693984',personal:true,canEdit:false,title:'Моя задача'};
