@@ -35,3 +35,8 @@ test('history rendering never shadows its source view in an iteration binding',(
   assert.match(src,/for\(const \[dayKey,dayView\] of Object\.entries\(view\.history\)\)/);
   assert.doesNotMatch(src,/for\(const \[date,view\] of Object\.entries\(view\.history\)\)/);
 });
+
+test('explicit Retry bypasses a previous in-flight supplement request',()=>{
+  const src=fs.readFileSync('public/profile-supplements.js','utf8');
+  assert.match(src,/if\(!force&&homeToolsLoadPromise&&homeToolsRequestActor===nextActor\)return homeToolsLoadPromise/);
+});

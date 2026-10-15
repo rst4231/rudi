@@ -874,7 +874,7 @@ async function loadHomeTools({force=false}={}){
     return;
   }
   if(!force&&homeToolsLoadedActor===nextActor&&Date.now()-homeToolsLoadedAt<HOME_TOOLS_STALE_MS)return;
-  if(homeToolsLoadPromise&&homeToolsRequestActor===nextActor)return homeToolsLoadPromise;
+  if(!force&&homeToolsLoadPromise&&homeToolsRequestActor===nextActor)return homeToolsLoadPromise;
   const changedActor=actor!==nextActor;
   actor=nextActor;
   if(changedActor){
