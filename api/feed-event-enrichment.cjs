@@ -9,7 +9,6 @@ const {moscowDateKey}=require('./feed-store.cjs');
 const PHOTO_TTL=60*60*24*3;
 const clean=x=>String(x||'').replace(/<[^>]*>/gu,'').replace(/&amp;/gu,'&').replace(/\s+/gu,' ').trim();
 const fold=x=>clean(x).toLocaleLowerCase('ru-RU').replace(/ё/gu,'е').replace(/[^а-яa-z0-9]/giu,'');
-const dateAhead=(key,days)=>{const d=new Date(key+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10)};
 function fromDigest(value,date){
   const rows=[];let current=null;
   const add=()=>{if(current?.title)rows.push(current);current=null};
@@ -45,15 +44,19 @@ async function enrichFeedEvents(feed,options={}){
  const now=options.now instanceof Date?options.now:new Date(options.now||Date.now());
  const date=moscowDateKey(now);
  const eventParts=sections.events.parts||[];
- const concerts=fromDigest(eventParts[0],date),standups=fromDigest(eventParts[1],date);
+ // A cinema-only update can change feed.date while the events digest is still yesterday's.
+ const eventUpdatedMs=Date.parse(String(sections.events.updatedAt||''));
+ const digestDate=Number.isFinite(eventUpdatedMs)?moscowDateKey(new Date(eventUpdatedMs)):String(feed?.date||'');
+ const digestIsToday=digestDate===date;
+ const concerts=digestIsToday?fromDigest(eventParts[0],date):[];
+ const standups=digestIsToday?fromDigest(eventParts[1],date):[];
  try{
   const calendar=options.calendarCache||createStrictRuntimeCache({namespace:CALENDAR_NS});
   const snapshot=await calendar.get(CALENDAR_KEY);
-  const until=dateAhead(date,14);
-  const matches=(snapshot?.events||[]).filter(row=>row&&row.date>=date&&row.date<=until);
+  // Daily feed must use the current Moscow date, never the next 14 days.
+  const matches=(snapshot?.events||[]).filter(row=>row&&row.date===date);
   for(const event of matches){
-   if(event.kind==='standup'&&(event.source==='Stage StandUp Club'||isKnown(event.title))
-     &&(event.source!=='Stage StandUp Club'||event.date===date))standups.push(fromCalendar(event));
+   if(event.kind==='standup'&&(event.source==='Stage StandUp Club'||isKnown(event.title)))standups.push(fromCalendar(event));
    if(event.kind==='concert'&&event.date===date)concerts.push(fromCalendar(event));
   }
  }catch(error){console.warn('RUDI_FEED_EVENTS_CALENDAR_WARN',String(error?.message||error))}

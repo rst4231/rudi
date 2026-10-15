@@ -18754,7 +18754,13 @@
         if(name==='concerts'||name==='standup'){
           const enriched=Array.isArray(section?.[name==='standup'?'standupItems':'concertItems'])
             ?section[name==='standup'?'standupItems':'concertItems']:[];
-          const items=enriched.length?enriched:(raw?parseFeedEventItems(raw,name):[]);
+          const today=feedDateKey(new Date());
+          const eventUpdatedMs=Date.parse(String(section?.updatedAt||''));
+          const eventDay=Number.isFinite(eventUpdatedMs)?feedDateKey(new Date(eventUpdatedMs)):String(payload?.date||'');
+          const eventSectionIsToday=eventDay===today;
+          // An empty enrichment result is authoritative: never revive older raw items.
+          const sourceItems=Array.isArray(enriched)?enriched:(raw&&eventSectionIsToday?parseFeedEventItems(raw,name):[]);
+          const items=sourceItems.filter(item=>String(item?.date||'')===today||(!item?.date&&eventSectionIsToday));
           count=items.length;
           for(const item of items){
             const time=item.details.map(value=>value.match(/(?:^|\s)(\d{1,2}):(\d{2})(?:\s|$)/u)).find(Boolean);
@@ -18765,18 +18771,12 @@
           }
           if(items.length){
             renderFeedEventItems(body,items,name);
-          }else if(!raw||eventEmptyText(name,raw)){
+          }else{
             hasContent=false;
             const empty=document.createElement('div');
             empty.className='feed-empty';
             empty.textContent=name==='concerts'?'На сегодня концертов не найдено.':'На сегодня событий Stand Up не найдено.';
             body.appendChild(empty);
-          }else{
-            const part=document.createElement('div');
-            part.className='feed-part';
-            part.dataset.feedKind=name;
-            part.appendChild(sanitizeFeedHtml(raw,name));
-            body.appendChild(part);
           }
         }else if(name==='cinema'){
           const cinemaItems=structuredItems.length?structuredItems:parseLegacyCinemaItems(raw);
