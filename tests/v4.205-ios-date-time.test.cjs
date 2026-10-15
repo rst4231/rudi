@@ -18,12 +18,12 @@ test('iPhone task editor has exactly one native date and one native time input, 
  assert.match(shared,/id="ticktickTaskTimeInput" type="time"/);
 });
 
-test('sequential task openings reuse the same date/time nodes',()=>{
- assert.doesNotMatch(src,/function replaceTemporalInputs\(\)/);
- assert.doesNotMatch(src,/\.replaceWith\(fresh\)/);
- assert.match(src,/byId\('rudiPersonalTaskForm'\)\.reset\(\);active=/);
- assert.match(src,/f\(type\)\.addEventListener\('change',syncTime\)/);
- assert.match(src,/f\(type\)\.addEventListener\('input',syncTime\)/);
+test('sequential task openings recreate picker nodes and discard prior default date/time',()=>{
+ assert.match(src,/function refreshTemporalInputs\(\)/);
+ assert.match(src,/existing\.replaceWith\(input\)/);
+ assert.match(src,/byId\('rudiPersonalTaskForm'\)\.reset\(\);refreshTemporalInputs\(\);active=/);
+ assert.match(src,/input\.addEventListener\('change',syncTime\)/);
+ assert.match(src,/input\.addEventListener\('input',syncTime\)/);
  assert.match(src,/f\('date'\)\.value=date;/);
  assert.match(src,/f\('time'\)\.value=date\?time:'';/);
 });
@@ -37,7 +37,10 @@ test('date selection still disables time when task has no date',()=>{
  date.value='2026-10-13';sync();assert.equal(time.disabled,false);
 });
 
-test('native fields do not acquire duplicate nodes across reopen',()=>{
- assert.doesNotMatch(src,/replaceTemporalInputs|\.replaceWith\(fresh\)/);
- assert.match(src,/for\(const type of \['date','time'\]\)\{\s*f\(type\)\.addEventListener/);
+test('picker nodes are replaced only once for each opened task',()=>{
+ assert.match(src,/for\(const type of \['date','time'\]\)\{\s*const existing=f\(type\)/);
+ assert.match(src,/existing\.replaceWith\(input\)/);
+ assert.match(src,/f\('date'\)\.defaultValue='';/);
+ assert.match(src,/f\('time'\)\.defaultValue='';/);
 });
+
