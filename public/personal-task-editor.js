@@ -59,12 +59,8 @@ function init(){
   modal.querySelectorAll('[data-personal-close]').forEach(b=>b.addEventListener('click',close));
   byId('rudiPersonalTaskForm').addEventListener('submit',submit);
   byId('rudiPersonalTaskDelete').addEventListener('click',remove);
-  // One pair of native inputs survives every task switch. Replacing the
-  // nodes on iOS can leave painted native controls from the previous task.
-  for(const type of ['date','time']){
-    f(type).addEventListener('change',syncTime);
-    f(type).addEventListener('input',syncTime);
-  }
+  // Native iOS date/time picker state is recreated each time a task opens.
+  // This prevents the previous task's system picker value being displayed.
   // Date shortcuts remain available in the right-click context menu only.
   menu.querySelectorAll('[data-personal-date-action]').forEach(b=>b.addEventListener('click',()=>useQuick(b.dataset.personalDateAction,true)));
   document.addEventListener('pointerdown',event=>{
@@ -72,6 +68,17 @@ function init(){
   },true);
   document.addEventListener('scroll',closeMenu,true);
   document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeMenu();if(!modal.hidden)close()}});
+}
+function refreshTemporalInputs(){
+  for(const type of ['date','time']){
+    const existing=f(type);
+    if(!existing)continue;
+    const input=existing.cloneNode(false);
+    input.value='';input.removeAttribute('value');input.defaultValue='';
+    existing.replaceWith(input);
+    input.addEventListener('change',syncTime);
+    input.addEventListener('input',syncTime);
+  }
 }
 function syncTime(){
   const date=f('date'),time=f('time');
@@ -158,7 +165,7 @@ function normalizedEditorWhen(task){
 function open(task,ctx={}){
   if(!task?.id||!task?.personal)return;
   init();closeMenu();
-  byId('rudiPersonalTaskForm').reset();active={task:{...task},ctx,creating:task.isNew===true};
+  byId('rudiPersonalTaskForm').reset();refreshTemporalInputs();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
   const {date,time}=normalizedEditorWhen(active.task);
   // Reset iOS-native date/time before applying THIS task's values.
@@ -166,8 +173,10 @@ function open(task,ctx={}){
   f('time').value='';
   f('date').value=date;
   f('time').value=date?time:'';
-  f('date').defaultValue=date;
-  f('time').defaultValue=date?time:'';
+  // Never store task-specific values as the inputs' defaultValue: form.reset()
+  // and WebKit may otherwise resurrect a prior task's date/time.
+  f('date').defaultValue='';
+  f('time').defaultValue='';
   f('description').value=String(task.description||'');
   f('project').replaceChildren(new Option(task.projectName||'Текущий список',task.projectId||''));
   f('project').value=task.projectId||'';

@@ -74,7 +74,7 @@ test('personal calendar interactions and labels are wired in UI',()=>{
  assert.ok(app.includes("groupTitle.textContent='Счета на оплату'"));
  assert.ok(!app.includes("amount.textContent=financeOverviewMoney(obligation.amount)+(obligation.paid?' · Оплачено':' · К оплате')"));
  assert.ok(html.includes('<span class="work-page-subtitle">Дела и события</span>'));
- assert.ok(html.indexOf('id="calendarFinanceShortcut"')>html.indexOf('id="calendarSearchButton"'));
+ assert.ok(!html.includes('id="calendarSearchButton"'));
  assert.ok(html.indexOf('id="calendarFinanceShortcut"')<html.indexOf('id="calendarConnectionsGear"'));
  assert.ok(editor.includes("element.__rudiPersonalTaskBinding?.ctx?.openTickTick?.()"));
  assert.ok(editor.includes("element.addEventListener('contextmenu'"));
@@ -95,5 +95,5 @@ test('personal editor keeps date and time when switching between different task 
  assert.equal(second.date,'2026-10-15');assert.equal(second.time,'18:40');
  const due=convert({date:'2026-10-18',startTime:'',endTime:'20:30',originalStartDate:'2026-10-12T06:15:00Z'});
  assert.equal(due.date,'2026-10-18');assert.equal(due.time,'20:30');
- assert.match(src,/byId\('rudiPersonalTaskForm'\)\.reset\(\)/);
+ assert.match(src,/byId\('rudiPersonalTaskForm'\)\.reset\(\);refreshTemporalInputs\(\)/);
 });
