@@ -23,11 +23,11 @@ test('Cloudflare now schedules monitors independently from Lulu GitHub alerts',(
  assert.ok(rewrites.some(r=>r.source==='/api/crypto-monitor-cron'));
 });
 
-test('up to 40 liquid markets are selected for new signals, plus open positions',()=>{
+test('up to 50 liquid markets are selected for new signals, plus open positions',()=>{
   const markets=Array.from({length:60},(_,i)=>({symbol:'AL'+i+'USDT',
     turnover24h:String((61-i)*10000000),price24hPcnt:String(i/100),lastPrice:'1.22'}));
   const selection=algorithm.marketUniverse({result:{list:markets}});
-  assert.ok(selection.length<=40,selection.length);
+  assert.ok(selection.length<=50,selection.length);
   assert.ok(selection.length>=30);
   assert.equal(new Set(selection.map(s=>s.symbol)).size,selection.length);
 });
