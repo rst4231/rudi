@@ -191,6 +191,13 @@ async function ensureDailyQuestion(options={}){
     return row;
   });
 }
+// Home bootstrap must never wait for on-demand AI question generation.
+// The regular daily-question "get" endpoint still generates missing questions.
+async function readDailyQuestionCached(actor,options={}){
+  const date=dateKey(Number(options.now||Date.now()));
+  const row=normalizeRow(await cacheOf(options).get(rowKey(date)).catch(()=>null),date);
+  return row.question?.text?questionView(row,actor):null;
+}
 async function readDailyQuestion(actor,options={}){
   const row=await ensureDailyQuestion(options);
   return questionView(row,actor);
@@ -219,5 +226,5 @@ function resetMutationQueueForTests(){mutationTail=Promise.resolve()}
 module.exports={
   NAMESPACE,HISTORY_NAMESPACE,DAY_TTL_SECONDS,HISTORY_TTL_SECONDS,HISTORY_KEY,MAX_HISTORY,
   dateKey,shiftDateKey,normalizeRow,normalizeHistory,questionView,
-  ensureDailyQuestion,readDailyQuestion,answerDailyQuestion,resetMutationQueueForTests,
+  ensureDailyQuestion,readDailyQuestion,readDailyQuestionCached,answerDailyQuestion,resetMutationQueueForTests,
 };
