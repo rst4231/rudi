@@ -21,7 +21,7 @@ test('unconfirmed OKX candles are excluded',()=>{
  assert.equal(rows.length,1);assert.equal(rows[0][0],'2000');
  assert.equal(rows[0][5],'150');
 });
-test('OKX scanner selects and scans 50 liquid markets',async()=>{
+test('OKX scanner respects 40-market limit',async()=>{
  let state=null,candleCalls=0;
  const client={getRecord:async()=>state?{value:state}:null,
    setRecord:async row=>{state=row.value;}};
@@ -37,7 +37,7 @@ test('OKX scanner selects and scans 50 liquid markets',async()=>{
  };
  const result=await a.scan({client,fetchImpl,now:NOW});
  assert.equal(result.provider,'okx');assert.equal(result.error,null);
- assert.equal(result.marketCount,50);assert.equal(candleCalls,50);
+ assert.equal(result.marketCount,40);assert.equal(candleCalls,40);
  assert.equal(result.portfolios.pump.closed,0);
 });
 test('Bybit archive remains read-only in its original namespace',async()=>{
