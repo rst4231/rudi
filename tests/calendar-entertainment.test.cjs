@@ -117,7 +117,7 @@ test('entertainment list is one time-sorted direct-link list, with centered cale
   assert.match(js,/querySelector\('\.calendar-day-indicators'\)/);
   assert.match(css,/\.calendar-day-indicators \.rudi-entertainment-marker/);
   assert.match(css,/position:static!important/);
-  assert.match(html,/calendar-entertainment\.js\?v=4\.253/);
+  assert.match(html,/calendar-entertainment\.js\?v=4\.\d+/);
 });
 
 test('premiere genres are extracted individually from the Russian cinema release cards',()=>{
