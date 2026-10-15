@@ -85,7 +85,7 @@ test('game page removes market simulator and unnecessary hero paragraph',()=>{
 });
 test('home full-width energy chart and moving phase caption',()=>{
  const c=homeCss(),s=layout(),html=fs.readFileSync('public/index.html','utf8');
- assert.match(s,/grid-template-columns':'minmax\(0,1fr\)'/);
+ assert.match(s,/grid-template-columns':narrow\?/);
  assert.match(s,/watchEnergyPointCaption\(strip\)/);
  assert.match(c,/profile-energy-label\{\s*display:none!important/);
  assert.match(c,/profile-energy-plot \.rudi-energy-point-caption/);
