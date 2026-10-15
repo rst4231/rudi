@@ -68,7 +68,7 @@ test('PWA and HTML versions fetch updated game badge assets without numeric OS b
  assert.doesNotMatch(sw,/self\.navigator\.setAppBadge\(/);
  assert.doesNotMatch(sw,/self\.navigator\.setAppBadge\(1\)/);
  assert.match(html,/rudi-games-extra\.js\?v=4\.\d+/);
- assert.match(html,/rudi-games\.css\?v=4\.244/);
+ assert.match(html,/rudi-games\.css\?v=4\.\d+/);
  assert.match(fs.readFileSync('VERSION','utf8').trim(),/^v4\.\d+$/);
  assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,fs.readFileSync('VERSION','utf8').trim());
 });
