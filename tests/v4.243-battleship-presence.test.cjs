@@ -73,7 +73,7 @@ test('one versioned HTML script and same interval, no extra presence poll',()=>{
  const html=fs.readFileSync('public/index.html','utf8'),js=fs.readFileSync('public/rudi-games-extra.js','utf8');
  assert.match(html,/rudi-games-extra\.js\?v=4\.\d+/);
  assert.match(html,/rudi-games\.js\?v=4\.\d+/);
- assert.match(js,/battleTimer=setTimeout\(\(\)=>\{battleTimer=null;void pollBattle\(\)\},20000\)/);
+ assert.match(js,/battleTimer=setTimeout\(\(\)=>\{battleTimer=null;void pollBattle\(\)\},5000\)/);
  assert.match(fs.readFileSync('VERSION','utf8').trim(),/^v4\.\d+$/);
  assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,fs.readFileSync('VERSION','utf8').trim());
 });
