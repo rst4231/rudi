@@ -133,7 +133,7 @@ test('meditation UI has wake lock, collapsed benefits and mood guidance',()=>{
  assert.doesNotMatch(js,/Только этот момент\. Без спешки/);
  assert.match(fs.readFileSync('public/calendar-day-recap.js','utf8'),/section\('Медитация'/);
  assert.match(fs.readFileSync('public/app.js','utf8'),/Только одна награда в день на человека/);
- assert.match(fs.readFileSync('api/personal-center-ai.cjs','utf8'),/meditation:payload\.data\.meditation/);
+ assert.match(fs.readFileSync('api/personal-center-ai.cjs','utf8'),/meditation:d\.meditation/);
 });
 
 test('meditation mood hint is private to signed-in actor and only rendered in Home',()=>{
