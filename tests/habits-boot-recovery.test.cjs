@@ -29,3 +29,9 @@ test('iPhone loader is isolated, has true deadlines and does not share actor cac
   assert.match(src,/formatToParts\(date\)/);
   assert.match(src,/String\(actor\|\|''\)\+'\|'/);
 });
+
+test('history rendering never shadows its source view in an iteration binding',()=>{
+  const src=fs.readFileSync('public/profile-supplements.js','utf8');
+  assert.match(src,/for\(const \[dayKey,dayView\] of Object\.entries\(view\.history\)\)/);
+  assert.doesNotMatch(src,/for\(const \[date,view\] of Object\.entries\(view\.history\)\)/);
+});

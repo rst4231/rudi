@@ -218,8 +218,8 @@ function applyHabitView(data){
   };
   if(view?.history&&typeof view.history==='object'){
     habitHistory={...habitHistory,...view.history};
-    for(const [date,view] of Object.entries(view.history)){
-      if(date&&view&&typeof view==='object')saveCachedRead(habitReadCache,requestCacheKey('list',{date}),{ok:true,actor,...view});
+    for(const [dayKey,dayView] of Object.entries(view.history)){
+      if(dayKey&&dayView&&typeof dayView==='object')saveCachedRead(habitReadCache,requestCacheKey('list',{date:dayKey}),{ok:true,actor,...dayView});
     }
   }
   habitSelectedDate=habitState.date||habitState.today||habitSelectedDate;
