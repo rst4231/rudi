@@ -26,7 +26,7 @@ async function handler(req,res){
     let state,score=null,scoreDelta=0;
 
     if(operation==='list'){
-      state=requestedDate===today?await ensureHabitDay(actor,today,{now}):await readHabits(actor,{now});
+      state=await readHabits(actor,{now});
       // A read must not block on three sequential score calculations and DB writes.
       // Status changes and the scheduled cron still reconcile scores idempotently.
     }else if(operation==='add'){

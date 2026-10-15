@@ -971,3 +971,7 @@ body[data-app-tab="habits"] .personal-habit-row.is-history:not(.is-done):not(.is
 }
 body[data-app-tab="habits"] .personal-habit-day-status.is-done{color:#217147!important;background:#e7f6ec!important;border-color:#bbdfc7!important}
 body[data-app-tab="habits"] .personal-habit-day-status.is-notdone{color:#a43f48!important;background:#fff0f0!important;border-color:#ebc0c3!important}
+
+/* RUDI v4.255: visible recovery action for failed iPhone habit reads. */
+.personal-habits-retry{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;margin:8px 0 0;border:1px solid currentColor;border-radius:12px;background:rgba(255,255,255,.66);color:inherit;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.personal-habits-retry:focus-visible{outline:2px solid #3678ff;outline-offset:2px}

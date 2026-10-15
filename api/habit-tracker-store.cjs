@@ -143,7 +143,7 @@ function viewHabits(state,options={}){
   const activeIds=new Set(habits.map(row=>row.id));
   const completedIds=(Array.isArray(state.completions?.[date])?state.completions[date]:[]).filter(id=>activeIds.has(id));
   const notDoneIds=(Array.isArray(state.failures?.[date])?state.failures[date]:[]).filter(id=>activeIds.has(id));
-  const bonusIds=(Array.isArray(state.bonusIdsByDate?.[date])?state.bonusIdsByDate[date]:[]).filter(id=>activeIds.has(id));
+  const bonusIds=(Array.isArray(state.bonusIdsByDate?.[date])?state.bonusIdsByDate[date]:state.habits.filter(row=>habitActiveByDate(row,date)).slice(0,BONUS_LIMIT).map(row=>row.id)).filter(id=>activeIds.has(id));
   const statuses={},streaks={},stats={};for(const habit of habits){statuses[habit.id]=habitStatus(state,date,habit.id);streaks[habit.id]=habitStreak(state,habit.id,date,today);stats[habit.id]=habitHistoryStats(state,habit.id,date)}
   return{habits,archivedHabits,completedIds,notDoneIds,statuses,streaks,stats,bonusIds,today,date,canCompleteToday:moscowHour(now)>=20,done:completedIds.length,notDone:notDoneIds.length,pending:Math.max(0,habits.length-completedIds.length-notDoneIds.length),total:habits.length,version:state.version,updatedAt:state.updatedAt};
 }
