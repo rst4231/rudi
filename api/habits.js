@@ -21,7 +21,7 @@ async function handler(req,res){
     const requestedDate=String(body.date||'').trim()||today;
     const shouldFinalize=operation!=='list'||requestedDate===today;
     if(shouldFinalize){
-      try{await finalizeOutstandingHabitDays(actor,{now})}catch(error){console.error('RUDI_HABIT_SELF_HEAL_FINALIZE_ERROR',actor,String(error?.message||error))}
+      try{await finalizeOutstandingHabitDays(actor,{now,maxDays:1})}catch(error){console.error('RUDI_HABIT_SELF_HEAL_FINALIZE_ERROR',actor,String(error?.message||error))}
     }
     let state,score=null,scoreDelta=0;
 
