@@ -214,18 +214,21 @@ async function scan(options={}){
     let markets=[],failed=0;
     try{
       const tickerResponse=await marketRequest('/v5/market/tickers?category=linear');
-      markets=marketUniverse(tickerResponse);
-      if(!markets.length)throw Error('okx-empty-universe');
-      // Open symbols must remain monitored even after leaving the top movers.
+      const universe=marketUniverse(tickerResponse);
+      if(!universe.length)throw Error('okx-empty-universe');
+      // Reserve slots for open positions FIRST, while respecting the hard
+      // 40-candle-request market budget. Never stop monitoring a live paper position.
       const rawTickers=new Map((tickerResponse?.result?.list||[]).map(t=>[t.symbol,t]));
+      const protectedMarkets=[];
       for(const p of Object.values(state.portfolios)){
         for(const position of p.positions){
-          if(markets.some(m=>m.symbol===position.symbol))continue;
+          if(protectedMarkets.some(m=>m.symbol===position.symbol))continue;
           const ticker=rawTickers.get(position.symbol);
           if(ticker&&num(ticker.lastPrice)>0)
-            markets.push({symbol:position.symbol,price:num(ticker.lastPrice)});
+            protectedMarkets.push({symbol:position.symbol,price:num(ticker.lastPrice)});
         }
       }
+      markets=[...new Map([...protectedMarkets,...universe].map(m=>[m.symbol,m])).values()].slice(0,MARKET_LIMIT);
       const prices=Object.fromEntries(markets.map(m=>[m.symbol,m.price]));
       for(const p of Object.values(state.portfolios))for(const position of p.positions)
         if(!prices[position.symbol])prices[position.symbol]=position.lastPrice;
