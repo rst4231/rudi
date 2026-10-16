@@ -6166,7 +6166,10 @@
               });
           }else if(item) focusDeepLinkedItem('home',item);
         }
-        if(tab==='feed') loadFeed({silent:true});
+        if(tab==='feed'){
+          window.rudiOfflineContent?.signal?.();
+          loadFeed({silent:true});
+        }
         if(tab==='schedule'){
           // Start every new visit on the current month, regardless of the previous view.
           calendarDateCursor=todayState().key;
@@ -10785,6 +10788,10 @@
         try{
           manualRefreshRequested=true;
           await refreshAfterResume();
+          if(currentAppTab==='feed'){
+            await window.rudiOfflineContent?.flush?.().catch(()=>{});
+            await loadFeed({silent:true});
+          }
           if(currentAppTab!=='home'){
             await Promise.allSettled([
               window.RUDI_CAR?.refresh?.(),
@@ -12291,7 +12298,7 @@
           currentMoodDateKey=String(home.mood?.date||todayState().key);
           renderDailyMood(home.mood);
         }
-        if(home.dailyQuestion&&homeBootstrapSectionChanged('dailyQuestion',home.dailyQuestion))renderDailyQuestion(home.dailyQuestion);
+        if(home.dailyQuestion&&homeBootstrapSectionChanged('dailyQuestion',home.dailyQuestion))void renderDailyQuestionOffline(home.dailyQuestion,true);
         if(home.cycle&&typeof home.cycle==='object'&&homeBootstrapSectionChanged('cycle',home.cycle)){
           renderDianaCycle(home.cycle.configured?home.cycle.cycle:null);
         }
@@ -17492,6 +17499,17 @@
           const namesId=names?.id||'';
           renderReaction({likedBy:optimisticLikedBy},buttonId,namesId);
           button.disabled=true;
+          const offline=window.rudiOfflineContent;
+          if(offline&&currentFeedReactionBindings.has(targetId)){
+            try{
+              await offline.enqueue('feed-reaction',targetId,{target,liked});
+              await offline.capture('reaction:'+targetId,{likedBy:optimisticLikedBy});
+              if(!offline.isOffline())void offline.flush();
+            }catch(_){
+              renderReaction({likedBy:previousLikedBy},buttonId,namesId);
+            }finally{button.disabled=false}
+            return;
+          }
           try{
             const data=await reactionsRequest('set',{target,liked});
             if(reactionEpoch(target)!==mutationEpoch||button.dataset.reactionTarget!==targetId) return;
@@ -17524,14 +17542,37 @@
       }
 
       async function refreshFeedReactions(){
-        if(!currentActor||!currentFeedReactionTargets.length) return;
+        if(!currentActor||!currentFeedReactionTargets.length)return;
+        const offline=window.rudiOfflineContent;
+        const actor=currentActor;
+        const overlay=async(target)=>{
+          const id=reactionTargetId(target);
+          const binding=currentFeedReactionBindings.get(id);
+          if(!binding)return;
+          const local=await offline?.cached?.('reaction:'+id);
+          const rows=await offline?.pending?.('feed-reaction',id)||[];
+          if(local||rows.length){
+            const names=Array.isArray(local?.likedBy)?local.likedBy:[];
+            const current=rows.length
+              ?(rows[rows.length-1].data.liked?[...new Set([...names,actor])]:names.filter(x=>x!==actor))
+              :names;
+            renderReaction({likedBy:current},binding.buttonId,binding.namesId);
+          }
+        };
+        await Promise.allSettled(currentFeedReactionTargets.map(overlay));
+        if(offline?.isOffline?.())return;
         for(let index=0;index<currentFeedReactionTargets.length;index+=12){
           const targets=currentFeedReactionTargets.slice(index,index+12);
           try{
             const data=await reactionsRequest('list',{targets});
+            if(currentActor!==actor)return;
             for(const reaction of data.reactions||[]){
-              const binding=currentFeedReactionBindings.get(reactionTargetId(reaction));
-              if(binding) renderReaction(reaction,binding.buttonId,binding.namesId);
+              const id=reactionTargetId(reaction);
+              const binding=currentFeedReactionBindings.get(id);
+              if(!binding)continue;
+              await offline?.capture?.('reaction:'+id,reaction).catch(()=>{});
+              const rows=await offline?.pending?.('feed-reaction',id)||[];
+              if(!rows.length)renderReaction(reaction,binding.buttonId,binding.namesId);
             }
           }catch(_){}
         }
@@ -17664,24 +17705,54 @@
         }
       }
 
+      async function renderDailyQuestionOffline(data,captureServer=false){
+        if(!data||!currentActor)return;
+        const offline=window.rudiOfflineContent;
+        if(captureServer)await offline?.capture?.('question',data).catch(()=>{});
+        const rows=await offline?.pending?.('question',String(data.date||''))||[];
+        const match=rows.find(row=>!row.data.expectedQuestionId||row.data.expectedQuestionId===String(data.question?.id||''));
+        const local=match&&!data.mineAnswered?{...data,mineAnswered:true,offlinePending:true}:data;
+        renderDailyQuestion(local);
+        if(match){
+          const status=document.getElementById('dailyQuestionStatus');
+          const waiting=document.getElementById('dailyQuestionWaiting');
+          if(status)status.textContent='Ожидает синхронизации';
+          if(waiting){waiting.hidden=false;waiting.textContent='Ответ сохранён на устройстве. Отправим, когда появится интернет.'}
+        }
+      }
+
       async function loadDailyQuestion({silent=false}={}){
         const loading=document.getElementById('dailyQuestionLoading');
         const content=document.getElementById('dailyQuestionContent');
-        if(!silent&&loading){
-          loading.hidden=false;
-          loading.textContent='Готовлю новый вопрос…';
+        const offline=window.rudiOfflineContent;
+        const actor=currentActor;
+        let cached=null;
+        try{
+          cached=await offline?.cached?.('question');
+          if(cached&&actor===currentActor)await renderDailyQuestionOffline(cached);
+        }catch(_){}
+        if(offline?.isOffline?.()){
+          if(!cached){
+            if(loading){loading.hidden=false;loading.textContent='Офлайн · вопрос ещё не загружался';}
+            if(content)content.hidden=true;
+          }
+          return cached;
         }
+        if(!silent&&!cached&&loading){loading.hidden=false;loading.textContent='Готовлю новый вопрос…'}
         try{
           const data=await dailyQuestionRequest('get');
-          renderDailyQuestion(data);
+          if(actor!==currentActor)return null;
+          await renderDailyQuestionOffline(data,true);
           return data;
         }catch(error){
-          if(loading){
-            loading.hidden=false;
-            loading.textContent='Не удалось загрузить вопрос дня.';
+          if(!cached){
+            if(loading){loading.hidden=false;loading.textContent='Нет сохранённого вопроса дня';}
+            if(content)content.hidden=true;
+          }else{
+            const status=document.getElementById('dailyQuestionStatus');
+            if(status)status.textContent='Офлайн · показываем сохранённый вопрос';
           }
-          if(content) content.hidden=true;
-          return null;
+          return cached;
         }
       }
 
@@ -17742,6 +17813,14 @@
         handle.addEventListener('lostpointercapture',finish);
       }
 
+      window.addEventListener('rudi-content-operation-synced',event=>{
+        if(event.detail?.actor!==currentActor)return;
+        if(event.detail.kind==='question'){
+          loadDailyQuestion({silent:true}).catch(()=>{});
+          scoreRequest('state').then(x=>{acceptScoreState(x.score);renderScoreStickers(currentScoreState)}).catch(()=>{});
+        }
+        if(event.detail.kind==='feed-reaction'&&currentAppTab==='feed')void refreshFeedReactions();
+      });
       function setupDailyQuestion(){
         const form=document.getElementById('dailyQuestionForm');
         const input=document.getElementById('dailyQuestionInput');
@@ -17757,23 +17836,27 @@
               return;
             }
             if(submit) submit.disabled=true;
-            if(status) status.textContent='Сохраняю…';
+            if(status) status.textContent='Сохраняю на устройстве…';
             try{
-              const data=await dailyQuestionRequest('answer',{answer});
-              renderDailyQuestion(data);
-              try{
-                const fresh=await scoreRequest('state');
-                acceptScoreState(fresh.score);
-                renderScoreStickers(currentScoreState);
-              }catch(_){}
-              if(status) status.textContent='Ответ сохранён.';
+              const offline=window.rudiOfflineContent;
+              const snapshot=await offline?.cached?.('question');
+              if(!snapshot?.date||!snapshot?.question?.id)throw Error('question-not-cached');
+              const prior=await offline.pending('question',String(snapshot.date));
+              if(prior.length)throw Error('daily-question-already-answered');
+              const row=await offline.enqueue('question',String(snapshot.date),{
+                answer,expectedDate:snapshot.date,
+                expectedQuestionId:snapshot.question.id,
+                offlineOperationId:window.crypto?.randomUUID?.()||String(Date.now())
+              });
+              await renderDailyQuestionOffline(snapshot);
+              if(status)status.textContent='Ожидает синхронизации';
+              if(!offline.isOffline())void offline.flush();
               try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             }catch(error){
-              if(status) status.textContent=String(error?.message||'')==='daily-question-already-answered'
-                ?'Сегодня ты уже ответил'+(currentActor==='Диана'?'а':'')+'.'
-                :'Не удалось сохранить ответ.';
+              if(status)status.textContent=String(error?.message||'')==='daily-question-already-answered'
+                ?'Ответ уже ожидает синхронизации.'
+                :'Не удалось сохранить ответ на устройстве.';
               try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-              await loadDailyQuestion({silent:true});
             }finally{
               if(submit) submit.disabled=false;
             }
@@ -18968,7 +19051,7 @@
           const eventSectionIsToday=eventDay===today;
           // An empty enrichment result is authoritative: never revive older raw items.
           const sourceItems=Array.isArray(enriched)?enriched:(raw&&eventSectionIsToday?parseFeedEventItems(raw,name):[]);
-          const items=sourceItems.filter(item=>String(item?.date||'')===today||(!item?.date&&eventSectionIsToday));
+          const items=sourceItems.filter(item=>String(item?.date||'')===today||(!item?.date&&eventSectionIsToday)||window.rudiOfflineContent?.isOffline?.());
           count=items.length;
           for(const item of items){
             const time=item.details.map(value=>value.match(/(?:^|\s)(\d{1,2}):(\d{2})(?:\s|$)/u)).find(Boolean);
@@ -19132,32 +19215,50 @@
       }
 
       async function loadFeed({silent=false}={}){
-        if(!currentActor) return;
+        if(!currentActor)return;
+        const actor=currentActor;
         const status=document.getElementById('feedStatus');
-        if(status&&!silent) status.textContent='Обновляю Ленту…';
+        const offline=window.rudiOfflineContent;
+        let cached=null;
+        try{
+          cached=await offline?.cached?.('feed');
+          if(cached&&currentActor===actor)renderFeed(cached);
+        }catch(_){}
+        offline?.signal?.();
+        if(offline?.isOffline?.()){
+          if(status)status.textContent=cached?'Офлайн · сохранённая подборка':'Офлайн · сохранённых материалов пока нет';
+          return cached;
+        }
+        if(status&&!silent&&!cached)status.textContent='Обновляю Ленту…';
         try{
           const response=await fetch('/api/feed',{
-            method:'POST',
+            method:'POST',credentials:'same-origin',
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({initData:telegramInitData()}),
             cache:'no-store'
           });
           const payload=await response.json().catch(()=>({}));
-          if(!response.ok||!payload.ok) throw new Error(payload.error||'feed-request-failed');
+          if(!response.ok||!payload.ok)throw Error(payload.error||'feed-request-failed');
+          if(actor!==currentActor)return null;
           renderFeed(payload);
+          await offline?.capture?.('feed',payload).catch(()=>{});
+          await offline?.flush?.().catch(()=>{});
+          return payload;
         }catch(_){
-          if(status) status.textContent='Не удалось обновить Ленту. Уже сохранённые актуальные материалы не удаляются из-за временного сбоя.';
-          for(const name of ['concerts','standup','cinema']){
-            const [bodyId]=feedDomIds(name);
-            const body=document.getElementById(bodyId);
-            if(body&&body.querySelector('.feed-skeleton')){
-              body.replaceChildren();
-              const empty=document.createElement('div');
-              empty.className='feed-empty';
-              empty.textContent='Временно недоступно';
-              body.appendChild(empty);
+          if(status)status.textContent=cached?'Офлайн · сохранённая подборка':'Нет сохранённых материалов · подключи интернет';
+          if(!cached){
+            for(const name of ['concerts','standup','cinema']){
+              const [bodyId]=feedDomIds(name);
+              const body=document.getElementById(bodyId);
+              if(body&&body.querySelector('.feed-skeleton')){
+                body.replaceChildren();
+                const empty=document.createElement('div');
+                empty.className='feed-empty';empty.textContent='Материалы ещё не загружались';
+                body.appendChild(empty);
+              }
             }
           }
+          return cached;
         }
       }
 
@@ -21702,6 +21803,7 @@
         const configPromise=loadConfig();
         const allowed=await authenticateApp();
         if(!allowed) return;
+        window.rudiOfflineContent?.init?.(currentActor);
         applyActorVisibility();
         applySessionIdentity();
         applyCachedTelegramProfiles();
