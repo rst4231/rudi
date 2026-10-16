@@ -100,6 +100,8 @@ test('editing the same note before synchronizing does not lose latest text',asyn
  assert.equal((await api.entries()).length,1);
  assert.equal((await api.entries())[0].data.text,'Второе');
  assert.equal((await api.entries())[0].data.expectedUpdatedAt,'rev-0');
+ await api.rebaseNote('rev-latest');
+ assert.equal((await api.entries())[0].data.expectedUpdatedAt,'rev-latest');
  h.online(true);
  assert.equal((await api.flush()).pending,0);
  assert.equal(h.requests[0].body.text,'Второе');
