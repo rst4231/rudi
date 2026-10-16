@@ -198,7 +198,7 @@ async function stopFasting(actor, options = {}) {
       throw new Error('fasting-not-active');
     }
     const nowMs = Number(options.stopAt?Date.parse(options.stopAt):options.now||Date.now());
-    if(!Number.isFinite(nowMs)||nowMs>Date.now()+5*60000)throw new Error('fasting-stop-invalid');
+    if(!Number.isFinite(nowMs)||nowMs>Number(options.now||Date.now())+5*60000)throw new Error('fasting-stop-invalid');
     const startMs = Date.parse(current.active.startedAt);
     if (!Number.isFinite(startMs) || startMs > nowMs) throw new Error('fasting-start-invalid');
     const row = normalizeHistoryItem({
