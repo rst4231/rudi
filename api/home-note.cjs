@@ -34,6 +34,14 @@ function createHandler(deps={}){
     if(typeof body.text!=='string'||body.text.length>MAX_LENGTH)
      return res.status(400).json({ok:false,error:'invalid-note-text'});
     const text=body.text.replace(/\r\n?/g,'\n').trim();
+    // An uncertain retry with the same text is already successful.
+    // For offline edits reject stale baselines rather than overwrite newer device data.
+    if(Object.prototype.hasOwnProperty.call(body,'expectedUpdatedAt')){
+      const previous=normalizeStored(await read(actor,NOTE_KEY));
+      if(previous.text===text)return res.status(200).json({ok:true,note:previous,idempotent:true});
+      if(previous.updatedAt!==String(body.expectedUpdatedAt||''))
+        return res.status(409).json({ok:false,error:'note-conflict',note:previous});
+    }
     const note={text,updatedAt:now()};
     await write(actor,NOTE_KEY,note);
     return res.status(200).json({ok:true,note});
