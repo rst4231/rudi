@@ -113,12 +113,14 @@ async function probe(force=false){
   let response;
   try{response=await fetch('/version.json?offline-probe='+lastProbe,{cache:'no-store',credentials:'same-origin',signal:ctl.signal})}
   finally{clearTimeout(timer)}
+  const wasDisconnected=connected===false||root.document?.body?.dataset?.offlineMode==='1';
   connected=Boolean(response?.ok&&response.headers?.get?.('X-RUDI-Offline')!=='1');
+  if(connected&&wasDisconnected){
+   if(root.document?.body)root.document.body.dataset.offlineMode='0';
+   root.dispatchEvent(new CustomEvent('rudi-content-network-recovered'));
+  }
  }catch(_){connected=false}
- if(connected&&root.document?.body?.dataset?.offlineMode==='1'){
-  root.document.body.dataset.offlineMode='0';
-  root.dispatchEvent(new CustomEvent('rudi-content-network-recovered'));
- }
+
  signal();
  return connected;
 }
@@ -159,7 +161,7 @@ async function flush(){
   let sent=0;
   try{
    for(const row of await entries(who)){
-    if(actor!==who)break;
+    if(actor!==who||row.error)break; // Permanent conflict requires explicit correction.
     try{
      const result=await send(row);
      // A newer edit made during this request must remain queued.
