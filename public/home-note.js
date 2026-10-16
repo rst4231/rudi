@@ -67,10 +67,12 @@ async function load(){
    try{
     const local=await offline.cached('note');
     queued=await offline.pending('note');
-    if(local){
-     text=String(local.text||'');
-     baseUpdatedAt=String(local.updatedAt||'');
-     preferredExpanded=typeof local.expanded==='boolean'?local.expanded:Boolean(text.trim());
+    // An interrupted local save may have reached outbox before snapshot commit.
+    const queuedNote=queued.filter(x=>x.scope==='home').slice(-1)[0]?.data;
+    if(local||queuedNote){
+     text=String(queuedNote?.text??local?.text??'');
+     baseUpdatedAt=String(queuedNote?.expectedUpdatedAt??local?.updatedAt??'');
+     preferredExpanded=typeof local?.expanded==='boolean'?local.expanded:Boolean(text.trim());
      expanded=Boolean(text.trim())&&preferredExpanded;
      loaded=true;lastFetched=Date.now();
      showStatus(queued.length?'Ожидает синхронизации':'');
