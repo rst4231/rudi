@@ -19262,6 +19262,12 @@
         }
       }
 
+      window.addEventListener('rudi-content-network-recovered',()=>{
+        if(!currentActor)return;
+        if(currentAppTab==='feed')void loadFeed({silent:true});
+        if(currentAppTab==='home')void loadDailyQuestion({silent:true});
+      });
+
       const PRODUCT_CATEGORY_ORDER=[
         'Мясо и рыба','Овощи и зелень','Фрукты и ягоды','Молочное и яйца',
         'Хлеб и выпечка','Бакалея','Сладкое и снеки','Напитки',
