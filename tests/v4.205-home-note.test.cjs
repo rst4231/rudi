@@ -110,3 +110,19 @@ test('note is draggable and defaults directly above Smart Home without moving ot
  assert.match(app,/function startHomeTileDrag/);
  assert.match(app,/markUiPreferencesChanged\(\{homeOrder:order\}\)/);
 });
+
+test('offline writes reject stale revisions without discarding local edits',async()=>{
+ const ctx=mock();
+ const existing=await ctx.call('save','Облачная версия');
+ assert.equal(existing.code,200);
+ const duplicate=await ctx.call('save','Облачная версия','POST',{expectedUpdatedAt:'older-revision'});
+ assert.equal(duplicate.code,200);
+ assert.equal(duplicate.body.idempotent,true);
+ const conflict=await ctx.call('save','Локальная версия','POST',{expectedUpdatedAt:'older-revision'});
+ assert.equal(conflict.code,409);
+ assert.equal(conflict.body.error,'note-conflict');
+ assert.equal((await ctx.call('get')).body.note.text,'Облачная версия');
+ const update=await ctx.call('save','Локальная версия','POST',{expectedUpdatedAt:existing.body.note.updatedAt});
+ assert.equal(update.code,200);
+ assert.equal((await ctx.call('get')).body.note.text,'Локальная версия');
+});
