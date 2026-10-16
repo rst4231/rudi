@@ -16,7 +16,7 @@ function makeHarness(){
     transaction(name){
      const tx={};
      tx.objectStore=()=>({
-      get:key=>({result:data.get(name).get(key)}),
+      get:key=>{const req={result:data.get(name).get(key)};setImmediate(()=>req.onsuccess?.());return req},
       getAll:()=>({result:[...data.get(name).values()]}),
       put:row=>{data.get(name).set(row.id||row.key,JSON.parse(JSON.stringify(row)));return {result:row}},
       delete:key=>{data.get(name).delete(key);return {result:null}},
