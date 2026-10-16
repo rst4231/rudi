@@ -114,7 +114,7 @@ test('shell, UI and API are connected without storing auth in snapshots',()=>{
  const note=fs.readFileSync('public/home-note.js','utf8');
  const api=fs.readFileSync('api/daily-question-store.cjs','utf8');
  assert.match(html,/rudi-offline-content\.js\?v=4\.262/);
- assert.ok(html.indexOf('rudi-offline-content.js')<html.indexOf('app.js'));
+ assert.ok(html.indexOf('src="/rudi-offline-content.js?v=')<html.indexOf('src="/app.js?v='));
  assert.match(sw,/rudi-offline-content\\\.js/);
  assert.match(app,/offline\?\.cached\?\.\('feed'\)/);
  assert.match(app,/offline\.enqueue\('question'/);
