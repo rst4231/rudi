@@ -74,7 +74,7 @@ function signal(extra={}){
   const el=root.document?.getElementById('rudiContentSyncStatus');
   if(el){
    const active=root.document.body?.dataset?.appTab;
-   el.hidden=!((active==='feed'||active==='home')&&(rows.length||connected===false||syncing||lastSynced));
+   el.hidden=!((active==='feed'||active==='home'||active==='fasting'||active==='supplements'||root.document.body?.classList?.contains?.('meditation-page-open'))&&(rows.length||connected===false||syncing||lastSynced));
    el.textContent=syncing?'Синхронизация…':rows.length?'Ожидают синхронизации: '+rows.length+(errors?' · Ошибка синхронизации':''):connected===false?'Офлайн':lastSynced?'Синхронизировано':'';
   }
  }).catch(()=>{});
@@ -92,7 +92,7 @@ function isOffline(){
  return root.navigator?.onLine===false||root.document?.body?.dataset?.offlineMode==='1';
 }
 async function enqueue(kind,scope,data,who=actor){
- if(!actors.has(who)||!['note','note-view','question','feed-reaction'].includes(kind))throw Error('offline-operation-invalid');
+ if(!actors.has(who)||!['note','note-view','question','feed-reaction','wellness'].includes(kind))throw Error('offline-operation-invalid');
  const rows=await entries(who);
  const match=rows.find(row=>row.kind===kind&&row.scope===scope);
  // Coalesce only idempotent SETs, keeping the original server revision.
@@ -143,6 +143,14 @@ async function send(row){
  }else if(row.kind==='question'){
   url='/api/partner-message?rudiAction=daily-question';
   body={operation:'answer',...row.data};
+ }else if(row.kind==='wellness'){
+  const area=String(row.data?.area||'');
+  const params={...row.data?.payload};
+  if(area==='fasting')url='/api/partner-message?rudiAction=fasting';
+  else if(area==='meditation')url='/api/meditation';
+  else if(area==='supplements')url='/api/supplements';
+  else throw Error('offline-unknown-area');
+  body={operation:area==='supplements'?'offline-operation':String(row.data.operation||''),...params,offlineOperationId:row.id};
  }else{
   url='/api/partner-message?rudiAction=reactions';
   body={operation:'set',...row.data};
@@ -208,7 +216,7 @@ async function flush(){
 function scheduled(){
  if(!actor||root.document?.visibilityState==='hidden')return;
  const tab=root.document?.body?.dataset?.appTab;
- if(tab==='home'||tab==='feed'){
+ if(['home','feed','fasting','supplements'].includes(tab)||root.document?.body?.classList?.contains?.('meditation-page-open')){
   const offline=isOffline();
   entries(actor).then(rows=>{
    if(offline||rows.length)flush().catch(()=>{});
