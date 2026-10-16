@@ -157,6 +157,6 @@ test('reply quoting a prior partial close resolves original signal, but only exp
   const part={...base,id:11,at:'2026-10-11T09:20:00Z',references:[10],text:'Часть закрыл, стоп в безубыток'};
   const full={...base,id:12,at:'2026-10-11T10:20:00Z',references:[11],text:'Закрываю позицию, чистые 15% движения'};
   linkUpdates([entry],[part,full]);
-  assert.deepEqual(entry.events.map(e=>e.type),['partial-close','full-close']);
+  assert.deepEqual(entry.events.map(e=>e.type),['partial-close','stop-to-breakeven','full-close']);
   assert.equal(parseSignal(full),null);
 });
