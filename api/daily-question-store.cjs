@@ -3,7 +3,7 @@ const { generateDailyQuestion } = require('./daily-question-ai.cjs');
 
 const NAMESPACE='rudi-daily-question-v1';
 const HISTORY_NAMESPACE='rudi-daily-question-history-v1';
-const DAY_TTL_SECONDS=60*60*48;
+const DAY_TTL_SECONDS=60*60*24*30; // Keep offline answers for delayed sync.
 const HISTORY_TTL_SECONDS=60*60*24*3650;
 const HISTORY_KEY='question-history';
 const MAX_HISTORY=1500;
@@ -186,8 +186,7 @@ async function ensureDailyQuestion(options={}){
       name:HISTORY_KEY,
     });
 
-    const yesterday=shiftDateKey(date,-1);
-    if(yesterday) await cache.delete(rowKey(yesterday)).catch(()=>false);
+    // Do not delete previous-day questions: offline answers can arrive later.
     return row;
   });
 }
@@ -205,14 +204,26 @@ async function readDailyQuestion(actor,options={}){
 async function answerDailyQuestion(actor,value,options={}){
   if(!ACTORS.includes(actor)) throw new Error('daily-question-actor-invalid');
   const answer=cleanAnswer(value);
-  await ensureDailyQuestion(options);
+  const now=Number(options.now||Date.now());
+  const today=dateKey(now);
+  const expectedDate=String(options.expectedDate||today);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(expectedDate)||expectedDate>today)
+    throw new Error('daily-question-date-invalid');
+  if(Math.abs(Date.parse(today+'T12:00:00Z')-Date.parse(expectedDate+'T12:00:00Z'))>30*86400000)
+    throw new Error('daily-question-date-expired');
+  if(expectedDate===today) await ensureDailyQuestion(options);
   return enqueue(async()=>{
-    const now=Number(options.now||Date.now());
-    const date=dateKey(now);
+    const date=expectedDate;
     const cache=cacheOf(options);
     const row=normalizeRow(await cache.get(rowKey(date)).catch(()=>null),date);
     if(!row.question?.text) throw new Error('daily-question-missing');
-    if(row.answers[actor]) throw new Error('daily-question-already-answered');
+    if(options.expectedQuestionId&&String(options.expectedQuestionId)!==row.question.id)
+      throw new Error('daily-question-id-mismatch');
+    if(row.answers[actor]){
+      if(options.offlineOperationId&&row.answers[actor].text===answer)
+        return {...questionView(row,actor),alreadyAnswered:true};
+      throw new Error('daily-question-already-answered');
+    }
     row.answers[actor]={text:answer,answeredAt:new Date(now).toISOString()};
     await cache.set(rowKey(date),row,{
       ttl:DAY_TTL_SECONDS,
