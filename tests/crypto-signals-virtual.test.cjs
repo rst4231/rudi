@@ -99,6 +99,19 @@ test('24h source changes are explicitly not verified PNL',()=>{
   assert.equal(result.deltaUsd,100);
   assert.equal(result.verifiedPnl,false);
 });
+test('Telegram quote parser extracts authored partial close instead of the quoted entry',()=>{
+  const html='<div class="tgme_widget_message" data-post="ne_investor/15009">'+
+    '<time datetime="2026-10-16T07:54:55+00:00"></time>'+
+    '<a class="tgme_widget_message_reply" href="https://t.me/ne_investor/15008">'+
+    '<div class="tgme_widget_message_text">$BAT беру в шорт лесенкой</div></a>'+
+    '<div class="tgme_widget_message_text js-message_text">Доброе утро. Забрали 8% движения, часть позиции закрыл, стоп в бу</div></div>';
+  const rows=parsePreview(html);
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].id,15009);
+  assert.deepEqual(rows[0].references,[15008]);
+  assert.match(rows[0].text,/часть позиции закрыл/);
+  assert.doesNotMatch(rows[0].text,/беру в шорт/);
+});
 test('Telegram preview parser preserves post id and original message link',()=>{
   const html='<div class="tgme_widget_message" data-post="ne_investor/325">'+
     '<time datetime="2026-10-11T11:00:00+00:00"></time>'+
