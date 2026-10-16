@@ -4706,6 +4706,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         const state = await startFasting(actor, {
           startedAt: body.startedAt,
           goalHours: body.goalHours,
+          activeId: body.activeId,
         }, options);
         const activeId = String(state.active?.id || '').trim();
         await recordActivity({
@@ -4723,7 +4724,9 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'stop') {
         const beforeStop = await readFastingState(actor, options);
         const stoppedId = String(beforeStop.active?.id || '').trim();
-        const state = await stopFasting(actor, options);
+        const state = await stopFasting(actor,{
+          ...options,expectedActiveId:body.activeId,stopAt:body.endedAt
+        });
         const completed = stoppedId
           ? (state.history || []).find((row) => String(row?.id || '') === stoppedId) || null
           : null;
