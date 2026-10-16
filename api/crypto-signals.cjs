@@ -92,6 +92,22 @@ function attachTradeUpdates(signals,messages){
   return signals;
 }
 
+function collectEntrySignals(messages){
+  const list=Array.isArray(messages)?messages:[],byId=new Map(list.map(row=>[row.id,row]));
+  const clean=text=>String(text||'').replace(/\s+/g,' ').trim().toLowerCase();
+  return list.filter(row=>{
+    const own=clean(row.text);
+    if(own.length<42)return true;
+    // Telegram reply cards often include the original signal as copied text.
+    // Do not regard an identical quoted excerpt as another independently placed trade.
+    return !(row.references||[]).some(id=>{
+      const original=byId.get(id);
+      if(!original||Number(original.id)>=Number(row.id))return false;
+      const quoted=clean(original.text);
+      return quoted.length>=42&&own.startsWith(quoted.slice(0,Math.min(70,quoted.length)));
+    });
+  }).map(parseSignal).filter(Boolean);
+}
 function marketFromText(text,direction){
   const source=String(text||'');
   const spot=/(?:^|[^\p{L}])(?:спот(?:ов\p{L}*)?|spot)(?=$|[^\p{L}])/iu.test(source);
@@ -269,7 +285,7 @@ async function refreshSignals(options={}){
           if(batch.some(m=>Date.parse(m.at)<cutoff)){complete=true;break;}
         }
       }
-      const signals=linkUpdates([...posts.values()].map(parseSignal).filter(Boolean),
+      const signals=linkUpdates(collectEntrySignals([...posts.values()]),
         [...posts.values()]).sort((a,b)=>b.at.localeCompare(a.at));
       const oldResults=previous.results&&typeof previous.results==='object'?previous.results:{};
       const results={};
@@ -351,7 +367,7 @@ async function refreshSignals(options={}){
 function buildView(state,now=Date.now()){
   const cutoff=now-PERIOD_MS;
   const messages=(Array.isArray(state.messages)?state.messages:[]).filter(m=>Date.parse(m.at)>=cutoff);
-  const signals=messages.map(parseSignal).filter(Boolean).map(signal=>{
+  const signals=collectEntrySignals(messages).map(signal=>{
     const row=state.results?.[signal.id];
     return {...signal,...(row||{}),url:signal.url,id:signal.id,at:signal.at};
   });
@@ -395,5 +411,5 @@ async function readSignals(options={}){
   const state=row?.value&&typeof row.value==='object'?row.value:{};
   return buildView(state,options.now??Date.now());
 }
-module.exports={NS,parsePreview,parseSignal,evaluateCandles,compareSignal:parseSignal,
+module.exports={NS,parsePreview,parseSignal,collectEntrySignals,evaluateCandles,compareSignal:parseSignal,
   buildView,readSignals,refreshSignals,candlesForSignal,marketPriceForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk,fundingForSignal};
