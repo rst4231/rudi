@@ -4049,7 +4049,13 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
 
       if (operation === 'answer') {
-        const view = await answerDailyQuestion(actor, body.answer, questionOptions);
+        const view = await answerDailyQuestion(actor, body.answer, {
+          ...questionOptions,
+          expectedDate:body.expectedDate,
+          expectedQuestionId:body.expectedQuestionId,
+          offlineOperationId:body.offlineOperationId,
+        });
+        if(view.alreadyAnswered)return res.status(200).json({ok:true,operation,...view,replayed:true});
         const activityRow={
           type:'daily-question',
           actor,
@@ -4084,7 +4090,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const authStatus=statusForError(error);
       const status=authStatus!==500?authStatus
         : code==='daily-question-answer-empty'||code==='daily-question-answer-too-long'||code==='daily-question-actor-invalid' ? 400
-        : code==='daily-question-already-answered' ? 409
+        : ['daily-question-date-invalid','daily-question-date-expired','daily-question-id-mismatch','daily-question-already-answered'].includes(code) ? 409
         : code==='daily-question-ai-quota' ? 429
         : code==='groq-api-key-missing' ? 503
         : code.startsWith('daily-question-ai-')||code==='daily-question-missing' ? 502
