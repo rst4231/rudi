@@ -6,6 +6,7 @@ if(!root)return;
 const $=id=>document.getElementById(id);
 const heading=$('homeNoteToggle'),edit=$('homeNoteEdit'),content=$('homeNoteContent'),preview=$('homeNotePreview');
 const editor=$('homeNoteEditor'),textarea=$('homeNoteText'),save=$('homeNoteSave'),cancel=$('homeNoteCancel'),status=$('homeNoteStatus');
+const resolve=$('homeNoteResolve');
 const LIMIT=8000;
 let text='',loaded=false,expanded=false,preferredExpanded=false,editing=false,busy=false,lastFetched=0,loading=null,baseUpdatedAt='';
 let viewSave=Promise.resolve();
@@ -169,10 +170,41 @@ document.addEventListener('visibilitychange',()=>{
  if(document.visibilityState==='visible'&&!editing&&!busy&&loaded&&Date.now()-lastFetched>60000)void load();
 });
 window.addEventListener('online',()=>{if(loaded&&!editing&&!busy)void load()});
+async function updateConflictStatus(){
+ const offline=window.rudiOfflineContent;
+ if(!offline?.actor?.())return;
+ const pending=await offline.pending('note','home').catch(()=>[]);
+ const collision=pending.find(row=>row.error==='note-conflict');
+ if(resolve)resolve.hidden=!collision;
+ if(collision)showStatus('Ошибка синхронизации: облачная заметка изменилась. Твоя версия сохранена на устройстве.');
+}
+resolve?.addEventListener('click',async()=>{
+ if(busy)return;
+ const offline=window.rudiOfflineContent;
+ try{
+  busy=true;render();
+  const cloud=await request('get');
+  const revision=String(cloud.note?.updatedAt||'');
+  const answer=window.confirm('Заметка была изменена на другом устройстве. Заменить облачную версию твоей локальной заметкой?');
+  if(!answer)return;
+  await offline.rebaseNote(revision);
+  resolve.hidden=true;
+  showStatus('Повторная синхронизация…');
+  await offline.flush();
+  await updateConflictStatus();
+ }catch(error){
+  showStatus('Не удалось разрешить конфликт. Локальная заметка сохранена.');
+ }finally{busy=false;render()}
+});
+window.addEventListener('rudi-content-sync',event=>{
+ if(event.detail?.actor===window.rudiOfflineContent?.actor?.())void updateConflictStatus();
+});
 window.addEventListener('rudi-content-operation-synced',event=>{
  if(event.detail?.kind==='note'&&event.detail.actor===window.rudiOfflineContent?.actor?.()){
   baseUpdatedAt=String(event.detail.result?.note?.updatedAt||baseUpdatedAt);
-  showStatus('Синхронизировано');
+  void window.rudiOfflineContent.pending('note','home').then(rows=>{
+   if(!rows.length)showStatus('Синхронизировано');
+  });
  }
 });
 window.addEventListener('rudi-content-network-recovered',()=>{if(!editing&&!busy)void load()});
