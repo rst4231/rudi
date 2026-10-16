@@ -1,6 +1,6 @@
 'use strict';
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
-const {linkUpdates}=require('./crypto-trade-events.cjs');
+const {linkUpdates,classifyUpdate}=require('./crypto-trade-events.cjs');
 const {tradeOutcome,screenLiquidationRisk}=require('./crypto-signal-outcome.cjs');
 const {createMarketRequest}=require('./crypto-market-client.cjs');
 const {createResilientAuthorMarketRequest}=require('./crypto-author-reference.cjs');
@@ -107,6 +107,10 @@ function marketFromText(text,direction){
 function parseSignal(row){
   if(!row?.text)return null;
   const text=String(row.text),lower=text.toLowerCase();
+  // Telegram close/partial-close updates often quote the original entry.
+  // The quoted "$TICKER беру в шорт" must never become a second entry.
+  const actionUpdate=classifyUpdate(row);
+  if(actionUpdate&&['partial-close','full-close','author-claimed-tp','author-claimed-sl'].includes(actionUpdate.type))return null;
   // Position top-ups are follow-ups, not fresh virtual entries.
   if(parseTradeAdjustment(row)&&
     !/(?:^|[^а-яёa-z])(?:открыл|открываю|заш[её]л|вхожу|беру|взял|взяла)(?=$|[^а-яёa-z])/i.test(text))return null;
@@ -210,7 +214,7 @@ function modeledTrade(signal,candles,messages=[],now=Date.now()){
   const closure=(Array.isArray(messages)?messages:[]).find(m=>
     m.id>signal.id&&Date.parse(m.at)>Date.parse(signal.at)&&
     Array.isArray(m.references)&&m.references.includes(signal.id)&&
-    /(?:закрыл\s+полностью|полностью\s+закрыл|вышел\s+(?:из\s+)?(?:позиции|сделки)\s+полностью)/i.test(m.text));
+    classifyUpdate(m)?.type==='full-close');
   const exit=closure&&available.find(c=>c.at>Date.parse(closure.at));
   const entry=first.open,price=exit?exit.open:last.close;
   const side=signal.direction==='short'?-1:1;
