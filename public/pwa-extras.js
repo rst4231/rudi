@@ -442,6 +442,10 @@
       if(!registration) return false;
       await registration.update();
       if(registration.waiting&&navigator.serviceWorker.controller){
+        const active=document.activeElement;
+        if(window.rudiOfflineContent?.isSyncing?.()||
+          window.rudiCalendarOffline?.isSyncing?.()||
+          active?.matches?.('input,textarea,select,[contenteditable="true"]'))return true;
         try{sessionStorage.setItem('rudi:sw-refresh-pending','1')}catch(_){}
         registration.waiting.postMessage({type:'SKIP_WAITING'});
       }
@@ -565,10 +569,14 @@
     };
 
     navigator.serviceWorker.addEventListener('controllerchange',()=>{
-      if(reloadScheduled||!hadController) return;
+      if(reloadScheduled||!hadController)return;
       reloadScheduled=true;
-      try{sessionStorage.setItem('rudi:sw-updated','1')}catch(_){}
-      window.location.reload();
+      const reloadWhenSafe=()=>{
+        if(editingNow()){setTimeout(reloadWhenSafe,1200);return}
+        try{sessionStorage.setItem('rudi:sw-updated','1')}catch(_){}
+        window.location.reload();
+      };
+      reloadWhenSafe();
     });
 
     window.addEventListener('focusout',()=>{
