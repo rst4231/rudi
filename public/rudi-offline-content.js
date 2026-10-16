@@ -179,7 +179,7 @@ async function flush(){
     }catch(error){
      const latest=await tx('outbox','readonly',store=>store.get(row.id));
      if(latest?.stamp===row.stamp){
-      const blocked=[400,403,404,409,422].includes(error.status);
+      const blocked=[400,401,403,404,409,422].includes(error.status);
       if(blocked)await tx('outbox','readwrite',store=>store.put({...latest,error:String(error.message||error)}));
      }
      if(!error.status||error.status>=500)connected=false;
@@ -208,5 +208,5 @@ for(const event of ['online','focus','pageshow','rudi-home-network-recovered'])
 root.document?.addEventListener('visibilitychange',()=>{if(root.document.visibilityState==='visible')scheduled()});
 root.addEventListener('rudi-app-pull-refresh',()=>scheduled());
 setInterval(scheduled,15000);
-root.rudiOfflineContent={init,actor:()=>actor,cached,capture,enqueue,pending,entries,flush,probe,isOffline,signal};
+root.rudiOfflineContent={init,actor:()=>actor,cached,capture,enqueue,pending,entries,flush,probe,isOffline,signal,isSyncing:()=>syncing};
 })(window);
