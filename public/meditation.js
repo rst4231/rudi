@@ -41,7 +41,7 @@ function ensurePage(){
     <button id="meditationStart" class="meditation-primary" type="button">Начать медитацию</button>
     <button id="meditationStop" class="meditation-secondary" type="button" hidden>Завершить и сохранить время</button>
     <label class="meditation-sound"><input type="checkbox" id="meditationSound" checked><span>Мягкий колокольчик в конце</span></label>
-    <p id="meditationStatus" class="meditation-status" role="status" aria-live="polite"></p>
+    <p id="meditationStatus" class="meditation-status" role="status" aria-live="polite"></p><p id="meditationOfflineSync" class="meditation-status" role="status" aria-live="polite" hidden></p>
    </section>
    <section class="meditation-stats" aria-label="Статистика">
     <div><span>Сеансов</span><strong id="meditationCount">0</strong></div><div><span>Минут</span><strong id="meditationTotal">0</strong></div>
@@ -92,6 +92,14 @@ function ensurePage(){
  // Restore screen wake lock when returning to the meditation page on mobile.
  window.addEventListener('pageshow',()=>{if(page&&!page.hidden){void syncWakeLock();renderClock()}});
  window.addEventListener('online',()=>{if(!page?.hidden)void load()});
+ window.addEventListener('rudi-content-network-recovered',()=>{if(!page?.hidden)void load()});
+ window.addEventListener('rudi-content-operation-synced',e=>{
+  if(e.detail?.actor===actor&&e.detail?.area==='meditation'&&!page?.hidden){
+   void window.rudiOfflineContent?.pending?.('wellness').then(rows=>{
+    if(!rows.some(x=>x.data?.area==='meditation'))void load();
+   });
+  }
+ });
  window.addEventListener('keydown',event=>{if(event.key==='Escape'&&!page.hidden)close()});
  clock=setInterval(()=>{if(page&&!page.hidden){renderClock();void autoFinish()}},300);
  return page;
@@ -149,17 +157,44 @@ function render(){
   text('meditationQuoteAuthor',quote.author);
  }
 }
+function meditationSnapshot(){return {actor,meditation:state,partner,quote}}
+function showSnapshot(data){
+ if(!data||data.actor!==actor)return false;
+ state=data.meditation||{active:null,history:[],stats:{}};
+ partner=data.partner||null;quote=data.quote||null;
+ window.RudiMeditationAudio?.onState(state.active);
+ todayProgress[actor]={todaySessions:state.stats?.todaySessions||0,todayMinutes:state.stats?.todayMinutes||0};
+ if(partner?.actor)todayProgress[partner.actor]={todaySessions:partner.todaySessions||0,todayMinutes:partner.todayMinutes||0};
+ render();updatePartner();return true;
+}
+function localStats(next){
+ const history=next.history||[],today=new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Moscow'});
+ const todayRows=history.filter(x=>new Date(x.endedAt).toLocaleDateString('en-CA',{timeZone:'Europe/Moscow'})===today);
+ const prev=next.stats||{};
+ return {...prev,sessions:history.length,totalMinutes:Math.round(history.reduce((n,x)=>n+Number(x.durationSeconds||0),0)/6)/10,
+  todaySessions:todayRows.length,todayMinutes:Math.round(todayRows.reduce((n,x)=>n+Number(x.durationSeconds||0),0)/6)/10};
+}
 async function load(){
  if(!actor||fetching)return;fetching=true;
+ const who=actor,offline=window.rudiOfflineContent;
  try{
+  const local=await offline?.cached?.('meditation').catch(()=>null);
+  if(who!==actor)return;
+  if(local)showSnapshot(local);
+  else{state={active:null,history:[],stats:{sessions:0,totalMinutes:0,todaySessions:0,todayMinutes:0,streak:0}};render()}
+  const pending=await offline?.pending?.('wellness')||[];
+  if(pending.some(x=>x.data?.area==='meditation')){
+   status('Ожидает синхронизации');
+   if(!offline?.isOffline?.())void offline.flush();
+   return;
+  }
+  if(offline?.isOffline?.()){status(local?'Офлайн · сохранённые сеансы':'Офлайн · начни первый сеанс');return}
   const data=await request('state');
-  if(actor!==data.actor)return;
-  state=data.meditation;partner=data.partner;quote=data.quote||null;
-  window.RudiMeditationAudio?.onState(state?.active);
-  todayProgress[actor]={todaySessions:state.stats?.todaySessions||0,todayMinutes:state.stats?.todayMinutes||0};
-  todayProgress[partner.actor]={todaySessions:partner.todaySessions||0,todayMinutes:partner.todayMinutes||0};
-  render();status('');updatePartner();await autoFinish();
- }catch(error){status('Данные не загрузились. Проверьте подключение')}
+  if(who!==actor)return;
+  showSnapshot(data);
+  await offline?.capture?.('meditation',meditationSnapshot()).catch(()=>{});
+  status('');await autoFinish();
+ }catch(_){status(state?'Офлайн · локальная копия':'Нет сохранённых сеансов')}
  finally{fetching=false}
 }
 function notifyComplete(){
@@ -185,37 +220,49 @@ function notifyComplete(){
 }
 async function start(){
  if(busy||state?.active)return;
+ const offline=window.rudiOfflineContent;
+ if(!offline?.actor?.())return status('Дождись входа в RUDI');
  window.RudiMeditationAudio?.prime();
- busy=true;status('Начинаю…');render();
+ busy=true;status('Сохраняю на устройстве…');render();
  try{
-  const data=await request('start',{goalMinutes:goal});
-  state=data.meditation;
-  window.RudiMeditationAudio?.remember(state?.active?.id);
-  window.RudiMeditationAudio?.onStarted(state?.active?.id);
-  render();status('');
- }catch(error){window.RudiMeditationAudio?.onFinish();status(String(error.message).includes('already-active')?'Сеанс уже идёт. Обновите страницу.':'Не удалось начать. Попробуйте ещё раз.')}
+  const id=window.crypto?.randomUUID?.()||('med-'+Date.now()),startedAt=new Date().toISOString();
+  const next={...(state||{}),active:{id,startedAt,goalMinutes:goal}};
+  await offline.commitWellness('meditation','start',{goalMinutes:goal,activeId:id,startedAt},
+    'meditation',{...meditationSnapshot(),meditation:next});
+  state=next;window.RudiMeditationAudio?.remember(id);window.RudiMeditationAudio?.onStarted(id);
+  render();status('Ожидает синхронизации');
+  if(!offline.isOffline())void offline.flush();
+ }catch(error){window.RudiMeditationAudio?.onFinish();status('Не удалось сохранить на устройстве: '+error.message)}
  finally{busy=false;render()}
 }
 async function stop(auto){
  if(busy||!state?.active)return;
+ const offline=window.rudiOfflineContent;
  if(auto)lastFinishAttempt=Date.now();
- const active=state.active;
- busy=true;render();status('Сохраняю сеанс…');
+ const active=state.active,endedAt=new Date(Math.min(Date.now(),Date.parse(active.startedAt)+
+  (auto?active.goalMinutes*60000:24*3600000))).toISOString();
+ const seconds=Math.max(0,Math.floor((Date.parse(endedAt)-Date.parse(active.startedAt))/1000));
+ const session=seconds>=60?{id:active.id,startedAt:active.startedAt,endedAt,goalMinutes:active.goalMinutes,
+  durationSeconds:seconds,completed:seconds>=active.goalMinutes*60,rewardPoints:0}:null;
+ const next={...state,active:null,history:session?[session,...(state.history||[])]:[...(state.history||[])]};
+ next.stats=localStats(next);
+ busy=true;status('Сохраняю на устройстве…');render();
  try{
-  const data=await request('finish',{activeId:active.id,auto});
-  state=data.meditation;window.RudiMeditationAudio?.onFinish();render();status('');
+  await offline.commitWellness('meditation','finish',{activeId:active.id,auto,endedAt},
+    'meditation',{...meditationSnapshot(),meditation:next});
+  state=next;window.RudiMeditationAudio?.onFinish();render();
+  status('Ожидает синхронизации');
   todayProgress[actor]={todaySessions:state.stats?.todaySessions||0,todayMinutes:state.stats?.todayMinutes||0};
   document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
-  updateNudges();
-  if(data.session?.completed)notifyComplete();
-  updatePartner();
- }catch(error){status('Не удалось сохранить. Таймер сохранён, повторите после восстановления связи.')}
+  updateNudges();if(session?.completed)notifyComplete();updatePartner();
+  if(!offline.isOffline())void offline.flush();
+ }catch(error){status('Не удалось сохранить сеанс на устройстве: '+error.message)}
  finally{busy=false;render()}
 }
 async function autoFinish(){
  if(busy||!state?.active)return;
- const a=state.active,goalMs=a.goalMinutes*60000;
- if(Date.now()-Date.parse(a.startedAt)>=goalMs&&Date.now()-lastFinishAttempt>30000&&navigator.onLine!==false)await stop(true);
+ if(Date.now()-Date.parse(state.active.startedAt)>=state.active.goalMinutes*60000&&
+  Date.now()-lastFinishAttempt>30000)await stop(true);
 }
 function open(){
  const current=actorFromPage();if(!ACTORS.includes(current))return;
