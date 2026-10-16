@@ -7,12 +7,20 @@ const $=id=>document.getElementById(id);
 const heading=$('homeNoteToggle'),edit=$('homeNoteEdit'),content=$('homeNoteContent'),preview=$('homeNotePreview');
 const editor=$('homeNoteEditor'),textarea=$('homeNoteText'),save=$('homeNoteSave'),cancel=$('homeNoteCancel'),status=$('homeNoteStatus');
 const LIMIT=8000;
-let text='',loaded=false,expanded=false,preferredExpanded=false,editing=false,busy=false,lastFetched=0,loading=null;
+let text='',loaded=false,expanded=false,preferredExpanded=false,editing=false,busy=false,lastFetched=0,loading=null,baseUpdatedAt='';
 let viewSave=Promise.resolve();
 function rememberExpanded(value){
  preferredExpanded=Boolean(value);
  const next=preferredExpanded;
- viewSave=viewSave.catch(()=>{}).then(()=>request('set-expanded',{expanded:next})).catch(()=>showStatus('Не удалось сохранить состояние заметки'));
+ viewSave=viewSave.catch(()=>{}).then(async()=>{
+  const offline=window.rudiOfflineContent;
+  if(!offline?.actor?.())return request('set-expanded',{expanded:next});
+  await offline.enqueue('note-view','expanded',{expanded:next});
+  const existing=await offline.cached('note')||{};
+  await offline.capture('note',{...existing,text,expanded:next});
+  if(!offline.isOffline())void offline.flush();
+ }).catch(()=>showStatus('Не удалось сохранить состояние заметки'));
+
  return viewSave;
 }
 const showStatus=value=>{status.textContent=value||'';status.hidden=!value};
@@ -51,17 +59,47 @@ function render(){
 async function load(){
  if(loading||editing||busy)return loading;
  loading=(async()=>{
+  const offline=window.rudiOfflineContent;
+  const who=offline?.actor?.();
+  let queued=[];
+  if(who){
+   try{
+    const local=await offline.cached('note');
+    queued=await offline.pending('note');
+    if(local){
+     text=String(local.text||'');
+     baseUpdatedAt=String(local.updatedAt||'');
+     preferredExpanded=typeof local.expanded==='boolean'?local.expanded:Boolean(text.trim());
+     expanded=Boolean(text.trim())&&preferredExpanded;
+     loaded=true;lastFetched=Date.now();
+     showStatus(queued.length?'Ожидает синхронизации':'');
+     render();
+    }
+   }catch(_){}
+  }
+  if(offline?.isOffline?.()){
+   loaded=true;
+   showStatus(queued.length?'Ожидает синхронизации':'Офлайн · заметка сохранится на устройстве');
+   render();return;
+  }
   try{
    const result=await request('get');
+   const latest=await offline?.pending?.('note')||[];
+   if(latest.length){
+    showStatus('Ожидает синхронизации');
+    loaded=true;render();return;
+   }
    text=typeof result.note?.text==='string'?result.note.text:'';
+   baseUpdatedAt=String(result.note?.updatedAt||'');
    loaded=true;
    preferredExpanded=typeof result.note?.expanded==='boolean'?result.note.expanded:Boolean(text.trim());
    expanded=Boolean(text.trim())&&preferredExpanded;
    editing=false;lastFetched=Date.now();
+   await offline?.capture?.('note',{text,updatedAt:baseUpdatedAt,expanded:preferredExpanded}).catch(()=>{});
    showStatus('');render();
   }catch(error){
    if(!loaded){loaded=true;expanded=false;editing=false;}
-   showStatus(error.message||'Не удалось загрузить заметку');
+   showStatus(queued.length?'Ожидает синхронизации':(error.message||'Не удалось загрузить заметку'));
    render();
   }
  })();
@@ -82,15 +120,26 @@ async function persist(){
  if(busy)return;
  const value=textarea.value.replace(/\r\n?/g,'\n').trim();
  if(value.length>LIMIT){showStatus('Максимум 8000 символов');return}
- busy=true;showStatus('Сохраняю…');render();
+ busy=true;showStatus('Сохраняю на устройстве…');render();
  try{
-  const result=await request('save',{text:value});
-  text=typeof result.note?.text==='string'?result.note.text:value;
-  lastFetched=Date.now();editing=false;expanded=Boolean(text.trim());
-  void rememberExpanded(expanded);
-  showStatus('');render();
+  const offline=window.rudiOfflineContent;
+  if(offline?.actor?.()){
+   await offline.enqueue('note','home',{text:value,expectedUpdatedAt:baseUpdatedAt});
+   await offline.capture('note',{text:value,updatedAt:baseUpdatedAt,expanded:Boolean(value)});
+   text=value;lastFetched=Date.now();editing=false;expanded=Boolean(value);
+   void rememberExpanded(expanded);
+   showStatus('Ожидает синхронизации');
+   if(!offline.isOffline())void offline.flush();
+  }else{
+   const result=await request('save',{text:value});
+   text=typeof result.note?.text==='string'?result.note.text:value;
+   baseUpdatedAt=String(result.note?.updatedAt||'');
+   lastFetched=Date.now();editing=false;expanded=Boolean(text.trim());
+   void rememberExpanded(expanded);showStatus('');
+  }
+  render();
  }catch(error){
-  showStatus(error.message||'Не удалось сохранить заметку');
+  showStatus('Не удалось сохранить на устройстве: '+String(error.message||error));
   render();
  }finally{busy=false;render()}
 }
@@ -120,6 +169,13 @@ document.addEventListener('visibilitychange',()=>{
  if(document.visibilityState==='visible'&&!editing&&!busy&&loaded&&Date.now()-lastFetched>60000)void load();
 });
 window.addEventListener('online',()=>{if(loaded&&!editing&&!busy)void load()});
+window.addEventListener('rudi-content-operation-synced',event=>{
+ if(event.detail?.kind==='note'&&event.detail.actor===window.rudiOfflineContent?.actor?.()){
+  baseUpdatedAt=String(event.detail.result?.note?.updatedAt||baseUpdatedAt);
+  showStatus('Синхронизировано');
+ }
+});
+window.addEventListener('rudi-content-network-recovered',()=>{if(!editing&&!busy)void load()});
 render();
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',onReady,{once:true});
 else onReady();
