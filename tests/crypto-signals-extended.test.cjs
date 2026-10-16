@@ -160,3 +160,15 @@ test('reply quoting a prior partial close resolves original signal, but only exp
   assert.deepEqual(entry.events.map(e=>e.type),['partial-close','stop-to-breakeven','full-close']);
   assert.equal(parseSignal(full),null);
 });
+
+test('reposted BAT and LUMIA source quotes do not create new virtual entries',()=>{
+ const {collectEntrySignals}=require('../api/crypto-signals.cjs');
+ const original='$BAT беру в шорт, много лонгов налипло, плюс структура актива указывает на дальнейшее снижение. Беру лесенкой';
+ const msgs=[
+  {id:15008,at:'2026-10-15T19:18:16Z',text:original,references:[]},
+  {id:15009,at:'2026-10-16T07:54:55Z',text:original+' • Торгую на бирже BYBIT',references:[15008]},
+  {id:14963,at:'2026-10-10T15:07:17Z',text:'$LUMIA беру в шорт, набираюсь сеткой, вырисовывается разворотная формация',references:[]},
+  {id:14965,at:'2026-10-10T20:11:23Z',text:'$LUMIA беру в шорт, набираюсь сеткой, вырисовывается разворотная формация • Подробнее',references:[14963]}
+ ];
+ assert.deepEqual(collectEntrySignals(msgs).map(x=>x.id).sort((a,b)=>a-b),[14963,15008]);
+});
