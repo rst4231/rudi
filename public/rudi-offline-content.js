@@ -87,7 +87,9 @@ function init(who){
  return actor;
 }
 function isOffline(){
- return connected===false||root.navigator?.onLine===false||root.document?.body?.dataset?.offlineMode==='1';
+ // Confirmed fresh server reachability wins over unreliable iOS navigator.onLine.
+ if(connected!==null)return !connected;
+ return root.navigator?.onLine===false||root.document?.body?.dataset?.offlineMode==='1';
 }
 async function enqueue(kind,scope,data,who=actor){
  if(!actors.has(who)||!['note','note-view','question','feed-reaction'].includes(kind))throw Error('offline-operation-invalid');
