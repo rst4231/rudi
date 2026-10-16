@@ -71,6 +71,15 @@ function signal(extra={}){
   const errors=rows.filter(x=>x.error).length;
   const detail={actor,pending:rows.length,errors,syncing,connected,lastSynced,...extra};
   root.dispatchEvent(new CustomEvent('rudi-content-sync',{detail}));
+  const status=syncing?'Синхронизация…':rows.length?'Ожидают синхронизации: '+rows.length+(errors?' · Ошибка синхронизации':''):connected===false?'Офлайн':lastSynced?'Синхронизировано':'';
+  for(const [id,area] of [['fastingOfflineSync','fasting'],['meditationOfflineSync','meditation'],['supplementOfflineSync','supplements']]){
+   const node=root.document?.getElementById(id);
+   if(!node)continue;
+   const areaPending=rows.filter(row=>row.kind==='wellness'&&row.data?.area===area);
+   const active=areaPending.length||connected===false||syncing||lastSynced;
+   node.hidden=!active;
+   node.textContent=areaPending.length?(syncing?'Синхронизация…':'Ожидают синхронизации: '+areaPending.length+(areaPending.some(row=>row.error)?' · Ошибка синхронизации':'')):status;
+  }
   const el=root.document?.getElementById('rudiContentSyncStatus');
   if(el){
    const active=root.document.body?.dataset?.appTab;
@@ -102,6 +111,27 @@ async function enqueue(kind,scope,data,who=actor){
  };
  if(match&&kind==='note')row.data.expectedUpdatedAt=match.data.expectedUpdatedAt;
  await tx('outbox','readwrite',store=>store.put(row));
+ signal();
+ return row;
+}
+async function commitWellness(area,operation,payload,snapshotKind,snapshot,who=actor){
+ if(!actors.has(who)||!['fasting','meditation','supplements'].includes(area)||!operation||!snapshotKind)
+  throw Error('offline-wellness-invalid');
+ const id=makeId();
+ const row={id,actor:who,kind:'wellness',scope:area+':'+id,createdAt:Date.now(),stamp:makeId(),
+  data:safe({area,operation,payload}),error:''};
+ const record={key:key(who,snapshotKind),actor:who,value:safe(snapshot),savedAt:Date.now()};
+ const db=await open();
+ await new Promise((resolve,reject)=>{
+  try{
+   const t=db.transaction(['outbox','snapshots'],'readwrite');
+   t.objectStore('outbox').put(row);
+   t.objectStore('snapshots').put(record);
+   t.oncomplete=()=>{db.close();resolve()};
+   t.onerror=()=>{db.close();reject(t.error||Error('offline-wellness-commit-failed'))};
+   t.onabort=()=>{db.close();reject(t.error||Error('offline-wellness-aborted'))};
+  }catch(error){db.close();reject(error)}
+ });
  signal();
  return row;
 }
@@ -150,7 +180,8 @@ async function send(row){
   else if(area==='meditation')url='/api/meditation';
   else if(area==='supplements')url='/api/supplements';
   else throw Error('offline-unknown-area');
-  body={operation:area==='supplements'?'offline-operation':String(row.data.operation||''),...params,offlineOperationId:row.id};
+  body={operation:area==='supplements'?'offline-operation':String(row.data.operation||''),
+   ...(area==='supplements'?{offlineCommand:String(row.data.operation||'')}:{}),...params,offlineOperationId:row.id};
  }else{
   url='/api/partner-message?rudiAction=reactions';
   body={operation:'set',...row.data};
@@ -196,7 +227,7 @@ async function flush(){
       const prior=await cached('note',who);
       if(prior?.text===row.data.text)await capture('note',{...prior,updatedAt:result.note.updatedAt},who);
      }
-     root.dispatchEvent(new CustomEvent('rudi-content-operation-synced',{detail:{actor:who,kind:row.kind,scope:row.scope,result}}));
+     root.dispatchEvent(new CustomEvent('rudi-content-operation-synced',{detail:{actor:who,kind:row.kind,scope:row.scope,area:row.data?.area,operation:row.data?.operation,result}}));
     }catch(error){
      const latest=await tx('outbox','readonly',store=>store.get(row.id));
      if(latest?.stamp===row.stamp){
@@ -229,5 +260,5 @@ for(const event of ['online','focus','pageshow','rudi-home-network-recovered'])
 root.document?.addEventListener('visibilitychange',()=>{if(root.document.visibilityState==='visible')scheduled()});
 root.addEventListener('rudi-app-pull-refresh',()=>scheduled());
 setInterval(scheduled,15000);
-root.rudiOfflineContent={init,actor:()=>actor,cached,capture,enqueue,pending,entries,rebaseNote,flush,probe,isOffline,signal,isSyncing:()=>syncing};
+root.rudiOfflineContent={init,actor:()=>actor,cached,capture,enqueue,commitWellness,pending,entries,rebaseNote,flush,probe,isOffline,signal,isSyncing:()=>syncing};
 })(window);
