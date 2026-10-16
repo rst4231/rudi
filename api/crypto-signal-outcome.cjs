@@ -76,8 +76,11 @@ function tradeOutcome(signal,candles,options={}){
   if(!entry)return {status:'not-entered'};
   const last=bars[bars.length-1];
   const netClosed=complete?Math.round(closedPct*100)/100:null;
-  if(unknownSize)return {status:'size-unknown',entry,entryAt:new Date(entryAt).toISOString(),
-    legs,timeline,reason:'missing-closed-percentage'};
+  if(unknownSize)return {status:complete?'author-closed-size-unknown':'size-unknown',
+    entry,entryAt:new Date(entryAt).toISOString(),
+    ...(complete?{exitAt:new Date(exitAt).toISOString(),exitPrice,closedByAuthor:true,openFraction:0}:{}),
+    legs,timeline,reason:'missing-closed-percentage',
+    priceChangePct:null};
   const common={entry,entryAt:new Date(entryAt).toISOString(),execution:hasLiveEntry?
     'market-at-sync':signal.entry?'explicit-level':'next-hour-model',legs,timeline,closedFraction:Math.round((1-remaining)*10000)/10000,
     openFraction:remaining,realizedPricePct:Math.round(closedPct*100)/100,
