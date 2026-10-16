@@ -135,6 +135,21 @@ async function commitWellness(area,operation,payload,snapshotKind,snapshot,who=a
  signal();
  return row;
 }
+async function acknowledge(id,stamp){
+ const db=await open();
+ return new Promise((resolve,reject)=>{
+  let acknowledged=false;
+  try{
+   const tr=db.transaction('outbox','readwrite'),store=tr.objectStore('outbox'),get=store.get(id);
+   get.onsuccess=()=>{
+    if(get.result?.stamp===stamp){store.delete(id);acknowledged=true}
+   };
+   tr.oncomplete=()=>{db.close();resolve(acknowledged)};
+   tr.onerror=()=>{db.close();reject(tr.error||Error('offline-ack-failed'))};
+   tr.onabort=()=>{db.close();reject(tr.error||Error('offline-ack-aborted'))};
+  }catch(e){db.close();reject(e)}
+ });
+}
 async function rebaseNote(expectedUpdatedAt,who=actor){
  if(!actors.has(who)||typeof expectedUpdatedAt!=='string')throw Error('offline-rebase-invalid');
  const row=(await pending('note','home',who))[0];
@@ -210,16 +225,21 @@ async function flush(){
   syncing=true;signal();
   let sent=0;
   try{
+   const blockedGroups=new Set();
+   const group=row=>row.kind==='wellness'?'wellness:'+row.data?.area:
+      row.kind==='note'||row.kind==='note-view'?'note':
+      row.kind+':'+row.scope;
    for(const row of await entries(who)){
-    if(actor!==who||row.error)break; // Permanent conflict requires explicit correction.
+    if(actor!==who)break;
+    if(row.error){blockedGroups.add(group(row));continue}
+    if(blockedGroups.has(group(row)))continue;
     try{
      const result=await send(row);
-     // A newer edit made during this request must remain queued.
-     const stored=await tx('outbox','readonly',store=>store.get(row.id));
-     if(stored?.stamp===row.stamp){
-      await tx('outbox','readwrite',store=>store.delete(row.id));
-      sent++;
-     }else if(stored&&row.kind==='note'&&result.note?.updatedAt){
+     // Check revision and delete atomically, so a concurrent local edit cannot disappear.
+     const acked=await acknowledge(row.id,row.stamp);
+     const stored=acked?null:await tx('outbox','readonly',store=>store.get(row.id));
+     if(acked)sent++;
+     else if(stored&&row.kind==='note'&&result.note?.updatedAt){
       stored.data.expectedUpdatedAt=result.note.updatedAt;
       await tx('outbox','readwrite',store=>store.put(stored));
      }
@@ -234,8 +254,10 @@ async function flush(){
       const blocked=[400,401,403,404,409,422].includes(error.status);
       if(blocked)await tx('outbox','readwrite',store=>store.put({...latest,error:String(error.message||error)}));
      }
-     if(!error.status||error.status>=500)connected=false;
-     break;
+     if(!error.status||error.status>=500){connected=false;break}
+     blockedGroups.add(group(row));
+     // Conflict is preserved, but other independent sections may still sync.
+     continue;
     }
    }
    if(sent)lastSynced=Date.now();
