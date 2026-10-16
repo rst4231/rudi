@@ -96,7 +96,7 @@ test('answers stay hidden until both answer and reset with next daily question',
   assert.equal(next.mineAnswered,false);
   assert.equal(next.partnerAnswered,false);
   assert.equal(next.answers,null);
-  assert.equal(await cache.get('day:'+dateKey(day1)),null,'previous day answers are deleted when next question is generated');
+  assert.ok(await cache.get('day:'+dateKey(day1)),'previous day answers remain until delayed offline sync completes');
 });
 
 test('daily question row and history are durable and generation uses a cross-instance lock',()=>{
@@ -145,4 +145,25 @@ test('daily question UI clears old answers when a new question is rendered',()=>
   assert.match(app,/const renderKey=String\(data\?\.date\|\|''\)\+'\|'\+String\(data\?\.question\?\.id\|\|data\?\.question\?\.text\|\|''\)/);
   assert.match(app,/if\(questionChanged\)\{[\s\S]*?rustamAnswer\.textContent='';[\s\S]*?dianaAnswer\.textContent='';[\s\S]*?answers\.hidden=true/);
   assert.match(app,/answers\.hidden=true;\s*rustamAnswer\.textContent='';\s*dianaAnswer\.textContent='';/);
+});
+
+test('queued answer is attached to its original question and replay is idempotent',async()=>{
+  resetMutationQueueForTests();
+  const cache=memoryCache(),history=memoryCache();
+  const first=Date.parse('2026-10-14T12:00:00Z');
+  const second=Date.parse('2026-10-15T12:00:00Z');
+  const common={dailyQuestionCache:cache,dailyQuestionHistoryCache:history,
+    generateQuestion:async()=>({question:'Что бы вы сделали вместе?',theme:'планы',model:'test',provider:'test'})};
+  const q=await readDailyQuestion('Рустам',{...common,now:first});
+  const opts={...common,now:second,expectedDate:q.date,expectedQuestionId:q.question.id,offlineOperationId:'op-1'};
+  await readDailyQuestion('Рустам',{...common,now:second});
+  const saved=await answerDailyQuestion('Рустам','Всё получится',{...opts});
+  assert.equal(saved.date,q.date);
+  const retry=await answerDailyQuestion('Рустам','Всё получится',{...opts});
+  assert.equal(retry.alreadyAnswered,true);
+  await assert.rejects(()=>answerDailyQuestion('Рустам','Другой ответ',{...opts}),/daily-question-already-answered/);
+  await assert.rejects(()=>answerDailyQuestion('Диана','Неправильный вопрос',{...opts,expectedQuestionId:'wrong'}),/daily-question-id-mismatch/);
+  const other=await answerDailyQuestion('Диана','Сходить в парк',{...opts,offlineOperationId:'op-2'});
+  assert.equal(other.revealed,true);
+  assert.equal((await readDailyQuestion('Рустам',{...common,now:second})).mineAnswered,false);
 });

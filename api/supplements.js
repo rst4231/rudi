@@ -1,7 +1,7 @@
 const crypto=require('node:crypto');
 const {authorizeRequest,statusForError}=require('./rudi-request-auth.cjs');
 const {
-  readSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,
+  readSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,applyOfflineOperation,
   markSupplementTaken,unmarkSupplementTaken,markSupplementSkipped,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck
 }=require('./supplements-store.cjs');
 const {generateSupplementDescription,analyzeSupplementSet}=require('./supplement-ai.cjs');
@@ -10,10 +10,10 @@ const {profileContext}=require('./personal-profile-context.cjs');
 function statusFor(code,error){
   const auth=statusForError(error);if(auth!==500)return auth;
   if(code==='supplement-not-found')return 404;
-  if(code==='supplement-duplicate'||code==='supplement-already-taken')return 409;
+  if(code==='supplement-duplicate'||code==='supplement-already-taken'||code==='supplement-offline-conflict')return 409;
   if(code==='supplement-ai-quota')return 429;
   if([
-    'supplement-limit','supplement-name-required','supplement-id-required','supplement-restore-invalid',
+    'supplement-offline-id-invalid','supplement-offline-command-invalid','supplement-offline-time-invalid','supplement-limit','supplement-name-required','supplement-id-required','supplement-restore-invalid',
     'supplement-operation-invalid','supplement-note-required','supplement-interaction-invalid','supplement-interaction-selection-required'
   ].includes(code))return 400;
   if(code.startsWith('supplement-ai-')||code==='groq-api-key-missing')return 502;
@@ -50,6 +50,12 @@ async function handler(req,res){
         actors:{'Рустам':buildRows(rustamState),'Диана':buildRows(dianaState)},
         progress:{'Рустам':buildProgress(rustamState),'Диана':buildProgress(dianaState)}
       });
+    }
+    if(operation==='offline-operation'){
+      const result=await applyOfflineOperation(actor,body.offlineOperationId,body.offlineCommand,body);
+      return res.status(200).json({ok:true,actor,items:result.state.items,
+        item:result.item,removed:result.removed,note:result.note,
+        duplicate:result.duplicate,date:result.date});
     }
     if(operation==='list'){
       const state=await readSupplements(actor);

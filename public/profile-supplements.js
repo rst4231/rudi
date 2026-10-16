@@ -51,9 +51,99 @@ function cachedRead(cache,key,ttl=READ_CACHE_TTL_MS){
 function saveCachedRead(cache,key,data){cache.set(key,{savedAt:Date.now(),data});return data}
 function clearReadCache(cache){cache.clear()}
 
+
+const OFFLINE_SUP_COMMANDS=new Set(['add','remove','restore','update','take','untake','skip','note']);
+function supplementDate(at){
+ return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(at));
+}
+function offlineSuppItem(name,id,at){
+ return{id,name,description:'',intakeGuidance:'',evidenceLevel:'',ingredients:[],goal:'',
+ schedule:{dosage:'',time:'',times:[''],food:'any',timesPerDay:1},
+ course:{startDate:'',durationDays:0},status:'active',expirationDate:'',
+ intakes:[],skips:[],notes:[],statusHistory:[],createdAt:at,updatedAt:at,describedAt:''};
+}
+function localSupplementMutation(snapshot,command,payload,at,id){
+ const rows=Array.isArray(snapshot.items)?snapshot.items.map(x=>({...x})):[],i=rows.findIndex(x=>x.id===String(payload.id||'')),
+ existing=rows[i]||null,date=supplementDate(at);
+ let item=existing,removed=null,note=null;
+ if(command==='add'){
+  const name=String(payload.name||'').trim();
+  if(!name)throw Error('supplement-name-required');
+  if(rows.some(x=>x.name.toLocaleLowerCase('ru')===name.toLocaleLowerCase('ru')))throw Error('supplement-duplicate');
+  item=offlineSuppItem(name,payload.id,at);rows.unshift(item);
+ }else if(command==='restore'){
+  item=payload.item;if(!item?.id)throw Error('supplement-restore-invalid');
+  if(!rows.some(x=>x.id===item.id))rows.unshift(item);
+ }else{
+  if(!existing)throw Error('supplement-not-found');
+  if(command==='remove'){removed=existing;rows.splice(i,1);item=null}
+  if(command==='update'){
+   const patch=payload.patch||{},status=patch.status??existing.status;
+   item={...existing,goal:patch.goal??existing.goal,ingredients:patch.ingredients??existing.ingredients,
+    status,expirationDate:patch.expirationDate??existing.expirationDate,
+    schedule:{...existing.schedule,...patch.schedule},
+    course:{...existing.course,...patch.course},updatedAt:at,
+    statusHistory:status!==existing.status?[...(existing.statusHistory||[]),{status,at}]:existing.statusHistory};
+   rows[i]=item;
+  }
+  if(command==='take'){
+   const target=Math.max(1,Math.min(12,Number(existing.schedule?.timesPerDay)||1));
+   if(existing.intakes.filter(x=>x.date===date).length<target){
+    item={...existing,intakes:[...existing.intakes,{date,at}],
+      skips:(existing.skips||[]).filter(x=>x.date!==date),updatedAt:at};rows[i]=item;
+   }
+  }
+  if(command==='untake'){
+   const intakeIndex=existing.intakes.map(x=>x.date).lastIndexOf(date);
+   if(intakeIndex>=0){item={...existing,intakes:existing.intakes.filter((_,j)=>j!==intakeIndex),updatedAt:at};rows[i]=item}
+  }
+  if(command==='skip'){
+   if(existing.intakes.some(x=>x.date===date))throw Error('supplement-already-taken');
+   if(!existing.skips.some(x=>x.date===date)){
+    item={...existing,skips:[...existing.skips,{date,at}],updatedAt:at};rows[i]=item;
+   }
+  }
+  if(command==='note'){
+   const message=String(payload.text||'').trim().slice(0,500);
+   if(!message)throw Error('supplement-note-required');
+   note={id:'note-'+id,date,at,text:message};
+   item={...existing,notes:[...(existing.notes||[]),note],updatedAt:at};rows[i]=item;
+  }
+ }
+ return {snapshot:{...snapshot,items:rows,interactionCheck:null},item,removed,note,date};
+}
+
 async function request(operation,payload={},options={}){
   const readOnly=operation==='list'||operation==='overview';
   const cacheKey=requestCacheKey(operation,payload);
+  const offline=window.rudiOfflineContent,who=actor;
+  if(offline?.actor?.()===who&&operation==='list'){
+    const local=await offline.cached('supplements').catch(()=>null);
+    const rows=await offline.pending('wellness').catch(()=>[]);
+    if(local&&(offline.isOffline()||rows.some(row=>row.data?.area==='supplements'))){
+      saveCachedRead(supplementReadCache,cacheKey,local);
+      return local;
+    }
+    if(offline.isOffline())return local||{ok:true,actor:who,items:[],recommendation:null,interactionCheck:null};
+  }
+  if(offline?.actor?.()===who&&OFFLINE_SUP_COMMANDS.has(operation)){
+    const before=await offline.cached('supplements').catch(()=>null)||{ok:true,actor:who,
+      items:items||[],profile,recommendation:null,interactionCheck:null};
+    const at=new Date().toISOString(),id=window.crypto?.randomUUID?.()||'sup-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+    const localPayload={...payload,at};
+    if(operation==='add')localPayload.id='supp-'+id;
+    if((operation==='remove'||operation==='update')){
+      const record=before.items.find(row=>row.id===String(payload.id||''));
+      const pending=await offline.pending('wellness');
+      if(record&&!pending.some(row=>row.data?.area==='supplements'&&row.data.payload?.id===payload.id))
+        localPayload.expectedUpdatedAt=record.updatedAt;
+    }
+    const result=localSupplementMutation(before,operation,localPayload,at,id);
+    await offline.commitWellness('supplements',operation,localPayload,'supplements',result.snapshot);
+    clearReadCache(supplementReadCache);
+    if(!offline.isOffline())void offline.flush();
+    return {ok:true,actor:who,...result,items:result.snapshot.items,offlinePending:true};
+  }
   if(readOnly&&!options.force){
     const cached=cachedRead(supplementReadCache,cacheKey);
     if(cached)return cached;
@@ -64,7 +154,13 @@ async function request(operation,payload={},options={}){
     const data=await response.json().catch(()=>({}));return {response,data};
   },readOnly);
   if(!response.ok||!data?.ok){const error=new Error(String(data?.error||'supplements-request-failed'));error.status=response.status;throw error}
-  if(readOnly)return saveCachedRead(supplementReadCache,cacheKey,data);
+  if(readOnly){
+    if(operation==='list'&&offline?.actor?.()===who){
+      const pending=await offline.pending('wellness').catch(()=>[]);
+      if(!pending.some(row=>row.data?.area==='supplements'))await offline.capture('supplements',data).catch(()=>{});
+    }
+    return saveCachedRead(supplementReadCache,cacheKey,data);
+  }
   clearReadCache(supplementReadCache);
   return data;
 }
@@ -800,8 +896,9 @@ function build(){
   const input=document.createElement('input');input.type='text';input.maxLength=120;input.placeholder='Название БАДа';input.autocomplete='off';
   const add=document.createElement('button');add.type='submit';add.textContent='Добавить';form.append(input,add);
   statusNode=document.createElement('div');statusNode.className='personal-supplements-status';statusNode.hidden=true;
+  const offlineStatus=document.createElement('div');offlineStatus.id='supplementOfflineSync';offlineStatus.className='personal-supplements-status';offlineStatus.hidden=true;
   list=document.createElement('div');list.className='personal-supplements-list';
-  body.append(form,statusNode,list);tile.append(head,supplementProgressRow,body);
+  body.append(form,statusNode,offlineStatus,list);tile.append(head,supplementProgressRow,body);
   const movedNotice=document.createElement('article');movedNotice.className='personal-tools-moved-notice';movedNotice.innerHTML='<strong>Трекер привычек и БАДы открываются из твоего блока на главной</strong>';
   content.append(summary,movedNotice);overlay.append(bar,content);document.body.appendChild(overlay);
   back.addEventListener('click',close);
@@ -895,7 +992,7 @@ async function loadHomeTools({force=false}={}){
   const supplementsJob=Promise.resolve().then(()=>request('list',{}, {force})).then(data=>{
     if(token!==homeToolsLoadSequence||actor!==nextActor)return;
     items=Array.isArray(data.items)?data.items:[];profile=data.profile||null;
-    renderProfileMeta();render();setStatus('');supplementOk=true;
+    renderProfileMeta();render();setStatus(window.rudiOfflineContent?.isOffline?.()?'Офлайн · локальная копия':'');supplementOk=true;
     void enrichExistingSupplementGuidance();
   }).catch(error=>{
     if(token!==homeToolsLoadSequence||actor!==nextActor)return;
@@ -942,6 +1039,17 @@ function bindName(){
   window.addEventListener('pageshow',update);
   window.addEventListener('rudi:app-tab-change',()=>{if(document.body.dataset.appTab==='habits')update()});
 }
+window.addEventListener('rudi-content-operation-synced',event=>{
+ if(event.detail?.actor!==actor||event.detail?.area!=='supplements')return;
+ void window.rudiOfflineContent.pending('wellness').then(async rows=>{
+  if(rows.some(row=>row.data?.area==='supplements'))return;
+  clearReadCache(supplementReadCache);
+  await loadHomeTools({force:true});
+ });
+});
+window.addEventListener('rudi-content-network-recovered',()=>{
+ if(document.body?.dataset?.appTab==='supplements')void loadHomeTools({force:true});
+});
 window.RudiSupplementApp={
   request,
   getActor:()=>actor,

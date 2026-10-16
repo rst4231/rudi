@@ -43,7 +43,7 @@ test('without trusted USD/RUB ticker, no made-up equivalent is shown',()=>{
 });
 test('finance enhancement has no extra network or writes and runs after base app script',()=>{
   const appPosition=html.indexOf('src="/app.js?v=');
-  const currencyPosition=html.indexOf('src="/finance-wallet-currency.js?v=4.180"');
+  const currencyPosition=html.search(/src="\/finance-wallet-currency\.js\?v=\d+\.\d+"/);
   assert.ok(appPosition>=0&&currencyPosition>appPosition,'finance script must be loaded after app.js');
   assert.doesNotMatch(script,/\bfetch\s*\(|XMLHttpRequest|localStorage|\.setRecord|\.balance\s*=/);
   assert.match(script,/financeWalletList/);

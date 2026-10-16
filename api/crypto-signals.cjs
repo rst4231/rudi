@@ -1,6 +1,6 @@
 'use strict';
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
-const {linkUpdates}=require('./crypto-trade-events.cjs');
+const {linkUpdates,classifyUpdate}=require('./crypto-trade-events.cjs');
 const {tradeOutcome,screenLiquidationRisk}=require('./crypto-signal-outcome.cjs');
 const {createMarketRequest}=require('./crypto-market-client.cjs');
 const {createResilientAuthorMarketRequest}=require('./crypto-author-reference.cjs');
@@ -26,7 +26,10 @@ function parsePreview(html){
     const chunk=text.slice(openings[i].index,openings[i+1]?.index||text.length);
     const id=Number(openings[i][1]);
     const date=chunk.match(/<time\b[^>]*\bdatetime="([^"]+)"/i)?.[1]||'';
-    const content=chunk.match(/<div\b[^>]*class="[^"]*tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/i)?.[1]||'';
+    // A Telegram reply can embed the quoted source as another message_text.
+    // Only the final message_text block represents the author's new content.
+    const texts=[...chunk.matchAll(/<div\b[^>]*class="[^"]*tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/gi)];
+    const content=texts.length?texts[texts.length-1][1]:'';
     const links=[...chunk.matchAll(/href="https?:\/\/t\.me\/ne_investor\/(\d+)"/gi)].map(m=>Number(m[1]));
     if(!id||!date||!Number.isFinite(Date.parse(date)))continue;
     messages.push({id,at:new Date(date).toISOString(),text:cleanText(plain(content)),
@@ -92,6 +95,22 @@ function attachTradeUpdates(signals,messages){
   return signals;
 }
 
+function collectEntrySignals(messages){
+  const list=Array.isArray(messages)?messages:[],byId=new Map(list.map(row=>[row.id,row]));
+  const clean=text=>String(text||'').replace(/\s+/g,' ').trim().toLowerCase();
+  return list.filter(row=>{
+    const own=clean(row.text);
+    if(own.length<42)return true;
+    // Telegram reply cards often include the original signal as copied text.
+    // Do not regard an identical quoted excerpt as another independently placed trade.
+    return !(row.references||[]).some(id=>{
+      const original=byId.get(id);
+      if(!original||Number(original.id)>=Number(row.id))return false;
+      const quoted=clean(original.text);
+      return quoted.length>=42&&own.startsWith(quoted.slice(0,Math.min(70,quoted.length)));
+    });
+  }).map(parseSignal).filter(Boolean);
+}
 function marketFromText(text,direction){
   const source=String(text||'');
   const spot=/(?:^|[^\p{L}])(?:спот(?:ов\p{L}*)?|spot)(?=$|[^\p{L}])/iu.test(source);
@@ -107,6 +126,10 @@ function marketFromText(text,direction){
 function parseSignal(row){
   if(!row?.text)return null;
   const text=String(row.text),lower=text.toLowerCase();
+  // Telegram close/partial-close updates often quote the original entry.
+  // The quoted "$TICKER беру в шорт" must never become a second entry.
+  const actionUpdate=classifyUpdate(row);
+  if(actionUpdate&&['partial-close','full-close','author-claimed-tp','author-claimed-sl'].includes(actionUpdate.type))return null;
   // Position top-ups are follow-ups, not fresh virtual entries.
   if(parseTradeAdjustment(row)&&
     !/(?:^|[^а-яёa-z])(?:открыл|открываю|заш[её]л|вхожу|беру|взял|взяла)(?=$|[^а-яёa-z])/i.test(text))return null;
@@ -210,7 +233,7 @@ function modeledTrade(signal,candles,messages=[],now=Date.now()){
   const closure=(Array.isArray(messages)?messages:[]).find(m=>
     m.id>signal.id&&Date.parse(m.at)>Date.parse(signal.at)&&
     Array.isArray(m.references)&&m.references.includes(signal.id)&&
-    /(?:закрыл\s+полностью|полностью\s+закрыл|вышел\s+(?:из\s+)?(?:позиции|сделки)\s+полностью)/i.test(m.text));
+    classifyUpdate(m)?.type==='full-close');
   const exit=closure&&available.find(c=>c.at>Date.parse(closure.at));
   const entry=first.open,price=exit?exit.open:last.close;
   const side=signal.direction==='short'?-1:1;
@@ -265,7 +288,7 @@ async function refreshSignals(options={}){
           if(batch.some(m=>Date.parse(m.at)<cutoff)){complete=true;break;}
         }
       }
-      const signals=linkUpdates([...posts.values()].map(parseSignal).filter(Boolean),
+      const signals=linkUpdates(collectEntrySignals([...posts.values()]),
         [...posts.values()]).sort((a,b)=>b.at.localeCompare(a.at));
       const oldResults=previous.results&&typeof previous.results==='object'?previous.results:{};
       const results={};
@@ -347,12 +370,23 @@ async function refreshSignals(options={}){
 function buildView(state,now=Date.now()){
   const cutoff=now-PERIOD_MS;
   const messages=(Array.isArray(state.messages)?state.messages:[]).filter(m=>Date.parse(m.at)>=cutoff);
-  const signals=messages.map(parseSignal).filter(Boolean).map(signal=>{
+  const signals=collectEntrySignals(messages).map(signal=>{
     const row=state.results?.[signal.id];
     return {...signal,...(row||{}),url:signal.url,id:signal.id,at:signal.at};
   });
   attachTradeUpdates(signals,messages);
   linkUpdates(signals,messages);
+  for(const signal of signals){
+    const reported=(signal.events||[]).findLast(event=>event.type==='full-close');
+    if(reported&&!['won','lost','breakeven','author-closed-size-unknown'].includes(signal.status)){
+      // The author explicitly closed the position, while an executable exit
+      // quote may still be unavailable. Never invent a PnL or execution price.
+      signal.status='author-closed-awaiting-price';
+      signal.closedByAuthor=true;
+      signal.reportedCloseAt=reported.at;
+      signal.reportedCloseUrl=reported.url;
+    }
+  }
   signals.sort((a,b)=>b.at.localeCompare(a.at));
   // OKX reference prices are NEVER counted as Bybit-verified results.
    const verified=signals.filter(s=>(s.status==='won'||s.status==='lost')&&s.execution!=='next-hour-model'&&s.marketDataSource!=='okx-reference');
@@ -380,5 +414,5 @@ async function readSignals(options={}){
   const state=row?.value&&typeof row.value==='object'?row.value:{};
   return buildView(state,options.now??Date.now());
 }
-module.exports={NS,parsePreview,parseSignal,evaluateCandles,compareSignal:parseSignal,
+module.exports={NS,parsePreview,parseSignal,collectEntrySignals,evaluateCandles,compareSignal:parseSignal,
   buildView,readSignals,refreshSignals,candlesForSignal,marketPriceForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk,fundingForSignal};

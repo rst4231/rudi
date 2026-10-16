@@ -72,7 +72,7 @@ test('role-symmetric mood layout and double-tap navigation without secondary fet
   assert.match(css,/\.profile-name-row > :is\(#moodCurrentButton,#partnerMoodValue\)/);
   assert.match(css,/font-size:9px!important/);
   assert.match(css,/background:none!important/);
-  assert.match(html,/rudi-interactions\.js\?v=4\.260/);
+  assert.match(html,/rudi-interactions\.js\?v=\d+\.\d+/);
   assert.doesNotMatch(script,/fetch\(/);
 });
 test('PWA and route backgrounds do not expose a white loading canvas',()=>{
@@ -82,5 +82,6 @@ test('PWA and route backgrounds do not expose a white loading canvas',()=>{
   assert.equal(manifest.background_color,'#0b0d12');
   assert.match(css,/::view-transition-new\(root\)/);
   assert.match(css,/html\[data-rudi-resuming\]/);
-  assert.match(sw,/rudi-shell-v4\.260/);
+  const version=JSON.parse(fs.readFileSync(path.join(__dirname,'../rudi-version.json'),'utf8')).current;
+  assert.ok(sw.includes("const CACHE_NAME='rudi-shell-"+version+"';"));
 });

@@ -155,7 +155,11 @@ function enqueueMutation(task) {
 async function startFasting(actor, payload = {}, options = {}) {
   return enqueueMutation(async () => {
     const current = await readFastingState(actor, options);
-    if (current.active) throw new Error('fasting-already-active');
+    if (current.active) {
+      if(payload.activeId && current.active.id===String(payload.activeId))return current;
+      throw new Error('fasting-already-active');
+    }
+    if(payload.activeId&&current.history.some(item=>item.id===String(payload.activeId)))return current;
     const nowMs = Number(options.now || Date.now());
     const startedAt = cleanIso(payload.startedAt || new Date(nowMs).toISOString());
     if (!startedAt) throw new Error('fasting-start-invalid');
@@ -163,7 +167,7 @@ async function startFasting(actor, payload = {}, options = {}) {
     if (startMs > nowMs + 5 * 60 * 1000) throw new Error('fasting-start-future');
     if (startMs < nowMs - 30 * 24 * 60 * 60 * 1000) throw new Error('fasting-start-too-old');
     current.active = {
-      id: crypto.randomUUID(),
+      id: String(payload.activeId||'').trim().slice(0,96)||crypto.randomUUID(),
       startedAt,
       goalHours: cleanGoal(payload.goalHours ?? 16),
     };
@@ -188,8 +192,13 @@ async function markFastingGoalNotified(actor, activeId, options = {}) {
 async function stopFasting(actor, options = {}) {
   return enqueueMutation(async () => {
     const current = await readFastingState(actor, options);
-    if (!current.active) throw new Error('fasting-not-active');
-    const nowMs = Number(options.now || Date.now());
+    const expectedId=String(options.expectedActiveId||'').trim();
+    if (!current.active||expectedId&&current.active.id!==expectedId) {
+      if(expectedId&&current.history.some(item=>item.id===expectedId))return current;
+      throw new Error('fasting-not-active');
+    }
+    const nowMs = Number(options.stopAt?Date.parse(options.stopAt):options.now||Date.now());
+    if(!Number.isFinite(nowMs)||nowMs>Number(options.now||Date.now())+5*60000)throw new Error('fasting-stop-invalid');
     const startMs = Date.parse(current.active.startedAt);
     if (!Number.isFinite(startMs) || startMs > nowMs) throw new Error('fasting-start-invalid');
     const row = normalizeHistoryItem({

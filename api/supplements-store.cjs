@@ -115,6 +115,8 @@ function normalizeState(value,actor){
     items:(Array.isArray(source.items)?source.items:[]).map(normalizeItem).filter(Boolean).slice(0,MAX_ITEMS),
     recommendation:normalizeRecommendation(source.recommendation),
     interactionCheck:normalizeInteractionCheck(source.interactionCheck),
+    appliedOfflineIds:(Array.isArray(source.appliedOfflineIds)?source.appliedOfflineIds:[])
+      .map(id=>cleanText(id,100)).filter(Boolean).slice(-1200),
     updatedAt:cleanText(source.updatedAt,40)
   };
 }
@@ -211,6 +213,80 @@ async function saveInteractionCheck(actor,input,o={}){
   const who=cleanActor(actor),check=normalizeInteractionCheck({...input,generatedAt:input?.generatedAt||new Date(o.now||Date.now()).toISOString()});if(!check)throw new Error('supplement-interaction-invalid');
   return enqueue(who,async()=>{const state=await readSupplements(who,o),saved=await writeSupplements(who,{...state,version:state.version+1,interactionCheck:check},o);return{state:saved,interactionCheck:saved.interactionCheck}});
 }
+
+async function applyOfflineOperation(actor,opId,command,payload={},o={}){
+ const who=cleanActor(actor),key=cleanText(opId,100);
+ if(!/^[\w-]{8,100}$/.test(key))throw Error('supplement-offline-id-invalid');
+ if(!['add','remove','restore','update','take','untake','skip','note'].includes(command))
+   throw Error('supplement-offline-command-invalid');
+ return enqueue(who,async()=>{
+  const state=await readSupplements(who,o);
+  if(state.appliedOfflineIds.includes(key))return{state,duplicate:true};
+  const itemId=cleanText(payload.id,96),index=state.items.findIndex(row=>row.id===itemId);
+  const old=state.items[index]||null;
+  const timestamp=isoOrEmpty(payload.at);
+  if(!timestamp)throw Error('supplement-offline-time-invalid');
+  const nowMs=Number(o.now||Date.now());
+  if(Date.parse(timestamp)>nowMs+300000||Date.parse(timestamp)<nowMs-90*86400000)
+   throw Error('supplement-offline-time-invalid');
+  const date=moscowDateKey(Date.parse(timestamp));
+  const items=[...state.items],guard=cleanText(payload.expectedUpdatedAt,40);
+  if(['update','remove'].includes(command)&&old&&guard&&
+    old.updatedAt!==guard)throw Error('supplement-offline-conflict');
+  let item=old,removed=null,note=null;
+  if(command==='add'){
+   const name=cleanText(payload.name,120);
+   if(!name)throw Error('supplement-name-required');
+   if(!old&&state.items.length>=MAX_ITEMS)throw Error('supplement-limit');
+   if(!old&&items.some(x=>x.name.toLocaleLowerCase('ru')===name.toLocaleLowerCase('ru')))
+    throw Error('supplement-duplicate');
+   if(!old){item=normalizeItem({id:itemId||'supp-'+key,name,createdAt:timestamp,updatedAt:timestamp,status:'active'});items.unshift(item)}
+  }else if(command==='restore'){
+   item=normalizeItem(payload.item);
+   if(!item)throw Error('supplement-restore-invalid');
+   if(!items.some(x=>x.id===item.id))items.unshift(item);
+  }else{
+   if(!old)throw Error('supplement-not-found');
+   if(command==='remove'){removed=old;items.splice(index,1);item=null}
+   else if(command==='update'){
+    const patch=payload.patch&&typeof payload.patch==='object'?payload.patch:{};
+    const nextStatus=patch.status===undefined?old.status:cleanStatus(patch.status);
+    item=normalizeItem({...old,
+      goal:patch.goal===undefined?old.goal:patch.goal,
+      ingredients:patch.ingredients===undefined?old.ingredients:patch.ingredients,
+      schedule:patch.schedule===undefined?old.schedule:{...old.schedule,...patch.schedule},
+      course:patch.course===undefined?old.course:{...old.course,...patch.course},
+      expirationDate:patch.expirationDate===undefined?old.expirationDate:patch.expirationDate,
+      status:nextStatus,updatedAt:timestamp,
+      statusHistory:nextStatus!==old.status?[...old.statusHistory,{status:nextStatus,at:timestamp}]:old.statusHistory});
+    items[index]=item;
+   }else if(command==='take'){
+    const count=old.intakes.filter(x=>x.date===date).length;
+    if(count<cleanTimesPerDay(old.schedule?.timesPerDay)){
+     item=normalizeItem({...old,intakes:[...old.intakes,{date,at:timestamp}],
+       skips:old.skips.filter(row=>row.date!==date),updatedAt:timestamp});
+     items[index]=item;
+    }
+   }else if(command==='untake'){
+    const i=old.intakes.map(x=>x.date).lastIndexOf(date);
+    if(i>=0){item=normalizeItem({...old,intakes:old.intakes.filter((_,j)=>i!==j),updatedAt:timestamp});items[index]=item}
+   }else if(command==='skip'){
+    if(old.intakes.some(x=>x.date===date))throw Error('supplement-already-taken');
+    if(!old.skips.some(x=>x.date===date)){item=normalizeItem({...old,skips:[...old.skips,{date,at:timestamp}],updatedAt:timestamp});items[index]=item}
+   }else if(command==='note'){
+    const msg=cleanText(payload.text,500);
+    if(!msg)throw Error('supplement-note-required');
+    note={id:'note-'+key,date,at:timestamp,text:msg};
+    item=normalizeItem({...old,notes:[...old.notes,note],updatedAt:timestamp});items[index]=item;
+   }
+  }
+  const saved=await writeSupplements(who,{...state,items,version:state.version+1,
+    interactionCheck:null,appliedOfflineIds:[...state.appliedOfflineIds,key].slice(-1200)},o);
+  return {state:saved,item:saved.items.find(x=>x.id===(item?.id||''))||null,
+    removed,note,duplicate:false,date};
+ });
+}
+
 function resetMutationQueuesForTests(){tails.clear()}
 
-module.exports={NAMESPACE,TTL_SECONDS,MAX_ITEMS,STATUSES,FOODS,EVIDENCE_LEVELS,moscowDateKey,normalizeItem,normalizeRecommendation,normalizeInteractionCheck,normalizeState,readSupplements,writeSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,markSupplementTaken,unmarkSupplementTaken,markSupplementSkipped,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck,resetMutationQueuesForTests};
+module.exports={NAMESPACE,TTL_SECONDS,MAX_ITEMS,STATUSES,FOODS,EVIDENCE_LEVELS,moscowDateKey,normalizeItem,normalizeRecommendation,normalizeInteractionCheck,normalizeState,readSupplements,writeSupplements,addSupplement,removeSupplement,restoreSupplement,updateSupplement,markSupplementTaken,unmarkSupplementTaken,markSupplementSkipped,addSupplementNote,saveSupplementDescription,saveDailyRecommendation,saveInteractionCheck,applyOfflineOperation,resetMutationQueuesForTests};

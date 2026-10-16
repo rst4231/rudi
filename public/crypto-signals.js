@@ -9,7 +9,8 @@ const statuses={won:'TP · плюс',lost:'SL · минус',open:'Открыт�
   'not-entered':'Не вошла','insufficient-levels':'Недостаточно уровней',
   conditional:'Условная идея',ambiguous:'Неясный результат',
   'awaiting-market':'Ожидает проверки','market-unavailable':'Нет котировок',
-  'size-unknown':'Неизвестна доля выхода','liquidation-risk-unverified':'Возможная ликвидация',
+  'size-unknown':'Неизвестна доля выхода','author-closed-size-unknown':'Автор закрыл · объём части неизвестен',
+  'author-closed-awaiting-price':'Автор закрыл · цена уточняется','liquidation-risk-unverified':'Возможная ликвидация',
   'partial-unknown':'Частичный выход без размера',
   'market-unconfirmed':'Рынок не указан'};
 let current=null,loading=false;

@@ -139,3 +139,36 @@ test('Executed long and short reported as взял without entry are actionable 
   assert.equal(priced.entry,2450);
   assert.equal(parseSignal({...base,id:204,text:'$BTC после пробоя планирую взять в лонг'}),null);
 });
+
+test('quoted original signal in a closure must not become a second trade',()=>{
+  const entry=parseSignal({...base,text:'$BAT беру в шорт. Вход 100, тейк 90, стоп 110'});
+  const close={...base,id:14,at:'2026-10-11T10:20:00Z',references:[10],
+   text:'$BAT беру в шорт. Вход 100, тейк 90, стоп 110\nЗакрываю позицию, закрыл чистые 15%'};
+  assert.equal(parseSignal(close),null);
+  linkUpdates([entry],[close]);
+  assert.deepEqual(entry.events.map(e=>e.type),['full-close']);
+  const result=tradeOutcome(entry,[bar('09',100,99,101,100),bar('10',99,97,100,98),
+    bar('11',97,95,98,96)],{now});
+  assert.equal(result.status,'won');
+  assert.equal(result.legs.at(-1).type,'full-close');
+});
+test('reply quoting a prior partial close resolves original signal, but only explicit complete close closes it',()=>{
+  const entry=parseSignal({...base,text:'$AVAAI беру в шорт. Вход 100, тейк 90, стоп 110'});
+  const part={...base,id:11,at:'2026-10-11T09:20:00Z',references:[10],text:'Часть закрыл, стоп в безубыток'};
+  const full={...base,id:12,at:'2026-10-11T10:20:00Z',references:[11],text:'Закрываю позицию, чистые 15% движения'};
+  linkUpdates([entry],[part,full]);
+  assert.deepEqual(entry.events.map(e=>e.type),['partial-close','stop-to-breakeven','full-close']);
+  assert.equal(parseSignal(full),null);
+});
+
+test('reposted BAT and LUMIA source quotes do not create new virtual entries',()=>{
+ const {collectEntrySignals}=require('../api/crypto-signals.cjs');
+ const original='$BAT беру в шорт, много лонгов налипло, плюс структура актива указывает на дальнейшее снижение. Беру лесенкой';
+ const msgs=[
+  {id:15008,at:'2026-10-15T19:18:16Z',text:original,references:[]},
+  {id:15009,at:'2026-10-16T07:54:55Z',text:original+' • Торгую на бирже BYBIT',references:[15008]},
+  {id:14963,at:'2026-10-10T15:07:17Z',text:'$LUMIA беру в шорт, набираюсь сеткой, вырисовывается разворотная формация',references:[]},
+  {id:14965,at:'2026-10-10T20:11:23Z',text:'$LUMIA беру в шорт, набираюсь сеткой, вырисовывается разворотная формация • Подробнее',references:[14963]}
+ ];
+ assert.deepEqual(collectEntrySignals(msgs).map(x=>x.id).sort((a,b)=>a-b),[14963,15008]);
+});

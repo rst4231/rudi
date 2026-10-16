@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.260';
+const CACHE_NAME='rudi-shell-v4.262';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -28,7 +28,12 @@ const PRECACHE=[
   "/supplement-advanced.css?v=4.149",
   "/rudi-effects.css?v=4.199",
   "/rudi-effects.js?v=4.199",
-  "/app.js?v=4.260",
+  "/app.js?v=4.262",
+  "/home-note.css?v=4.260",
+  "/home-note.js?v=4.262",
+  "/home-offline.js?v=4.261",
+  "/rudi-offline-content.js?v=4.262",
+  "/version.json",
   "/meditation.js?v=4.197",
   "/personal-task-editor.js?v=4.256",
   "/personal-task-editor.css?v=4.209",
@@ -148,7 +153,7 @@ self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE_NAME);
     const critical=PRECACHE.filter(url=>url==='/'||
-      /^\/(?:app\.js|app\.css|calendar-offline\.js|home-offline\.js|calendar\.css|pwa-extras\.js)\?/.test(url));
+      /^\/(?:app\.js|app\.css|calendar-offline\.js|home-offline\.js|home-note\.js|rudi-offline-content\.js|calendar\.css|pwa-extras\.js)\?/.test(url));
     await Promise.all(critical.map(url=>cache.add(url)));
     await Promise.allSettled(PRECACHE.filter(url=>!critical.includes(url)).map(url=>cache.add(url)));
   })());
