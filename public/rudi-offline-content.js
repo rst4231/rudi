@@ -103,6 +103,15 @@ async function enqueue(kind,scope,data,who=actor){
  signal();
  return row;
 }
+async function rebaseNote(expectedUpdatedAt,who=actor){
+ if(!actors.has(who)||typeof expectedUpdatedAt!=='string')throw Error('offline-rebase-invalid');
+ const row=(await pending('note','home',who))[0];
+ if(!row)throw Error('offline-note-missing');
+ const revised={...row,data:{...row.data,expectedUpdatedAt},error:'',stamp:makeId()};
+ await tx('outbox','readwrite',store=>store.put(revised));
+ signal();
+ return revised;
+}
 async function probe(force=false){
  if(!actor||root.document?.visibilityState==='hidden')return false;
  if(!force&&Date.now()-lastProbe<12000&&connected!==null)return connected;
@@ -210,5 +219,5 @@ for(const event of ['online','focus','pageshow','rudi-home-network-recovered'])
 root.document?.addEventListener('visibilitychange',()=>{if(root.document.visibilityState==='visible')scheduled()});
 root.addEventListener('rudi-app-pull-refresh',()=>scheduled());
 setInterval(scheduled,15000);
-root.rudiOfflineContent={init,actor:()=>actor,cached,capture,enqueue,pending,entries,flush,probe,isOffline,signal,isSyncing:()=>syncing};
+root.rudiOfflineContent={init,actor:()=>actor,cached,capture,enqueue,pending,entries,rebaseNote,flush,probe,isOffline,signal,isSyncing:()=>syncing};
 })(window);
