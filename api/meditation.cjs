@@ -29,11 +29,11 @@ async function handler(req,res,options={}){
     'Рустам':store.publicSummary(rustam),'Диана':store.publicSummary(diana)}});
   }
   if(operation==='start'){
-   const saved=await store.start(actor,body.goalMinutes,options);
+   const saved=await store.start(actor,body.goalMinutes,{...options,activeId:body.activeId,startedAt:body.startedAt});
    return res.status(200).json({ok:true,actor,meditation:{...saved,stats:store.stats(saved)}});
   }
   if(operation==='finish'){
-   const result=await store.finish(actor,body.activeId,body.auto===true,options);
+   const result=await store.finish(actor,body.activeId,body.auto===true,{...options,endedAt:body.endedAt});
    let session=result.session,meditation=result.state;
    const rewardUnits=session?meditationRewardUnits(session.durationSeconds):0;
    if(rewardUnits){
