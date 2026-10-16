@@ -31,8 +31,17 @@ function nowMs(options={}){return Number(options.now||Date.now())}
 async function start(actor,goalMinutes,options={}){
  return queue(async()=>{
   const goal=Number(goalMinutes);if(!DURATIONS.has(goal))throw Error('meditation-goal-invalid');
-  const state=await read(actor,options);if(state.active)throw Error('meditation-already-active');
-  state.active={id:crypto.randomUUID(),startedAt:new Date(nowMs(options)).toISOString(),goalMinutes:goal};
+  const state=await read(actor,options);
+  const requestedId=String(options.activeId||'').trim().slice(0,100);
+  if(state.active){
+   if(requestedId&&state.active.id===requestedId)return state;
+   throw Error('meditation-already-active');
+  }
+  if(requestedId&&state.history.some(x=>x.id===requestedId))return state;
+  const start=options.startedAt?Date.parse(String(options.startedAt)):nowMs(options);
+  if(!Number.isFinite(start)||start>nowMs(options)+300000||start<nowMs(options)-30*86400000)
+   throw Error('meditation-start-invalid');
+  state.active={id:requestedId||crypto.randomUUID(),startedAt:new Date(start).toISOString(),goalMinutes:goal};
   return write(actor,state,options);
  });
 }
@@ -46,7 +55,10 @@ async function finish(actor,activeId,auto=false,options={}){
    throw Error('meditation-not-active');
   }
   const active=state.active,started=Date.parse(active.startedAt);
-  const end=auto?Math.min(nowMs(options),started+active.goalMinutes*60000):nowMs(options);
+  const suppliedEnd=options.endedAt?Date.parse(String(options.endedAt)):nowMs(options);
+  if(!Number.isFinite(suppliedEnd)||suppliedEnd>nowMs(options)+300000||
+    suppliedEnd<started||suppliedEnd>started+24*3600000)throw Error('meditation-finish-invalid');
+  const end=auto?Math.min(suppliedEnd,started+active.goalMinutes*60000):suppliedEnd;
   const seconds=Math.max(0,Math.floor((end-started)/1000));
   state.active=null;
   if(seconds>=60){
