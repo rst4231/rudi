@@ -20097,24 +20097,66 @@
         };
       }
 
+      function fastingLocalState(current){
+        const active=current?.active||null,history=Array.isArray(current?.history)?current.history:[];
+        const lengths=history.map(x=>Math.max(0,Number(x.durationMinutes)||0));
+        return {...current,active,history,stats:{completed:history.length,
+          averageMinutes:history.length?Math.round(lengths.reduce((a,b)=>a+b,0)/history.length):0,
+          longestMinutes:lengths.length?Math.max(...lengths):0}};
+      }
       async function fastingRequest(operation='state',payload={}){
+        const offline=window.rudiOfflineContent,who=currentActor;
+        if(offline?.actor?.()===who){
+          let snapshot=await offline.cached('fasting').catch(()=>null);
+          if(operation==='state'||operation==='overview'){
+            const inQueue=(await offline.pending('wellness')).some(row=>row.data?.area==='fasting');
+            if(inQueue||offline.isOffline()){
+              if(operation==='overview')return {ok:true,fastingOverview:{...fastingOverviewState,[who]:{active:snapshot?.active||null}}};
+              return {ok:true,fasting:snapshot||fastingLocalState({active:null,history:[]})};
+            }
+            // Display last snapshot immediately before the asynchronous server refresh.
+          }
+          if(operation==='start'||operation==='stop'){
+            const now=Date.now(),current=snapshot||fastingLocalState({active:null,history:[]});
+            const last=current.active;
+            if(operation==='start'&&last)throw Error('fasting-already-active');
+            if(operation==='stop'&&!last)throw Error('fasting-not-active');
+            let next,storedPayload;
+            if(operation==='start'){
+              const startedAt=new Date(payload.startedAt||now).toISOString(),start=Date.parse(startedAt);
+              if(![12,14,16,18,24].includes(Number(payload.goalHours))||start>now+300000||start<now-30*86400000)
+                throw Error('fasting-start-invalid');
+              const active={id:window.crypto?.randomUUID?.()||'fast-'+now,startedAt,goalHours:Number(payload.goalHours)};
+              next=fastingLocalState({...current,initialized:true,active});
+              storedPayload={startedAt,goalHours:active.goalHours,activeId:active.id};
+            }else{
+              const endedAt=new Date(now).toISOString(),mins=Math.round((now-Date.parse(last.startedAt))/60000);
+              const record=mins>=60?{id:last.id,startedAt:last.startedAt,endedAt,
+                durationMinutes:mins,goalHours:last.goalHours,goalReached:mins>=last.goalHours*60,earnedStars:0}:null;
+              next=fastingLocalState({...current,active:null,history:record?[record,...(current.history||[])]:[...(current.history||[])]});
+              storedPayload={activeId:last.id,endedAt};
+            }
+            await offline.commitWellness('fasting',operation,storedPayload,'fasting',next);
+            document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
+            if(!offline.isOffline())void offline.flush();
+            return {ok:true,actor:who,fasting:next,offlinePending:true};
+          }
+        }
         const response=await fetch('/api/partner-message?rudiAction=fasting',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({
-            initData:telegramInitData(),
-            operation,
-            ...payload
-          }),
-          cache:'no-store'
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({initData:telegramInitData(),operation,...payload}),cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok){
-          const error=new Error(data.error||'fasting-request-failed');
-          error.status=response.status;
-          throw error;
+          const error=new Error(data.error||'fasting-request-failed');error.status=response.status;throw error;
         }
-        if(operation==='start'||operation==='stop')document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
+        if(offline?.actor?.()===who&&who===currentActor){
+          if(operation==='state'&&data.fasting){
+            const pending=await offline.pending('wellness');
+            if(!pending.some(row=>row.data?.area==='fasting'))await offline.capture('fasting',data.fasting).catch(()=>{});
+          }
+          if(operation==='overview'&&data.fastingOverview)await offline.capture('fasting-overview',data.fastingOverview).catch(()=>{});
+        }
         return data;
       }
 
@@ -20299,9 +20341,11 @@
         if(status&&!silent) status.textContent='Обновляю…';
 
         try{
+          const cached=await window.rudiOfflineContent?.cached?.('fasting').catch(()=>null);
+          if(cached)renderFasting(cached);
           const data=await fastingRequest('state');
           renderFasting(data.fasting);
-          if(status) status.textContent='';
+          if(status) status.textContent=window.rudiOfflineContent?.isOffline?.()?'Офлайн · данные на устройстве':'';
           return data.fasting;
         }catch(error){
           if(status) status.textContent=fastingErrorText(error);
@@ -20309,6 +20353,19 @@
         }
       }
 
+      window.addEventListener('rudi-content-network-recovered',()=>{
+        if(currentAppTab==='fasting')void loadFastingTracker({silent:true});
+        if(currentAppTab==='home')void loadFastingOverview();
+      });
+      window.addEventListener('rudi-content-operation-synced',e=>{
+        if(e.detail?.actor!==currentActor||e.detail?.area!=='fasting')return;
+        void window.rudiOfflineContent.pending('wellness').then(rows=>{
+          if(!rows.some(row=>row.data?.area==='fasting')){
+            if(currentAppTab==='fasting')void loadFastingTracker({silent:true});
+            void loadFastingOverview();
+          }
+        });
+      });
       function setupFastingTracker(){
         document.getElementById('fastingElapsed')?.addEventListener('click',()=>{
           if(!fastingState?.active)return;
