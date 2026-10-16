@@ -135,6 +135,9 @@
         || RUDI_SNAPSHOT_READ_OPS.has(operation)
         || (RUDI_SNAPSHOT_POST_READ_PATHS.has(url.pathname)&&!operation);
       if(url.pathname==='/api/wishlist'&&(!operation||operation==='list')) cacheable=true;
+      // Read-only widgets on the home dashboard: preserve their last values offline.
+      if(url.pathname==='/api/supplements'&&operation==='overview')cacheable=true;
+      if(url.pathname==='/api/finances'&&['budget-status','partner-last-expense'].includes(operation))cacheable=true;
     }
     if(!cacheable) return '';
 
@@ -382,9 +385,10 @@
         return queueAndThrow('Нет интернета · сохраню позже');
       }
 
-      if(snapshotKey&&navigator.onLine===false){
+      if(snapshotKey&&(navigator.onLine===false||document.body.dataset.offlineMode==='1')){
         const cached=await snapshotFallback(snapshotKey);
         if(cached) return cached;
+        throw new TypeError('offline-no-snapshot');
       }
 
       if(snapshotKey&&navigator.onLine!==false){
@@ -413,6 +417,10 @@
     };
 
     window.addEventListener('online',()=>{
+      requestOutboxFlush();
+    });
+    window.addEventListener('rudi-home-network-recovered',()=>{
+      // iOS PWA may restore network access without firing "online".
       requestOutboxFlush();
     });
 
@@ -665,6 +673,15 @@
         document.body.dataset.offlineMode='0';
         recoverySuccesses=0;
       },350);
+    });
+    window.addEventListener('rudi-home-network-recovered',()=>{
+      if(navigator.onLine===false)return;
+      clearTimeout(recoveryTimer);
+      recoverySuccesses=0;
+      banner.hidden=true;
+      banner.textContent='Нет сети · РуДи работает из сохранённых данных';
+      document.body.classList.remove('rudi-offline');
+      document.body.dataset.offlineMode='0';
     });
     window.addEventListener('rudi-calendar-network-recovered',()=>{
       // A successful uncached network probe is authoritative, even if Safari

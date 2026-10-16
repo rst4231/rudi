@@ -12280,11 +12280,11 @@
         return homePartnerExpensePromise;
       }
 
-      function applyHomeBootstrap(home){
+      function applyHomeBootstrap(home,{fromCache=false}={}){
         if(!home||typeof home!=='object')return false;
         homeBootstrapPayload=home;
-        homeBootstrapLoadedAt=Date.now();
-        homeBootstrapLoadedDay=todayState().key;
+        homeBootstrapLoadedAt=fromCache?0:Date.now();
+        homeBootstrapLoadedDay=fromCache?'':todayState().key;
         homeBootstrapActor=currentActor;
         if(home.activity&&homeBootstrapSectionChanged('activity',home.activity))renderActivityJournal(home.activity);
         if(home.mood&&homeBootstrapSectionChanged('mood',home.mood)){
@@ -12321,10 +12321,35 @@
           renderHomeNew();
           renderHomeDashboard();
         }
+        // The read-only partner expense widget uses a separate IndexedDB response
+        // snapshot, so it can also render immediately without a network request.
         loadHomePartnerLastExpense().catch(()=>{});
         return true;
       }
 
+      async function restoreHomeFromDisk(){
+        if(!currentActor||!window.rudiHomeOffline)return null;
+        const actor=currentActor;
+        try{
+          const snapshot=await window.rudiHomeOffline.snapshot(actor);
+          if(!snapshot?.home||currentActor!==actor||snapshot.actor!==actor)return null;
+          if(!homeBootstrapPayload||window.rudiHomeOffline.isOffline()){
+            homeBootstrapHashes=null;
+            applyHomeBootstrap(snapshot.home,{fromCache:true});
+          }
+          window.rudiHomeOffline.showCachedStatus(snapshot.savedAt);
+          return snapshot;
+        }catch(error){
+          console.warn('RUDI_HOME_OFFLINE_READ_WARN',String(error?.message||error));
+          return null;
+        }
+      }
+
+      window.addEventListener('rudi-background-sync-complete',()=>{
+        if(currentActor&&currentAppTab==='home'&&!window.rudiHomeOffline?.isOffline?.()){
+          loadHomeBootstrap({force:true}).catch(()=>{});
+        }
+      });
       async function loadHomeBootstrap({force=false}={}){
         if(!currentActor) return null;
         if(!force&&homeBootstrapPayload&&homeBootstrapActor===currentActor&&homeBootstrapLoadedDay===todayState().key&&Date.now()-homeBootstrapLoadedAt<HOME_BOOTSTRAP_CACHE_MS){
@@ -12333,12 +12358,15 @@
         }
         if(homeBootstrapPromise) return homeBootstrapPromise;
         homeBootstrapPromise=(async()=>{
+          const cached=await restoreHomeFromDisk();
+          if(window.rudiHomeOffline?.isOffline?.())return cached?.home||homeBootstrapPayload||null;
+          try{
           const response=await fetchWithTimeout('/api/partner-message?rudiAction=home-bootstrap',{
             method:'POST',
             headers:{'Content-Type':'application/json'},
             body:JSON.stringify({initData:telegramInitData(),...(homeBootstrapPayload&&homeBootstrapActor===currentActor&&homeBootstrapHashes?{knownHomeHashes:homeBootstrapHashes}:{})}),
             cache:'no-store'
-          },10000);
+          },cached?5500:10000);
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||!payload.ok) throw new Error(payload.error||'home-bootstrap');
           if(payload.actor&&String(payload.actor)!==currentActor) return null;
@@ -12351,14 +12379,88 @@
             homeBootstrapHashes=payload.homeHashes&&typeof payload.homeHashes==='object'?payload.homeHashes:null;
             appBootstrapPayload={...(appBootstrapPayload||{}),home};
             applyHomeBootstrap(home);
+            if(response.headers?.get?.('X-RUDI-Offline')!=='1'){
+              await window.rudiHomeOffline?.save(currentActor,home,todayState().key).catch(error=>{
+                console.warn('RUDI_HOME_OFFLINE_WRITE_WARN',String(error?.message||error));
+              });
+            }
             return home;
           }
           return null;
+          }catch(error){
+            if(cached?.home){
+              const reason=String(error?.message||'');
+              if(navigator.onLine===false||['TypeError','AbortError'].includes(String(error?.name||''))||
+                /network|fetch|timeout|aborted|load failed/i.test(reason)){
+                document.body.dataset.offlineMode='1';
+                window.rudiHomeOffline?.showCachedStatus(cached.savedAt);
+              }
+              return cached.home;
+            }
+            throw error;
+          }
         })().finally(()=>{homeBootstrapPromise=null});
         return homeBootstrapPromise;
       }
 
+      let homeReconnectPromise=null,lastHomeReconnectAt=0;
+      function reconnectHome({force=false}={}){
+        if(!currentActor||!appAccessReady||navigator.onLine===false)return Promise.resolve(false);
+        if(homeReconnectPromise)return homeReconnectPromise;
+        if(!force&&Date.now()-lastHomeReconnectAt<12000)return Promise.resolve(false);
+        lastHomeReconnectAt=Date.now();
+        homeReconnectPromise=(async()=>{
+          const controller=new AbortController();
+          const timer=setTimeout(()=>controller.abort(),1800);
+          let connected=false;
+          try{
+            const response=await fetch('/version.json?homeReconnect='+Date.now(),{
+              cache:'no-store',signal:controller.signal
+            });
+            connected=Boolean(response?.ok);
+          }catch(_){connected=false}
+          finally{clearTimeout(timer)}
+          if(!connected)return false;
+          document.body.dataset.offlineMode='0';
+          window.dispatchEvent(new CustomEvent('rudi-home-network-recovered'));
+          // Never discard IndexedDB, and let the existing outboxes flush first.
+          await flushCalendarOffline().catch(()=>{});
+          homeBootstrapHashes=null;
+          homeBootstrapLoadedAt=0;
+          if(currentAppTab==='home'){
+            await Promise.allSettled([
+              loadHomeBootstrap({force:true}),
+              loadTickTickNext({force:true}),
+              loadSupplementIntakeOverview({silent:true,force:true})
+            ]);
+          }
+          return true;
+        })().catch(error=>{
+          console.warn('RUDI_HOME_RECONNECT_WARN',String(error?.message||error));
+          return false;
+        }).finally(()=>{homeReconnectPromise=null});
+        return homeReconnectPromise;
+      }
+      window.addEventListener('online',()=>{
+        if(currentAppTab==='home')reconnectHome({force:true});
+      });
+      window.addEventListener('pageshow',()=>{
+        if(currentAppTab==='home'&&window.rudiHomeOffline?.isOffline?.())reconnectHome({force:true});
+      });
+      window.addEventListener('focus',()=>{
+        if(currentAppTab==='home'&&window.rudiHomeOffline?.isOffline?.())reconnectHome({force:true});
+      });
+      document.addEventListener('visibilitychange',()=>{
+        if(document.visibilityState==='visible'&&currentAppTab==='home'&&
+          window.rudiHomeOffline?.isOffline?.())reconnectHome({force:true});
+      });
+      setInterval(()=>{
+        if(appAccessReady&&currentAppTab==='home'&&document.visibilityState==='visible'&&
+          window.rudiHomeOffline?.isOffline?.())reconnectHome();
+      },15000);
+
       async function ensureHomeBootstrap({force=false}={}){
+        if(window.rudiHomeOffline?.isOffline?.())return loadHomeBootstrap({force:true});
         if(!force&&appBootstrapPayload?.home&&homeBootstrapActor===currentActor&&homeBootstrapLoadedDay===todayState().key&&Date.now()-homeBootstrapLoadedAt<HOME_BOOTSTRAP_CACHE_MS){
           applyHomeBootstrap(appBootstrapPayload.home);
           return appBootstrapPayload.home;
@@ -12375,6 +12477,10 @@
 
       async function loadAppBootstrap(){
         if(!currentActor) return null;
+        if(window.rudiHomeOffline?.isOffline?.()){
+          await restoreHomeFromDisk();
+          return null;
+        }
         const cachedProfiles=readProfileCache();
         const includeProfiles=profileCacheNeedsRefresh(cachedProfiles);
         try{
@@ -12405,6 +12511,11 @@
           if(payload.home){
             homeBootstrapHashes=payload.homeHashes&&typeof payload.homeHashes==='object'?payload.homeHashes:null;
             applyHomeBootstrap(payload.home);
+            if(response.headers?.get?.('X-RUDI-Offline')!=='1'){
+              window.rudiHomeOffline?.save(currentActor,payload.home,todayState().key).catch(error=>{
+                console.warn('RUDI_HOME_OFFLINE_WRITE_WARN',String(error?.message||error));
+              });
+            }
           }
           if(payload.selfProfile||payload.partnerProfile){
             const selfProfile=payload.selfProfile||cachedProfiles?.selfProfile||null;
@@ -12501,6 +12612,8 @@
           }
         }
         if(!currentActor) return false;
+        window.rudiHomeOffline?.init(currentActor);
+        restoreHomeFromDisk().catch(()=>{});
         window.rudiCalendarOffline?.init(currentActor)
           .then(()=>flushCalendarOffline()).catch(error=>console.warn('RUDI_CALENDAR_OFFLINE_INIT_WARN',String(error?.message||error)));
         if(appPushSupported()&&Notification.permission==='granted'){
@@ -14420,6 +14533,11 @@
           });
           renderTickTickTodayState(payload,{preserveExpanded});
         }catch(error){
+          if(window.rudiHomeOffline?.isOffline?.()){
+            const badge=document.getElementById('ticktickBadge');
+            if(badge){badge.hidden=false;badge.textContent='Офлайн'}
+            return;
+          }
           if(error?.name==='AbortError'){
             if(retryOnAbort){
               await new Promise(resolve=>setTimeout(resolve,120));
@@ -17988,9 +18106,16 @@
                 if(mood==='joy'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
                 else tg?.HapticFeedback?.selectionChanged?.();
               }catch(_){}
-            }catch(_){
-              await refreshDailyMood();
-              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+            }catch(error){
+              if(error?.rudiQueued){
+                const previous=homeDashboardState.moods||homeBootstrapPayload?.mood||{};
+                const optimistic={...previous,date:todayState().key,mine:{...(previous.mine||{}),mood}};
+                renderDailyMood(optimistic);
+                showMoodReasonPrompt();
+              }else{
+                await refreshDailyMood();
+                try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+              }
             }finally{
               buttons.forEach(item=>item.disabled=false);
             }
@@ -18137,13 +18262,19 @@
       }
 
       async function refreshDailyMood(){
-        if(!currentActor) return;
+        if(!currentActor)return;
+        const cachedMood=homeBootstrapPayload?.mood;
+        if(window.rudiHomeOffline?.isOffline?.()){
+          if(cachedMood?.date===todayState().key)renderDailyMood(cachedMood);
+          return;
+        }
         try{
           const payload=await moodRequest('get');
           currentMoodDateKey=String(payload?.date||todayState().key);
           renderDailyMood(payload);
         }catch(_){
-          renderPartnerMood('',currentActor==='Рустам'?'Диана':'Рустам');
+          if(cachedMood?.date===todayState().key)renderDailyMood(cachedMood);
+          else renderPartnerMood('',currentActor==='Рустам'?'Диана':'Рустам');
         }
       }
 
@@ -21738,6 +21869,11 @@
           resetMoodForNewDay();
           const tabTasks=[loadCalendarOverdueCount({force:true})];
           if(currentAppTab==='home'){
+            const wasHomeOffline=window.rudiHomeOffline?.isOffline?.()===true;
+            const restored=wasHomeOffline?await reconnectHome({force:true}):false;
+            if(wasHomeOffline&&!restored){
+              tabTasks.push(restoreHomeFromDisk());
+            }else if(!restored){
             tabTasks.push(force
               ?loadHomeBootstrap({force:true})
               :ensureHomeBootstrap({force:awayMs>=AUTO_RESUME_HEAVY_REFRESH_MS})
@@ -21772,6 +21908,7 @@
                   window.RUDI_CAR?.refresh?.()
                 );
               }
+            }
             }
           }else if(currentAppTab==='schedule'){
             const wasOffline=window.rudiCalendarOffline?.isOffline?.()===true;
