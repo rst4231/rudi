@@ -26,7 +26,10 @@ function parsePreview(html){
     const chunk=text.slice(openings[i].index,openings[i+1]?.index||text.length);
     const id=Number(openings[i][1]);
     const date=chunk.match(/<time\b[^>]*\bdatetime="([^"]+)"/i)?.[1]||'';
-    const content=chunk.match(/<div\b[^>]*class="[^"]*tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/i)?.[1]||'';
+    // A Telegram reply can embed the quoted source as another message_text.
+    // Only the final message_text block represents the author's new content.
+    const texts=[...chunk.matchAll(/<div\b[^>]*class="[^"]*tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/gi)];
+    const content=texts.length?texts[texts.length-1][1]:'';
     const links=[...chunk.matchAll(/href="https?:\/\/t\.me\/ne_investor\/(\d+)"/gi)].map(m=>Number(m[1]));
     if(!id||!date||!Number.isFinite(Date.parse(date)))continue;
     messages.push({id,at:new Date(date).toISOString(),text:cleanText(plain(content)),
