@@ -17731,6 +17731,7 @@
           cached=await offline?.cached?.('question');
           if(cached&&actor===currentActor)await renderDailyQuestionOffline(cached);
         }catch(_){}
+        if(!offline?.isOffline?.()&&offline?.probe)await offline.probe().catch(()=>false);
         if(offline?.isOffline?.()){
           if(!cached){
             if(loading){loading.hidden=false;loading.textContent='Офлайн · вопрос ещё не загружался';}
@@ -19225,6 +19226,7 @@
           if(cached&&currentActor===actor)renderFeed(cached);
         }catch(_){}
         offline?.signal?.();
+        if(!offline?.isOffline?.()&&offline?.probe)await offline.probe().catch(()=>false);
         if(offline?.isOffline?.()){
           if(status)status.textContent=cached?'Офлайн · сохранённая подборка':'Офлайн · сохранённых материалов пока нет';
           return cached;
