@@ -357,6 +357,17 @@ function buildView(state,now=Date.now()){
   });
   attachTradeUpdates(signals,messages);
   linkUpdates(signals,messages);
+  for(const signal of signals){
+    const reported=(signal.events||[]).findLast(event=>event.type==='full-close');
+    if(reported&&!['won','lost','breakeven','author-closed-size-unknown'].includes(signal.status)){
+      // The author explicitly closed the position, while an executable exit
+      // quote may still be unavailable. Never invent a PnL or execution price.
+      signal.status='author-closed-awaiting-price';
+      signal.closedByAuthor=true;
+      signal.reportedCloseAt=reported.at;
+      signal.reportedCloseUrl=reported.url;
+    }
+  }
   signals.sort((a,b)=>b.at.localeCompare(a.at));
   // OKX reference prices are NEVER counted as Bybit-verified results.
    const verified=signals.filter(s=>(s.status==='won'||s.status==='lost')&&s.execution!=='next-hour-model'&&s.marketDataSource!=='okx-reference');
