@@ -896,8 +896,9 @@ function build(){
   const input=document.createElement('input');input.type='text';input.maxLength=120;input.placeholder='Название БАДа';input.autocomplete='off';
   const add=document.createElement('button');add.type='submit';add.textContent='Добавить';form.append(input,add);
   statusNode=document.createElement('div');statusNode.className='personal-supplements-status';statusNode.hidden=true;
+  const offlineStatus=document.createElement('div');offlineStatus.id='supplementOfflineSync';offlineStatus.className='personal-supplements-status';offlineStatus.hidden=true;
   list=document.createElement('div');list.className='personal-supplements-list';
-  body.append(form,statusNode,list);tile.append(head,supplementProgressRow,body);
+  body.append(form,statusNode,offlineStatus,list);tile.append(head,supplementProgressRow,body);
   const movedNotice=document.createElement('article');movedNotice.className='personal-tools-moved-notice';movedNotice.innerHTML='<strong>Трекер привычек и БАДы открываются из твоего блока на главной</strong>';
   content.append(summary,movedNotice);overlay.append(bar,content);document.body.appendChild(overlay);
   back.addEventListener('click',close);
