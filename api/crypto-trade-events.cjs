@@ -4,8 +4,8 @@
 function classifyUpdate(message){
   const text=String(message?.text||'');
   let type=null;
-  if(/(?:стоп\s*(?:в|на)\s*(?:бу|б\/у|безубыт)|(?:перен[её]с|переношу|переставил)\s+стоп\s+(?:в|на)\s+(?:бу|б\/у|безубыт))/iu.test(text))type='stop-to-breakeven';
-  else if(/(?:закрыл|закрываю|фиксирую|зафиксировал|снял)\s*(?:часть|частично|\d+(?:[.,]\d+)?\s*%)/iu.test(text)||/(?:частичн\p{L}*\s+(?:закрыл|закрываю|фиксац\p{L}*)|часть\s+(?:позиции\s+)?(?:закрыл|закрываю|зафиксировал)|(?:закрыл|закрываю)\s+часть\s+позиции)/iu.test(text))type='partial-close';
+  if(/(?:закрыл|закрываю|фиксирую|зафиксировал|снял)\s*(?:часть|частично|\d+(?:[.,]\d+)?\s*%)/iu.test(text)||/(?:частичн\p{L}*\s+(?:закрыл|закрываю|фиксац\p{L}*)|часть\s+(?:позиции\s+)?(?:закрыл|закрываю|зафиксировал)|(?:закрыл|закрываю)\s+часть\s+позиции)/iu.test(text))type='partial-close';
+  else if(/(?:стоп\s*(?:в|на)\s*(?:бу|б\/у|безубыт)|(?:перен[её]с|переношу|переставил)\s+стоп\s+(?:в|на)\s+(?:бу|б\/у|безубыт))/iu.test(text))type='stop-to-breakeven';
   else if(/(?:закрыл[ао]?\s+полностью|полностью\s+закрыл[ао]?|(?:закрыл[ао]?|закрываю|закрыли|закрыта|закрыто|закрываю)\s+(?:(?:всю|весь|свою|мою|эту)\s+)?(?:позици\p{L}*|позу|сделк\p{L}*|(?:шорт|лонг)\p{L}*)|(?:вышел|выхожу)\s+(?:из\s+)?(?:позици\p{L}*|сделк\p{L}*|(?:шорт|лонг)\p{L}*)|(?:позици\p{L}*|поза|сделка|шорт|лонг)\s+закрыт[ао]?)/iu.test(text))type='full-close';
   else if(/(?:сработал\s+(?:тейк|tp)|(?:достигли|взял|отработал)\s+(?:тейк|tp|цель))/iu.test(text))type='author-claimed-tp';
   else if(/(?:выбил\s+стоп|сработал\s+(?:стоп|sl)|закрыл[ао]?\s+по\s+стоп)/iu.test(text))type='author-claimed-sl';
@@ -31,8 +31,7 @@ function linkUpdates(signals,messages){
     let candidates=direct;
     if(!candidates.length){
       const ticker=String(m.text||'').match(/\$([A-Z0-9]{2,14})\b/i)?.[1]?.toUpperCase();
-      if(!ticker)continue;
-      candidates=signals.filter(s=>s.symbol===ticker&&Date.parse(s.at)<Date.parse(m.at)
+      if(ticker)candidates=signals.filter(s=>s.symbol===ticker&&Date.parse(s.at)<Date.parse(m.at)
         &&Date.parse(m.at)-Date.parse(s.at)<7*86400000);
     }
     // A reply can cite a prior update, which in turn cites the original signal.
@@ -46,6 +45,10 @@ function linkUpdates(signals,messages){
     const s=candidates[0];
     if(!Array.isArray(s.events))s.events=[];
     if(!s.events.some(e=>e.id===u.id))s.events.push(u);
+    if(u.type==='partial-close'&&/(?:стоп\s*(?:в|на)\s*(?:бу|б\/у|безубыт)|(?:перев[её]л|перен[её]с)\s+стоп\s+(?:в|на)\s*(?:бу|б\/у|безубыт))/iu.test(m.text||'')){
+      const be={...u,id:String(u.id)+':be',type:'stop-to-breakeven',closeFraction:null,measured:false};
+      if(!s.events.some(e=>e.id===be.id))s.events.push(be);
+    }
   }
   for(const s of signals){s.events=(s.events||[]).sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
     s.eventCount=s.events.length;
