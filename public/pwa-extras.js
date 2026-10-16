@@ -468,6 +468,7 @@
       const active=document.activeElement;
       return document.visibilityState==='visible'
         &&!window.rudiCalendarOffline?.isSyncing?.()
+        &&!window.rudiOfflineContent?.isSyncing?.()
         &&!document.body.classList.contains('keyboard-editing')
         &&!document.body.classList.contains('finance-coin-modal-open')
         &&!document.querySelector('[aria-busy="true"]')
@@ -527,6 +528,7 @@
       const active=document.activeElement;
       return Boolean(
         window.rudiCalendarOffline?.isSyncing?.()
+        || window.rudiOfflineContent?.isSyncing?.()
         || document.body.classList.contains('keyboard-editing')
         || active?.matches?.('input,textarea,select,[contenteditable="true"]')
       );
