@@ -18486,3 +18486,5 @@ body[data-app-tab="feed"] .feed-event-item .feed-event-copy{position:relative;z-
 @media(max-width:370px){
  body[data-app-tab="feed"] .feed-event-item .feed-event-artwork{width:74px}
 }
+/* Keep the new climate notification switch full-size beside its explanation. */
+#settingsTemperatureAlertToggle{flex:0 0 34px;min-width:34px}

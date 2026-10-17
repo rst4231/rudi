@@ -1,5 +1,6 @@
 const crypto = require('node:crypto');
 const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
+const { createRudiStateClient } = require('./rudi-state-client.cjs');
 const { homeSectionHashes, buildHomeDelta } = require('./home-bootstrap-delta.cjs');
 const { decorateSharedTaskTitle } = require('./shared-task-emoji.cjs');
 const { waitUntil } = require('@vercel/functions');
@@ -4878,8 +4879,14 @@ async function buildSystemHealth(actor,options={}){
   const now=new Date(options.now||Date.now());
   const checks=await Promise.all([
     runSystemHealthProbe('database','База данных',async()=>{
-      await readAuthRecord(actor,durableAuthOptions(options));
-      return {status:'ok',detail:'Neon отвечает'};
+      const health=await createRudiStateClient({
+        env:options.env||process.env,
+        fetchImpl:options.fetchImpl||globalThis.fetch,
+      }).health();
+      const backend=String(health?.primary||health?.storage||'');
+      const name=backend==='cloudflare-d1'?'Cloudflare D1'
+        :backend==='vercel-postgres'?'PostgreSQL':backend==='neon'?'Neon':'База данных';
+      return {status:health?.ok?'ok':'error',detail:name+(health?.ok?' отвечает':' недоступна')};
     }),
     runSystemHealthProbe('cache','Кэш',async()=>{
       await getControlPlaneCache(options.cacheOptions||{}).get('daily-cron:last-attempt');

@@ -142,6 +142,7 @@ function normalizeUiPreferenceEntry(value) {
     moodNotifyPartnerEnabled:Object.prototype.hasOwnProperty.call(source,'moodNotifyPartnerEnabled')?Boolean(source.moodNotifyPartnerEnabled):false,
     moodReceivePartnerEnabled:Object.prototype.hasOwnProperty.call(source,'moodReceivePartnerEnabled')?Boolean(source.moodReceivePartnerEnabled):false,
     humidityAlertEnabled:Object.prototype.hasOwnProperty.call(source,'humidityAlertEnabled')?Boolean(source.humidityAlertEnabled):true,
+    temperatureAlertEnabled:Object.prototype.hasOwnProperty.call(source,'temperatureAlertEnabled')?Boolean(source.temperatureAlertEnabled):true,
     morningSummaryEnabled:Object.prototype.hasOwnProperty.call(source,'morningSummaryEnabled')?Boolean(source.morningSummaryEnabled):true,
     rewardNotificationsEnabled:Object.prototype.hasOwnProperty.call(source,'rewardNotificationsEnabled')?Boolean(source.rewardNotificationsEnabled):true,
     dailyQuestionNotificationEnabled:Object.prototype.hasOwnProperty.call(source,'dailyQuestionNotificationEnabled')?Boolean(source.dailyQuestionNotificationEnabled):true,

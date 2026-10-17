@@ -191,8 +191,19 @@ function cap(c) {
   };
 }
 
+// Retain explicit unavailability signals without changing healthy snapshot shapes.
+function unavailableMetadata(value) {
+  const result={};
+  for(const key of ['online','reachable'])if(value?.[key]===false)result[key]=false;
+  for(const key of ['state','status'])if(String(value?.[key]||'').toLowerCase()==='offline')result[key]='offline';
+  for(const key of ['error_code','errorCode'])if(value?.[key])result[key]=String(value[key]);
+  if(value?.state&&typeof value.state==='object'&&(value.state.online===false||value.state.error_code||value.state.errorCode))result.state=value.state;
+  return result;
+}
+
 function prop(p) {
   return {
+    ...unavailableMetadata(p),
     type:String(p?.type || ''),
     parameters:p?.parameters && typeof p.parameters === 'object' ? p.parameters : {},
     state:p?.state && typeof p.state === 'object' ? p.state : null,
@@ -209,6 +220,7 @@ function normalize(data) {
       id:String(x?.id||''), name:String(x?.name||''), householdId:String(x?.household_id||'')
     })),
     devices:(Array.isArray(data?.devices)?data.devices:[]).map(x => ({
+      ...unavailableMetadata(x),
       id:String(x?.id||''), name:String(x?.name||''), type:String(x?.type||''),
       room:String(x?.room||''), householdId:String(x?.household_id||''),
       capabilities:(Array.isArray(x?.capabilities)?x.capabilities:[]).map(cap),

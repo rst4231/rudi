@@ -32,9 +32,10 @@ test('ship grouping handles horizontal, vertical and isolated cells without wrap
  assert.deepEqual(battle.vesselGroups([2,0,1,14,21,28,48]),[[0,1,2],[14,21,28],[48]]);
  assert.deepEqual(battle.vesselGroups([6,7]),[[6],[7]]);
 });
-test('shots are rendered with fire not crosses, complete ships via grid spans, and mute is available',()=>{
+test('shots use reference target markers, complete ships via grid spans, and mute is available',()=>{
  assert.match(js,/rudi-battle-fire/);
- assert.match(js,/🔥/);
+ assert.match(js,/rudi-battle-target-dot/);
+ assert.match(js,/rudi-battle-splash[^>]*>×/);
  assert.match(js,/battleShips\(kind,room,hitmap\)/);
  assert.match(js,/grid-row:.*span.*grid-column:/s);
  assert.match(js,/rudi-battle-vessel-wreck/);
@@ -58,8 +59,9 @@ test('remove automatic ship hint / square hint / red cross hint and collapse spa
 });
 test('new static resources and the offline shell use the same release version',()=>{
  for(const name of ['rudi-games.js','rudi-games-extra.js','rudi-games.css']){
-  assert.ok(html.includes(name+'?v=4.248'),name+' HTML');
-  assert.ok(sw.includes(name+'?v=4.248'),name+' SW');
+  const url=html.match(new RegExp('/'+name.replace(/\./g,'\\.')+'\\?v=[^\"\\s]+'));
+  assert.ok(url,name+' HTML');
+  assert.ok(sw.includes(url[0]),name+' same URL in SW');
  }
  assert.match(sw,/rudi-shell-v4\.\d+/);
  assert.equal(fs.readFileSync('VERSION','utf8').trim(),fs.readFileSync('VERSION','utf8').trim());

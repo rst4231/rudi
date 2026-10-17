@@ -39,6 +39,8 @@ const { scheduleCarNoteTelegram } = require('./car-notes-telegram.cjs');
 const { scheduleSmartSaveTelegram } = require('./smart-saves-telegram.cjs');
 const { handleSmartHomeRequest, readSmartHomeSnapshot } = require('./smart-home-client.cjs');
 const { evaluateHumidityAlert } = require('./smart-home-humidity-alert.cjs');
+const { evaluateTemperatureAlert } = require('./smart-home-temperature-alert.cjs');
+const { readUiPreferences } = require('./ui-preferences-store.cjs');
 const { handleHabitReminderCron } = require('./habit-reminder.cjs');
 const { handleWeatherRequest } = require('./weather.cjs');
 const { handleBirthdayGreeting } = require('./birthday-greeting.cjs');
@@ -260,7 +262,13 @@ async function handler(req, res) {
           fetchImpl: globalThis.fetch,
           observeCamera: false,
         });
+        const preferenceReads = new Map();
+        const readClimatePreferences = (actor, options) => {
+          if (!preferenceReads.has(actor)) preferenceReads.set(actor, readUiPreferences(actor, options));
+          return preferenceReads.get(actor);
+        };
         const result = await evaluateHumidityAlert(snapshot, {
+          readUiPreferencesImpl: readClimatePreferences,
           env: process.env,
           fetchImpl: globalThis.fetch,
         });
@@ -269,7 +277,18 @@ async function handler(req, res) {
           sent: result.sent,
           skipped: result.skipped,
         }));
-        return res.status(200).json({ ok: true, ...result });
+        const temperatureAlert = await evaluateTemperatureAlert(snapshot, {
+          readUiPreferencesImpl: readClimatePreferences,
+          env: process.env,
+          fetchImpl: globalThis.fetch,
+        });
+        console.log('RUDI_TEMPERATURE_CRON_RESULT', JSON.stringify({
+          temperature: temperatureAlert.temperature,
+          condition: temperatureAlert.condition,
+          sent: temperatureAlert.sent,
+          skipped: temperatureAlert.skipped,
+        }));
+        return res.status(200).json({ ok: true, ...result, temperatureAlert });
       } catch (error) {
         console.error('RUDI_HUMIDITY_CRON_ERROR', String(error?.message || error));
         return res.status(500).json({ ok: false, error: 'humidity-check-failed' });

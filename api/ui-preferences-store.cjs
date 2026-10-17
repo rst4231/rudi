@@ -91,6 +91,9 @@ function normalizeUiPreferencesState(value) {
   const humidityAlertEnabled = Object.prototype.hasOwnProperty.call(source, 'humidityAlertEnabled')
     ? Boolean(source.humidityAlertEnabled)
     : true;
+  const temperatureAlertEnabled = Object.prototype.hasOwnProperty.call(source, 'temperatureAlertEnabled')
+    ? Boolean(source.temperatureAlertEnabled)
+    : true;
   const morningSummaryEnabled = Object.prototype.hasOwnProperty.call(source, 'morningSummaryEnabled')
     ? Boolean(source.morningSummaryEnabled)
     : true;
@@ -129,6 +132,7 @@ function normalizeUiPreferencesState(value) {
     moodNotifyPartnerEnabled,
     moodReceivePartnerEnabled,
     humidityAlertEnabled,
+    temperatureAlertEnabled,
     morningSummaryEnabled,
     rewardNotificationsEnabled,
     dailyQuestionNotificationEnabled,
@@ -169,7 +173,7 @@ async function saveUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
-      syncSchemaVersion: 11,
+      syncSchemaVersion: 12,
       startupTab: has('startupTab')?(actor==='Диана'&&incoming.startupTab==='car'?'home':incoming.startupTab):current.startupTab,
       homeOrder: has('homeOrder') ? incoming.homeOrder : current.homeOrder,
       blockStates: has('blockStates')
@@ -197,6 +201,7 @@ async function saveUiPreferences(actor, value, options = {}) {
       moodNotifyPartnerEnabled: has('moodNotifyPartnerEnabled') ? incoming.moodNotifyPartnerEnabled : current.moodNotifyPartnerEnabled,
       moodReceivePartnerEnabled: has('moodReceivePartnerEnabled') ? incoming.moodReceivePartnerEnabled : current.moodReceivePartnerEnabled,
       humidityAlertEnabled: has('humidityAlertEnabled') ? incoming.humidityAlertEnabled : current.humidityAlertEnabled,
+      temperatureAlertEnabled: has('temperatureAlertEnabled') ? incoming.temperatureAlertEnabled : current.temperatureAlertEnabled,
       morningSummaryEnabled: has('morningSummaryEnabled') ? incoming.morningSummaryEnabled : current.morningSummaryEnabled,
       rewardNotificationsEnabled: has('rewardNotificationsEnabled') ? incoming.rewardNotificationsEnabled : current.rewardNotificationsEnabled,
       dailyQuestionNotificationEnabled: has('dailyQuestionNotificationEnabled') ? incoming.dailyQuestionNotificationEnabled : current.dailyQuestionNotificationEnabled,
@@ -231,6 +236,7 @@ async function seedUiPreferences(actor, value, options = {}) {
       || has('moodNotifyPartnerEnabled')
       || has('moodReceivePartnerEnabled')
       || has('humidityAlertEnabled')
+      || has('temperatureAlertEnabled')
       || has('morningSummaryEnabled')
       || has('rewardNotificationsEnabled')
       || has('dailyQuestionNotificationEnabled')
@@ -240,7 +246,7 @@ async function seedUiPreferences(actor, value, options = {}) {
     return persistUiPreferences(actor, {
       initialized: true,
       version: 1,
-      syncSchemaVersion: 11,
+      syncSchemaVersion: 12,
       startupTab: actor==='Диана'&&incoming.startupTab==='car'?'home':incoming.startupTab,
       homeOrder: incoming.homeOrder,
       blockStates: incoming.blockStates,
@@ -258,6 +264,7 @@ async function seedUiPreferences(actor, value, options = {}) {
       moodNotifyPartnerEnabled: incoming.moodNotifyPartnerEnabled,
       moodReceivePartnerEnabled: incoming.moodReceivePartnerEnabled,
       humidityAlertEnabled: incoming.humidityAlertEnabled,
+      temperatureAlertEnabled: incoming.temperatureAlertEnabled,
       morningSummaryEnabled: incoming.morningSummaryEnabled,
       rewardNotificationsEnabled: incoming.rewardNotificationsEnabled,
       dailyQuestionNotificationEnabled: incoming.dailyQuestionNotificationEnabled,

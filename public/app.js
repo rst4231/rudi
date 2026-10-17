@@ -797,6 +797,11 @@
         return 'rudi:humidity-alert-enabled:v1:'+actor;
       }
 
+      function temperatureAlertStorageKey(){
+        const actor=currentActor==='Диана'?'diana':'rustam';
+        return 'rudi:temperature-alert-enabled:v1:'+actor;
+      }
+
       function morningSummaryStorageKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
         return 'rudi:morning-summary-enabled:v1:'+actor;
@@ -987,6 +992,14 @@
         if(!currentActor) return true;
         try{
           const value=localStorage.getItem(humidityAlertStorageKey());
+          return value===null?true:value!=='0';
+        }catch(_){return true}
+      }
+
+      function temperatureAlertEnabled(){
+        if(!currentActor) return true;
+        try{
+          const value=localStorage.getItem(temperatureAlertStorageKey());
           return value===null?true:value!=='0';
         }catch(_){return true}
       }
@@ -1188,6 +1201,7 @@
         let moodNotifyPartnerEnabledValue=true;
         let moodReceivePartnerEnabledValue=true;
         let humidityAlertEnabledValue=true;
+        let temperatureAlertEnabledValue=true;
         let morningSummaryEnabledValue=true;
         let rewardNotificationsEnabledValue=true;
         let dailyQuestionNotificationEnabledValue=true;
@@ -1211,6 +1225,7 @@
         try{moodNotifyPartnerEnabledValue=moodNotifyPartnerEnabled()}catch(_){}
         try{moodReceivePartnerEnabledValue=moodReceivePartnerEnabled()}catch(_){}
         try{humidityAlertEnabledValue=humidityAlertEnabled()}catch(_){}
+        try{temperatureAlertEnabledValue=temperatureAlertEnabled()}catch(_){}
         try{morningSummaryEnabledValue=morningSummaryEnabled()}catch(_){}
         try{rewardNotificationsEnabledValue=rewardNotificationsEnabled()}catch(_){}
         try{dailyQuestionNotificationEnabledValue=dailyQuestionNotificationEnabled()}catch(_){}
@@ -1218,7 +1233,7 @@
         try{luluWalkNotificationsEnabledValue=luluWalkNotificationsEnabled()}catch(_){}
         try{updatedAt=String(localStorage.getItem(uiPreferencesMetaKey())||'')}catch(_){}
         return {
-          syncSchemaVersion:11,
+          syncSchemaVersion:12,
           startupTab:startupTabValue,
           homeOrder:Array.isArray(homeOrder)?homeOrder:[],
           blockStates:blockStates&&typeof blockStates==='object'&&!Array.isArray(blockStates)?blockStates:{},
@@ -1236,6 +1251,7 @@
           moodNotifyPartnerEnabled:moodNotifyPartnerEnabledValue,
           moodReceivePartnerEnabled:moodReceivePartnerEnabledValue,
           humidityAlertEnabled:humidityAlertEnabledValue,
+          temperatureAlertEnabled:temperatureAlertEnabledValue,
           morningSummaryEnabled:morningSummaryEnabledValue,
           rewardNotificationsEnabled:rewardNotificationsEnabledValue,
           dailyQuestionNotificationEnabled:dailyQuestionNotificationEnabledValue,
@@ -1270,13 +1286,14 @@
         const hasRemoteMoodNotify=remoteSchema>=3&&Object.prototype.hasOwnProperty.call(remote,'moodNotifyPartnerEnabled');
         const hasRemoteMoodReceive=remoteSchema>=3&&Object.prototype.hasOwnProperty.call(remote,'moodReceivePartnerEnabled');
         const hasRemoteHumidityAlert=remoteSchema>=4&&Object.prototype.hasOwnProperty.call(remote,'humidityAlertEnabled');
+        const hasRemoteTemperatureAlert=remoteSchema>=12&&Object.prototype.hasOwnProperty.call(remote,'temperatureAlertEnabled');
         const hasRemoteMorningSummary=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'morningSummaryEnabled');
         const hasRemoteRewardNotifications=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'rewardNotificationsEnabled');
         const hasRemoteDailyQuestionNotification=remoteSchema>=5&&Object.prototype.hasOwnProperty.call(remote,'dailyQuestionNotificationEnabled');
         const hasRemoteSharedTaskNotifications=remoteSchema>=9&&Object.prototype.hasOwnProperty.call(remote,'sharedTaskNotificationsEnabled');
         const hasRemoteLuluWalkNotifications=remoteSchema>=9&&Object.prototype.hasOwnProperty.call(remote,'luluWalkNotificationsEnabled');
         const remoteStamp=String(remote.updatedAt||'');
-        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteActivityReadIds&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteTelegram&&!hasRemotePhone&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert&&!hasRemoteMorningSummary&&!hasRemoteRewardNotifications&&!hasRemoteDailyQuestionNotification&&!hasRemoteSharedTaskNotifications&&!hasRemoteLuluWalkNotifications) return false;
+        if(!remoteStamp&&!hasRemoteOrder&&!hasRemoteBlocks&&!hasRemoteViews&&!hasRemoteActivitySeen&&!hasRemoteActivityReadIds&&!hasRemoteMarketTicker&&!hasRemoteThemeMode&&!hasRemoteAutoRefresh&&!hasRemoteTextSize&&!hasRemoteTelegram&&!hasRemotePhone&&!hasRemoteMoodNotify&&!hasRemoteMoodReceive&&!hasRemoteHumidityAlert&&!hasRemoteTemperatureAlert&&!hasRemoteMorningSummary&&!hasRemoteRewardNotifications&&!hasRemoteDailyQuestionNotification&&!hasRemoteSharedTaskNotifications&&!hasRemoteLuluWalkNotifications) return false;
 
         let localOrder=[];
         let localStamp='';
@@ -1349,6 +1366,9 @@
           if(hasRemoteHumidityAlert){
             localStorage.setItem(humidityAlertStorageKey(),remote.humidityAlertEnabled===false?'0':'1');
           }
+          if(hasRemoteTemperatureAlert){
+            localStorage.setItem(temperatureAlertStorageKey(),remote.temperatureAlertEnabled===false?'0':'1');
+          }
           if(hasRemoteMorningSummary){
             localStorage.setItem(morningSummaryStorageKey(),remote.morningSummaryEnabled===false?'0':'1');
           }
@@ -1369,7 +1389,7 @@
             if(keepLocalOrder) localStorage.setItem(homeLayoutStorageKey(),JSON.stringify(localNormalized));
             const structural=localUiPreferences();
             markUiPreferencesChanged({
-              syncSchemaVersion:11,
+              syncSchemaVersion:12,
               rainAnimationEnabled:structural.rainAnimationEnabled,
               snowAnimationEnabled:structural.snowAnimationEnabled,
               startupTab:structural.startupTab,
@@ -1429,6 +1449,7 @@
         updateMoodNotificationSettingsUi();        updateStartupTabSetting();
 
         updateHumidityAlertSettingsUi();
+        updateTemperatureAlertSettingsUi();
         updateGeneralNotificationSettingsUi();
         updateContactSettingsUi();
         syncProfileContactButtons();
@@ -9878,6 +9899,10 @@
                 '<button id="settingsHumidityAlertToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления о низкой влажности дома"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
+                '<div class="home-settings-copy"><strong>Температура дома</strong><small>Push, если дома холодно или жарко: октябрь–апрель ниже 18°C или выше 25°C, май–сентябрь ниже 20°C или выше 28°C</small></div>'+
+                '<button id="settingsTemperatureAlertToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления о температуре дома"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
+              '</div>'+
+              '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Утренняя сводка</strong><small>Получать ежедневную утреннюю сводку</small></div>'+
                 '<button id="settingsMorningSummaryToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Утренняя сводка"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
@@ -10629,6 +10654,19 @@
         try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
       }
 
+      function updateTemperatureAlertSettingsUi(){
+        const toggle=document.getElementById('settingsTemperatureAlertToggle');
+        if(toggle) toggle.setAttribute('aria-checked',temperatureAlertEnabled()?'true':'false');
+      }
+
+      function setTemperatureAlertEnabled(enabled){
+        const next=Boolean(enabled);
+        try{localStorage.setItem(temperatureAlertStorageKey(),next?'1':'0')}catch(_){}
+        updateTemperatureAlertSettingsUi();
+        if(currentActor) markUiPreferencesChanged({temperatureAlertEnabled:next,syncSchemaVersion:12});
+        try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
+      }
+
       function updateGeneralNotificationSettingsUi(){
         const morning=document.getElementById('settingsMorningSummaryToggle');
         const rewards=document.getElementById('settingsRewardNotificationsToggle');
@@ -10986,6 +11024,11 @@
           humidityAlert.dataset.bound='1';
           humidityAlert.addEventListener('click',()=>setHumidityAlertEnabled(!humidityAlertEnabled()));
         }
+        const temperatureAlert=document.getElementById('settingsTemperatureAlertToggle');
+        if(temperatureAlert&&temperatureAlert.dataset.bound!=='1'){
+          temperatureAlert.dataset.bound='1';
+          temperatureAlert.addEventListener('click',()=>setTemperatureAlertEnabled(!temperatureAlertEnabled()));
+        }
         const morningSummary=document.getElementById('settingsMorningSummaryToggle');
         if(morningSummary&&morningSummary.dataset.bound!=='1'){
           morningSummary.dataset.bound='1';
@@ -11045,6 +11088,7 @@
         updateAutoRefreshUi();
         updateMoodNotificationSettingsUi();
         updateHumidityAlertSettingsUi();
+        updateTemperatureAlertSettingsUi();
         updateGeneralNotificationSettingsUi();
         applyInterfacePreferences();
         updateDataSettingsUi();

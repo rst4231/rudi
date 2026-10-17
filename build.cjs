@@ -123,6 +123,8 @@ function syncWebVersion(env = process.env) {
     const stem = path.basename(name, ext);
     const pattern = new RegExp('/assets/' + stem + '\\.[a-f0-9]{12}\\' + ext, 'g');
     html = html.replace(pattern, '/' + name + '?v=' + assetVersion);
+    const sourceUrl = new RegExp('/' + name.replace(/\./g, '\\.') + '\\?v=[0-9.]+', 'g');
+    html = html.replace(sourceUrl, '/' + name + '?v=' + assetVersion);
   }
   for(const name of ['crypto-wallets.css','crypto-wallets.js','crypto-signals.css','crypto-signals.js','crypto-algorithms.css','crypto-algorithms.js','personal-task-editor.js','personal-task-editor.css','meditation.js','meditation.css','meditation-audio.js','meditation-audio.css']){
     const escaped=name.replace(/\./g,'\\.');
@@ -249,6 +251,7 @@ function syncServiceWorkerPrecache(assetPaths) {
   const basePrecache = [
     '/',
     '/manifest.webmanifest',
+    '/battle-ocean.svg',
     '/favicon-rudi-v460.png',
     '/apple-touch-icon-rudi-v460.png',
     '/icon-192-rudi-v460.png',

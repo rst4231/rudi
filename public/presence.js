@@ -7,7 +7,7 @@
  let timer=0,busy=false,lastResponse=0;
  let status={'Рустам':false,'Диана':false};
  let lastSeen={'Рустам':null,'Диана':null};
- let modal=null,previousFocus=null;
+ let detail=null;
 
  function avatar(actor){
    const tile=document.getElementById(actor==='Рустам'?'homeRustamTile':'homeDianaTile');
@@ -21,56 +21,55 @@
    if(!value)return '';
    const date=new Date(value);
    if(!Number.isFinite(date.getTime()))return '';
-   return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(date);
+   const parts=new Intl.DateTimeFormat('ru-RU',{
+     timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'
+   }).formatToParts(date);
+   const part=type=>parts.find(item=>item.type===type)?.value||'';
+   return part('day')+'.'+part('month')+' в '+part('hour')+':'+part('minute');
  }
  function dismiss(){
-   if(!modal)return;
-   modal.remove();modal=null;
+   if(!detail)return;
+   const tile=detail.parentNode,dot=avatar(detail.dataset.actor)?.querySelector('.rudi-online-dot');
+   dot?.setAttribute('aria-expanded','false');dot?.removeAttribute('aria-controls');
+   tile?.classList.remove('has-presence-detail');
+   detail.remove();detail=null;
    document.removeEventListener('keydown',onKeyDown);
-   if(previousFocus?.isConnected)previousFocus.focus({preventScroll:true});
-   previousFocus=null;
+   document.removeEventListener('pointerdown',onOutsidePointer,true);
  }
  function onKeyDown(event){
-   if(event.key==='Escape'){event.preventDefault();dismiss()}
-   if(event.key==='Tab'&&modal){
-     const close=modal.querySelector('.rudi-presence-close');
-     if(close){event.preventDefault();close.focus()}
-   }
+   if(event.key==='Escape'&&detail){event.preventDefault();dismiss()}
  }
- function refreshModal(){
-   if(!modal)return;
-   const actor=modal.dataset.actor,active=isOnline(actor);
-   const state=modal.querySelector('.rudi-presence-state');
-   const stamp=modal.querySelector('.rudi-presence-stamp');
-   if(state)state.textContent=active?'Сейчас онлайн':'Сейчас не в сети';
-   if(state)state.classList.toggle('is-online',active);
-   if(stamp)stamp.textContent=lastSeen[actor]&&formatDate(lastSeen[actor])
-      ?'Последний заход: '+formatDate(lastSeen[actor])
-      :'Последний заход пока неизвестен';
+ function onOutsidePointer(event){
+   if(!detail)return;
+   const dot=avatar(detail.dataset.actor)?.querySelector('.rudi-online-dot');
+   if(!detail.contains(event.target)&&!dot?.contains(event.target))dismiss();
+ }
+ function refreshDetail(){
+   if(!detail)return;
+   if(!document.body.contains(detail)){dismiss();return}
+   const actor=detail.dataset.actor,stamp=formatDate(lastSeen[actor]);
+   detail.textContent=isOnline(actor)?'Сейчас в сети':stamp
+     ?(actor==='Диана'?'Была в сети ':'Был в сети ')+stamp
+     :'Нет данных о посещении';
  }
  function open(actor){
    if(!ACTORS.includes(actor))return;
-   dismiss();
-   previousFocus=document.activeElement;
-   const wrapper=document.createElement('div');
-   wrapper.className='rudi-presence-overlay';
-   wrapper.dataset.actor=actor;
-   wrapper.innerHTML='<div class="rudi-presence-backdrop"></div>'+
-     '<section class="rudi-presence-dialog" role="dialog" aria-modal="true" aria-labelledby="rudiPresenceTitle">'+
-     '<button type="button" class="rudi-presence-close" aria-label="Закрыть">×</button>'+
-     '<div class="rudi-presence-symbol" aria-hidden="true">●</div>'+
-     '<h2 id="rudiPresenceTitle"></h2>'+
-     '<p class="rudi-presence-state"></p>'+
-     '<p class="rudi-presence-stamp"></p>'+
-     '</section>';
-   wrapper.querySelector('h2').textContent=actor;
-   wrapper.querySelector('.rudi-presence-close').addEventListener('click',dismiss);
-   wrapper.querySelector('.rudi-presence-backdrop').addEventListener('click',dismiss);
-   document.body.appendChild(wrapper);
-   modal=wrapper;
+   const same=detail?.dataset.actor===actor;
+   dismiss();if(same)return;
+   const holder=avatar(actor),tile=holder?.closest('.profile-person-card');
+   if(!tile)return;
+   const line=document.createElement('p');
+   line.className='rudi-presence-detail';line.dataset.actor=actor;
+   line.id=actor==='Диана'?'rudiPresenceDiana':'rudiPresenceRustam';
+   line.setAttribute('role','status');line.setAttribute('aria-live','polite');
+   // Reserve an ordinary row below the header, ahead of the card's expandable content.
+   tile.insertBefore(line,tile.querySelector(':scope > .rudi-collapse-body'));
+   tile.classList.add('has-presence-detail');detail=line;
+   const dot=holder.querySelector('.rudi-online-dot');
+   dot?.setAttribute('aria-expanded','true');dot?.setAttribute('aria-controls',line.id);
    document.addEventListener('keydown',onKeyDown);
-   refreshModal();
-   wrapper.querySelector('.rudi-presence-close').focus({preventScroll:true});
+   document.addEventListener('pointerdown',onOutsidePointer,true);
+   refreshDetail();
  }
  function paint(){
    for(const actor of ACTORS){
@@ -86,10 +85,11 @@
      }
      const active=isOnline(actor);
      dot.classList.toggle('is-online',active);
-     dot.setAttribute('aria-label',actor+(active?' сейчас онлайн':' сейчас не в сети')+'. Узнать последний заход');
+     dot.setAttribute('aria-label',actor+(active?' сейчас онлайн':' сейчас не в сети')+'. Показать время посещения');
+     dot.setAttribute('aria-expanded',detail?.dataset.actor===actor?'true':'false');
      dot.title=actor+(active?' · онлайн':' · не в сети');
    }
-   refreshModal();
+   refreshDetail();
  }
  async function ping(){
    if(busy||document.visibilityState!=='visible'||navigator.onLine===false||
@@ -124,6 +124,8 @@
    paint();void ping();setTimeout(paint,1200);
  }
  window.addEventListener('rudi:auth-ready',start);
+ window.addEventListener('rudi:app-tab-change',dismiss);
+ window.addEventListener('pagehide',dismiss);
  window.addEventListener('online',()=>{paint();void ping()});
  window.addEventListener('offline',()=>{status={'Рустам':false,'Диана':false};paint()});
  document.addEventListener('visibilitychange',()=>{
