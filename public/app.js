@@ -14413,7 +14413,7 @@
           const row=document.createElement('div');
           row.className='ticktick-today-task';
           row.dataset.taskId=String(task?.id||'');
-          const ownerLabel=tickTickAssigneeLabel(task);
+          const ownerLabel=task?.personal===true?currentActor:tickTickAssigneeLabel(task);
           row.dataset.owner=ownerLabel==='Диана'?'diana':ownerLabel==='Рустам'?'rustam':'together';
           const timeRail=document.createElement('div');
           timeRail.className='ticktick-agenda-time';

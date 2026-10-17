@@ -38,7 +38,7 @@ test('personal agenda today count ignores tomorrow selection; edit and checkbox 
  function node(){return {dataset:{},style:{},children:[],events:{},classList:{add(){},remove(){},toggle(){}},setAttribute(){},replaceChildren(...children){this.children=children},append(...children){this.children.push(...children)},appendChild(child){this.children.push(child)},addEventListener(name,fn){this.events[name]=fn},querySelectorAll:()=>[],querySelector:()=>null}};
  const nodes={};h.ctx.document={querySelectorAll:()=>[],getElementById:id=>nodes[id]||(nodes[id]=node()),createElement:()=>node()};
  h.ctx.renderTickTickDetails=()=>{};h.ctx.tickTickTaskRecentlyCompleted=()=>false;h.ctx.tickTickTaskCanComplete=()=>true;
- h.ctx.tickTickAssigneeLabel=task=>task.responsible||'';h.ctx.updateSharedAgendaAvatarPhoto=()=>{};
+ h.ctx.tickTickAssigneeLabel=task=>task.personal?'Вместе':task.responsible||'Вместе';h.ctx.updateSharedAgendaAvatarPhoto=()=>{};
  h.ctx.window.RUDIPersonalTaskEditor={open:(...args)=>opened.push(args)};h.ctx.queueCalendarWhenOffline=async()=>null;
  h.ctx.completeTickTickTodayTask=(...args)=>completions.push(args);
  const start=src.indexOf('function renderTickTickTodayState('),end=src.indexOf('function setupTickTickDisclosure(',start);
@@ -47,7 +47,7 @@ test('personal agenda today count ignores tomorrow selection; edit and checkbox 
  const personal={id:'diana-a',personal:true,privateLocal:true,responsible:'Диана',title:'Личное',date:'2026-10-31',startTime:'09:00'};
  h.ctx.renderActual({ok:true,writable:true,agendaActor:'Диана',agendaScope:'personal',tasks:[personal,{id:'shared',title:'Общее'}],tomorrowTasks:[{...personal,id:'tomorrow',date:'2026-11-01'}]});
  assert.equal(h.ctx.homeDashboardState.tasks.length,1);assert.equal(nodes.ticktickTodayList.children.length,1);
- const row=nodes.ticktickTodayList.children[0];row.children[2].events.click({stopPropagation(){}});
+ const row=nodes.ticktickTodayList.children[0];assert.equal(row.children[1].children.length,1);assert.equal(row.children[1].children[0].dataset.person,'diana');row.children[2].events.click({stopPropagation(){}});
  assert.equal(opened.length,1);assert.equal(opened[0][0].id,'diana-a');assert.equal(opened[0][1].actor,'Диана');
  row.children[1].events.click({stopPropagation(){}});assert.equal(completions.length,1);assert.equal(completions[0][0].personal,true);
  vm.runInNewContext("sharedAgendaSelectedDay='tomorrow'",h.ctx);
@@ -56,6 +56,11 @@ test('personal agenda today count ignores tomorrow selection; edit and checkbox 
  h.ctx.tickTickTaskRecentlyCompleted=id=>id==='diana-a|2026-10-31';
  h.ctx.renderActual({ok:true,writable:true,agendaActor:'Диана',agendaScope:'personal',date:'2026-10-31',tasks:[personal],tomorrowTasks:[]});
  assert.equal(h.ctx.homeDashboardState.tasks.length,0,'a stale personal occurrence cannot reappear after completion');
+ h.ctx.tickTickTaskRecentlyCompleted=()=>false;h.ctx.currentActor='Рустам';h.api.ensureHomeAgendaActor();await h.api.setHomeAgendaScope('personal');
+ h.ctx.renderActual({ok:true,writable:true,agendaActor:'Рустам',agendaScope:'personal',tasks:[{...personal,id:'rustam-a',privateLocal:false,responsible:'Рустам'}],tomorrowTasks:[]});
+ const own=nodes.ticktickTodayList.children[0].children[1];assert.equal(own.children.length,1);assert.equal(own.children[0].dataset.person,'rustam');
+ await h.api.setHomeAgendaScope('shared');h.ctx.renderActual({ok:true,writable:true,agendaActor:'Рустам',agendaScope:'shared',tasks:[{id:'shared',title:'Общее'}],tomorrowTasks:[]});
+ assert.equal(nodes.ticktickTodayList.children[0].children[1].children.length,2);
 });
 test('personal completion never calls shared completion endpoint',async()=>{
  const h=harness(),calls=[];h.ctx.completeCalendarTickTickTask=async(...args)=>{calls.push(args);return {ok:true}};

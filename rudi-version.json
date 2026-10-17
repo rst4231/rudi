@@ -1,26 +1,16 @@
 {
-  "current": "v4.266",
-  "versionBranch": "feature/home-agenda-scopes",
+  "current": "v4.267",
+  "versionBranch": "fix/personal-task-avatar",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-18",
-  "basedOnProduction": "v4.265",
+  "basedOnProduction": "v4.266",
   "notes": [
-    "Главная: блок Дела с переключателем Личные / Совместные",
-    "Сегодня и Завтра сохранены для каждого источника задач",
-    "Личные задачи берутся только из календаря текущего пользователя",
-    "Одна личная заметка: убраны список, создание дополнительных заметок и удаление",
-    "Исправлено отображение иконки карандаша личной заметки",
-    "Заголовок Дела больше не открывает календарь"
+    "В личных делах показывается только аватарка текущего пользователя"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Home agenda personal/shared scope selector",
-    "Keep today and tomorrow controls for both agenda scopes",
-    "Load only the authenticated actor personal calendar tasks",
-    "Single-note interface without collection, add or delete buttons",
-    "Show the note pencil SVG without a hidden attribute",
-    "Remove the agenda heading calendar link"
+    "Show only the current owner avatar on personal Home agenda tasks"
   ]
 }
