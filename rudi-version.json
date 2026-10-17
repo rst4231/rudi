@@ -1,20 +1,18 @@
 {
-  "current": "v4.270",
-  "versionBranch": "fix/home-agenda-rewards-and-bill-emoji",
+  "current": "v4.271",
+  "versionBranch": "fix/nearest-together-events",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-18",
-  "basedOnProduction": "v4.269",
+  "basedOnProduction": "v4.270",
   "notes": [
-    "Под совместными задачами на главной показана награда +2 ⭐ за выполнение",
-    "Счета на оплату в личном и объединённом списках отмечены 💵 в начале названия",
-    "В корзине продуктов удалена кнопка очистки, справа оставлена кнопка покупки отмеченных продуктов"
+    "В блоке Ближайшее совместные события показаны только с категорией Вместе; личные события сохранены",
+    "Выбранная тема применяется до загрузки интерфейса и сохраняет фон при возврате в приложение"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show completion reward for shared Home agenda tasks, including combined scope",
-    "Prefix finance bills in the Home agenda with the money emoji without duplicates",
-    "Remove clear-cart action and keep the existing purchased-items button in its place"
+    "Exclude individually assigned shared tasks from Home nearest events while retaining together and personal events",
+    "Preserve explicit theme before authentication and synchronously restore the canvas and Telegram background on resume"
   ]
 }

@@ -1085,7 +1085,10 @@
       }
 
       function currentThemeMode(){
-        if(!currentActor) return 'system';
+        if(!currentActor){
+          try{const mode=JSON.parse(localStorage.getItem('rudi:theme-paint:v1')||'null')?.mode;if(['light','dark'].includes(mode))return mode}catch(_){}
+          return 'system';
+        }
         try{
           const value=String(localStorage.getItem(themeModeStorageKey())||'system');
           return ['system','light','dark'].includes(value)?value:'system';
@@ -7453,7 +7456,7 @@
       function homeNearestRows(){
         const rows=[];
         const nowMinutes=homeCurrentMinutes();
-        const tasks=homeDashboardState.tasks.filter(homeTaskForActor);
+        const tasks=homeDashboardState.tasks.filter(task=>homeTaskForActor(task)&&(task.personal===true||tickTickAssigneeLabel(task)==='Вместе'));
         for(const task of tasks){
           const start=String(task?.startTime||'').trim();
           const match=start.match(/^(\d{1,2}):(\d{2})$/u);
@@ -10599,6 +10602,8 @@
         root.dataset.theme=theme;
         root.dataset.themeMode=mode;
         root.style.colorScheme=theme;
+        root.style.backgroundColor=theme==='dark'?'#0b0d12':'#f4f5f7';
+        try{localStorage.setItem('rudi:theme-paint:v1',JSON.stringify({mode,theme}))}catch(_){}
         metaTheme?.setAttribute('content',theme==='dark'?'#0b0d12':'#f4f5f7');
         updateThemeSettingControls();
         if(!telegramOpen) return;
