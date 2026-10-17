@@ -7327,6 +7327,15 @@
         return homeWeatherEmoji(code)+'\u00a0'+signed+'°';
       }
 
+      function renderHomeDashboardDateWeather(node,label=homeDashboardDateLabel()){
+        if(!node)return;
+        node.textContent=label;
+        const weather=homeWeatherInlineLabel();
+        if(!weather)return;
+        node.append(document.createTextNode('\u00a0·\u00a0'));
+        const button=document.createElement('button');button.type='button';button.className='home-weather-forecast-trigger';button.dataset.weatherForecast='1';button.textContent=weather;button.setAttribute('aria-label','Открыть прогноз погоды: '+weather);button.title='Прогноз погоды';node.append(button);
+      }
+
       function homeDashboardDateWeatherLabel(){
         const weather=homeWeatherInlineLabel();
         return homeDashboardDateLabel()+(weather?'\u00a0·\u00a0'+weather:'');
@@ -9421,7 +9430,7 @@
         const moon=document.getElementById('homeDashboardMoon');
         dashboard.dataset.daypart=homeDaypart();
         if(greeting) greeting.textContent=homeGreeting();
-        if(date) date.textContent=homeDashboardDateWeatherLabel();
+        if(date) renderHomeDashboardDateWeather(date);
         if(moon) moon.textContent=homeMoonPhaseLabel();
         renderHomeSunEvent();
 
@@ -12913,7 +12922,7 @@
         const dashboardDate=document.getElementById('homeDashboardDate');
         if(dashboardDate){
           const weather=homeWeatherInlineLabel();
-          dashboardDate.textContent=weekday+', '+date+(weather?'\u00a0·\u00a0'+weather:'');
+          renderHomeDashboardDateWeather(dashboardDate,weekday+', '+date);
         }
         const dashboardMoon=document.getElementById('homeDashboardMoon');
         if(dashboardMoon) dashboardMoon.textContent=homeMoonPhaseLabel();
@@ -13438,19 +13447,19 @@
             ?{temperature:currentTemperature,code:currentWeatherCode}
             :null;
           const dashboardDate=document.getElementById('homeDashboardDate');
-          if(dashboardDate) dashboardDate.textContent=homeDashboardDateWeatherLabel();
+          if(dashboardDate) renderHomeDashboardDateWeather(dashboardDate);
           renderHomeSunEvent();
         }catch(_){
           homeSunTimes=null;
           homeWeatherCurrent=null;
           const dashboardDate=document.getElementById('homeDashboardDate');
-          if(dashboardDate) dashboardDate.textContent=homeDashboardDateWeatherLabel();
+          if(dashboardDate) renderHomeDashboardDateWeather(dashboardDate);
           renderHomeSunEvent();
         }
         if(!cfg?.enabled){
           homeWeatherCurrent=null;
           const dashboardDate=document.getElementById('homeDashboardDate');
-          if(dashboardDate) dashboardDate.textContent=homeDashboardDateWeatherLabel();
+          if(dashboardDate) renderHomeDashboardDateWeather(dashboardDate);
           setWeatherVisual(null);
           elCaption.textContent='Погода выключена';
           elRain.textContent='Прогноз дождя выключен';
@@ -13760,7 +13769,7 @@
           title.textContent='В общем списке нет ближайших задач с датой.';
           badge.hidden=true;
           badge.textContent='';
-          if(payload?.writable===false) showTickTickWritePermission();
+          if(payload?.writable===false&&!payload?.personalUnavailable) showTickTickWritePermission();
           return;
         }
 
@@ -13771,7 +13780,7 @@
 
         badge.hidden=true;
         badge.textContent='';
-        if(payload?.writable===false) showTickTickWritePermission();
+        if(payload?.writable===false&&!payload?.personalUnavailable) showTickTickWritePermission();
         renderTickTickDetails(payload.task,{
           writable:payload?.writable!==false,
           preserveExpanded
@@ -14136,7 +14145,7 @@
       }
 
       async function completeCalendarTickTickTask(task,row,button,writable){
-        if(!task?.id||task.completed||row?.dataset?.busy==='1') return;
+        if(!task?.id||task.completed||task.externalCalendar||row?.dataset?.busy==='1') return;
         if(!tickTickTaskCanComplete(task)||(task?.personal===true&&currentActor!=='Рустам'&&!(task.privateLocal===true&&currentActor==='Диана'))){
           const status=document.getElementById('workCalendarStatus');
           status.hidden=false;
@@ -14186,6 +14195,15 @@
       }
 
       async function completeTickTickTodayTask(task,row,button,writable){
+        if(task?.financeObligation){
+          if(writable===false||task.responsible!==currentActor||row?.dataset?.busy==='1')return;
+          row.dataset.busy='1';
+          try{const paid=await setCalendarObligationPaid(task.obligation,task.obligationMonth,true,button);
+            if(paid){markTickTickTaskRecentlyCompleted(task.id);await refreshAfterTickTickTaskChange({preserveExpanded:false})}
+            else{const badge=document.getElementById('ticktickBadge');badge.hidden=false;badge.textContent='Не удалось сохранить оплату'}
+          }finally{row.dataset.busy='0'}
+          return;
+        }
         if(task?.personal===true)return completeCalendarTickTickTask(task,row,button,writable);
         if(!task?.id||row?.dataset?.busy==='1') return;
         if(!tickTickTaskCanComplete(task)){
@@ -14250,17 +14268,29 @@
         document.getElementById('ticktickTodayList')?.replaceChildren();
         sharedAgendaSelectedDay='today';
         sharedAgendaScope='shared';
-        try{if(localStorage.getItem('rudi:home-agenda:scope:v1:'+currentActor)==='personal')sharedAgendaScope='personal'}catch(_){}
+        try{const saved=localStorage.getItem('rudi:home-agenda:scope:v1:'+currentActor);if(['personal','combined'].includes(saved))sharedAgendaScope=saved}catch(_){}
       }
       function homeAgendaTasks(tasks,actor=currentActor,scope=sharedAgendaScope){
         return (Array.isArray(tasks)?tasks:[]).filter(task=>{
           if(!task||task.completed)return false;
           if(scope==='shared')return task.personal!==true;
+          if(scope==='combined'&&task.personal!==true)return [actor,'Вместе'].includes(tickTickAssigneeLabel(task));
           if(task.personal!==true||task.responsible&&task.responsible!==actor)return false;
           return actor==='Диана'?task.privateLocal===true:actor==='Рустам'&&task.privateLocal!==true;
         });
       }
+      function mergeHomeAgendas(personal,shared,actor){
+        const merge=key=>[...homeAgendaTasks(personal?.[key],actor,'personal').map(task=>({...task,agendaWritable:task.financeObligation===true||personal?.writable!==false})),...homeAgendaTasks(homeAgendaTasks(shared?.[key],actor,'shared'),actor,'combined').map(task=>({...task,agendaWritable:shared?.writable!==false}))]
+          .sort((a,b)=>String(a.startTime||'99:99').localeCompare(String(b.startTime||'99:99')));
+        return {ok:true,configured:true,connected:true,enabled:true,writable:true,date:personal?.date||shared?.date||todayState().key,
+          tomorrowDate:personal?.tomorrowDate||shared?.tomorrowDate||calendarDateShift(todayState().key,1),
+          agendaPartial:!personal||!shared,offlineStale:!!(personal?.offlineStale||shared?.offlineStale),tasks:merge('tasks'),tomorrowTasks:merge('tomorrowTasks')};
+      }
       async function cachedHomeAgenda(actor,scope){
+        if(scope==='combined'){
+          const [personal,shared]=await Promise.all([cachedHomeAgenda(actor,'personal'),cachedHomeAgenda(actor,'shared')]);
+          return personal||shared?{...mergeHomeAgendas(personal,shared,actor),agendaActor:actor,agendaScope:scope}:null;
+        }
         const store=window.rudiCalendarOffline;
         const date=todayState().key,tomorrowDate=calendarDateShift(date,1);
         const memory=sharedAgendaPayloads.get(actor+'|'+scope);
@@ -14282,7 +14312,7 @@
       }
       async function setHomeAgendaScope(scope){
         ensureHomeAgendaActor();
-        if(!['personal','shared'].includes(scope)||scope===sharedAgendaScope)return;
+        if(!['personal','shared','combined'].includes(scope)||scope===sharedAgendaScope)return;
         sharedAgendaScope=scope;
         try{localStorage.setItem('rudi:home-agenda:scope:v1:'+currentActor,scope)}catch(_){}
         const stored=sharedAgendaPayloads.get(currentActor+'|'+scope);
@@ -14302,7 +14332,7 @@
           button.setAttribute('aria-pressed',button.dataset.homeAgendaScope===sharedAgendaScope?'true':'false');
         }
         const add=document.getElementById('ticktickAddButton');
-        if(add)add.setAttribute('aria-label',sharedAgendaScope==='personal'?'Добавить личное дело':'Добавить совместное дело');
+        if(add){add.hidden=sharedAgendaScope==='combined';add.setAttribute('aria-label',sharedAgendaScope==='personal'?'Добавить личное дело':'Добавить совместное дело')}
         for(const tab of document.querySelectorAll('#sharedAgendaTabs [data-shared-agenda-day]')){
           const active=tab.dataset.sharedAgendaDay===sharedAgendaSelectedDay;
           tab.setAttribute('aria-selected',active?'true':'false');
@@ -14310,7 +14340,7 @@
         }
         const panel=document.getElementById('ticktickPanel');
         if(panel)panel.setAttribute('aria-label',
-          (sharedAgendaScope==='personal'?'Личные дела на ':'Совместные дела на ')+(sharedAgendaSelectedDay==='today'?'сегодня':'завтра'));
+          (sharedAgendaScope==='personal'?'Личные дела на ':sharedAgendaScope==='combined'?'Все мои дела на ':'Совместные дела на ')+(sharedAgendaSelectedDay==='today'?'сегодня':'завтра'));
       }
       function setupSharedAgendaTabs(){
         ensureHomeAgendaActor();
@@ -14397,16 +14427,16 @@
         homeDashboardState.tasks=todayTasks;
         renderHomeDashboard();
         if(!tasks.length){
-          title.textContent=payload?.agendaLoading?'Загружаю дела…':sharedAgendaSelectedDay==='tomorrow'?'Завтра дел нет':'Сегодня дел нет';
+          title.textContent=payload?.agendaLoading?'Загружаю дела…':payload?.agendaPartial?'Часть календарей недоступна':sharedAgendaSelectedDay==='tomorrow'?'Завтра дел нет':'Сегодня дел нет';
           badge.hidden=!payload?.offlineStale;badge.textContent=payload?.offlineStale?'Офлайн':'';
-          if(payload?.writable===false) showTickTickWritePermission();
+          if(payload?.writable===false&&!payload?.personalUnavailable) showTickTickWritePermission();
           return;
         }
 
         title.hidden=true;list.hidden=false;
         panel.classList.add('is-list-visible');
         badge.hidden=false;
-        badge.textContent=tasks.length===1?'1 дело':(tasks.length<5?tasks.length+' дела':tasks.length+' дел');
+        badge.textContent=(tasks.length===1?'1 дело':(tasks.length<5?tasks.length+' дела':tasks.length+' дел'))+(payload?.agendaPartial?' · Часть данных недоступна':'');
         let reopenTask=null;
 
         for(const task of tasks){
@@ -14430,11 +14460,11 @@
           complete.className='ticktick-today-complete';
           complete.setAttribute('role','checkbox');
           complete.setAttribute('aria-checked','false');
-          const canComplete=tickTickTaskCanComplete(task)&&(task.personal!==true||task.canComplete!==false);
+          const canComplete=task.agendaWritable!==false&&tickTickTaskCanComplete(task)&&(task.personal!==true||task.canComplete!==false);
           complete.setAttribute('aria-label',canComplete
-            ?'Отметить выполненным: '+String(task?.title||'Дело')
+            ?(task.financeObligation?'Отметить оплаченным: ':'Отметить выполненным: ')+String(task?.title||'Дело')
             :'Эта задача назначена другому участнику');
-          complete.disabled=!canComplete||payload?.writable===false;
+          complete.disabled=!canComplete||(!task.financeObligation&&payload?.writable===false);
           const agendaAvatars=ownerLabel==='Диана'?['Д']:ownerLabel==='Рустам'?['Р']:['Р','Д'];
           complete.classList.toggle('is-shared-avatar',agendaAvatars.length>1);
           complete.replaceChildren(...agendaAvatars.map(name=>{
@@ -14450,17 +14480,17 @@
             updateSharedAgendaAvatarPhoto(avatar);
             return avatar;
           }));
-          complete.title=canComplete?'Отметить выполненным':ownerLabel;
+          complete.title=canComplete?(task.financeObligation?'Отметить оплаченным':'Отметить выполненным'):ownerLabel;
           complete.addEventListener('click',event=>{
             event.stopPropagation();
-            completeTickTickTodayTask(task,row,complete,payload?.writable!==false);
+            completeTickTickTodayTask(task,row,complete,(task.financeObligation===true||payload?.writable!==false)&&task.agendaWritable!==false);
           });
 
           const copy=document.createElement('button');
           copy.type='button';
           copy.className='ticktick-today-copy';
           const hasChecklist=Array.isArray(task?.checklist)&&task.checklist.length>0;
-          const canEdit=(task.personal===true||task?.canDelete===true)&&payload?.writable!==false;
+          const canEdit=!task.financeObligation&&task.agendaWritable!==false&&task.externalCalendar!==true&&(task.personal===true||task?.canDelete===true)&&payload?.writable!==false;
           copy.disabled=!canEdit;
           copy.setAttribute('aria-label','Редактировать дело: '+String(task?.title||'Дело'));
           copy.addEventListener('click',event=>{
@@ -14473,7 +14503,7 @@
           taskTitle.textContent=String(task?.title||'Дело');
           const meta=document.createElement('div');
           meta.className='ticktick-today-meta';
-          meta.textContent=ownerLabel;
+          meta.textContent=task.financeObligation?'Счёт на оплату · '+financeOverviewMoney(task.amount):task.externalCalendar?'iCloud · только просмотр':ownerLabel;
           meta.hidden=!meta.textContent;
           copy.append(taskTitle,meta);
           const placeText=String(task?.location||'').trim();
@@ -14529,7 +14559,7 @@
           reopenTask.copy.setAttribute('aria-expanded','true');
           reopenTask.inlineDetails.hidden=false;
         }
-        if(payload?.writable===false) showTickTickWritePermission();
+        if(payload?.writable===false&&!payload?.personalUnavailable) showTickTickWritePermission();
       }
 
       function setupTickTickDisclosure(){
@@ -14628,6 +14658,7 @@
             window.RUDIPersonalTaskEditor?.create({...homeAgendaPersonalContext(null),date,time:financeNowDateTimeInputs().time});
             return;
           }
+          if(sharedAgendaScope==='combined')return;
           open(null,{date:sharedAgendaSelectedDay==='tomorrow'?String(sharedAgendaLatestPayload?.tomorrowDate||calendarDateShift(todayState().key,1)):todayState().key});
         });
         openTickTickTaskForEditing=task=>open(task);
@@ -14707,13 +14738,23 @@
         }
         if(force) invalidateManagedRequests('ticktick-today');
         try{
-          const payload=await managedJsonRequest(agendaScope==='shared'?'ticktick-today':'ticktick-today:personal:'+agendaActor,'/api/ticktick/today',{
-            body:{initData:telegramInitData(),backupToken:currentStateBackupToken,...(agendaScope==='personal'?{scope:'personal'}:{})},
-            ttlMs:2*60*1000,
-            timeoutMs:7000
-          });
+          const fetchScope=async scope=>{
+            const payload=await managedJsonRequest(scope==='shared'?'ticktick-today':'ticktick-today:personal:'+agendaActor,'/api/ticktick/today',{
+              body:{initData:telegramInitData(),backupToken:currentStateBackupToken,...(scope==='personal'?{scope:'personal'}:{})},
+              ttlMs:2*60*1000,timeoutMs:7000
+            });
+            if(stillCurrent())await window.rudiCalendarOffline?.captureAgenda?.(agendaActor,scope,payload).catch(()=>{});
+            return payload;
+          };
+          let payload;
+          if(agendaScope==='combined'){
+            const results=await Promise.allSettled([fetchScope('personal'),fetchScope('shared')]);
+            if(results.every(result=>result.status==='rejected'))throw results[0].reason;
+            const available=await Promise.all(results.map(async(result,index)=>result.status==='fulfilled'?result.value:
+              cachedHomeAgenda(agendaActor,index===0?'personal':'shared').catch(()=>null)));
+            payload=mergeHomeAgendas(available[0],available[1],agendaActor);
+          }else payload=await fetchScope(agendaScope);
           if(!stillCurrent())return;
-          await window.rudiCalendarOffline?.captureAgenda?.(agendaActor,agendaScope,payload).catch(()=>{});
           if(!stillCurrent())return;
           renderTickTickTodayState({...payload,agendaActor,agendaScope},{preserveExpanded});
         }catch(error){
@@ -15420,12 +15461,36 @@
         let n=0;for(const code of String(row?.id||row?.title||''))n=(n*31+code.charCodeAt(0))|0;
         return Math.abs(n%5);
       }
+      function openFinanceBillPayment(obligation,billMonth,actor=currentActor){
+        const occurredAt=new Date().toISOString(),expenseMonth=financeMonthFromOccurredAt(occurredAt);
+        window.RUDIBillPayment?.open({obligation,month:billMonth,actor,
+          load:async()=>{
+            if(currentActor!==actor)throw Error('finance-actor-mismatch');
+            const data=await financeRequest('list');
+            if(data.actor!==actor||currentActor!==actor)throw Error('finance-actor-mismatch');
+            return {wallets:data.wallets||[],categories:data.categories||[]};
+          },
+          save:async({walletId,categoryId})=>{
+            if(currentActor!==actor)throw Error('finance-actor-mismatch');
+            const key=new TextEncoder().encode(JSON.stringify([actor,obligation.id,billMonth]));
+            const hash=await window.crypto.subtle.digest('SHA-256',key);
+            const requestId='bill-'+Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,'0')).join('');
+            if(currentActor!==actor)throw Error('finance-actor-mismatch');
+            const data=await financeRequest('save-expense',{requestId,month:expenseMonth,categoryId,walletId,
+              amount:Number(obligation.amount),inputCurrency:'RUB',occurredAt,note:'Оплата счёта: '+String(obligation.title||'Счёт')});
+            if(data.actor!==actor||currentActor!==actor)throw Error('finance-actor-mismatch');
+            renderFinanceState(data,{personalMonth:expenseMonth,preserveIncome:true,preservePlan:true});
+            refreshFinanceInsight(true).catch(()=>{});
+          }
+        });
+      }
       async function setCalendarObligationPaid(obligation,month,paid,button){
         if(button.disabled)return;
+        const paymentActor=currentActor;
         button.disabled=true;
         try{
           const result=await financeRequest('set-obligation-paid',{id:obligation.id,month,paid});
-          if(result.actor!==currentActor)throw new Error('finance-actor-mismatch');
+          if(result.actor!==paymentActor||currentActor!==paymentActor)throw new Error('finance-actor-mismatch');
           const obligations=Array.isArray(result.obligations)?result.obligations:[];
           invalidateManagedRequests('finance-calendar-obligations:'+currentActor);
           for(const cached of Object.values(calendarViewCache)){
@@ -15436,18 +15501,21 @@
           const active=calendarViewCache[calendarCacheKey()];
           if(active&&active.obligationActor===currentActor)renderWorkCalendar(active,{force:true});
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          if(paid)openFinanceBillPayment(obligation,month,paymentActor);
+          return true;
         }catch(error){
           button.disabled=false;
           const status=document.getElementById('workCalendarStatus');
           if(status){status.hidden=false;status.textContent='Не удалось сохранить оплату'}
           console.warn('RUDI_CALENDAR_OBLIGATION_WARN',String(error?.message||error));
+          return false;
         }
       }
       function workCalendarRenderSignature(payload){
         try{
           return JSON.stringify({
             view:String(payload?.view||'month'),scope:calendarScope,mode:calendarDisplayMode,cursor:calendarDateCursor,
-            stale:Boolean(payload?.stale),ticktickUnavailable:Boolean(payload?.ticktickUnavailable),
+            stale:Boolean(payload?.stale),ticktickUnavailable:Boolean(payload?.ticktickUnavailable),icloudUnavailable:Boolean(payload?.icloudUnavailable),
             days:Array.isArray(payload?.days)?payload.days:[],
             ticktickDays:Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[],
             holidayDays:Array.isArray(payload?.holidayDays)?payload.holidayDays:[],
@@ -15532,7 +15600,7 @@
       }
       function calendarAttachTaskTimeDrag(block,stamp,event,dateKey,viewport,sharedWritable=true){
         const task=event.task;
-        if(!task?.id)return;
+        if(!task?.id||task.externalCalendar)return;
         if(task.personal===true){
           if(calendarScope!=='personal'||task.completed||task.canComplete===false||
             !(task.privateLocal===true&&currentActor==='Диана')&&(currentActor!=='Рустам'||!task.projectId))return;
@@ -15696,7 +15764,7 @@
             completeCalendarTickTickTask(task,row,checkbox,writable);
           });
           row.prepend(checkbox);
-          if(!task.completed&&isPersonal&&calendarScope==='personal'&&(task.privateLocal===true||calendarTickTickTaskWebUrl(task))){
+          if(!task.completed&&!task.externalCalendar&&isPersonal&&calendarScope==='personal'&&(task.privateLocal===true||calendarTickTickTaskWebUrl(task))){
             row.classList.add('calendar-external-task');
             row.style.cursor='pointer';
             row.tabIndex=0;
@@ -15828,6 +15896,7 @@
           const currentStatus=document.getElementById('workCalendarStatus');
           if(payload?.offlinePending){currentStatus.hidden=false;currentStatus.textContent=payload.offlineNeedsReview?'Нужна проверка синхронизации · '+payload.offlinePending:'Ожидают синхронизации: '+payload.offlinePending}
           else if(payload?.offlineStale){currentStatus.hidden=false;currentStatus.textContent='Офлайн · данные на устройстве'}
+          else if(payload?.icloudUnavailable){currentStatus.hidden=false;currentStatus.textContent='iCloud временно недоступен'}
           else if(payload?.ticktickUnavailable){currentStatus.hidden=false;currentStatus.textContent='TickTick временно недоступен'}
           else if(payload?.stale){currentStatus.hidden=false;currentStatus.textContent='Кэш'}
           else{currentStatus.hidden=true;currentStatus.textContent=''}
@@ -15888,6 +15957,8 @@
         }else if(payload.offlineStale){
           status.hidden=false;
           status.textContent='Офлайн · данные на устройстве';
+        }else if(payload.icloudUnavailable){
+          status.hidden=false;status.textContent='iCloud временно недоступен';
         }else if(payload.ticktickUnavailable){
           status.hidden=false;
           status.textContent='TickTick временно недоступен';
@@ -16083,7 +16154,7 @@
                 const taskCopy=document.createElement('button');
                 taskCopy.type='button';
                 taskCopy.className='calendar-task-copy';
-                const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&(event.privateLocal===true||Boolean(calendarTickTickTaskWebUrl(event)));
+                const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&!event.externalCalendar&&(event.privateLocal===true||Boolean(calendarTickTickTaskWebUrl(event)));
                 taskCopy.disabled=Boolean(event.completed)||!event?.id||(!opensInTickTick&&(payload?.ticktickWritable===false||event?.canEdit===false));
                 taskCopy.setAttribute('aria-label','Редактировать: '+String(event.title||'Дело'));
                 const start=String(event.startTime||'').trim();
@@ -16094,7 +16165,7 @@
                 text.textContent=String(event.title||'Дело');
                 const meta=document.createElement('span');
                 meta.className='calendar-task-time';
-                meta.textContent=[range,event?.personal?(event.privateLocal?'':String(event.projectName||'Личный список')):tickTickAssigneeLabel(event)].filter(Boolean).join(' · ');
+                meta.textContent=[range,event?.personal?(event.externalCalendar?'iCloud':event.privateLocal?'':String(event.projectName||'Личный список')):tickTickAssigneeLabel(event)].filter(Boolean).join(' · ');
                 taskCopy.append(text,meta);
                 row.append(complete,taskCopy);
                 complete.addEventListener('click',clickEvent=>{
@@ -16287,6 +16358,8 @@
             day.events.push(task);
           }
           if(privateFailed){result.stale=true;result.privateUnavailable=true}
+          result.icloudUnavailable=privateResult.status==='fulfilled'&&privateResult.value?.subscription?.unavailable===true;
+          if(privateResult.status==='fulfilled'&&privateResult.value?.subscription?.stale)result.stale=true;
         }
         if(offlineStore){
           if((tickUnavailable&&scope!=='diana')||result.privateUnavailable||offlineStore.isOffline?.()){

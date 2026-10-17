@@ -185,7 +185,7 @@ function normalizedEditorWhen(task){
   return {date,time:task?.allDay?'':time};
 }
 function open(task,ctx={}){
-  if(!task?.id||!task?.personal)return;
+  if(!task?.id||!task?.personal||task.externalCalendar)return;
   init();closeMenu();
   byId('rudiPersonalTaskForm').reset();refreshTemporalInputs();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
@@ -309,7 +309,7 @@ function create(ctx={}){
     allDay:!ctx.time,projectId:'',projectName:'Выбери список'},ctx);
 }
 function showMenu(task,ctx,event){
-  if(!task?.personal)return;
+  if(!task?.personal||task.externalCalendar)return;
   init();
   active={task:{...task},ctx};
   closeMenu();
@@ -321,7 +321,7 @@ function showMenu(task,ctx,event){
   menu.querySelector('[data-personal-date-action]')?.focus({preventScroll:true});
 }
 function bind(element,task,ctx){
- if(!task?.personal||!element)return;
+ if(!task?.personal||task.externalCalendar||!element)return;
  // The calendar reuses task cards. Refresh their current data on every bind,
  // not only the first one; older handlers must not keep the first task.
  const binding=element.__rudiPersonalTaskBinding||

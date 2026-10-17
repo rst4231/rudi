@@ -15,7 +15,7 @@ test('today endpoint supplies tomorrow with no second client request',()=>{
   assert.match(api,/const tomorrowDate = calendarDateKey/);
   assert.match(api,/const tomorrowTasks = mapAgendaDay/);
   assert.match(api,/date: today, tasks, tomorrowDate, tomorrowTasks/);
-  assert.match(js,/managedJsonRequest\(agendaScope==='shared'\?'ticktick-today':'ticktick-today:personal:'\+agendaActor,'\/api\/ticktick\/today'/);
+  assert.match(js,/managedJsonRequest\(scope==='shared'\?'ticktick-today':'ticktick-today:personal:'\+agendaActor,'\/api\/ticktick\/today'/);
   assert.match(js,/if\(sharedAgendaLatestPayload\)renderTickTickTodayState\(sharedAgendaLatestPayload\)/);
 });
 test('switching tabs does not change Home today task count',()=>{
@@ -27,7 +27,7 @@ test('switching tabs does not change Home today task count',()=>{
 });
 test('timeline retains completion, edit, delete, undo and inline details',()=>{
   assert.match(js,/row\.append\(timeRail,complete,copy\)/);
-  assert.match(js,/completeTickTickTodayTask\(task,row,complete,payload\?\.writable!==false\)/);
+  assert.match(js,/completeTickTickTodayTask\(task,row,complete,\(task\.financeObligation===true\|\|payload\?\.writable!==false\)&&task\.agendaWritable!==false\)/);
   assert.match(js,/openTickTickTaskForEditing\?\.\(task\)/);
   assert.match(js,/deleteTickTickTodayTask\(task,row,deleteButton\)/);
   assert.match(js,/createTickTickInlineDetails\(task,\{writable:payload\?\.writable!==false\}\)/);

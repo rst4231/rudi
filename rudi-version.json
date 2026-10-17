@@ -1,16 +1,24 @@
 {
-  "current": "v4.267",
-  "versionBranch": "fix/personal-task-avatar",
+  "current": "v4.268",
+  "versionBranch": "feature/weather-personal-calendar-agenda",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-18",
-  "basedOnProduction": "v4.266",
+  "basedOnProduction": "v4.267",
   "notes": [
-    "В личных делах показывается только аватарка текущего пользователя"
+    "Погода по тапу: почасовой прогноз, неделя и месяц",
+    "Подписка iCloud в личном календаре Дианы",
+    "Объединённый список своих личных и совместных дел",
+    "Неоплаченные счета в личных и объединённых делах",
+    "После оплаты счёта: выбор кошелька и категории с кнопкой закрытия"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show only the current owner avatar on personal Home agenda tasks"
+    "Add accessible weather forecast views and extended shared cache",
+    "Add private read-only iCloud subscription for Diana",
+    "Add icon-only combined Home agenda without creation action",
+    "Include actor-owned unpaid finance obligations in personal Home agenda with finance payment handling",
+    "Offer wallet and category picker after marking a bill paid, with explicit idempotent expense entry"
   ]
 }

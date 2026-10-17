@@ -64,7 +64,7 @@ function client({cached,fetchImpl}){
 
 test('both browser widgets share one same-origin forecast request',async()=>{
   let calls=0;
-  const weather=client({fetchImpl:async url=>{calls++;assert.equal(url,'/api/index?route=weather');return {ok:true,json:async()=>({...sample,fetchedAt:Date.now(),stale:false})}}});
+  const weather=client({fetchImpl:async url=>{calls++;assert.equal(url,'/api/index?route=weather&forecast=v3');return {ok:true,json:async()=>({...sample,fetchedAt:Date.now(),stale:false})}}});
   const [a,b]=await Promise.all([weather.get(),weather.get()]);
   assert.equal(a.current.temperature_2m,12);assert.equal(b.current.temperature_2m,12);
   assert.equal(calls,1);
@@ -76,4 +76,28 @@ test('browser falls back to recent cached data but rejects an expired forecast',
   assert.equal((await recent.get()).stale,true);
   const expired=client({cached:{...sample,fetchedAt:Date.now()-3*60*60*1000},fetchImpl});
   await assert.rejects(expired.get());
+});
+
+test('extended forecast requests 16 actual days with genuine hourly temperature and daily wind',async()=>{
+ let requested='';
+ const service=require('../api/weather.cjs').createWeatherService({fetchImpl:async url=>{requested=url;return {ok:true,json:async()=>sample}}});await service();
+ const query=new URL(requested).searchParams;assert.equal(query.get('forecast_days'),'16');
+ for(const field of ['temperature_2m','apparent_temperature','weather_code','wind_speed_10m'])assert.ok(query.get('hourly').split(',').includes(field));
+ for(const field of ['wind_speed_10m_max','precipitation_probability_max'])assert.ok(query.get('daily').split(',').includes(field));
+});
+test('opening forecast refreshes a fresh old hourly-rain-only cache and still coalesces requests',async()=>{
+ let calls=0;
+ const extended={...sample,hourly:{...sample.hourly,temperature_2m:[12,9],apparent_temperature:[10,7],weather_code:[3,61],wind_speed_10m:[10,15]}};
+ const weather=client({cached:{...sample,fetchedAt:Date.now(),stale:false},fetchImpl:async url=>{calls++;assert.match(url,/forecast=v3/);return {ok:true,json:async()=>({...extended,fetchedAt:Date.now()})}}});
+ await weather.get();assert.equal(calls,0);
+ const [a,b]=await Promise.all([weather.get({forecast:true}),weather.get({forecast:true})]);
+ assert.equal(calls,1);assert.equal(a.hourly.temperature_2m[1],9);assert.equal(b.hourly.apparent_temperature[1],7);
+});
+test('forecast model never invents hourly temperature or future dates',()=>{
+ const window={},document={addEventListener(){}};vm.runInNewContext(fs.readFileSync('public/weather-forecast.js','utf8'),{window,document});
+ const model=window.RUDI_WEATHER_FORECAST.model(sample);
+ assert.equal(model.days.length,2);assert.equal(model.hours.length,2);assert.equal(model.hours[0].temperature,undefined);assert.equal(model.days.some(day=>day.date==='2026-10-25'),false);
+ const real=window.RUDI_WEATHER_FORECAST.model({...sample,hourly:{...sample.hourly,temperature_2m:[12,null],apparent_temperature:[10,null]}});
+ assert.equal(real.hours[0].temperature,12);assert.equal(real.hours[1].temperature,null);
+ const js=fs.readFileSync('public/weather-forecast.js','utf8');assert.match(js,/нет данных/);assert.match(js,/За этим горизонтом данных нет/);assert.match(js,/event\.key==='Escape'/);assert.match(js,/generation!==revision/);
 });

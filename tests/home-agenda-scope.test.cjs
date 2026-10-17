@@ -37,7 +37,7 @@ test('personal agenda today count ignores tomorrow selection; edit and checkbox 
  const h=harness(),opened=[],completions=[];
  function node(){return {dataset:{},style:{},children:[],events:{},classList:{add(){},remove(){},toggle(){}},setAttribute(){},replaceChildren(...children){this.children=children},append(...children){this.children.push(...children)},appendChild(child){this.children.push(child)},addEventListener(name,fn){this.events[name]=fn},querySelectorAll:()=>[],querySelector:()=>null}};
  const nodes={};h.ctx.document={querySelectorAll:()=>[],getElementById:id=>nodes[id]||(nodes[id]=node()),createElement:()=>node()};
- h.ctx.renderTickTickDetails=()=>{};h.ctx.tickTickTaskRecentlyCompleted=()=>false;h.ctx.tickTickTaskCanComplete=()=>true;
+ h.ctx.showTickTickWritePermission=()=>{};h.ctx.renderTickTickDetails=()=>{};h.ctx.tickTickTaskRecentlyCompleted=()=>false;h.ctx.tickTickTaskCanComplete=()=>true;
  h.ctx.tickTickAssigneeLabel=task=>task.personal?'Вместе':task.responsible||'Вместе';h.ctx.updateSharedAgendaAvatarPhoto=()=>{};
  h.ctx.window.RUDIPersonalTaskEditor={open:(...args)=>opened.push(args)};h.ctx.queueCalendarWhenOffline=async()=>null;
  h.ctx.completeTickTickTodayTask=(...args)=>completions.push(args);
@@ -56,11 +56,19 @@ test('personal agenda today count ignores tomorrow selection; edit and checkbox 
  h.ctx.tickTickTaskRecentlyCompleted=id=>id==='diana-a|2026-10-31';
  h.ctx.renderActual({ok:true,writable:true,agendaActor:'Диана',agendaScope:'personal',date:'2026-10-31',tasks:[personal],tomorrowTasks:[]});
  assert.equal(h.ctx.homeDashboardState.tasks.length,0,'a stale personal occurrence cannot reappear after completion');
+ vm.runInNewContext("sharedAgendaSelectedDay='today'",h.ctx);
+ h.ctx.renderActual({ok:true,writable:true,agendaActor:'Диана',agendaScope:'personal',tasks:[{...personal,id:'icloud-event',externalCalendar:true,canComplete:false,canEdit:false}],tomorrowTasks:[]});
+ const external=nodes.ticktickTodayList.children[0];assert.equal(external.children[1].disabled,true);assert.equal(external.children[2].disabled,true);
+ external.children[2].events.click({stopPropagation(){}});assert.equal(opened.length,1,'external iCloud event never opens private editor');
  h.ctx.tickTickTaskRecentlyCompleted=()=>false;h.ctx.currentActor='Рустам';h.api.ensureHomeAgendaActor();await h.api.setHomeAgendaScope('personal');
  h.ctx.renderActual({ok:true,writable:true,agendaActor:'Рустам',agendaScope:'personal',tasks:[{...personal,id:'rustam-a',privateLocal:false,responsible:'Рустам'}],tomorrowTasks:[]});
  const own=nodes.ticktickTodayList.children[0].children[1];assert.equal(own.children.length,1);assert.equal(own.children[0].dataset.person,'rustam');
  await h.api.setHomeAgendaScope('shared');h.ctx.renderActual({ok:true,writable:true,agendaActor:'Рустам',agendaScope:'shared',tasks:[{id:'shared',title:'Общее'}],tomorrowTasks:[]});
  assert.equal(nodes.ticktickTodayList.children[0].children[1].children.length,2);
+ h.ctx.financeOverviewMoney=value=>String(value)+' ₽';await h.api.setHomeAgendaScope('personal');
+ h.ctx.renderActual({ok:true,writable:false,agendaActor:'Рустам',agendaScope:'personal',tasks:[{id:'bill:rent:2026-10',title:'Квартира',financeObligation:true,amount:1000,personal:true,responsible:'Рустам',canEdit:false,canComplete:true}],tomorrowTasks:[]});
+ const bill=nodes.ticktickTodayList.children[0];assert.equal(bill.children[1].disabled,false,'finance payment stays writable when personal TickTick is unavailable');assert.equal(bill.children[2].disabled,true);assert.match(bill.children[2].children[1].textContent,/1000 ₽/);
+ bill.children[1].events.click({stopPropagation(){}});assert.equal(completions.at(-1)[3],true);
 });
 test('personal completion never calls shared completion endpoint',async()=>{
  const h=harness(),calls=[];h.ctx.completeCalendarTickTickTask=async(...args)=>{calls.push(args);return {ok:true}};
@@ -85,4 +93,32 @@ test('offline Home shows its durable agenda without requiring a calendar visit',
  const h=harness();h.api.ensureHomeAgendaActor();
  h.ctx.window.rudiCalendarOffline={isOffline:()=>true,cached:async()=>null,cachedAgenda:async(actor,scope)=>({date:'2026-10-31',tomorrowDate:'2026-11-01',offlineSavedAt:1,tasks:[{id:'own',personal:true,privateLocal:true,responsible:'Диана'}],tomorrowTasks:[]}),materialize:async(_actor,_month,payload)=>payload};
  const payload=await h.api.cachedHomeAgenda('Диана','personal');assert.equal(payload.tasks.length,1);assert.equal(payload.tasks[0].id,'own');assert.equal(payload.offlineStale,true);
+});
+test('combined icon merges only own personal and assigned shared tasks, sorted, with no New button',async()=>{
+ const h=harness();h.ctx.tickTickAssigneeLabel=t=>t.assignee||'Вместе';
+ h.ctx.managedJsonRequest=async(_r,_url,{body})=>({ok:true,date:'2026-10-31',tasks:body.scope==='personal'?
+  [{id:'own',personal:true,privateLocal:true,responsible:'Диана',startTime:'10:00'},{id:'other-private',personal:true,responsible:'Рустам'}]:
+  [{id:'both',assignee:'Вместе',startTime:'11:00'},{id:'mine',assignee:'Диана',startTime:'09:00'},{id:'other',assignee:'Рустам'}],tomorrowTasks:[]});
+ await h.api.setHomeAgendaScope('combined');const result=h.rendered.at(-1);
+ assert.equal(result.tasks.map(t=>t.id).join(','),'mine,own,both');assert.equal(result.agendaScope,'combined');
+ const html=fs.readFileSync('public/index.html','utf8');assert.match(html,/data-home-agenda-scope="combined"[^>]*aria-label="Все мои дела"/);
+ assert.match(src,/add.hidden=sharedAgendaScope==='combined'/);
+ h.ctx.currentActor='Рустам';h.api.ensureHomeAgendaActor();h.ctx.currentActor='Диана';h.api.ensureHomeAgendaActor();assert.equal(h.api.getScope(),'combined');
+});
+test('combined scope retains available calendar when the other fails and preserves row write permissions',async()=>{
+ const h=harness();h.ctx.tickTickAssigneeLabel=t=>t.assignee||'Вместе';
+ h.ctx.managedJsonRequest=async(_r,_u,{body})=>{if(body.scope==='personal')throw Object.assign(Error('missing-oauth'),{status:401});return {ok:true,writable:false,tasks:[{id:'shared',assignee:'Диана'}],tomorrowTasks:[]}};
+ await h.api.setHomeAgendaScope('combined');const payload=h.rendered.at(-1);
+ assert.equal(payload.tasks.length,1);assert.equal(payload.tasks[0].agendaWritable,false);assert.equal(payload.agendaPartial,true);
+ assert.match(src,/const canComplete=task.agendaWritable!==false/);assert.match(src,/const canEdit=!task.financeObligation&&task.agendaWritable!==false/);
+});
+test('Home bill completion marks the exact finance month paid without invoking task APIs',async()=>{
+ const h=harness(),paid=[],refresh=[];h.ctx.setCalendarObligationPaid=async(...args)=>{paid.push(args);return true};
+ h.ctx.markTickTickTaskRecentlyCompleted=()=>{};h.ctx.refreshAfterTickTickTaskChange=async()=>refresh.push(true);
+ h.ctx.completeCalendarTickTickTask=()=>{throw Error('bill cannot complete a calendar task')};
+ const start=src.indexOf('async function completeTickTickTodayTask('),end=src.indexOf('let openTickTickTaskForEditing=',start);
+ const complete=vm.runInNewContext(src.slice(start,end)+';completeTickTickTodayTask',h.ctx);
+ const bill={id:'bill:rent:2026-11',personal:true,financeObligation:true,responsible:'Диана',obligation:{id:'rent'},obligationMonth:'2026-11'},row={dataset:{}},button={};
+ await complete(bill,row,button,true);assert.equal(paid.length,1);assert.equal(paid[0][0].id,'rent');assert.equal(paid[0][1],'2026-11');assert.equal(paid[0][2],true);assert.equal(refresh.length,1);
+ await complete({...bill,responsible:'Рустам'},row,button,true);assert.equal(paid.length,1);
 });

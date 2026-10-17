@@ -39,8 +39,12 @@ async function personalTasks(input,options={}){
    if(month&&saved.date.slice(0,7)!==month)continue;
    tasks.push({...saved.event,completed:true,completedAt:saved.completedAt,expiresAt:expiresAfterTwoMonths(saved.completedAt),canComplete:false,canEdit:false});
   }
+  const {subscribedEvents}=require('./diana-calendar-subscription.cjs');
+  const subscribed=await subscribedEvents({actor:'Диана',month:month||new Date(now+3*60*60*1000).toISOString().slice(0,7)},{...options,client})
+    .catch(()=>({tasks:[],subscribed:false,unavailable:true}));
+  tasks.push(...subscribed.tasks);
   tasks.sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.id.localeCompare(b.id));
-  return {ok:true,tasks};
+  return {ok:true,tasks,subscription:{configured:subscribed.subscribed===true,stale:subscribed.stale===true,unavailable:subscribed.unavailable===true}};
  }
  if(!['create','save','move','delete','complete'].includes(op))throw Error('calendar-operation-invalid');
  let taskId=String(input.taskId||''),occurrenceDate='';

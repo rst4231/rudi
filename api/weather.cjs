@@ -1,4 +1,4 @@
-const URL = 'https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,apparent_temperature,weather_code,precipitation,rain&hourly=precipitation_probability,precipitation,rain&daily=weather_code,temperature_2m_min,temperature_2m_max,precipitation_sum,sunrise,sunset&forecast_days=7&timezone=Europe%2FMoscow';
+const URL = 'https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,apparent_temperature,weather_code,precipitation,rain&hourly=precipitation_probability,precipitation,rain,temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_min,temperature_2m_max,precipitation_sum,sunrise,sunset,wind_speed_10m_max,precipitation_probability_max&forecast_days=16&timezone=Europe%2FMoscow';
 const FRESH = 15 * 60 * 1000;
 const MAX_AGE = 2 * 60 * 60 * 1000;
 function valid(data) {

@@ -32,7 +32,7 @@ test('modal delete appears only when authorized, preserves undo and restores on 
 });
 test('real profile photos and independent completion remain untouched',()=>{
   assert.match(js,/updateSharedAgendaAvatarPhoto\(avatar\)/);
-  assert.match(js,/completeTickTickTodayTask\(task,row,complete,payload\?\.writable!==false\)/);
+  assert.match(js,/completeTickTickTodayTask\(task,row,complete,\(task\.financeObligation===true\|\|payload\?\.writable!==false\)&&task\.agendaWritable!==false\)/);
   assert.match(js,/sharedAgendaSelectedDay==='tomorrow'/);
-  assert.match(js,/managedJsonRequest\(agendaScope==='shared'\?'ticktick-today':'ticktick-today:personal:'\+agendaActor,'\/api\/ticktick\/today'/);
+  assert.match(js,/managedJsonRequest\(scope==='shared'\?'ticktick-today':'ticktick-today:personal:'\+agendaActor,'\/api\/ticktick\/today'/);
 });

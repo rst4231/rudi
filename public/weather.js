@@ -16,17 +16,21 @@
         Array.isArray(daily?.[key]) && daily[key].length === days && daily[key].every(item=>typeof item==='string'&&item.length>0));
   }
   try { const saved = JSON.parse(localStorage.getItem(KEY)); if (valid(saved)) cached = saved; } catch (_) {}
-  async function get() {
-    if (cached && !cached.stale && Date.now() - cached.fetchedAt < FRESH) return cached;
-    if (flight) return flight;
+  function extended(value){
+    const hours=value?.hourly?.time?.length||0;
+    return hours>0&&['temperature_2m','apparent_temperature','weather_code','wind_speed_10m','precipitation_probability','precipitation'].every(key=>Array.isArray(value.hourly[key])&&value.hourly[key].length===hours);
+  }
+  async function get({forecast=false}={}) {
+    if (cached && !cached.stale && Date.now() - cached.fetchedAt < FRESH && (!forecast||extended(cached))) return cached;
+    if (flight){const value=await flight;if(!forecast||extended(value))return value;return get({forecast:true})}
     flight = (async () => {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 8000);
       try {
-        const response = await fetch('/api/index?route=weather', {signal: controller.signal});
+        const response = await fetch('/api/index?route=weather&forecast=v3', {signal: controller.signal});
         if (!response.ok) throw new Error('Weather unavailable');
         const value = await response.json();
-        if (!valid(value) || Date.now() - value.fetchedAt > MAX_AGE) throw new Error('Invalid forecast');
+        if (!valid(value) || (forecast&&!extended(value)) || Date.now() - value.fetchedAt > MAX_AGE) throw new Error('Invalid forecast');
         cached = {...value, stale: !!value.stale || Date.now() - value.fetchedAt >= FRESH};
         try { localStorage.setItem(KEY, JSON.stringify(cached)); } catch (_) {}
         return cached;

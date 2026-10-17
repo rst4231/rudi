@@ -2097,7 +2097,12 @@ async function handleTickTick(req, res, action, options = {}) {
     if(String(body.scope||'')==='personal'){
       const now=options.now?new Date(options.now):new Date();
       const today=calendarDateKey(now),tomorrowNow=new Date(now.getTime()+86400000),tomorrowDate=calendarDateKey(tomorrowNow);
-      const base={scope:'personal',date:today,todayDate:today,tomorrowDate,tasks:[],tomorrowTasks:[]};
+      const {personalHomeBills}=require('./personal-home-bills.cjs');
+      const bills=await personalHomeBills(actor,[today,tomorrowDate],options).catch(()=>[]);
+      const base={scope:'personal',date:today,todayDate:today,tomorrowDate,tasks:bills.filter(row=>row.date===today),tomorrowTasks:bills.filter(row=>row.date===tomorrowDate)};
+      const failPersonal=(status,details)=>bills.length
+        ?res.status(200).json({...base,...details,ok:true,configured:true,connected:true,enabled:true,writable:false,personalUnavailable:true})
+        :res.status(status).json({ok:false,...base,...details});
       try{
         if(actor==='Диана'){
           const {personalTasks}=require('./diana-personal-tasks.cjs');
@@ -2106,13 +2111,13 @@ async function handleTickTick(req, res, action, options = {}) {
           const own=results.flatMap(result=>Array.isArray(result.tasks)?result.tasks:[])
             .filter(task=>task.personal===true&&task.responsible===actor&&!task.completed);
           return res.status(200).json({ok:true,...base,configured:true,connected:true,enabled:true,writable:true,
-            tasks:own.filter(task=>task.date===today),tomorrowTasks:own.filter(task=>task.date===tomorrowDate)});
+            tasks:[...own.filter(task=>task.date===today),...base.tasks],tomorrowTasks:[...own.filter(task=>task.date===tomorrowDate),...base.tomorrowTasks]});
         }
         if(actor!=='Рустам')return res.status(403).json({ok:false,...base,error:'ticktick-personal-owner-forbidden'});
-        if(!credentialsConfigured(options.env||process.env))return res.status(503).json({ok:false,...base,configured:false,connected:false,enabled:false,writable:false,error:'ticktick-not-configured'});
+        if(!credentialsConfigured(options.env||process.env))return failPersonal(503,{configured:false,connected:false,enabled:false,writable:false,error:'ticktick-not-configured'});
         // Personal agenda never reads the shared OAuth token or shared tasks.
         const token=await readPersonalToken('Рустам',options);
-        if(!token?.accessToken)return res.status(401).json({ok:false,...base,configured:true,connected:false,enabled:true,writable:false,error:'ticktick-personal-not-connected',connectUrl:'/api/ticktick/connect'});
+        if(!token?.accessToken)return failPersonal(401,{configured:true,connected:false,enabled:true,writable:false,error:'ticktick-personal-not-connected',connectUrl:'/api/ticktick/connect'});
         const config=await loadTickTickConfig(options);
         const sourceTasks=await fetchPersonalProjectTasks(token.accessToken,config.projectId,options);
         const sourceById=new Map(sourceTasks.map(task=>[String(task.id||''),task]));
@@ -2129,11 +2134,11 @@ async function handleTickTick(req, res, action, options = {}) {
             repeatCount:tickTickRepetitionsFromFlag(repeatFlag),canEdit:false,canComplete:writable,canDelete:false,assigned:false,assignee:''};
         });
         return res.status(200).json({ok:true,...base,configured:true,connected:true,enabled:true,writable,
-          tasks:mapDay(calendar,today),tomorrowTasks:mapDay(nextCalendar,tomorrowDate)});
+          tasks:[...mapDay(calendar,today),...base.tasks],tomorrowTasks:[...mapDay(nextCalendar,tomorrowDate),...base.tomorrowTasks]});
       }catch(error){
         const invalid=String(error?.message||'')==='ticktick-token-invalid';
         if(invalid&&actor==='Рустам')await clearPersonalToken('Рустам',options).catch(()=>{});
-        return res.status(invalid?401:503).json({ok:false,...base,configured:true,connected:!invalid,enabled:true,writable:false,
+        return failPersonal(invalid?401:503,{configured:true,connected:!invalid,enabled:true,writable:false,
           error:invalid?'ticktick-personal-reconnect-required':'personal-agenda-unavailable'});
       }
     }
