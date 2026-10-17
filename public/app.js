@@ -9538,7 +9538,7 @@
         if(priorityLink&&priorityLink.dataset.bound!=='1'){
           priorityLink.dataset.bound='1';
           priorityLink.addEventListener('click',()=>{
-            pendingCalendarScope='shared';
+            pendingCalendarScope=sharedAgendaScope;
             navigateToAppTab('schedule',{scroll:true});
           });
         }
@@ -13740,7 +13740,7 @@
 
         if(payload?.connected===false){
           renderTickTickDetails(null);
-          title.textContent='Подключите общий список TickTick.';
+          title.textContent=sharedAgendaScope==='personal'?'Подключите личный TickTick в настройках календаря.':'Подключите общий список TickTick.';
           badge.hidden=false;
           badge.textContent='Не подключён';
           connect.classList.add('show');
@@ -14124,7 +14124,7 @@
       async function refreshAfterTickTickTaskChange({preserveExpanded=false}={}){
         invalidateTickTickTaskViews();
         if(window.rudiCalendarOffline?.isOffline?.()){
-          await loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true}).catch(()=>{});
+          await Promise.allSettled([loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true}),loadTickTickNext({preserveExpanded,force:true})]);
           return;
         }
         await Promise.allSettled([
@@ -14186,6 +14186,7 @@
       }
 
       async function completeTickTickTodayTask(task,row,button,writable){
+        if(task?.personal===true)return completeCalendarTickTickTask(task,row,button,writable);
         if(!task?.id||row?.dataset?.busy==='1') return;
         if(!tickTickTaskCanComplete(task)){
           const badge=document.getElementById('ticktickBadge');
@@ -14239,7 +14240,69 @@
       // Keep the tab locally; only one TickTick request supplies both days.
       let sharedAgendaSelectedDay='today';
       let sharedAgendaLatestPayload=null;
+      let sharedAgendaScope='shared',sharedAgendaActor='';
+      const sharedAgendaPayloads=new Map();
+      function ensureHomeAgendaActor(){
+        if(sharedAgendaActor===currentActor)return;
+        sharedAgendaActor=currentActor;
+        sharedAgendaLatestPayload=null;
+        homeDashboardState.tasks=[];
+        document.getElementById('ticktickTodayList')?.replaceChildren();
+        sharedAgendaSelectedDay='today';
+        sharedAgendaScope='shared';
+        try{if(localStorage.getItem('rudi:home-agenda:scope:v1:'+currentActor)==='personal')sharedAgendaScope='personal'}catch(_){}
+      }
+      function homeAgendaTasks(tasks,actor=currentActor,scope=sharedAgendaScope){
+        return (Array.isArray(tasks)?tasks:[]).filter(task=>{
+          if(!task||task.completed)return false;
+          if(scope==='shared')return task.personal!==true;
+          if(task.personal!==true||task.responsible&&task.responsible!==actor)return false;
+          return actor==='Диана'?task.privateLocal===true:actor==='Рустам'&&task.privateLocal!==true;
+        });
+      }
+      async function cachedHomeAgenda(actor,scope){
+        const store=window.rudiCalendarOffline;
+        const date=todayState().key,tomorrowDate=calendarDateShift(date,1);
+        const memory=sharedAgendaPayloads.get(actor+'|'+scope);
+        const saved=await store?.cachedAgenda?.(actor,scope).catch(()=>null);
+        const home=saved?.date===date?saved:memory?.date===date?memory:null;
+        if(!store?.cached)return home?{...home,offlineStale:true,agendaActor:actor,agendaScope:scope}:null;
+        const months=[...new Set([date.slice(0,7),tomorrowDate.slice(0,7)])];
+        const snapshots=await Promise.all(months.map(async month=>{
+          const calendar=await store.cached(actor,scope,month).catch(()=>null);
+          const homeDays=home?[{date,events:home.tasks||[]},{date:tomorrowDate,events:home.tomorrowTasks||[]}].filter(day=>day.date.slice(0,7)===month):[];
+          const payload=home&&(!calendar||Number(home.offlineSavedAt||Date.now())>=Number(calendar.offlineSavedAt||0))?{ticktickDays:homeDays}:calendar;
+          return payload||store.hasPendingSync?.()?store.materialize(actor,month,payload||{ticktickDays:[]},scope):null;
+        }));
+        if(!snapshots.some(Boolean))return null;
+        const days=snapshots.filter(Boolean).flatMap(payload=>payload.ticktickDays||[]);
+        const forDay=key=>homeAgendaTasks(days.filter(day=>day.date===key).flatMap(day=>(day.events||[]).map(task=>({...task,date:key}))),actor,scope);
+        return {ok:true,configured:true,connected:true,enabled:true,writable:true,offlineStale:true,date,tomorrowDate,
+          tasks:forDay(date),tomorrowTasks:forDay(tomorrowDate),agendaActor:actor,agendaScope:scope};
+      }
+      async function setHomeAgendaScope(scope){
+        ensureHomeAgendaActor();
+        if(!['personal','shared'].includes(scope)||scope===sharedAgendaScope)return;
+        sharedAgendaScope=scope;
+        try{localStorage.setItem('rudi:home-agenda:scope:v1:'+currentActor,scope)}catch(_){}
+        const stored=sharedAgendaPayloads.get(currentActor+'|'+scope);
+        const cached=stored?.date===todayState().key?stored:null;
+        sharedAgendaLatestPayload=null;
+        renderTickTickTodayState(cached||{ok:true,configured:true,connected:true,enabled:true,agendaLoading:true,
+          agendaActor:currentActor,agendaScope:scope,tasks:[],tomorrowTasks:[]});
+        await loadTickTickNext();
+      }
+      function homeAgendaPersonalContext(task){
+        return {initData:telegramInitData(),actor:currentActor,queueOffline:queueCalendarWhenOffline,
+          refresh:()=>refreshAfterTickTickTaskChange({preserveExpanded:false}),
+          openTickTick:()=>calendarOpenPersonalTickTickTask(task)};
+      }
       function syncSharedAgendaTabs(){
+        for(const button of document.querySelectorAll('[data-home-agenda-scope]')){
+          button.setAttribute('aria-pressed',button.dataset.homeAgendaScope===sharedAgendaScope?'true':'false');
+        }
+        const add=document.getElementById('ticktickAddButton');
+        if(add)add.setAttribute('aria-label',sharedAgendaScope==='personal'?'Добавить личное дело':'Добавить совместное дело');
         for(const tab of document.querySelectorAll('#sharedAgendaTabs [data-shared-agenda-day]')){
           const active=tab.dataset.sharedAgendaDay===sharedAgendaSelectedDay;
           tab.setAttribute('aria-selected',active?'true':'false');
@@ -14247,9 +14310,15 @@
         }
         const panel=document.getElementById('ticktickPanel');
         if(panel)panel.setAttribute('aria-label',
-          'Совместные дела на '+(sharedAgendaSelectedDay==='today'?'сегодня':'завтра'));
+          (sharedAgendaScope==='personal'?'Личные дела на ':'Совместные дела на ')+(sharedAgendaSelectedDay==='today'?'сегодня':'завтра'));
       }
       function setupSharedAgendaTabs(){
+        ensureHomeAgendaActor();
+        for(const button of document.querySelectorAll('[data-home-agenda-scope]')){
+          if(button.dataset.bound==='1')continue;
+          button.dataset.bound='1';
+          button.addEventListener('click',()=>{setHomeAgendaScope(button.dataset.homeAgendaScope).catch(()=>{})});
+        }
         const tabs=[...document.querySelectorAll('#sharedAgendaTabs [data-shared-agenda-day]')];
         if(!tabs.length)return;
         const changeDay=day=>{
@@ -14273,6 +14342,8 @@
       }
 
       function renderTickTickTodayState(payload,{preserveExpanded=false}={}){
+        ensureHomeAgendaActor();
+        if(payload?.agendaActor&&payload.agendaActor!==currentActor||payload?.agendaScope&&payload.agendaScope!==sharedAgendaScope)return;
         const title=document.getElementById('ticktickTitle');
         const list=document.getElementById('ticktickTodayList');
         const date=document.getElementById('ticktickDate');
@@ -14282,6 +14353,7 @@
         const panel=document.getElementById('ticktickPanel');
         const previousOpenTaskId=preserveExpanded?String(panel.dataset.openTaskId||''):'';
         sharedAgendaLatestPayload=payload;
+        if(!payload?.agendaLoading)sharedAgendaPayloads.set(currentActor+'|'+sharedAgendaScope,payload);
         syncSharedAgendaTabs();
         panel.classList.remove('is-list-visible');
 
@@ -14304,7 +14376,7 @@
         if(payload?.connected===false){
           homeDashboardState.tasks=[];
           renderHomeDashboard();
-          title.textContent='Подключите общий список TickTick.';
+          title.textContent=sharedAgendaScope==='personal'?'Подключите личный TickTick в настройках календаря.':'Подключите общий список TickTick.';
           badge.hidden=false;badge.textContent='Не подключён';connect.classList.add('show');return;
         }
         if(payload?.enabled===false){
@@ -14315,18 +14387,18 @@
         }
 
         const todayTasks=Array.isArray(payload?.tasks)
-          ?payload.tasks.filter(task=>!task?.completed&&!tickTickTaskRecentlyCompleted(task?.id))
+          ?homeAgendaTasks(payload.tasks).filter(task=>!tickTickTaskRecentlyCompleted(task?.id)&&!tickTickTaskRecentlyCompleted(task?.id+'|'+String(task.date||payload.date||'')))
           :[];
         const tasks=sharedAgendaSelectedDay==='tomorrow'
           ?(Array.isArray(payload?.tomorrowTasks)
-            ?payload.tomorrowTasks.filter(task=>!task?.completed&&!tickTickTaskRecentlyCompleted(task?.id))
+            ?homeAgendaTasks(payload.tomorrowTasks).filter(task=>!tickTickTaskRecentlyCompleted(task?.id)&&!tickTickTaskRecentlyCompleted(task?.id+'|'+String(task.date||payload.tomorrowDate||'')))
             :[])
           :todayTasks;
         homeDashboardState.tasks=todayTasks;
         renderHomeDashboard();
         if(!tasks.length){
-          title.textContent=sharedAgendaSelectedDay==='tomorrow'?'Завтра дел нет':'Сегодня дел нет';
-          badge.hidden=true;badge.textContent='';
+          title.textContent=payload?.agendaLoading?'Загружаю дела…':sharedAgendaSelectedDay==='tomorrow'?'Завтра дел нет':'Сегодня дел нет';
+          badge.hidden=!payload?.offlineStale;badge.textContent=payload?.offlineStale?'Офлайн':'';
           if(payload?.writable===false) showTickTickWritePermission();
           return;
         }
@@ -14358,7 +14430,7 @@
           complete.className='ticktick-today-complete';
           complete.setAttribute('role','checkbox');
           complete.setAttribute('aria-checked','false');
-          const canComplete=tickTickTaskCanComplete(task);
+          const canComplete=tickTickTaskCanComplete(task)&&(task.personal!==true||task.canComplete!==false);
           complete.setAttribute('aria-label',canComplete
             ?'Отметить выполненным: '+String(task?.title||'Дело')
             :'Эта задача назначена другому участнику');
@@ -14388,12 +14460,12 @@
           copy.type='button';
           copy.className='ticktick-today-copy';
           const hasChecklist=Array.isArray(task?.checklist)&&task.checklist.length>0;
-          const canEdit=task?.canDelete===true&&payload?.writable!==false;
+          const canEdit=(task.personal===true||task?.canDelete===true)&&payload?.writable!==false;
           copy.disabled=!canEdit;
           copy.setAttribute('aria-label','Редактировать дело: '+String(task?.title||'Дело'));
           copy.addEventListener('click',event=>{
             event.stopPropagation();
-            if(canEdit)openTickTickTaskForEditing?.(task);
+            if(canEdit){if(task.personal===true)window.RUDIPersonalTaskEditor?.open(task,homeAgendaPersonalContext(task));else openTickTickTaskForEditing?.(task)}
           });
 
           const taskTitle=document.createElement('div');
@@ -14445,7 +14517,8 @@
           row.classList.toggle('is-editable',canEdit);
           row.addEventListener('click',event=>{
             if(!canEdit||event.target.closest('button,a,input,textarea,select,[contenteditable="true"]'))return;
-            openTickTickTaskForEditing?.(task);
+            if(task.personal===true)window.RUDIPersonalTaskEditor?.open(task,homeAgendaPersonalContext(task));
+            else openTickTickTaskForEditing?.(task);
           });
           list.appendChild(row);
           if(previousOpenTaskId&&String(task.id)===previousOpenTaskId&&inlineDetails)reopenTask={task,copy:checklistButton,inlineDetails};
@@ -14549,9 +14622,14 @@
           try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         };
 
-        add.addEventListener('click',()=>open(null,{
-          date:sharedAgendaSelectedDay==='tomorrow'?String(sharedAgendaLatestPayload?.tomorrowDate||''):''
-        }));
+        add.addEventListener('click',()=>{
+          if(sharedAgendaScope==='personal'){
+            const date=sharedAgendaSelectedDay==='tomorrow'?(sharedAgendaLatestPayload?.tomorrowDate||calendarDateShift(todayState().key,1)):todayState().key;
+            window.RUDIPersonalTaskEditor?.create({...homeAgendaPersonalContext(null),date,time:financeNowDateTimeInputs().time});
+            return;
+          }
+          open(null,{date:sharedAgendaSelectedDay==='tomorrow'?String(sharedAgendaLatestPayload?.tomorrowDate||calendarDateShift(todayState().key,1)):todayState().key});
+        });
         openTickTickTaskForEditing=task=>open(task);
         openTickTickTaskForCreation=options=>open(null,options);
         deleteButton?.addEventListener('click',async()=>{
@@ -14617,15 +14695,32 @@
 
       async function loadTickTickNext({preserveExpanded=false,force=false,retryOnAbort=true}={}){
         if(!currentActor) return;
+        ensureHomeAgendaActor();
+        const agendaActor=currentActor,agendaScope=sharedAgendaScope;
+        const stillCurrent=()=>agendaActor===currentActor&&agendaScope===sharedAgendaScope;
+        const localOffline=window.rudiCalendarOffline?.isOffline?.()||window.rudiHomeOffline?.isOffline?.();
+        if(localOffline){
+          const cached=await cachedHomeAgenda(agendaActor,agendaScope);
+          if(stillCurrent())renderTickTickTodayState(cached||{ok:true,configured:true,connected:true,enabled:true,offlineStale:true,
+            agendaActor,agendaScope,tasks:[],tomorrowTasks:[]},{preserveExpanded});
+          return;
+        }
         if(force) invalidateManagedRequests('ticktick-today');
         try{
-          const payload=await managedJsonRequest('ticktick-today','/api/ticktick/today',{
-            body:{initData:telegramInitData(),backupToken:currentStateBackupToken},
+          const payload=await managedJsonRequest(agendaScope==='shared'?'ticktick-today':'ticktick-today:personal:'+agendaActor,'/api/ticktick/today',{
+            body:{initData:telegramInitData(),backupToken:currentStateBackupToken,...(agendaScope==='personal'?{scope:'personal'}:{})},
             ttlMs:2*60*1000,
             timeoutMs:7000
           });
-          renderTickTickTodayState(payload,{preserveExpanded});
+          if(!stillCurrent())return;
+          await window.rudiCalendarOffline?.captureAgenda?.(agendaActor,agendaScope,payload).catch(()=>{});
+          if(!stillCurrent())return;
+          renderTickTickTodayState({...payload,agendaActor,agendaScope},{preserveExpanded});
         }catch(error){
+          if(!stillCurrent())return;
+          const local=await cachedHomeAgenda(agendaActor,agendaScope).catch(()=>null);
+          if(!stillCurrent())return;
+          if(local){renderTickTickTodayState(local,{preserveExpanded});return;}
           if(window.rudiHomeOffline?.isOffline?.()){
             const badge=document.getElementById('ticktickBadge');
             if(badge){badge.hidden=false;badge.textContent='Офлайн'}
@@ -14639,7 +14734,7 @@
             return;
           }
           if(Number(error?.status)===401){
-            renderTickTickTodayState({...error?.payload,connected:false},{preserveExpanded});
+            renderTickTickTodayState({...error?.payload,agendaActor,agendaScope,connected:false},{preserveExpanded});
             return;
           }
           const title=document.getElementById('ticktickTitle');

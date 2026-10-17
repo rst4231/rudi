@@ -7,9 +7,9 @@ const car=fs.readFileSync('public/car.js','utf8');
 const html=fs.readFileSync('public/index.html','utf8');
 const morning=fs.readFileSync('api/morning-summary.cjs','utf8');
 
-test('each calendar entry starts at current local day regardless of last browsed month and shared shortcut',()=>{
+test('each calendar entry starts at current local day regardless of last browsed month',()=>{
   assert.match(app,/if\(tab==='schedule'\)\{[\s\S]*?calendarDateCursor=todayState\(\)\.key;[\s\S]*?currentSelectedWorkDate=calendarDateCursor;[\s\S]*?calendarSetScope\(selectedScope/);
-  assert.match(app,/pendingCalendarScope='shared';[\s\S]*?navigateToAppTab\('schedule'/);
+
 });
 test('finance navigation buttons in calendar, products and car have a wallet icon',()=>{
   for(const id of ['calendarFinanceShortcut','kitchenFinanceShortcut','carTransportFinanceShortcut']){

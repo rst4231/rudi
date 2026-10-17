@@ -100,7 +100,7 @@ function render(){
  heading.setAttribute('aria-expanded',String(expanded));
  heading.disabled=!loaded||busy;
  edit.hidden=!loaded||editing;
- editIcon.hidden=false;
+ editIcon.hidden=false;editIcon.removeAttribute?.('hidden');
  editLabel.hidden=true;
  edit.classList.toggle('is-icon',true);
  edit.setAttribute('aria-label',filled?'Редактировать заметку':'Добавить заметку');

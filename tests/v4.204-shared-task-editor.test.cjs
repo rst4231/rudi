@@ -34,5 +34,5 @@ test('real profile photos and independent completion remain untouched',()=>{
   assert.match(js,/updateSharedAgendaAvatarPhoto\(avatar\)/);
   assert.match(js,/completeTickTickTodayTask\(task,row,complete,payload\?\.writable!==false\)/);
   assert.match(js,/sharedAgendaSelectedDay==='tomorrow'/);
-  assert.match(js,/managedJsonRequest\('ticktick-today','\/api\/ticktick\/today'/);
+  assert.match(js,/managedJsonRequest\(agendaScope==='shared'\?'ticktick-today':'ticktick-today:personal:'\+agendaActor,'\/api\/ticktick\/today'/);
 });

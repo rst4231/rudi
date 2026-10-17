@@ -18488,3 +18488,9 @@ body[data-app-tab="feed"] .feed-event-item .feed-event-copy{position:relative;z-
 }
 /* Keep the new climate notification switch full-size beside its explanation. */
 #settingsTemperatureAlertToggle{flex:0 0 34px;min-width:34px}
+
+/* The Home agenda retains independent scope and day controls. */
+.home-agenda-scopes{display:flex;gap:3px;width:max-content;max-width:100%;padding:3px;margin:0 0 14px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
+.home-agenda-scopes button{border:0;border-radius:9px;padding:7px 13px;min-height:34px;background:transparent;color:var(--muted);font-size:12px;font-weight:650;cursor:pointer}
+.home-agenda-scopes button[aria-pressed="true"]{background:var(--surface-strong);color:var(--text);box-shadow:0 1px 5px #0000000a}
+.home-agenda-scopes button:focus-visible{outline:2px solid #4578e6;outline-offset:2px}

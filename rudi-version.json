@@ -1,24 +1,26 @@
 {
-  "current": "v4.265",
-  "versionBranch": "fix/note-icons-literacy-format",
+  "current": "v4.266",
+  "versionBranch": "feature/home-agenda-scopes",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-18",
-  "basedOnProduction": "v4.264",
+  "basedOnProduction": "v4.265",
   "notes": [
-    "Личная заметка: кнопки с иконками вместо подписей",
-    "Объяснение статьи: правильные переносы, абзацы и списки",
-    "Удаление выбранной личной заметки с подтверждением и офлайн-синхронизацией",
-    "Заметки: убраны кнопки истории и закрепления",
-    "Исправлено сохранение нового дела Дианы при пустом ответе базы"
+    "Главная: блок Дела с переключателем Личные / Совместные",
+    "Сегодня и Завтра сохранены для каждого источника задач",
+    "Личные задачи берутся только из календаря текущего пользователя",
+    "Одна личная заметка: убраны список, создание дополнительных заметок и удаление",
+    "Исправлено отображение иконки карандаша личной заметки",
+    "Заголовок Дела больше не открывает календарь"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Icon-only personal note actions with accessible labels",
-    "Normalize escaped line breaks and render structured article explanations",
-    "Delete selected personal notes with confirmation and offline synchronization",
-    "Remove note history and pin toolbar buttons",
-    "Correct missing D1 record handling for Diana task creation"
+    "Home agenda personal/shared scope selector",
+    "Keep today and tomorrow controls for both agenda scopes",
+    "Load only the authenticated actor personal calendar tasks",
+    "Single-note interface without collection, add or delete buttons",
+    "Show the note pencil SVG without a hidden attribute",
+    "Remove the agenda heading calendar link"
   ]
 }

@@ -227,3 +227,12 @@ test('Diana recurring offline create, occurrence completion, series edit/delete 
  await o.enqueue('Диана','diana-delete',{taskId:'diana-repeat-a__2026-10-21',operation:'delete'});
  result=await o.materialize('Диана','2026-10',base,'personal');const remaining=result.ticktickDays.flatMap(day=>day.events);assert.equal(remaining.length,1);assert.equal(remaining[0].completed,true);
 });
+test('Home agenda durable snapshots isolate scope and actor without overwriting calendar or storing credentials',async()=>{
+ const h=harness(),o=h.api;
+ assert.equal(typeof o.captureAgenda,'function');
+ await o.capture('Диана','personal','2026-10',{days:[{date:'2026-10-17'}],ticktickDays:[]});
+ await o.captureAgenda('Диана','personal',{ok:true,date:'2026-10-17',tomorrowDate:'2026-10-18',tasks:[{id:'d',personal:true,privateLocal:true,title:'Дело',accessToken:'secret'}],tomorrowTasks:[],initData:'secret',backupToken:'secret'});
+ assert.equal((await o.cachedAgenda('Диана','personal')).tasks[0].id,'d');assert.equal(await o.cachedAgenda('Рустам','personal'),null);assert.equal(await o.cachedAgenda('Диана','shared'),null);
+ assert.equal((await o.cached('Диана','personal','2026-10')).days.length,1);
+ assert.equal(JSON.stringify([...h.records.get('snapshots').values()]).includes('secret'),false);
+});

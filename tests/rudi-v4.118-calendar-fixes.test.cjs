@@ -43,12 +43,13 @@ test('week agenda renders hourly timeline with optional timed and all-day events
  assert.match(css,/calendar-week-now-line/);
 });
 
-test('settings gear and home shared shortcut are accessible',()=>{
+test('settings gear and home agenda shortcut are accessible',()=>{
  assert.match(html,/id="calendarConnectionsGear"/);
  assert.match(html,/id="calendarPersonalTickTickConnect"/);
  assert.match(html,/id="calendarSharedTickTickConnect"/);
- assert.match(html,/id="priorityCalendarOpen"/);
- assert.match(app,/pendingCalendarScope='shared'/);
+ assert.match(html,/<h2 id="priorityTitle">Дела<\/h2>/);
+ assert.doesNotMatch(html,/id="priorityCalendarOpen"/);
+
  assert.match(app,/const selectedScope=pendingCalendarScope==='shared'/);
 });
 test('week and month use personal blue and shared green colors',()=>{

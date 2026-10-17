@@ -62,7 +62,26 @@
   async function cached(who, scope, month) {
     if (!who) return null;
     const row = await store('snapshots', 'readonly', table => table.get(key(who, scope, month)));
-    return row?.payload ? { ...clone(row.payload), stale: true, offlineStale: true } : null;
+    return row?.payload ? { ...clone(row.payload), stale: true, offlineStale: true, offlineSavedAt:row.savedAt } : null;
+  }
+  function cleanAgenda(value){
+    if(Array.isArray(value))return value.map(cleanAgenda);
+    if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value)
+      .filter(([key])=>! /^(initData|backupToken|token|accessToken|refreshToken|authorization|secret|password|credential)$/i.test(key))
+      .map(([key,item])=>[key,cleanAgenda(item)]));
+    return value;
+  }
+  async function captureAgenda(who,scope,payload){
+    if(!['Рустам','Диана'].includes(who)||!['personal','shared'].includes(scope)||!payload?.date)return;
+    const data={};
+    for(const field of ['ok','configured','connected','enabled','writable','date','tomorrowDate','tasks','tomorrowTasks'])
+      if(payload[field]!==undefined)data[field]=payload[field];
+    await change('snapshots',table=>table.put({key:key(who,'home-agenda',scope),savedAt:Date.now(),payload:cleanAgenda(data)}));
+  }
+  async function cachedAgenda(who,scope){
+    if(!['Рустам','Диана'].includes(who)||!['personal','shared'].includes(scope))return null;
+    const row=await store('snapshots','readonly',table=>table.get(key(who,'home-agenda',scope)));
+    return row?.payload?{...clone(row.payload),offlineStale:true,offlineSavedAt:row.savedAt}:null;
   }
   async function enqueue(who, kind, details) {
     if (kind.startsWith('diana-') && who !== 'Диана')throw Error('calendar-offline-owner-forbidden');
@@ -368,7 +387,7 @@
     }
   },20000);
   root.rudiCalendarOffline = {
-    init, cached, capture, materialize, enqueue, flush, summary,
+    init, cached, capture, cachedAgenda, captureAgenda, materialize, enqueue, flush, summary,
     hasPendingSync: () => pending > 0,
     isSyncing: () => syncing,
     isOffline: offlineNow,

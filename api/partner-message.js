@@ -2094,6 +2094,50 @@ async function handleTickTick(req, res, action, options = {}) {
       return res.status(statusForError(error)).json({ ok: false, error: String(error?.message || error) });
     }
 
+    if(String(body.scope||'')==='personal'){
+      const now=options.now?new Date(options.now):new Date();
+      const today=calendarDateKey(now),tomorrowNow=new Date(now.getTime()+86400000),tomorrowDate=calendarDateKey(tomorrowNow);
+      const base={scope:'personal',date:today,todayDate:today,tomorrowDate,tasks:[],tomorrowTasks:[]};
+      try{
+        if(actor==='Диана'){
+          const {personalTasks}=require('./diana-personal-tasks.cjs');
+          const months=[...new Set([today.slice(0,7),tomorrowDate.slice(0,7)])];
+          const results=await Promise.all(months.map(month=>personalTasks({actor,operation:'list',month},options)));
+          const own=results.flatMap(result=>Array.isArray(result.tasks)?result.tasks:[])
+            .filter(task=>task.personal===true&&task.responsible===actor&&!task.completed);
+          return res.status(200).json({ok:true,...base,configured:true,connected:true,enabled:true,writable:true,
+            tasks:own.filter(task=>task.date===today),tomorrowTasks:own.filter(task=>task.date===tomorrowDate)});
+        }
+        if(actor!=='Рустам')return res.status(403).json({ok:false,...base,error:'ticktick-personal-owner-forbidden'});
+        if(!credentialsConfigured(options.env||process.env))return res.status(503).json({ok:false,...base,configured:false,connected:false,enabled:false,writable:false,error:'ticktick-not-configured'});
+        // Personal agenda never reads the shared OAuth token or shared tasks.
+        const token=await readPersonalToken('Рустам',options);
+        if(!token?.accessToken)return res.status(401).json({ok:false,...base,configured:true,connected:false,enabled:true,writable:false,error:'ticktick-personal-not-connected',connectUrl:'/api/ticktick/connect'});
+        const config=await loadTickTickConfig(options);
+        const sourceTasks=await fetchPersonalProjectTasks(token.accessToken,config.projectId,options);
+        const sourceById=new Map(sourceTasks.map(task=>[String(task.id||''),task]));
+        const calendar=buildTickTickCalendar(sourceTasks,now,'month');
+        const nextCalendar=today.slice(0,7)===tomorrowDate.slice(0,7)?calendar:buildTickTickCalendar(sourceTasks,tomorrowNow,'month');
+        const writable=tokenHasWriteScope(token)!==false;
+        const mapDay=(cal,date)=>(cal.days.find(day=>day.date===date)?.events||[]).filter(event=>!event.completed).map(event=>{
+          const source=sourceById.get(String(event.id||''))||{},repeatFlag=String(source.repeatFlag||'');
+          return {...event,date,personal:true,privateLocal:false,responsible:actor,ownerScope:'rustam',
+            projectId:String(source.projectId||''),projectName:String(source.projectName||'Список'),
+            originalStartDate:String(source.startDate||source.dueDate||''),originalTimeZone:String(source.timeZone||''),
+            description:String(source.desc||source.content||'').slice(0,5000),repeatFlag,
+            repeat:repeatFlag.includes('BYDAY=MO,TU,WE,TH,FR')?'weekdays':(repeatFlag.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1]||'none').toLowerCase(),
+            repeatCount:tickTickRepetitionsFromFlag(repeatFlag),canEdit:false,canComplete:writable,canDelete:false,assigned:false,assignee:''};
+        });
+        return res.status(200).json({ok:true,...base,configured:true,connected:true,enabled:true,writable,
+          tasks:mapDay(calendar,today),tomorrowTasks:mapDay(nextCalendar,tomorrowDate)});
+      }catch(error){
+        const invalid=String(error?.message||'')==='ticktick-token-invalid';
+        if(invalid&&actor==='Рустам')await clearPersonalToken('Рустам',options).catch(()=>{});
+        return res.status(invalid?401:503).json({ok:false,...base,configured:true,connected:!invalid,enabled:true,writable:false,
+          error:invalid?'ticktick-personal-reconnect-required':'personal-agenda-unavailable'});
+      }
+    }
+
     if (!credentialsConfigured(options.env || process.env)) {
       return res.status(503).json({ ok: false, connected: false, configured: false, tasks: [], error: 'ticktick-not-configured' });
     }

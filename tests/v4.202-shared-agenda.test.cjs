@@ -15,7 +15,7 @@ test('today endpoint supplies tomorrow with no second client request',()=>{
   assert.match(api,/const tomorrowDate = calendarDateKey/);
   assert.match(api,/const tomorrowTasks = mapAgendaDay/);
   assert.match(api,/date: today, tasks, tomorrowDate, tomorrowTasks/);
-  assert.match(js,/managedJsonRequest\('ticktick-today','\/api\/ticktick\/today'/);
+  assert.match(js,/managedJsonRequest\(agendaScope==='shared'\?'ticktick-today':'ticktick-today:personal:'\+agendaActor,'\/api\/ticktick\/today'/);
   assert.match(js,/if\(sharedAgendaLatestPayload\)renderTickTickTodayState\(sharedAgendaLatestPayload\)/);
 });
 test('switching tabs does not change Home today task count',()=>{

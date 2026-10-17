@@ -58,6 +58,7 @@ async function noteClipboard({clipboard=true,deny=false,fallback=true,value='ÐŸÐ
 }
 test('note uses pencil edit control and copies all multiline text without expanding it',async()=>{
  const h=await noteClipboard();
+ const markup=fs.readFileSync('public/index.html','utf8').match(/<svg id="homeNoteEditIcon"[^>]*>/)?.[0];assert.ok(markup);assert.doesNotMatch(markup,/\shidden(?:[=>\s]|$)/);
  assert.equal(h.get('homeNoteEditIcon').hidden,false);
  assert.equal(h.get('homeNoteEditLabel').hidden,true);
  assert.equal(h.get('homeNoteContent').hidden,true);
