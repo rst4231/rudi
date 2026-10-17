@@ -18388,6 +18388,12 @@ body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today
 body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-meta{
   display:none!important;
 }
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-reward{
+  display:block!important;
+}
+body[data-app-tab="home"] .priority-section .ticktick-today-task .ticktick-today-reward::before{
+  content:none;
+}
 body[data-app-tab="home"] .priority-section .ticktick-today-task,
 body[data-app-tab="home"] .priority-section .ticktick-today-task.has-delete{
   min-height:66px;

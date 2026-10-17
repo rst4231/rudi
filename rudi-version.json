@@ -1,22 +1,20 @@
 {
-  "current": "v4.269",
-  "versionBranch": "fix/weather-provider-partial-and-payment-contrast",
+  "current": "v4.270",
+  "versionBranch": "fix/home-agenda-rewards-and-bill-emoji",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-18",
-  "basedOnProduction": "v4.268",
+  "basedOnProduction": "v4.269",
   "notes": [
-    "Исправлен контраст полей выбора кошелька и категории в тёмной теме",
-    "Прогноз сохраняет доступные дни, если источник ещё не заполнил дальние даты",
-    "Кнопка «Новое» надёжно скрыта в объединённом режиме",
-    "Окно прогноза блокирует прокрутку фона во всех режимах и восстанавливает позицию при закрытии"
+    "Под совместными задачами на главной показана награда +2 ⭐ за выполнение",
+    "Счета на оплату в личном и объединённом списках отмечены 💵 в начале названия",
+    "В корзине продуктов удалена кнопка очистки, справа оставлена кнопка покупки отмеченных продуктов"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Fix bill payment and forecast native select contrast in dark mode",
-    "Handle unavailable tail days in extended weather provider response",
-    "Fix toolbar CSS overriding the combined agenda creation button hidden state",
-    "Lock page scroll while the weather dialog is open across all forecast modes"
+    "Show completion reward for shared Home agenda tasks, including combined scope",
+    "Prefix finance bills in the Home agenda with the money emoji without duplicates",
+    "Remove clear-cart action and keep the existing purchased-items button in its place"
   ]
 }

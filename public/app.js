@@ -14501,9 +14501,14 @@
           const taskTitle=document.createElement('div');
           taskTitle.className='ticktick-today-title';
           taskTitle.textContent=String(task?.title||'Дело');
+          if(task.financeObligation&&!taskTitle.textContent.startsWith('💵'))taskTitle.textContent='💵 '+taskTitle.textContent;
           const meta=document.createElement('div');
           meta.className='ticktick-today-meta';
           meta.textContent=task.financeObligation?'Счёт на оплату · '+financeOverviewMoney(task.amount):task.externalCalendar?'iCloud · только просмотр':ownerLabel;
+          if(task.personal!==true&&!task.financeObligation&&!task.externalCalendar){
+            meta.classList.add('ticktick-today-reward');
+            meta.textContent='+2 ⭐ за выполнение';
+          }
           meta.hidden=!meta.textContent;
           copy.append(taskTitle,meta);
           const placeText=String(task?.location||'').trim();
@@ -19742,7 +19747,6 @@
         const groups=document.getElementById('productsGroups');
         const empty=document.getElementById('productsEmpty');
         const status=document.getElementById('productsStatus');
-        const clear=document.getElementById('productsClear');
         const boughtAll=document.getElementById('productsBought');
         const historyList=document.getElementById('productsHistory');
         const historyEmpty=document.getElementById('productsHistoryEmpty');
@@ -19750,7 +19754,6 @@
         if(!groups||!empty||!historyList) return;
 
         setProductsBadge(items.length);
-        if(clear) clear.disabled=!items.length;
         if(boughtAll){
           boughtAll.textContent=currentActor==='Диана'?'Купила':'Купил';
           const checkedCount=items.filter(item=>Boolean(item.checked)).length;
@@ -20905,13 +20908,12 @@
         const form=document.getElementById('productsForm');
         const input=document.getElementById('productsInput');
         const add=document.getElementById('productsAdd');
-        const clear=document.getElementById('productsClear');
         const boughtAll=document.getElementById('productsBought');
         const recoveryPanel=document.getElementById('productsRecovery');
         const recoveryButton=document.getElementById('productsRecoveryButton');
         const recoveryText=document.getElementById('productsRecoveryText');
         const historyToggle=document.getElementById('productsHistoryToggle');
-        if(!form||!input||!add||!clear||!boughtAll) return;
+        if(!form||!input||!add||!boughtAll) return;
         boughtAll.textContent=currentActor==='Диана'?'Купила':'Купил';
 
         historyToggle?.addEventListener('click',()=>{
@@ -20986,40 +20988,6 @@
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }
         });
-
-        clear.addEventListener('click',async()=>{
-          if(clear.disabled) return;
-          clear.disabled=true;
-          const groups=document.getElementById('productsGroups');
-          const empty=document.getElementById('productsEmpty');
-          const status=document.getElementById('productsStatus');
-          if(groups) groups.replaceChildren();
-          if(empty) empty.hidden=false;
-          if(status){status.textContent='';status.hidden=true}
-          setProductsBadge(false);
-          homeDashboardState.productCount=0;
-          renderHomeDashboard();
-          try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
-          try{
-            const data=await productsRequest('clear');
-            renderProducts(data);
-            productsRecoveryChecked=true;
-            productsRecoveryCandidate='';
-            hideProductsRecovery();
-            const removed=Array.isArray(data?.removedItems)?data.removedItems:[];
-            if(removed.length){
-              showUndoSnackbar('Удалено',async()=>{
-                const restored=await productsRequest('restore',{items:removed});
-                renderProducts(restored);
-              });
-            }
-          }catch(_){
-            await loadProducts({silent:true}).catch(()=>{});
-            clear.disabled=false;
-            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-          }
-        });
-
       }
 
       let currentRecipeSet=[];
