@@ -9,12 +9,14 @@
   "notes": [
     "Исправлен контраст полей выбора кошелька и категории в тёмной теме",
     "Прогноз сохраняет доступные дни, если источник ещё не заполнил дальние даты",
-    "Кнопка «Новое» надёжно скрыта в объединённом режиме"
+    "Кнопка «Новое» надёжно скрыта в объединённом режиме",
+    "Окно прогноза блокирует прокрутку фона во всех режимах и восстанавливает позицию при закрытии"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
     "Fix bill payment and forecast native select contrast in dark mode",
     "Handle unavailable tail days in extended weather provider response",
-    "Fix toolbar CSS overriding the combined agenda creation button hidden state"
+    "Fix toolbar CSS overriding the combined agenda creation button hidden state",
+    "Lock page scroll while the weather dialog is open across all forecast modes"
   ]
 }

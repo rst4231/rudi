@@ -1,7 +1,7 @@
 /* Forecast details share the existing weather service; nothing fetches until tap. */
 (function(){
 'use strict';
-let modal=null,returnFocus=null,payload=null,view='day',selected='',month='',generation=0;
+let modal=null,returnFocus=null,payload=null,view='day',selected='',month='',generation=0,restoreScroll=null;
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 const number=(value,suffix='')=>Number.isFinite(value)?Math.round(value)+suffix:'—';
 const emoji=code=>code===0?'☀️':[1,2,3].includes(code)?'☁️':[45,48].includes(code)?'🌫️':[71,73,75,77,85,86].includes(code)?'❄️':[95,96,99].includes(code)?'⛈️':'🌧️';
@@ -12,7 +12,14 @@ function model(data){
 }
 function node(tag,text,className){const el=document.createElement(tag);if(text!==undefined)el.textContent=text;if(className)el.className=className;return el}
 const label=date=>new Date(date+'T12:00:00Z').toLocaleDateString('ru-RU',{day:'numeric',month:'short',weekday:'short',timeZone:'Europe/Moscow'});
-function close(){if(!modal)return;generation++;modal.remove();modal=null;const target=returnFocus?.isConnected?returnFocus:document.querySelector('[data-weather-forecast]');target?.focus?.();}
+function lockBackground(){
+ const body=document.body,root=document.documentElement,x=window.scrollX||0,y=window.scrollY||0;
+ const before=Object.fromEntries(['position','top','left','width','overflow'].map(key=>[key,body.style[key]]));
+ const overflow=root.style.overflow,behavior=root.style.scrollBehavior;
+ body.style.position='fixed';body.style.top=-y+'px';body.style.left=-x+'px';body.style.width='100%';body.style.overflow='hidden';root.style.overflow='hidden';
+ return ()=>{for(const [key,value] of Object.entries(before))body.style[key]=value;root.style.overflow=overflow;root.style.scrollBehavior='auto';window.scrollTo(x,y);root.style.scrollBehavior=behavior};
+}
+function close(){if(!modal)return;generation++;modal.remove();modal=null;restoreScroll?.();restoreScroll=null;const target=returnFocus?.isConnected?returnFocus:document.querySelector('[data-weather-forecast]');target?.focus?.({preventScroll:true});}
 function render(){
  if(!modal)return;
  const content=modal.querySelector('.weather-forecast-content'),status=modal.querySelector('.weather-forecast-status');content.replaceChildren();
@@ -54,7 +61,9 @@ function render(){
 async function open(trigger){
  if(modal)return;returnFocus=trigger;view='day';selected=today();month=selected.slice(0,7);payload=null;const revision=++generation;
  modal=node('div',undefined,'weather-forecast-backdrop');modal.innerHTML='<section class="weather-forecast-dialog" role="dialog" aria-modal="true" aria-labelledby="weatherForecastTitle"><header><h2 id="weatherForecastTitle">Прогноз погоды</h2><button type="button" class="weather-forecast-close" aria-label="Закрыть прогноз">×</button></header><div class="weather-forecast-tabs" role="tablist" aria-label="Период прогноза"><button type="button" role="tab" data-forecast-view="day">День · по часам</button><button type="button" role="tab" data-forecast-view="week">Неделя</button><button type="button" role="tab" data-forecast-view="month">Месяц</button></div><p class="weather-forecast-status" role="status" aria-live="polite">Загружаю прогноз…</p><div class="weather-forecast-content" tabindex="0"></div><footer>Источник: Open-Meteo · время московское · прогноз может меняться</footer></section>';
+ restoreScroll=lockBackground();
  document.body.append(modal);modal.querySelector('.weather-forecast-close').addEventListener('click',close);modal.addEventListener('click',event=>{if(event.target===modal)close()});
+ for(const type of ['touchmove','wheel'])modal.addEventListener(type,event=>{if(!event.target.closest?.('.weather-forecast-content'))event.preventDefault()},{passive:false});
  for(const button of modal.querySelectorAll('[data-forecast-view]'))button.addEventListener('click',()=>{view=button.dataset.forecastView;render()});
  modal.addEventListener('keydown',event=>{
   if(event.key==='Escape'){event.preventDefault();close();return}
