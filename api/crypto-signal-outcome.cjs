@@ -78,13 +78,15 @@ function tradeOutcome(signal,candles,options={}){
   const netClosed=complete?Math.round(closedPct*100)/100:null;
   if(unknownSize)return {status:complete?'author-closed-size-unknown':'size-unknown',
     entry,entryAt:new Date(entryAt).toISOString(),
+    execution:hasLiveEntry?'market-at-sync':signal.entry?'explicit-level':'next-hour-model',
     ...(complete?{exitAt:new Date(exitAt).toISOString(),exitPrice,closedByAuthor:true,openFraction:0}:{}),
     legs,timeline,reason:'missing-closed-percentage',
     priceChangePct:null};
   const common={entry,entryAt:new Date(entryAt).toISOString(),execution:hasLiveEntry?
     'market-at-sync':signal.entry?'explicit-level':'next-hour-model',legs,timeline,closedFraction:Math.round((1-remaining)*10000)/10000,
     openFraction:remaining,realizedPricePct:Math.round(closedPct*100)/100,
-    unquantifiedAdditions:riskUnknown,marketPrice:Number.isFinite(last?.close)?last.close:null};
+    unquantifiedAdditions:riskUnknown,marketPrice:last&&last.at>=entryAt?last.close:
+      hasLiveEntry?(Number(saved.marketPrice)>0?Number(saved.marketPrice):entry):null};
   if(complete)return {...common,status:netClosed>0?'won':netClosed<0?'lost':'breakeven',
     exitAt:new Date(exitAt).toISOString(),exitPrice,priceChangePct:netClosed};
   return {...common,status:'open'};

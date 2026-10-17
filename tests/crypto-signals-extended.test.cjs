@@ -7,6 +7,96 @@ const now=Date.parse('2026-10-11T12:30:00Z');
 const base={id:10,at:'2026-10-11T08:20:00Z',url:'https://t.me/ne_investor/10'};
 const bar=(hour,open,low,high,close)=>({at:Date.parse('2026-10-11T'+hour+':00:00Z'),open,low,high,close});
 
+// Exercise the real parser, refresh, saved state and portfolio together.
+function liveMonitor(messages,initialResults={}){
+  const {refreshSignals}=require('../api/crypto-signals.cjs');
+  let state={messages,results:initialResults,backfillComplete:true};
+  const requests=[];
+  const client={getRecord:async()=>({value:state}),setRecord:async row=>{state=row.value}};
+  const html=messages.map(m=>'<div data-post="ne_investor/'+m.id+'">'+
+    '<time datetime="'+m.at+'"></time><div class="tgme_widget_message_text">'+m.text+'</div></div>').join('');
+  return {requests,get state(){return state},run:async(at,price=105.25)=>refreshSignals({
+    client,now:at,force:true,fetchImpl:async()=>({ok:true,text:async()=>html}),
+    marketRequest:async path=>{
+      requests.push(path);
+      if(path==='/v5/market/tickers?category=linear')return {retCode:0,result:{list:[
+        {symbol:'AVAUSDT',lastPrice:String(price)},{symbol:'BATUSDT',lastPrice:'0.2'}]}};
+      if(path.includes('/tickers?'))throw Error('bybit-http-404');
+      return {retCode:0,result:{list:[]}};
+    }
+  })};
+}
+
+test('Delayed unpriced entry captures current quote and appears in the virtual portfolio',async()=>{
+  const m=liveMonitor([{...base,text:'$AVA беру в лонг'}]);
+  const report=await m.run(now);
+  const s=report.signals[0];
+  assert.equal(s.status,'open');
+  assert.equal(s.entry,105.25);
+  assert.equal(s.execution,'market-at-sync');
+  assert.equal(s.entryAt,new Date(now).toISOString());
+  assert.equal(m.state.results[base.id].entry,105.25);
+  const p=simulateVirtual(report.signals,normalizeConfig({startedAt:'2026-10-10T00:00:00Z'}),now);
+  assert.equal(p.stats.open,1);
+  assert.equal(p.positions[0].entry,105.25);
+});
+
+test('Multiple unpriced entries reuse the same ticker list during a sync',async()=>{
+  const m=liveMonitor([{...base,text:'$AVA беру в лонг'},
+    {...base,id:11,text:'$BAT беру в шорт'}]);
+  const report=await m.run(now);
+  assert.deepEqual(report.signals.map(s=>s.entry).sort((a,b)=>a-b),[0.2,105.25]);
+  assert.deepEqual(m.requests,['/v5/market/tickers?category=linear']);
+});
+
+test('A missing quote is retried later without resetting an already saved entry',async()=>{
+  const m=liveMonitor([{...base,text:'$AVA беру в лонг'}]);
+  const failed=await m.run(now,0);
+  assert.equal(failed.signals[0].entry,null);
+  assert.equal(failed.signals[0].status,'market-unavailable');
+  const recovered=await m.run(now+16*60000,107);
+  assert.equal(recovered.signals[0].entry,107);
+  const again=await m.run(now+32*60000,120);
+  assert.equal(again.signals[0].entry,107);
+  assert.equal(again.signals[0].execution,'market-at-sync');
+  assert.equal(again.signals[0].entryAt,recovered.signals[0].entryAt);
+  assert.equal(again.signals[0].marketPrice,107);
+});
+
+test('Explicit, conditional and author-closed signals never get a new live entry',async()=>{
+  const messages=[{...base,text:'$AVA беру в лонг, вход 100'},
+    {...base,id:11,text:'$BAT можно брать в шорт если закрепится'},
+    {...base,id:12,text:'$ETH беру в лонг'},
+    {...base,id:13,at:'2026-10-11T09:00:00Z',text:'$ETH закрываю позицию',references:[12]}];
+  const m=liveMonitor(messages);
+  const report=await m.run(now);
+  assert.equal(m.requests.some(path=>path.includes('/tickers?')),false);
+  assert.equal(report.signals.find(s=>s.id===11).status,'conditional');
+  assert.equal(report.signals.find(s=>s.id===12).status,'author-closed-awaiting-price');
+});
+
+test('Saved market entry stays priced before the first later hourly candle',()=>{
+  const s=parseSignal({...base,text:'$AVA беру в лонг'});
+  const result=tradeOutcome(s,[],{now,openedPosition:{entry:105.25,
+    marketPrice:105.25,entryAt:'2026-10-11T12:15:00Z',execution:'market-at-sync'}});
+  assert.equal(result.entry,105.25);
+  assert.equal(result.marketPrice,105.25);
+  assert.equal(result.status,'open');
+});
+
+test('Unknown partial exit keeps the original live entry on later recalculation',()=>{
+  const s=parseSignal({...base,text:'$AVA беру в лонг'});
+  linkUpdates([s],[{...base,id:11,at:'2026-10-11T09:30:00Z',references:[base.id],text:'Закрыл часть позиции'}]);
+  const bars=[bar('10',110,105,115,111),bar('11',115,110,120,117)];
+  const saved={entry:105.25,entryAt:'2026-10-11T09:15:00Z',execution:'market-at-sync'};
+  const first=tradeOutcome(s,bars,{now,openedPosition:saved});
+  assert.equal(first.status,'size-unknown');
+  assert.equal(first.execution,'market-at-sync');
+  const next=tradeOutcome(s,bars,{now,openedPosition:first});
+  assert.equal(next.entry,105.25);
+  assert.equal(next.entryAt,first.entryAt);
+});
+
 test('Bybit Spot and Perpetual are distinct; direct long defaults to derivatives',()=>{
   assert.equal(marketFromText('Bybit Spot беру лонг','long').market,'spot');
   assert.equal(marketFromText('спот шорт','short').market,'unconfirmed');

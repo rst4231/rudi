@@ -245,7 +245,7 @@ function modeledTrade(signal,candles,messages=[],now=Date.now()){
     entryAt:new Date(first.at).toISOString(),marketPrice:price,
     lastPriceAt:new Date(last.at).toISOString()};
 }
-// Capture the current Bybit quote ONCE for fresh new direct entries only.
+// Capture the current quote ONCE when an unpriced direct entry is first synced.
 async function marketPriceForSignal(signal,marketRequest){
   if(!['linear','spot'].includes(signal?.market))throw Error('market-unconfirmed');
   const symbol=signal.symbol+'USDT';
@@ -314,7 +314,9 @@ async function refreshSignals(options={}){
         attempts++;
         try{
           const signalAge=now-Date.parse(s.at);
-          if(!s.entry&&!acceptedPrev?.entry&&signalAge>=0&&signalAge<=3600000){
+          const authorExit=(s.events||[]).some(e=>Date.parse(e.at)<=now&&
+            ['partial-close','full-close'].includes(e.type));
+          if(!s.entry&&!acceptedPrev?.entry&&signalAge>=0&&!authorExit){
             const livePrice=await marketPriceForSignal(s,marketRequest);
             const openedAt=new Date(now).toISOString();
             results[s.id]={status:'open',entry:livePrice,entryAt:openedAt,marketPrice:livePrice,

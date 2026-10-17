@@ -48,8 +48,19 @@ function createOkxReference({fetchImpl=globalThis.fetch,origin=process.env.RUDI_
 function createResilientAuthorMarketRequest(options={}){
  const primary=options.primary||createMarketRequest({fetchImpl:options.fetchImpl});
  const fallback=options.fallback||createOkxReference(options);
+ // The gateway already caches the full linear ticker list. Reuse it for all
+ // live entries in this refresh; keep symbol-specific paths for OKX fallback.
+ let linearTickers=null;
  const market=async path=>{
-  try{const result=await primary(path);market.lastSource='bybit';return result}
+  try{
+   const url=new URL(path,'https://rudi.invalid');
+   let result;
+   if(url.pathname==='/v5/market/tickers'&&url.searchParams.get('category')==='linear'){
+    if(!linearTickers)linearTickers=primary('/v5/market/tickers?category=linear');
+    result=await linearTickers;
+   }else result=await primary(path);
+   market.lastSource='bybit';return result;
+  }
   catch(error){
    if(String(error?.message||error)!=='bybit-http-403')throw error;
    // An alternate exchange is only a labelled reference and cannot replace
