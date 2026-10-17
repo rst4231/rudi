@@ -11,6 +11,21 @@ function valid(data) {
     && numericKeys.every(key => Array.isArray(daily?.[key]) && daily[key].length === days && daily[key].every(Number.isFinite))
     && sunKeys.every(key => Array.isArray(daily?.[key]) && daily[key].length === days && daily[key].every(value => typeof value === 'string' && value.length > 0));
 }
+function normalizeForecast(data){
+  const daily=data?.daily||{},hourly=data?.hourly||{};
+  const required=['temperature_2m_min','temperature_2m_max','precipitation_sum'];
+  const validDays=(Array.isArray(daily.time)?daily.time:[]).map((date,index)=>({date,index})).filter(({date,index})=>
+    typeof date==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(date)&&required.every(key=>Number.isFinite(daily[key]?.[index]))&&
+    (!Array.isArray(daily.weather_code)||Number.isFinite(daily.weather_code[index]))&&
+    ['sunrise','sunset'].every(key=>typeof daily[key]?.[index]==='string'&&daily[key][index].length>0));
+  const dates=new Set(validDays.map(item=>item.date));
+  const mapArrays=(source,indices)=>Object.fromEntries(Object.entries(source).map(([key,value])=>[key,Array.isArray(value)?indices.map(index=>value[index]):value]));
+  const hours=(Array.isArray(hourly.time)?hourly.time:[]).map((time,index)=>({time,index})).filter(({time,index})=>
+    typeof time==='string'&&dates.has(time.slice(0,10))&&
+    ['temperature_2m','apparent_temperature','weather_code','wind_speed_10m','precipitation_probability','precipitation','rain']
+      .every(key=>!Array.isArray(hourly[key])||Number.isFinite(hourly[key][index])));
+  return {...data,daily:mapArrays(daily,validDays.map(item=>item.index)),hourly:mapArrays(hourly,hours.map(item=>item.index))};
+}
 function createWeatherService({fetchImpl = globalThis.fetch, now = Date.now, timeoutMs = 6000} = {}) {
   let cached = null, flight = null;
   return async function getWeather() {
@@ -22,7 +37,7 @@ function createWeatherService({fetchImpl = globalThis.fetch, now = Date.now, tim
       try {
         const response = await fetchImpl(URL, {signal: controller.signal});
         if (!response.ok) throw new Error('Weather provider unavailable');
-        const data = await response.json();
+        const data = normalizeForecast(await response.json());
         if (!valid(data)) throw new Error('Invalid forecast');
         cached = {current: data.current, hourly: data.hourly || {}, daily: data.daily, fetchedAt: now(), stale: false};
         return cached;
@@ -46,4 +61,4 @@ async function handleWeatherRequest(req, res) {
     return res.status(503).json({error: 'Weather temporarily unavailable'});
   }
 }
-module.exports = {createWeatherService, getWeather, handleWeatherRequest};
+module.exports = {createWeatherService, getWeather, handleWeatherRequest, normalizeForecast};

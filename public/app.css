@@ -18496,4 +18496,4 @@ body[data-app-tab="feed"] .feed-event-item .feed-event-copy{position:relative;z-
 .home-agenda-scopes button:focus-visible{outline:2px solid #4578e6;outline-offset:2px}
 
 .home-agenda-scopes .home-agenda-combined{display:inline-flex;align-items:center;justify-content:center;padding:7px 10px;min-width:34px}
-#ticktickAddButton[hidden]{display:none}
+#ticktickAddButton[hidden]{display:none!important}

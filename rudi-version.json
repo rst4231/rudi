@@ -1,24 +1,20 @@
 {
-  "current": "v4.268",
-  "versionBranch": "feature/weather-personal-calendar-agenda",
+  "current": "v4.269",
+  "versionBranch": "fix/weather-provider-partial-and-payment-contrast",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-18",
-  "basedOnProduction": "v4.267",
+  "basedOnProduction": "v4.268",
   "notes": [
-    "Погода по тапу: почасовой прогноз, неделя и месяц",
-    "Подписка iCloud в личном календаре Дианы",
-    "Объединённый список своих личных и совместных дел",
-    "Неоплаченные счета в личных и объединённых делах",
-    "После оплаты счёта: выбор кошелька и категории с кнопкой закрытия"
+    "Исправлен контраст полей выбора кошелька и категории в тёмной теме",
+    "Прогноз сохраняет доступные дни, если источник ещё не заполнил дальние даты",
+    "Кнопка «Новое» надёжно скрыта в объединённом режиме"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Add accessible weather forecast views and extended shared cache",
-    "Add private read-only iCloud subscription for Diana",
-    "Add icon-only combined Home agenda without creation action",
-    "Include actor-owned unpaid finance obligations in personal Home agenda with finance payment handling",
-    "Offer wallet and category picker after marking a bill paid, with explicit idempotent expense entry"
+    "Fix bill payment and forecast native select contrast in dark mode",
+    "Handle unavailable tail days in extended weather provider response",
+    "Fix toolbar CSS overriding the combined agenda creation button hidden state"
   ]
 }

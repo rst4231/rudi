@@ -101,3 +101,22 @@ test('forecast model never invents hourly temperature or future dates',()=>{
  assert.equal(real.hours[0].temperature,12);assert.equal(real.hours[1].temperature,null);
  const js=fs.readFileSync('public/weather-forecast.js','utf8');assert.match(js,/нет данных/);assert.match(js,/За этим горизонтом данных нет/);assert.match(js,/event\.key==='Escape'/);assert.match(js,/generation!==revision/);
 });
+
+test('provider null tail is removed consistently without turning missing future values into zero',async()=>{
+ const {createWeatherService,normalizeForecast}=require('../api/weather.cjs');
+ const partial={...sample,hourly:{...sample.hourly,time:['2026-09-30T19:00','2026-10-01T20:00','2026-10-02T00:00'],temperature_2m:[12,null,null],apparent_temperature:[10,null,null],weather_code:[3,null,null],wind_speed_10m:[5,null,null],precipitation:[0,null,null],rain:[0,null,null],precipitation_probability:[0,null,null]},daily:{...sample.daily,time:['2026-09-30','2026-10-01','2026-10-02'],sunrise:['2026-09-30T06:56','2026-10-01T06:58','2026-10-02T07:00'],sunset:['2026-09-30T18:34','2026-10-01T18:31','2026-10-02T18:29'],temperature_2m_min:[7,null,null],temperature_2m_max:[14,null,null],precipitation_sum:[0,null,null],weather_code:[3,null,null],wind_speed_10m_max:[9,null,null]}};
+ const result=normalizeForecast(partial);assert.deepEqual(result.daily.time,['2026-09-30']);assert.deepEqual(result.daily.wind_speed_10m_max,[9]);assert.deepEqual(result.hourly.temperature_2m,[12]);assert.deepEqual(result.hourly.time,['2026-09-30T19:00']);
+ const service=createWeatherService({fetchImpl:async()=>({ok:true,json:async()=>partial})});assert.equal((await service()).daily.time.length,1);
+ const empty=createWeatherService({fetchImpl:async()=>({ok:true,json:async()=>({...partial,daily:{...partial.daily,temperature_2m_min:[null,null,null]}})})});await assert.rejects(empty(),/Invalid forecast/);
+});
+test('16-day provider with a 14-day available horizon keeps exactly matching hourly dates',()=>{
+ const {normalizeForecast}=require('../api/weather.cjs');
+ const dates=Array.from({length:16},(_,i)=>new Date(Date.UTC(2026,9,17+i)).toISOString().slice(0,10));
+ const daily={time:dates,sunrise:dates.map(day=>day+'T07:00'),sunset:dates.map(day=>day+'T18:00')};
+ for(const key of ['temperature_2m_min','temperature_2m_max','precipitation_sum','weather_code'])daily[key]=dates.map((_,i)=>i<14?7:null);
+ const hourly={time:dates.flatMap(day=>Array.from({length:24},(_,i)=>day+'T'+String(i).padStart(2,'0')+':00'))};
+ for(const key of ['temperature_2m','apparent_temperature','weather_code','precipitation_probability','rain','precipitation','wind_speed_10m'])hourly[key]=hourly.time.map((_,i)=>i<336?7:null);
+ const result=normalizeForecast({current:sample.current,daily,hourly});
+ assert.equal(result.daily.time.length,14);assert.equal(result.hourly.time.length,336);
+ assert.ok(result.hourly.temperature_2m.every(Number.isFinite));assert.equal(result.hourly.time.at(-1).slice(0,10),result.daily.time.at(-1));
+});
