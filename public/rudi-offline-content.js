@@ -194,7 +194,7 @@ async function send(row){
  let url,body;
  if(row.kind==='note'||row.kind==='note-view'){
   url='/api/home-note';
-  body={operation:row.kind==='note'?'save':'set-expanded',...(row.kind==='note'?{id:row.scope||'home'}:{}),...row.data};
+  body={operation:row.kind==='note'?(row.data?.deleted?'delete':'save'):'set-expanded',...(row.kind==='note'?{id:row.scope||'home'}:{}),...row.data};
  }else if(row.kind==='question'){
   url='/api/partner-message?rudiAction=daily-question';
   body={operation:'answer',...row.data};
@@ -256,8 +256,8 @@ async function flush(){
       const prior=await cached('note',who);
       if(prior){
        const id=row.data.id||row.scope||'home';
-       const notes=Array.isArray(prior.notes)?prior.notes.map(note=>note.id===id&&note.text===row.data.text&&(!('title' in row.data)||note.title===row.data.title)&&(!('pinned' in row.data)||note.pinned===row.data.pinned)?{...note,updatedAt:result.note.updatedAt,history:result.note.history||note.history}:note):prior.notes;
-       await capture('note',{...prior,...(id==='home'&&prior.text===row.data.text?{updatedAt:result.note.updatedAt}:{}),...(notes?{notes}:{})},who);
+       const notes=Array.isArray(prior.notes)?prior.notes.filter(note=>!(result.note.deleted&&note.id===id)).map(note=>note.id===id&&note.text===row.data.text&&(!('title' in row.data)||note.title===row.data.title)&&(!('pinned' in row.data)||note.pinned===row.data.pinned)?{...note,updatedAt:result.note.updatedAt,history:result.note.history||note.history}:note):prior.notes;
+       await capture('note',{...prior,...(id==='home'&&(result.note.deleted||prior.text===row.data.text)?{updatedAt:result.note.updatedAt,...(result.note.deleted?{text:'',deleted:true}:{})}:{}),...(notes?{notes}:{})},who);
       }
      }
      root.dispatchEvent(new CustomEvent('rudi-content-operation-synced',{detail:{actor:who,kind:row.kind,scope:row.scope,area:row.data?.area,operation:row.data?.operation,result}}));

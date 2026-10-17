@@ -96,3 +96,8 @@ html[data-theme="dark"] #homeNoteTile .home-note-cancel{background:rgba(255,255,
 #homeNoteTile .home-note-actions button:first-child{margin-right:auto}
 html[data-theme="dark"] #homeNoteTile .home-note-title{background:rgba(0,0,0,.19);border-color:rgba(231,199,131,.25)}
 #homeNoteTile button:focus-visible,#homeNoteTile input:focus-visible{outline:2px solid currentColor;outline-offset:2px}
+
+/* Compact icon actions; note names and version previews remain readable. */
+#homeNoteTile :is(.home-note-tools,.home-note-secondary,.home-note-actions) button,#homeNoteResolve{display:inline-grid;place-items:center;width:38px;height:38px;min-height:38px;padding:8px;flex:none;box-sizing:border-box}
+#homeNoteTile :is(.home-note-tools,.home-note-secondary,.home-note-actions) button svg,#homeNoteResolve svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#homeNotePin[aria-pressed="true"]{background:rgba(150,111,33,.25)}

@@ -5515,6 +5515,34 @@
         }else appendFinanceLiteracyInline(li,value);
         host.append(li);
       }
+      function renderFinanceLiteracyText(host,value){
+        host.replaceChildren();
+        const raw=String(value||'').replace(/\\r\\n|\\n|\\r/g,'\n').replace(/\r\n?/g,'\n').trim();
+        const chunks=raw.split(/\n{2,}/).flatMap(block=>block.split(/\n(?=\s*(?:\d+[.)]\s+|[-•*—]\s+))/)).map(text=>text.trim()).filter(Boolean);
+        let lastList=null,lastListType='',hasLead=false;
+        for(const text of chunks){
+          const lines=text.split(/\n/).map(line=>line.trim()).filter(Boolean);
+          const numbered=/^\d+[.)]\s+/.test(text);
+          const bullets=lines.length>0&&lines.every(line=>/^[-•*—]\s+/.test(line));
+          const numberedLines=lines.length>1&&lines.every(line=>/^\d+[.)]\s+/.test(line));
+          if(numbered||numberedLines||bullets){
+            const kind=bullets?'ul':'ol';
+            if(!lastList||lastListType!==kind){
+              lastList=document.createElement(kind);if(kind==='ol')lastList.start=Number(text.match(/^\d+/)?.[0]||1);host.append(lastList);lastListType=kind;
+            }
+            for(const line of (numberedLines||bullets?lines:[text])){
+              appendFinanceLiteracyListItem(lastList,line.replace(kind==='ol'?/^\d+[.)]\s+/:/^[-•*—]\s+/,''));
+            }
+            continue;
+          }
+          lastList=null;lastListType='';
+          const headingText=text.replace(/^#{1,4}\s*/,'').trim();
+          const headingCandidate=/^#{1,4}\s+/.test(text)||(lines.length===1&&text.length<=72&&!/[.!?]$/.test(text)&&hasLead);
+          if(headingCandidate){appendFinanceLiteracyParagraph(host,headingText,'h3');continue;}
+          const node=appendFinanceLiteracyParagraph(host,text);
+          if(!hasLead){node.classList.add('finance-literacy-lead');hasLead=true;}
+        }
+      }
       let financeLiteracyExplanationRevision=0;
       function configureFinanceLiteracyExplanation(article){
         const revision=++financeLiteracyExplanationRevision,actor=currentActor;
@@ -5535,7 +5563,7 @@
             if(!text)throw Error('empty-explanation');
             host.replaceChildren();
             appendFinanceLiteracyParagraph(host,'Объяснение простыми словами','h3');
-            for(const paragraph of text.split(/\n\s*\n/).filter(Boolean))appendFinanceLiteracyParagraph(host,paragraph);
+            const copy=document.createElement('div');renderFinanceLiteracyText(copy,text);host.append(copy);
             host.hidden=false;ready=true;button.textContent='Скрыть объяснение';status.textContent='';
           }catch(error){
             if(actor===currentActor&&revision===financeLiteracyExplanationRevision)
@@ -5551,31 +5579,7 @@
         configureFinanceLiteracyExplanation(article);
         if(title)title.textContent=String(article.title||'Финансовая грамотность');
         body.replaceChildren();
-        const raw=String(article.body||'').replace(/\r\n?/g,'\n').trim();
-        const chunks=raw.split(/\n{2,}/).flatMap(block=>block.split(/\n(?=\s*\d+[.)]\s+)/)).map(text=>text.trim()).filter(Boolean);
-        let lastList=null,lastListType='',hasLead=false;
-        for(const text of chunks){
-          const lines=text.split(/\n/).map(line=>line.trim()).filter(Boolean);
-          const numbered=/^\d+[.)]\s+/.test(text);
-          const bullets=lines.length>0&&lines.every(line=>/^[-•*—]\s+/.test(line));
-          const numberedLines=lines.length>1&&lines.every(line=>/^\d+[.)]\s+/.test(line));
-          if(numbered||numberedLines||bullets){
-            const kind=bullets?'ul':'ol';
-            if(!lastList||lastListType!==kind){
-              lastList=document.createElement(kind);body.append(lastList);lastListType=kind;
-            }
-            for(const line of (numberedLines||bullets?lines:[text])){
-              appendFinanceLiteracyListItem(lastList,line.replace(kind==='ol'?/^\d+[.)]\s+/:/^[-•*—]\s+/,''));
-            }
-            continue;
-          }
-          lastList=null;lastListType='';
-          const headingText=text.replace(/^#{1,4}\s*/,'').trim();
-          const headingCandidate=/^#{1,4}\s+/.test(text)||(lines.length===1&&text.length<=72&&!/[.!?]$/.test(text)&&hasLead);
-          if(headingCandidate){appendFinanceLiteracyParagraph(body,headingText,'h3');continue;}
-          const node=appendFinanceLiteracyParagraph(body,text);
-          if(!hasLead){node.classList.add('finance-literacy-lead');hasLead=true;}
-        }
+        renderFinanceLiteracyText(body,article.body);
         const books=(Array.isArray(article.books)?article.books:[]).filter(Boolean);
         if(source){source.hidden=!books.length;source.textContent=books.length?'Идеи по мотивам: '+books.join(' · '):''}
         if(status)status.textContent='';

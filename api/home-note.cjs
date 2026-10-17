@@ -11,7 +11,7 @@ const validId=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{1,80}$/.test(id);
 const noteKey=id=>id==='home'?NOTE_KEY:'home-note-v2:'+id;
 function normalizeStored(value){
  const row=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
- return {text:typeof row.text==='string'?row.text.slice(0,MAX_LENGTH):'',updatedAt:typeof row.updatedAt==='string'?row.updatedAt:'',title:typeof row.title==='string'?row.title.slice(0,100):'',pinned:row.pinned===true,history:Array.isArray(row.history)?row.history.slice(-20).filter(v=>v&&typeof v.text==='string').map(v=>({text:v.text.slice(0,MAX_LENGTH),title:String(v.title||'').slice(0,100),pinned:v.pinned===true,updatedAt:String(v.updatedAt||'')})):[]};
+ return {...(row.deleted===true?{deleted:true}:{}),text:typeof row.text==='string'?row.text.slice(0,MAX_LENGTH):'',updatedAt:typeof row.updatedAt==='string'?row.updatedAt:'',title:typeof row.title==='string'?row.title.slice(0,100):'',pinned:row.pinned===true,history:Array.isArray(row.history)?row.history.slice(-20).filter(v=>v&&typeof v.text==='string').map(v=>({text:v.text.slice(0,MAX_LENGTH),title:String(v.title||'').slice(0,100),pinned:v.pinned===true,updatedAt:String(v.updatedAt||'')})):[]};
 }
 function createHandler(deps={}){
  const authorize=deps.authorizeRequest||authorizeRequest;
@@ -64,14 +64,35 @@ function createHandler(deps={}){
    if(operation==='get'){
     const [note,view,index]=await Promise.all([read(actor,NOTE_KEY),read(actor,NOTE_EXPANDED_KEY),read(actor,NOTES_INDEX_KEY)]);
     const ids=['home',...new Set((Array.isArray(index?.ids)?index.ids:[]).filter(id=>validId(id)&&id!=='home'))];
-    const notes=await Promise.all(ids.map(async id=>{const row=normalizeStored(id==='home'?note:await read(actor,noteKey(id)));return {id,...row,history:[],historyCount:row.history.length}}));
+    const summaries=await Promise.all(ids.map(async id=>{const row=normalizeStored(id==='home'?note:await read(actor,noteKey(id)));return {id,...row,history:[],historyCount:row.history.length}}));
+    const notes=summaries.filter(note=>!note.deleted);
     const expanded=typeof view?.expanded==='boolean'?view.expanded:null;
-    return res.status(200).json({ok:true,note:{...notes[0],expanded},notes});
+    return res.status(200).json({ok:true,note:{...summaries[0],expanded},notes});
    }
    if(operation==='set-expanded'){
     if(typeof body.expanded!=='boolean')return res.status(400).json({ok:false,error:'invalid-note-expanded'});
     await write(actor,NOTE_EXPANDED_KEY,{expanded:body.expanded,updatedAt:now()});
     return res.status(200).json({ok:true,expanded:body.expanded});
+   }
+   if(operation==='delete'){
+    const id=body.id===undefined?'home':body.id;
+    if(!validId(id))return res.status(400).json({ok:false,error:'invalid-note'});
+    const release=await acquire(actor);
+    try{
+     const previous=normalizeStored(await read(actor,noteKey(id)));
+     if(!previous.deleted&&previous.updatedAt!==String(body.expectedUpdatedAt||''))return res.status(409).json({ok:false,error:'note-conflict',note:{id,...previous}});
+     let updatedAt=now();
+     if(Date.parse(updatedAt)<=Date.parse(previous.updatedAt))updatedAt=new Date(Date.parse(previous.updatedAt)+1).toISOString();
+     const note=previous.deleted?{id,...previous}:{id,deleted:true,text:'',title:'',pinned:false,history:[],updatedAt};
+     // Keep a content-free tombstone, including for the legacy home record:
+     // queued edits from another tab/device must never recreate this ID.
+     if(!previous.deleted)await write(actor,noteKey(id),note);
+     if(id!=='home'){
+      const index=await read(actor,NOTES_INDEX_KEY);
+      if(Array.isArray(index?.ids)&&index.ids.includes(id))await write(actor,NOTES_INDEX_KEY,{ids:index.ids.filter(value=>value!==id)});
+     }
+     return res.status(200).json({ok:true,note,...(previous.deleted?{idempotent:true}:{})});
+    }finally{await release().catch(error=>console.error('RUDI_HOME_NOTE_LOCK_RELEASE',String(error?.message||error)))}
    }
    if(operation==='save'){
     const release=await acquire(actor);
@@ -82,6 +103,7 @@ function createHandler(deps={}){
     const id=body.id===undefined?'home':body.id;
     if(!validId(id)||typeof body.title!=='undefined'&&(typeof body.title!=='string'||body.title.length>100)||typeof body.pinned!=='undefined'&&typeof body.pinned!=='boolean')return res.status(400).json({ok:false,error:'invalid-note'});
     const previous=normalizeStored(await read(actor,noteKey(id)));
+    if(previous.deleted)return res.status(409).json({ok:false,error:'note-conflict',note:{id,...previous}});
     const title=body.title===undefined?previous.title:body.title.trim();
     const pinned=body.pinned===undefined?previous.pinned:body.pinned;
     // Register first: a failed text write can be retried, and a lost reply must
@@ -89,7 +111,7 @@ function createHandler(deps={}){
     if(id!=='home'){
       const index=await read(actor,NOTES_INDEX_KEY);
       const ids=Array.isArray(index?.ids)?index.ids:[];
-      if(!ids.includes(id)&&ids.filter(value=>value!=='home').length>=29)return res.status(400).json({ok:false,error:'note-limit'});
+      if(!ids.includes(id)&&ids.filter(value=>value!=='home').length+(normalizeStored(await read(actor,NOTE_KEY)).deleted?0:1)>=30)return res.status(400).json({ok:false,error:'note-limit'});
       if(!ids.includes(id))await write(actor,NOTES_INDEX_KEY,{ids:[...ids,id]});
     }
     const same=previous.text===text&&previous.title===title&&previous.pinned===pinned;

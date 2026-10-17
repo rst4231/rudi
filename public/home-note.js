@@ -13,10 +13,12 @@ const LIMIT=8000;
 let text='',loaded=false,expanded=false,preferredExpanded=false,editing=false,busy=false,lastFetched=0,loading=null,baseUpdatedAt='';
 let viewSave=Promise.resolve();
 let sessionActor=window.rudiOfflineContent?.actor?.()||'',epoch=0,selectionRevision=0;
+let conflictId='home';
 let correcting=false,activeId='home',notes=[],undo=null;
+const remove=$('homeNoteDelete');
 const titleInput=$('homeNoteTitle'),list=$('homeNoteList'),pin=$('homeNotePin'),add=$('homeNoteAdd'),historyButton=$('homeNoteHistory'),historyPanel=$('homeNoteVersions'),undoButton=$('homeNoteUndo'),checklist=$('homeNoteChecklist');
 function current(){return notes.find(n=>n.id===activeId)||{id:activeId,text,title:'',pinned:false,history:[],updatedAt:baseUpdatedAt}}
-function adopt(note){selectionRevision++;if(historyPanel)historyPanel.hidden=true;activeId=note.id||'home';text=note.text||'';baseUpdatedAt=note.updatedAt||'';if(titleInput)titleInput.value=note.title||'';undo=null;editing=false;}
+function adopt(note={id:'note-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10),text:'',title:'',history:[],updatedAt:''}){selectionRevision++;if(historyPanel)historyPanel.hidden=true;activeId=note.id||'home';text=note.text||'';baseUpdatedAt=note.updatedAt||'';if(titleInput)titleInput.value=note.title||'';undo=null;editing=false;}
 function put(note){const at=notes.findIndex(n=>n.id===note.id);if(at<0)notes.push(note);else notes[at]=note;}
 function version(note){return {text:note.text||'',title:note.title||'',pinned:note.pinned===true,updatedAt:note.updatedAt||''}}
 function renderNotes(){
@@ -27,7 +29,8 @@ function renderNotes(){
    button.addEventListener('click',()=>{if(editing){showStatus('Сохрани или отмени изменения перед переходом');return}adopt(note);expanded=true;showStatus('');render();void updateConflictStatus()});list.appendChild(button);
   }
  }
- if(pin){pin.hidden=!loaded;pin.disabled=busy||editing;pin.textContent=current().pinned?'Открепить':'Закрепить'}
+ if(remove){remove.hidden=!loaded||!notes.some(n=>n.id===activeId);remove.disabled=busy||editing;}
+ if(pin){pin.hidden=!loaded;pin.disabled=busy||editing;pin.setAttribute('aria-label',current().pinned?'Открепить заметку':'Закрепить заметку');pin.title=current().pinned?'Открепить заметку':'Закрепить заметку';pin.setAttribute('aria-pressed',String(current().pinned===true))}
  if(add){add.disabled=busy||editing||notes.length>=30;add.title=notes.length>=30?'Можно создать до 30 заметок':'Новая заметка'}
  if(historyButton){historyButton.disabled=busy||editing;historyButton.hidden=!(current().history?.length||current().historyCount)}
  if(undoButton){undoButton.hidden=!undo;undoButton.disabled=busy||editing}
@@ -97,16 +100,16 @@ function render(){
  heading.setAttribute('aria-expanded',String(expanded));
  heading.disabled=!loaded||busy;
  edit.hidden=!loaded||editing;
- editIcon.hidden=!filled;
- editLabel.hidden=filled;
- edit.classList.toggle('is-icon',filled);
+ editIcon.hidden=false;
+ editLabel.hidden=true;
+ edit.classList.toggle('is-icon',true);
  edit.setAttribute('aria-label',filled?'Редактировать заметку':'Добавить заметку');
  edit.title=filled?'Редактировать заметку':'Добавить заметку';
  copy.hidden=!loaded||editing||!filled;
  copy.disabled=busy;
  proofread.hidden=!loaded||!filled;
  proofread.disabled=busy||correcting||navigator.onLine===false;
- proofread.textContent=correcting?'Проверяю…':'Исправить';
+ proofread.setAttribute('aria-label',correcting?'Проверяю ошибки…':'Исправить ошибки через Groq');proofread.title=correcting?'Проверяю ошибки…':'Исправить ошибки через Groq';
  proofread.setAttribute('aria-busy',String(correcting));
  content.hidden=!expanded;
  preview.hidden=!expanded||editing||!filled;
@@ -131,8 +134,8 @@ async function load(){
     // An interrupted local save may have reached outbox before snapshot commit.
     const queuedNote=queued.filter(x=>x.scope==='home').slice(-1)[0]?.data;
     if(local||queuedNote||queued.length){
-     notes=Array.isArray(local?.notes)?local.notes.map(n=>({...n})): [{id:'home',text:String(local?.text||''),title:'',pinned:false,history:[],updatedAt:String(local?.updatedAt||'')}];
-     for(const row of queued){const id=row.data?.id||row.scope||'home';const previous=notes.find(n=>n.id===id)||{id,history:[]};put({...previous,...row.data,id,history:row.data.localHistory||previous.history||[],updatedAt:row.data.expectedUpdatedAt||''})}
+     notes=Array.isArray(local?.notes)?local.notes.filter(n=>!n.deleted).map(n=>({...n})): [{id:'home',text:String(local?.text||''),title:'',pinned:false,history:[],updatedAt:String(local?.updatedAt||'')}];
+     for(const row of queued){const id=row.data?.id||row.scope||'home';if(row.data?.deleted){notes=notes.filter(n=>n.id!==id);continue;}const previous=notes.find(n=>n.id===id)||{id,history:[]};put({...previous,...row.data,id,history:row.data.localHistory||previous.history||[],updatedAt:row.data.expectedUpdatedAt||''})}
      adopt(notes.find(n=>n.id===activeId)||notes[0]);
 
      preferredExpanded=typeof local?.expanded==='boolean'?local.expanded:Boolean(text.trim());
@@ -300,21 +303,23 @@ async function updateConflictStatus(){
  const offline=window.rudiOfflineContent;
  if(!offline?.actor?.())return;
  const id=activeId,generation=epoch;
- const pending=await offline.pending('note',id).catch(()=>[]);
+ const pending=await offline.pending('note').catch(()=>[]);
  if(id!==activeId||generation!==epoch)return;
- const collision=pending.find(row=>row.error==='note-conflict');
+ const collision=pending.find(row=>row.scope===id&&row.error==='note-conflict')||pending.find(row=>row.data?.deleted&&row.error==='note-conflict');
+ conflictId=collision?.scope||id;
  if(resolve)resolve.hidden=!collision;
- if(collision)showStatus('Ошибка синхронизации: облачная заметка изменилась. Твоя версия сохранена на устройстве.');
+ if(collision)showStatus(collision.data?.deleted?'Удаление не синхронизировано: заметка изменилась на другом устройстве. Разреши конфликт, чтобы подтвердить удаление.':'Ошибка синхронизации: облачная заметка изменилась. Твоя версия сохранена на устройстве.');
 }
 resolve?.addEventListener('click',async()=>{
  if(busy)return;
- const offline=window.rudiOfflineContent,id=activeId,generation=epoch,who=offline?.actor?.();
+ const offline=window.rudiOfflineContent,id=conflictId,generation=epoch,who=offline?.actor?.();
  try{
   busy=true;render();
   const cloud=await request('get');
   if(generation!==epoch)return;
   const revision=String((cloud.notes||[{id:'home',...cloud.note}]).find(n=>n.id===id)?.updatedAt||'');
-  const answer=window.confirm('Заметка была изменена на другом устройстве. Заменить облачную версию твоей локальной заметкой?');
+  const deletion=(await offline.pending('note',id)).some(row=>row.data?.deleted);
+  const answer=window.confirm(deletion?'Заметка была изменена на другом устройстве. Всё равно удалить её?':'Заметка была изменена на другом устройстве. Заменить облачную версию твоей локальной заметкой?');
   if(!answer)return;
   await offline.rebaseNote(revision,who,id);
   resolve.hidden=true;
@@ -344,6 +349,22 @@ window.addEventListener('rudi-content-operation-synced',event=>{
  }
 });
 window.addEventListener('rudi-content-network-recovered',()=>{if(!editing&&!busy)void load()});
+remove?.addEventListener('click',async()=>{
+ if(busy||editing||!notes.some(n=>n.id===activeId))return;
+ const note=current(),id=activeId,generation=epoch,offline=window.rudiOfflineContent,who=offline?.actor?.();
+ if(!window.confirm('Удалить заметку «'+(note.title||'Без названия')+'»? Это действие нельзя отменить.'))return;
+ busy=true;selectionRevision++;render();
+ try{
+  if(who)await offline.enqueue('note',id,{id,deleted:true,expectedUpdatedAt:baseUpdatedAt},who);
+  else await request('delete',{id,expectedUpdatedAt:baseUpdatedAt});
+  if(generation!==epoch)return;
+  notes=notes.filter(n=>n.id!==id);adopt([...notes].sort((a,b)=>Number(b.pinned)-Number(a.pinned))[0]);
+  textarea.value='';expanded=true;
+  if(who){await offline.capture('note',{text:notes.find(n=>n.id==='home')?.text||'',notes,expanded:true},who);if(!offline.isOffline())void offline.flush();}
+  showStatus(who?'Заметка удалена на устройстве · ожидает синхронизации':'Заметка удалена');
+ }catch(error){if(generation===epoch)showStatus(error.message||'Не удалось удалить заметку')}
+ finally{if(generation===epoch){busy=false;render();void updateConflictStatus()}}
+});
 add?.addEventListener('click',()=>{
  if(busy||editing)return;
  if(notes.length>=30){showStatus('Можно создать до 30 заметок');return;}

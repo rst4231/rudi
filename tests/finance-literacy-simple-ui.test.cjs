@@ -4,9 +4,9 @@ const fs=require('node:fs'),vm=require('node:vm');
 function fixture(){
  const source=fs.readFileSync('public/app.js','utf8');
  const code=source.slice(source.indexOf('let financeLiteracyExplanationRevision=0;'),source.indexOf('function renderFinanceLiteracy(article)'));
- const nodes=Object.fromEntries(['financeLiteracyExplainButton','financeLiteracyExplainStatus','financeLiteracyExplanation'].map(id=>[id,{textContent:'',hidden:false,disabled:false,children:[],replaceChildren(){this.children=[];}}]));
+ const nodes=Object.fromEntries(['financeLiteracyExplainButton','financeLiteracyExplainStatus','financeLiteracyExplanation'].map(id=>[id,{textContent:'',hidden:false,disabled:false,children:[],replaceChildren(){this.children=[];},append(node){this.children.push(...node.children);}}]));
  let resolve;let calls=0;
- const context=vm.createContext({currentActor:'Рустам',document:{getElementById:id=>nodes[id]},financeRequest:()=>{calls++;return new Promise(r=>{resolve=r})},appendFinanceLiteracyParagraph:(host,text)=>host.children.push(text)});
+ const context=vm.createContext({currentActor:'Рустам',document:{getElementById:id=>nodes[id],createElement:()=>({children:[]})},financeRequest:()=>{calls++;return new Promise(r=>{resolve=r})},renderFinanceLiteracyText:(host,text)=>{host.children=text.split(/\n\s*\n/).filter(Boolean)},appendFinanceLiteracyParagraph:(host,text)=>host.children.push(text)});
  vm.runInContext(code,context);
  return{nodes,context,configure:article=>context.configureFinanceLiteracyExplanation(article),reply:data=>resolve(data),calls:()=>calls};
 }
@@ -29,4 +29,28 @@ test('wrong article response shows an error and leaves retry available',async()=
  const f=fixture();f.configure({id:'a'});const pending=f.nodes.financeLiteracyExplainButton.onclick();
  f.reply({articleId:'b',explanation:{text:'Чужая статья'}});await pending;
  assert.match(f.nodes.financeLiteracyExplainStatus.textContent,/обновилась/);assert.equal(f.nodes.financeLiteracyExplainButton.disabled,false);
+});
+
+test('article formatter turns escaped newlines into paragraphs and semantic lists',()=>{
+ const source=fs.readFileSync('public/app.js','utf8');
+ const code=source.slice(source.indexOf('function renderFinanceLiteracyText(host,value)'),source.indexOf('let financeLiteracyExplanationRevision=0;'));
+ const element=tag=>({tag,children:[],classList:{add(){}},append(child){this.children.push(child)},replaceChildren(){this.children=[]}});
+ const context=vm.createContext({document:{createElement:element},appendFinanceLiteracyParagraph:(host,text,tag='p')=>{const node=element(tag);node.text=text;host.append(node);return node},appendFinanceLiteracyListItem:(host,text)=>{host.append({tag:'li',text})}});
+ vm.runInContext(code,context);const host=element('div');
+ context.renderFinanceLiteracyText(host,'Простой пример.\\n\\n1. Первый шаг\\n2. Второй шаг\\n\\n• Еда\\n• Дом');
+ assert.deepEqual(host.children.map(n=>n.tag),['p','ol','ul']);
+ assert.deepEqual(host.children[1].children.map(n=>n.text),['Первый шаг','Второй шаг']);
+ assert.deepEqual(host.children[2].children.map(n=>n.text),['Еда','Дом']);
+});
+
+test('numbered explanation steps split embedded bullets and preserve the following step number',()=>{
+ const source=fs.readFileSync('public/app.js','utf8');
+ const code=source.slice(source.indexOf('function renderFinanceLiteracyText(host,value)'),source.indexOf('let financeLiteracyExplanationRevision=0;'));
+ const element=tag=>({tag,children:[],classList:{add(){}},append(child){this.children.push(child)},replaceChildren(){this.children=[]}});
+ const context=vm.createContext({document:{createElement:element},appendFinanceLiteracyParagraph:(host,text)=>{const node=element('p');node.text=text;host.append(node);return node},appendFinanceLiteracyListItem:(host,text)=>host.append({tag:'li',text})});
+ vm.runInContext(code,context);const host=element('div');
+ context.renderFinanceLiteracyText(host,'2. Раздели деньги:\\n• Еда\\n• Дом\\n\\n3. Подожди день.');
+ assert.deepEqual(host.children.map(n=>n.tag),['ol','ul','ol']);
+ assert.equal(host.children[0].start,2);assert.equal(host.children[2].start,3);
+ assert.equal(host.children[1].children.length,2);
 });

@@ -168,3 +168,17 @@ test('an edit made while its prior version is in flight remains queued with the 
  const row=(await api.pending('note','ideas'))[0];assert.equal(row.data.text,'Второе');assert.equal(row.data.expectedUpdatedAt,'server-revision');
  assert.equal((await api.flush()).pending,0);assert.equal(h.requests.at(-1).body.text,'Второе');
 });
+
+test('save then delete coalesces to a durable deletion without leaking deleted text or losing baseline',async()=>{
+ const h=makeHarness();let api=h.mount();api.init('Рустам');
+ await api.enqueue('note','shopping',{id:'shopping',text:'Секрет',expectedUpdatedAt:'r1'});
+ await api.enqueue('note','shopping',{id:'shopping',deleted:true,expectedUpdatedAt:'ignored'});
+ api=h.mount();api.init('Рустам');const pending=await api.pending('note','shopping');assert.equal(pending.length,1);assert.equal(pending[0].data.deleted,true);assert.equal(pending[0].data.expectedUpdatedAt,'r1');assert.equal(pending[0].data.text,undefined);
+ h.online(true);assert.equal((await api.flush()).pending,0);assert.equal(h.requests[0].body.operation,'delete');assert.equal(h.requests[0].body.id,'shopping');
+});
+test('a deletion queued during an in-flight save survives ack and uses saved revision on retry',async()=>{
+ const h=makeHarness(),api=h.mount();api.init('Рустам');await api.enqueue('note','home',{text:'Исходная',expectedUpdatedAt:'r0'});
+ let once=false;h.intercept(async body=>{if(!once&&body.operation==='save'){once=true;await api.enqueue('note','home',{id:'home',deleted:true,expectedUpdatedAt:'r0'})}return null});
+ h.online(true);assert.equal((await api.flush()).pending,1);const row=(await api.pending('note','home'))[0];assert.equal(row.data.deleted,true);assert.equal(row.data.expectedUpdatedAt,'server-revision');
+ assert.equal((await api.flush()).pending,0);assert.equal(h.requests.at(-1).body.operation,'delete');
+});

@@ -1,29 +1,24 @@
 {
-  "current": "v4.264",
-  "versionBranch": "feature/notes-diana-calendar",
+  "current": "v4.265",
+  "versionBranch": "fix/note-icons-literacy-format",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-10-17",
-  "basedOnProduction": "v4.263",
+  "createdAt": "2026-10-18",
+  "basedOnProduction": "v4.264",
   "notes": [
-    "Личные заметки: несколько записей, названия, закрепление и чек-листы",
-    "История версий и отмена исправления Groq с сохранением исходного текста",
-    "Копирование всей заметки, карандаш редактирования и заголовок без стрелки",
-    "Календарь Дианы: личные дела с группировкой утро/день/вечер без выбора категории",
-    "Календарь: повторы и дни недели, перетаскивание Дианы, редактор по нажатию для обоих",
-    "Завершённые личные дела сохраняются в календаре два месяца",
-    "Грамотность: объяснение статьи простыми словами через Groq",
-    "Один проверенный релиз; пользователь разрешил сразу опубликовать весь пакет"
+    "Личная заметка: кнопки с иконками вместо подписей",
+    "Объяснение статьи: правильные переносы, абзацы и списки",
+    "Удаление выбранной личной заметки с подтверждением и офлайн-синхронизацией",
+    "Заметки: убраны кнопки истории и закрепления",
+    "Исправлено сохранение нового дела Дианы при пустом ответе базы"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Private multi-note collection with pinning and checklist items",
-    "Per-note version history and undo after Groq proofreading",
-    "Copy-all note action and compact controls",
-    "Diana actor-scoped private calendar tasks with day-period grouping",
-    "Recurring Diana tasks, existing drag behavior and tap-to-edit for both users",
-    "Completed personal task history retained for two calendar months",
-    "Age-8 plain-language article explanation via Groq"
+    "Icon-only personal note actions with accessible labels",
+    "Normalize escaped line breaks and render structured article explanations",
+    "Delete selected personal notes with confirmation and offline synchronization",
+    "Remove note history and pin toolbar buttons",
+    "Correct missing D1 record handling for Diana task creation"
   ]
 }

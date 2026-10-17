@@ -78,8 +78,8 @@ test('note clipboard failure is reported, empty note has no copy control',async(
  assert.match(failed.get('homeNoteStatus').textContent,/Не удалось скопировать/);
  const empty=await noteClipboard({value:''});
  assert.equal(empty.get('homeNoteCopy').hidden,true);
- assert.equal(empty.get('homeNoteEditIcon').hidden,true);
- assert.equal(empty.get('homeNoteEditLabel').hidden,false);
+ assert.equal(empty.get('homeNoteEditIcon').hidden,false);
+ assert.equal(empty.get('homeNoteEditLabel').hidden,true);
 });
 function mock(actor='Рустам'){
  const map=new Map();
@@ -242,7 +242,7 @@ test('history keeps at most 20 versions, includes coalesced offline edits, and t
  assert.equal((await ctx.call('save','Последняя','POST',{id:'important',title:'Конкурирующее название',expectedUpdatedAt:revision})).code,409);
  assert.equal((await ctx.call('save','x','POST',{id:'../other'})).code,400);
 });
-function noteUI({notes=[{id:'home',text:'Я пашол',title:'Важное',pinned:false,history:[],updatedAt:'rev'}],offline=null,deferGet=false}={}){
+function noteUI({notes=[{id:'home',text:'Я пашол',title:'Важное',pinned:false,history:[],updatedAt:'rev'}],offline=null,deferGet=false,confirm=true}={}){
  const elements=new Map(),events={},requests=[];let proofreadResolve,getResolve;
  const make=id=>({id,hidden:false,disabled:false,value:'',textContent:'',children:[],style:{},handlers:{},attributes:{},
   classList:{toggle(){},contains(){return false}},setAttribute(k,v){this.attributes[k]=v},
@@ -251,10 +251,11 @@ function noteUI({notes=[{id:'home',text:'Я пашол',title:'Важное',pin
  const get=id=>{if(!elements.has(id))elements.set(id,make(id));return elements.get(id)};
  get('homeNoteVersions').hidden=true;
  const document={getElementById:get,readyState:'complete',visibilityState:'visible',body:{classList:{contains(){return false}},appendChild(){}},addEventListener(){},createElement:()=>make('new')};
- const window={Telegram:{WebApp:{initData:'test'}},addEventListener(k,fn){events[k]=fn},rudiOfflineContent:offline};
+ const window={confirm:()=>confirm,Telegram:{WebApp:{initData:'test'}},addEventListener(k,fn){events[k]=fn},rudiOfflineContent:offline};
  const fetch=async(_url,options)=>{
   const body=JSON.parse(options.body);requests.push(body);
   if(body.operation==='proofread')return new Promise(resolve=>{proofreadResolve=text=>resolve({ok:true,json:async()=>({ok:true,text})})});
+  if(body.operation==='delete'){const at=notes.findIndex(n=>n.id===body.id);if(at>=0)notes.splice(at,1);return {ok:true,json:async()=>({ok:true,note:{id:body.id,deleted:true,text:'',updatedAt:'deleted'}})}}
   if(body.operation==='save'){
    const note={...body,updatedAt:'saved-'+requests.length,history:body.localHistory};const index=notes.findIndex(n=>n.id===body.id);if(index<0)notes.push(note);else notes[index]=note;
    return {ok:true,json:async()=>({ok:true,note})};
@@ -342,4 +343,43 @@ test('delayed IndexedDB refresh cannot discard a draft or unsaved new note',asyn
   assert.equal(h.get('homeNoteEditor').hidden,false);assert.equal(h.get('homeNoteText').value,'Не терять черновик');assert.equal(h.get('homeNoteTitle').value,'Новое название');
   assert.equal(h.requests.filter(r=>r.operation==='save').length,0);
  }
+});
+
+test('deleting notes is revision-aware, actor-scoped and idempotent without legacy resurrection',async()=>{
+ const ctx=mock();const home=await ctx.call('save','Старая запись');
+ const named=await ctx.call('save','Личное','POST',{id:'named',title:'Моя заметка',expectedUpdatedAt:''});
+ assert.equal((await ctx.call('delete',undefined,'POST',{id:'named',expectedUpdatedAt:'stale'})).code,409);
+ const deleted=await ctx.call('delete',undefined,'POST',{id:'named',expectedUpdatedAt:named.body.note.updatedAt});assert.equal(deleted.code,200);assert.equal(deleted.body.note.deleted,true);
+ assert.equal(ctx.map.get('Рустам:home-note-v2:named').text,'');assert.deepEqual(ctx.map.get('Рустам:home-note-v2:named').history,[]);
+ assert.equal((await ctx.call('delete',undefined,'POST',{id:'named',expectedUpdatedAt:'old'})).body.idempotent,true);
+ assert.equal((await ctx.call('save','Старый офлайн текст','POST',{id:'named',expectedUpdatedAt:named.body.note.updatedAt})).code,409);
+ assert.equal((await ctx.call('save','Даже после rebase','POST',{id:'named',expectedUpdatedAt:deleted.body.note.updatedAt})).code,409);
+ assert.equal((await ctx.call('get')).body.notes.some(n=>n.id==='named'),false);
+ await ctx.call('delete',undefined,'POST',{id:'home',expectedUpdatedAt:home.body.note.updatedAt});
+ const after=(await ctx.call('get')).body;assert.equal(after.notes.length,0);assert.equal(after.note.deleted,true);assert.equal(after.note.text,'');
+ assert.equal((await ctx.call('get-history',undefined,'POST',{id:'home'})).body.note.history.length,0);
+});
+test('deleting an unsynced note stays deleted, and another actor cannot delete its content',async()=>{
+ const ctx=mock();assert.equal((await ctx.call('delete',undefined,'POST',{id:'never-synced',expectedUpdatedAt:''})).code,200);
+ assert.equal((await ctx.call('save','Запоздавшая запись','POST',{id:'never-synced',expectedUpdatedAt:''})).code,409);
+ const shared=new Map([['Рустам:home-note-v1',{text:'Приватно',updatedAt:'r'}]]);
+ const handler=server.createHandler({authorizeRequest:()=>({actor:'Диана'}),readAppState:async(actor,key)=>shared.get(actor+':'+key),writeAppState:async(actor,key,value)=>shared.set(actor+':'+key,value)});
+ const res={setHeader(){},status(c){this.code=c;return this},json(b){this.body=b;return this}};
+ await handler({method:'POST',body:{operation:'delete',id:'home',expectedUpdatedAt:''}},res);
+ assert.equal(res.code,200);assert.equal(shared.get('Рустам:home-note-v1').text,'Приватно');
+});
+test('trash asks for confirmation then selects next note; cancelling preserves the note',async()=>{
+ const records=[{id:'home',text:'Первая',title:'Первая',history:[],updatedAt:'r1'},{id:'other',text:'Вторая',title:'Вторая',history:[],updatedAt:'r2'}];
+ const cancelled=noteUI({notes:records.map(n=>({...n})),confirm:false});await cancelled.ready;await cancelled.click('homeNoteDelete');assert.equal(cancelled.requests.some(r=>r.operation==='delete'),false);assert.equal(cancelled.get('homeNotePreview').textContent,'Первая');
+ const h=noteUI({notes:records.map(n=>({...n}))});await h.ready;await h.click('homeNoteDelete');
+ assert.equal(h.requests.find(r=>r.operation==='delete').id,'home');assert.equal(h.get('homeNotePreview').textContent,'Вторая');assert.equal(h.get('homeNoteList').children.length,1);
+ await h.click('homeNoteDelete');assert.equal(h.get('homeNoteList').children.length,0);assert.equal(h.get('homeNoteDelete').hidden,true);
+ await h.click('homeNoteEdit');h.get('homeNoteText').value='Новая';await h.click('homeNoteSave');assert.notEqual(h.requests.filter(r=>r.operation==='save').at(-1).id,'home');
+});
+
+test('deleting the legacy home note frees its slot in the 30-note collection',async()=>{
+ const ctx=mock();await ctx.call('delete',undefined,'POST',{id:'home',expectedUpdatedAt:''});
+ for(let i=0;i<30;i++)assert.equal((await ctx.call('save','Текст '+i,'POST',{id:'n'+i,expectedUpdatedAt:''})).code,200);
+ assert.equal((await ctx.call('get')).body.notes.length,30);
+ assert.equal((await ctx.call('save','Лишняя','POST',{id:'extra',expectedUpdatedAt:''})).code,400);
 });

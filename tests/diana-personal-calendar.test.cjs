@@ -3,7 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict'),fs=require(
 const apiPath='../api/diana-personal-tasks.cjs';
 function fixture(){
  const rows=new Map(),names=[];
- const client={list:async ns=>{names.push(ns);return [...rows.entries()].filter(([key])=>key.startsWith(ns+'|')).map(([key,value])=>({key:key.split('|')[1],value}))},getRecord:async(ns,id)=>rows.has(ns+'|'+id)?{value:rows.get(ns+'|'+id)}:null,setIfAbsent:async(ns,id,v)=>{if(rows.has(ns+'|'+id))return false;rows.set(ns+'|'+id,v);return true},set:async(ns,id,v)=>rows.set(ns+'|'+id,v),remove:async(ns,id)=>rows.delete(ns+'|'+id)};
+ const client={list:async ns=>{names.push(ns);return [...rows.entries()].filter(([key])=>key.startsWith(ns+'|')).map(([key,value])=>({key:key.split('|')[1],value}))},getRecord:async(ns,id)=>({value:rows.get(ns+'|'+id)??null}),setIfAbsent:async(ns,id,v)=>{if(rows.has(ns+'|'+id))return false;rows.set(ns+'|'+id,v);return true},set:async(ns,id,v)=>rows.set(ns+'|'+id,v),remove:async(ns,id)=>rows.delete(ns+'|'+id)};
  return {rows,names,client};
 }
 test('Diana creates dated private tasks without category, reads and edits only her records; retries are idempotent',async()=>{
@@ -169,4 +169,26 @@ test('Diana drag updates series clock without resetting anchor or completion sna
  assert.equal(list.tasks.find(task=>task.date==='2026-10-19').startTime,'09:00');
  const rows=[...h.rows.entries()];assert.ok(rows.filter(([key])=>key.startsWith('rudi-personal-calendar-v1:diana|')).every(([,task])=>!task.completed&&!task.deleted&&!task.kind));
  assert.ok(rows.filter(([key])=>key.includes(':done:')||key.includes(':tombstones')).every(([,value])=>!value.title&&!value.description));
+});
+test('Diana create persists and appears in calendar using real D1 missing-record response contract',async()=>{
+ const {createD1StateClient}=require('../api/d1-state-client.cjs');
+ const {personalTasks}=require(apiPath),records=new Map();
+ const client=createD1StateClient({baseUrl:'https://worker.example',secret:'test',batchReads:false,fetchImpl:async(url,init)=>{
+  const body=JSON.parse(init.body),key=body.namespace+'|'+body.key,path=new URL(url).pathname;
+  let data;
+  if(path==='/get')data={ok:true,value:records.get(key)??null};
+  else if(path==='/set-if-absent'){
+   const inserted=!records.has(key);if(inserted)records.set(key,body.value);data={ok:true,inserted};
+  }else if(path==='/list')data={ok:true,items:[...records.entries()].filter(([key])=>key.startsWith(body.namespace+'|')).map(([key,value])=>({key:key.slice(body.namespace.length+1),value}))};
+  else if(path==='/delete'){records.delete(key);data={ok:true,deleted:true}}
+  else throw Error('Unexpected D1 request: '+path);
+  return {ok:true,status:200,text:async()=>JSON.stringify(data)};
+ }});
+ const saved=await personalTasks({actor:'Диана',operation:'create',clientId:'d1-real-contract',title:'Аптека',date:'2026-10-17',time:'18:15'},{client});
+ assert.equal(saved.created,true);assert.equal(records.size,1,'acknowledged create must write a live task when tombstone value is null');
+ const readback=await personalTasks({actor:'Диана',operation:'list',month:'2026-10'},{client});
+ assert.equal(readback.tasks.length,1);assert.equal(readback.tasks[0].id,saved.taskId);assert.equal(readback.tasks[0].title,'🏥 Аптека');
+ await personalTasks({actor:'Диана',operation:'delete',taskId:saved.taskId},{client});
+ await personalTasks({actor:'Диана',operation:'create',clientId:'d1-real-contract',title:'Аптека',date:'2026-10-17'},{client});
+ assert.equal((await personalTasks({actor:'Диана',operation:'list',month:'2026-10'},{client})).tasks.length,0,'a real tombstone still blocks resurrection');
 });

@@ -51,7 +51,7 @@ async function personalTasks(input,options={}){
  }else ({seriesId:taskId,occurrenceDate}=parseId(taskId));
  const [record,tombstone]=await Promise.all([client.getRecord(NAMESPACE,taskId),client.getRecord(TOMBSTONES,taskId)]);
  const existing=record?.value;
- if(tombstone){
+ if(tombstone?.value){
   if(op==='create'||op==='delete'||op==='complete')return {ok:true,taskId,[op==='create'?'created':op==='delete'?'deleted':'completed']:true};
   throw Error('calendar-task-not-found');
  }
@@ -79,7 +79,7 @@ async function personalTasks(input,options={}){
  if(!title)throw Error('ticktick-personal-title-required');
  const date=String(op==='move'?existing.date:(input.date??existing?.date??'')).trim();
  const time=date?String(input.time??existing?.time??'').trim():'';
- const repeat=recurrence(input,existing);
+ const repeat=recurrence(input,existing||{});
  if(!date)throw Error('ticktick-personal-date-required');
  dateTime(date,time);
  const task={id:taskId,title:op==='create'?decorateSharedTaskTitle(title).slice(0,500):title,date,time,description:String(input.description??existing?.description??'').slice(0,5000),...repeat};
