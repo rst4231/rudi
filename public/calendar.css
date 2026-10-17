@@ -1776,3 +1776,10 @@ body[data-app-tab="schedule"] #workCalendarSection #workCalendarCard{
  }
  body[data-app-tab="schedule"] #workCalendarSection .calendar-header-actions>.calendar-header-control svg{width:18px!important;height:18px!important}
 }
+
+.calendar-agenda-task.is-completed,.calendar-task-row.is-completed{opacity:.65}
+.calendar-agenda-task.is-completed .calendar-week-event-title,.calendar-task-row.is-completed .calendar-task-title{text-decoration:line-through}
+.calendar-task-row.is-completed .calendar-task-copy:disabled{opacity:1;color:inherit}
+
+.calendar-agenda-task.is-completed>span{text-decoration:line-through}
+.rudi-personal-quick-actions [hidden]{display:none!important}

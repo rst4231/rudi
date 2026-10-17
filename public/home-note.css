@@ -27,16 +27,20 @@
  border-radius:9px;background:#ffedab;color:#9d7523;
 }
 #homeNoteTile .home-note-mark svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-#homeNoteTile .home-note-chevron{
- width:16px;height:16px;margin-left:auto;flex:none;transition:transform .2s ease;
- opacity:.65;
-}
-#homeNoteTile.is-expanded .home-note-chevron{transform:rotate(180deg)}
 #homeNoteTile .home-note-edit{
  flex:none;background:rgba(145,105,25,.09);border:1px solid rgba(145,105,25,.16);
  border-radius:10px;padding:7px 11px;color:#805f1c;line-height:1.2;
  font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;
 }
+#homeNoteTile .home-note-tools{display:flex;align-items:center;gap:6px;flex:none}
+#homeNoteTile .home-note-edit.is-icon{display:grid;place-items:center;width:34px;height:34px;padding:7px}
+#homeNoteTile .home-note-edit svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#homeNoteTile .home-note-copy{padding-inline:8px;font-size:11px;min-height:34px}
+#homeNoteTile .home-note-proofread{padding-inline:8px;font-size:11px;min-height:34px}
+#homeNoteTile .home-note-head{flex-wrap:wrap;column-gap:8px;row-gap:6px}
+#homeNoteTile .home-note-tools{margin-left:auto}
+#homeNoteTile .home-note-edit:disabled{opacity:.55;cursor:wait}
+#homeNoteTile .home-note-edit:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 #homeNoteTile .home-note-content{padding:0 15px 15px}
 #homeNoteTile .home-note-preview{
  display:block;width:100%;border:0;background:transparent;
@@ -77,3 +81,18 @@ html[data-theme="dark"] #homeNoteTile .home-note-mark,
 html[data-theme="dark"] #homeNoteTile .home-note-textarea{background:rgba(0,0,0,.19);border-color:rgba(231,199,131,.25)}
 html[data-theme="dark"] #homeNoteTile .home-note-cancel{background:rgba(255,255,255,.09)}
 @media(max-width:375px){#homeNoteTile{border-radius:15px}#homeNoteTile .home-note-head{padding-inline:11px}}
+
+#homeNoteTile .home-note-list{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;scrollbar-width:thin}
+#homeNoteTile .home-note-tab{flex:none;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:1px solid currentColor;border-radius:10px;background:transparent;color:inherit;padding:9px 12px;font:600 13px/1.2 inherit;cursor:pointer}
+#homeNoteTile .home-note-tab[aria-pressed="true"]{background:rgba(150,111,33,.16);font-weight:750}
+#homeNoteTile .home-note-secondary{display:flex;flex-wrap:wrap;gap:6px;padding:2px 0 10px}
+#homeNoteTile .home-note-title{display:block;box-sizing:border-box;width:100%;min-height:42px;margin:0 0 8px;border:1px solid rgba(147,115,45,.28);border-radius:10px;padding:10px 12px;color:inherit;background:rgba(255,255,255,.45);font:600 16px/1.3 system-ui,sans-serif}
+#homeNoteTile .home-note-check{display:flex;gap:10px;align-items:flex-start;min-height:36px;cursor:pointer;white-space:pre-wrap}
+#homeNoteTile .home-note-check input{flex:none;width:20px;height:20px;margin:3px 0;accent-color:#936e24}
+#homeNoteTile .home-note-check input:checked+span{text-decoration:line-through;opacity:.65}
+#homeNoteTile .home-note-versions{max-height:240px;overflow:auto;display:grid;gap:6px;margin-bottom:10px}
+#homeNoteTile .home-note-version{border:1px solid rgba(147,115,45,.28);border-radius:10px;padding:10px;background:transparent;color:inherit;text-align:left;white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.4 system-ui,sans-serif;cursor:pointer}
+#homeNoteTile .home-note-actions{flex-wrap:wrap}
+#homeNoteTile .home-note-actions button:first-child{margin-right:auto}
+html[data-theme="dark"] #homeNoteTile .home-note-title{background:rgba(0,0,0,.19);border-color:rgba(231,199,131,.25)}
+#homeNoteTile button:focus-visible,#homeNoteTile input:focus-visible{outline:2px solid currentColor;outline-offset:2px}

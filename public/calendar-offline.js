@@ -65,7 +65,8 @@
     return row?.payload ? { ...clone(row.payload), stale: true, offlineStale: true } : null;
   }
   async function enqueue(who, kind, details) {
-    if (!who || !['create', 'update', 'delete', 'complete', 'personal-complete', 'move', 'personal-move'].includes(kind))
+    if (kind.startsWith('diana-') && who !== 'Диана')throw Error('calendar-offline-owner-forbidden');
+    if (!who || !['create', 'update', 'delete', 'complete', 'personal-complete', 'move', 'personal-move', 'diana-create', 'diana-update', 'diana-delete', 'diana-complete'].includes(kind))
       throw Error('calendar-offline-invalid-action');
     const row = {
       id: id(), actor: who, kind, details: clone(details || {}),
@@ -76,7 +77,15 @@
     return { ok: true, queued: true, offlineId: row.id };
   }
   function eventFromCreate(row) {
-    const value = row.details.value || {};
+    const value = row.kind==='diana-create'?row.details:(row.details.value || {});
+    if(row.kind==='diana-create')return {
+      id:'diana-'+value.clientId,title:String(value.title||'Новое дело'),date:String(value.date||''),
+      startTime:String(value.time||''),endTime:'',allDay:!value.time,description:String(value.description||''),
+      seriesId:'diana-'+value.clientId,seriesDate:String(value.date||''),repeat:value.repeat||'none',repeatEvery:value.repeatEvery||1,repeatDays:value.repeatDays||[],
+      repeatFlag:value.repeat&&value.repeat!=='none'?'FREQ='+value.repeat.toUpperCase():'',
+      responsible:'Диана',ownerScope:'diana',personal:true,privateLocal:true,projectId:'',projectName:'',
+      canEdit:true,canComplete:true,assigned:false,offlinePending:true
+    };
     return {
       id: 'offline:' + row.id, title: String(value.title || 'Новое дело'),
       date: String(value.date || ''), startTime: String(value.time || ''),
@@ -86,6 +95,21 @@
       assigned: Boolean(value.responsible), personal: false, canEdit: false,
       canComplete: false, canDelete: false, offlinePending: true
     };
+  }
+  function dianaOccurrences(task,month){
+    const seriesId=task.seriesId||String(task.id).split('__')[0],anchor=task.seriesDate||task.date;
+    if(!task.repeat||task.repeat==='none')return [{...task,id:seriesId,date:anchor,seriesId,seriesDate:anchor}];
+    const count=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).getUTCDate();
+    const start=Date.parse(anchor+'T00:00Z')/86400000;
+    const offset=(new Date(anchor+'T00:00Z').getUTCDay()+6)%7,every=task.repeatEvery||1,items=[];
+    for(let n=1;n<=count;n++){
+      const date=month+'-'+String(n).padStart(2,'0'),delta=Date.parse(date+'T00:00Z')/86400000-start;
+      const weekday=new Date(date+'T00:00Z').getUTCDay();
+      if(delta<0)continue;
+      if(task.repeat==='daily'?delta%every===0:(task.repeatDays||[]).includes(weekday)&&Math.floor((delta+offset)/7)%every===0)
+        items.push({...task,id:seriesId+'__'+date,date,seriesId,seriesDate:anchor});
+    }
+    return items;
   }
   function overlay(source, rows, month) {
     const result = clone(source);
@@ -98,13 +122,42 @@
     };
     for (const row of rows) {
       const d = row.details || {};
-      if (row.kind === 'create') {
+      if (row.kind === 'create' || row.kind === 'diana-create') {
         const item = eventFromCreate(row);
-        if (item.date.slice(0, 7) === month) getDay(item.date).events.push(item);
+        for(const occurrence of row.kind==='diana-create'?dianaOccurrences(item,month):[item]){
+          if(occurrence.date.slice(0,7)===month&&!getDay(occurrence.date).events.some(task=>task.id===occurrence.id))getDay(occurrence.date).events.push(occurrence);
+        }
         continue;
       }
       const taskId = String(d.taskId || '');
       if (!taskId) continue;
+      if(row.kind.startsWith('diana-')){
+        const seriesId=taskId.split('__')[0];
+        let previous=d.task?clone(d.task):null;
+        for(const day of days){
+          const matching=(day.events||[]).find(task=>task.id===taskId)||
+            (!previous&&(day.events||[]).find(task=>!task.completed&&(task.seriesId||task.id.split('__')[0])===seriesId));
+          if(matching)previous=clone(matching);
+        }
+        const seriesWide=row.kind==='diana-update'||row.kind==='diana-delete';
+        for(const day of days)day.events=(day.events||[]).filter(task=>task.completed||
+          (seriesWide?(task.seriesId||task.id.split('__')[0])!==seriesId:task.id!==taskId));
+        if(row.kind==='diana-delete'||!previous)continue;
+        if(row.kind==='diana-complete'){
+          if(previous.date.slice(0,7)===month)getDay(previous.date).events.push({...previous,completed:true,completedAt:new Date(row.createdAt).toISOString(),canComplete:false,canEdit:false,offlinePending:true});
+          continue;
+        }
+        const anchor=d.operation==='move'?(previous.seriesDate||previous.date):(d.date??previous.seriesDate??previous.date);
+        const next={...previous,...d,id:seriesId,seriesId,seriesDate:anchor,date:anchor,
+          startTime:d.time===undefined?previous.startTime:d.time,offlinePending:true};
+        delete next.task;delete next.operation;delete next.taskId;
+        next.allDay=!next.startTime;
+        next.repeatFlag=next.repeat&&next.repeat!=='none'?'FREQ='+next.repeat.toUpperCase():'';
+        for(const occurrence of dianaOccurrences(next,month)){
+          if(occurrence.date.slice(0,7)===month&&!getDay(occurrence.date).events.some(task=>task.id===occurrence.id))getDay(occurrence.date).events.push(occurrence);
+        }
+        continue;
+      }
       let old = d.task ? clone(d.task) : null;
       for (const day of days) {
         if (!Array.isArray(day.events)) continue;
@@ -112,9 +165,9 @@
         if (entry) old = clone(entry);
         day.events = day.events.filter(x => String(x?.id || '') !== taskId);
       }
-      if (row.kind === 'complete' || row.kind === 'personal-complete' || row.kind === 'delete') continue;
+      if (row.kind === 'complete' || row.kind === 'personal-complete' || row.kind === 'delete' || row.kind === 'diana-delete' || row.kind === 'diana-complete') continue;
       if (!old) continue;
-      const value = d.value || {};
+      const value = row.kind==='diana-update'?d:(d.value || {});
       const next = {
         ...old, title: value.title === undefined ? old.title : value.title,
         description: value.description === undefined ? old.description : value.description,
@@ -128,18 +181,22 @@
       next.allDay = !next.startTime;
       if (next.date.slice(0, 7) === month) getDay(next.date).events.push(next);
     }
+    for(const day of days)day.events=(day.events||[]).filter(task=>!task.completed||!task.expiresAt||Date.parse(task.expiresAt)>Date.now());
     days.sort((a, b) => String(a.date).localeCompare(String(b.date)));
     result.offlinePending = rows.length;
     result.offlineNeedsReview = rows.filter(x => x.state !== 'queued').length;
     return result;
   }
-  async function materialize(who, month, payload) {
-    const rows = (await all('outbox')).filter(row => row.actor === who);
+  async function materialize(who, month, payload, scope) {
+    const rows = (await all('outbox')).filter(row => row.actor === who && (!scope ||
+      (row.kind.startsWith('personal-')||row.kind.startsWith('diana-')?scope==='personal':scope==='shared')));
     return overlay(payload, rows, month);
   }
 
   function endpoint(row) {
     const k = row.kind;
+    if(k==='diana-create')return '/api/partner-message?ticktickAction=personal-task-create';
+    if(['diana-update','diana-delete','diana-complete'].includes(k))return '/api/partner-message?ticktickAction=personal-task-edit';
     if (k === 'create') return '/api/ticktick/task-create';
     if (k === 'update') return '/api/ticktick/task-update';
     if (k === 'delete') return '/api/ticktick/task-delete';
@@ -159,6 +216,9 @@
       (day.events||[]).map(task=>({...task,date:string(day.date)})));
   }
   async function reconcile(row,who,auth,reads){
+    // Diana creates use atomic insert-if-absent IDs; edits and tombstones are
+    // idempotent too. Retrying never creates a second task after a lost response.
+    if(row.kind.startsWith('diana-'))return who==='Диана'?'retry':'unknown';
     const data=row.details||{}, value=data.value||{}, taskId=string(data.taskId);
     const personal=row.kind.startsWith('personal-');
     const scope=personal?'rustam':'shared';

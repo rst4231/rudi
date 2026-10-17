@@ -35,7 +35,7 @@ function init(){
   modal.hidden=true;modal.setAttribute('aria-hidden','true');
   modal.innerHTML='<button class="ticktick-task-modal-backdrop" type="button" data-personal-close aria-label="Закрыть"></button>'+
    '<section class="ticktick-task-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="rudiPersonalTaskHeading">'+
-    '<div class="ticktick-task-modal-head"><div><small>Личный календарь · TickTick</small><h3 id="rudiPersonalTaskHeading">Редактировать дело</h3></div>'+
+    '<div class="ticktick-task-modal-head"><div><small id="rudiPersonalTaskSubtitle">Личный календарь · TickTick</small><h3 id="rudiPersonalTaskHeading">Редактировать дело</h3></div>'+
     '<button class="ticktick-task-modal-close" type="button" data-personal-close aria-label="Закрыть">×</button></div>'+
     '<form id="rudiPersonalTaskForm" class="ticktick-task-form">'+
       '<label class="ticktick-task-field"><span>Что сделать</span><input id="rudiPersonalTaskTitle" maxlength="500" required autocomplete="off"></label>'+
@@ -44,6 +44,9 @@ function init(){
        '<label class="ticktick-task-field"><span>Время</span><input id="rudiPersonalTaskTime" class="rudi-personal-picker-input" type="time" aria-label="Время дела"></label></div>'+
 
       '<label class="ticktick-task-field"><span>Список TickTick</span><select id="rudiPersonalTaskProject"><option value="">Загружаю списки…</option></select></label>'+
+      '<div id="rudiPersonalTaskRepeatFields" hidden><label class="ticktick-task-field"><span>Как часто повторять</span><select id="rudiPersonalTaskRepeat"><option value="none">Не повторять</option><option value="daily">Каждый день</option><option value="weekly">По дням недели</option></select></label>'+
+      '<label class="ticktick-task-field" id="rudiPersonalTaskIntervalField" hidden><span>Интервал</span><input id="rudiPersonalTaskRepeatEvery" type="number" min="1" max="52" value="1" aria-label="Интервал повторения"><small id="rudiPersonalTaskRepeatUnit">дней</small></label>'+
+      '<fieldset id="rudiPersonalTaskWeekdays" class="rudi-personal-weekdays" hidden><legend>По каким дням</legend>'+[1,2,3,4,5,6,0].map((day,index)=>'<label><input type="checkbox" name="personalRepeatDay" value="'+day+'"><span>'+['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][index]+'</span></label>').join('')+'</fieldset></div>'+
       '<label class="ticktick-task-field"><span>Описание</span><textarea id="rudiPersonalTaskDescription" maxlength="5000" rows="3" placeholder="Необязательно"></textarea></label>'+
       '<p class="rudi-personal-repeat-note" id="rudiPersonalRepeatNote" hidden>Повторение сохранится. Для сложных правил используйте TickTick.</p>'+
       '<div class="ticktick-task-form-actions"><button type="button" class="rudi-personal-cancel" data-personal-close>Отмена</button>'+
@@ -59,6 +62,7 @@ function init(){
   modal.querySelectorAll('[data-personal-close]').forEach(b=>b.addEventListener('click',close));
   byId('rudiPersonalTaskForm').addEventListener('submit',submit);
   byId('rudiPersonalTaskDelete').addEventListener('click',remove);
+  f('repeat').addEventListener('change',syncRepeat);
   // Native iOS date/time picker state is recreated each time a task opens.
   // This prevents the previous task's system picker value being displayed.
   // Date shortcuts remain available in the right-click context menu only.
@@ -84,6 +88,18 @@ function syncTime(){
   const date=f('date'),time=f('time');
   if(time)time.disabled=!date?.value;
 }
+function syncRepeat(){
+  const repeat=f('repeat').value;
+  byId('rudiPersonalTaskIntervalField').hidden=repeat==='none';
+  byId('rudiPersonalTaskWeekdays').hidden=repeat!=='weekly';
+  byId('rudiPersonalTaskRepeatUnit').textContent=repeat==='weekly'?'недель':'дней';
+  if(repeat==='weekly'&&!modal.querySelector('[name="personalRepeatDay"]:checked')){
+    const date=f('date').value||today();
+    const weekday=new Date(date+'T12:00:00Z').getUTCDay();
+    const input=modal.querySelector('[name="personalRepeatDay"][value="'+weekday+'"]');
+    if(input)input.checked=true;
+  }
+}
 function closeMenu(){if(menu)menu.hidden=true}
 function close(){
   if(busy)return;
@@ -100,6 +116,12 @@ function enabled(flag){
 }
 async function request(action,payload={}){
   if(!active)throw Error('Задача не выбрана');
+  const local=active.ctx.actor==='Диана';
+  if(local&&action!=='personal-task-projects'){
+    const kind=action==='personal-task-create'?'diana-create':payload.operation==='delete'?'diana-delete':'diana-update';
+    const queued=await active.ctx.queueOffline?.(kind,{...payload,task:active.task});
+    if(queued)return queued;
+  }
   const response=await fetch('/api/partner-message?ticktickAction='+action,{
     method:'POST',headers:{'Content-Type':'application/json'},
     credentials:'same-origin',cache:'no-store',
@@ -167,7 +189,7 @@ function open(task,ctx={}){
   init();closeMenu();
   byId('rudiPersonalTaskForm').reset();refreshTemporalInputs();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
-  const {date,time}=normalizedEditorWhen(active.task);
+  const {date,time}=normalizedEditorWhen(task.privateLocal&&task.repeat&&task.repeat!=='none'?{...active.task,date:task.seriesDate||task.date}:active.task);
   // Reset iOS-native date/time before applying THIS task's values.
   f('date').value='';
   f('time').value='';
@@ -183,22 +205,37 @@ function open(task,ctx={}){
   byId('rudiPersonalRepeatNote').hidden=!String(task.repeatFlag||'').trim();
   byId('rudiPersonalTaskHeading').textContent=task.isNew?'Новое дело':'Редактировать дело';
   byId('rudiPersonalTaskDelete').hidden=Boolean(task.isNew);
+  byId('rudiPersonalTaskDelete').textContent=task.privateLocal&&task.repeat&&task.repeat!=='none'?'Удалить все повторения':'Удалить дело';
   syncTime();message('');enabled(true);
   modal.hidden=false;modal.setAttribute('aria-hidden','false');
   document.body.classList.add('ticktick-task-modal-open');
   requestAnimationFrame(()=>f('title').focus({preventScroll:true}));
-  projects().catch(()=>{});
+  const local=ctx.actor==='Диана';
+  f('project').closest('label').hidden=local;
+  f('project').disabled=local;
+  byId('rudiPersonalTaskSubtitle').textContent=local?'Личный календарь':'Личный календарь · TickTick';
+  byId('rudiPersonalTaskRepeatFields').hidden=!local;
+  if(local){
+    f('repeat').value=String(task.repeat||'none');
+    f('repeatEvery').value=String(task.repeatEvery||1);
+    modal.querySelectorAll('[name="personalRepeatDay"]').forEach(input=>{input.checked=(task.repeatDays||[]).includes(Number(input.value))});
+    syncRepeat();
+    byId('rudiPersonalRepeatNote').hidden=!task.repeat||task.repeat==='none';
+    byId('rudiPersonalRepeatNote').textContent='Изменения применятся ко всем будущим повторениям. Выполненные дела сохранятся.';
+    listed=true;
+  }
+  else {byId('rudiPersonalRepeatNote').textContent='Повторение сохранится. Для сложных правил используйте TickTick.';projects().catch(()=>{})}
 }
 async function persist(data,options={}){
   if(!active||busy)return false;
   const saved=active,task=saved.task;
   enabled(false);message('Сохраняю…');
   try{
-    if(!saved.creating&&data.targetProjectId!==task.projectId&&!options.skipMoveConfirm&&
+    if(saved.ctx.actor!=='Диана'&&!saved.creating&&data.targetProjectId!==task.projectId&&!options.skipMoveConfirm&&
       !window.confirm('Перенести дело в другой список TickTick?')){enabled(true);message('');return false;}
-    if(saved.creating&&!data.date){message('Выбери дату');return false;}
+    if((saved.creating||saved.ctx.actor==='Диана')&&!data.date){message('Выбери дату');return false;}
     const payload=saved.creating?
-      await request('personal-task-create',{...data}):
+      await request('personal-task-create',{...data,clientId:saved.clientId||(saved.clientId=window.crypto.randomUUID())}):
       await request('personal-task-edit',{operation:'save',taskId:task.id,projectId:task.projectId,...data});
     closeForced();
     await Promise.resolve(saved.ctx.refresh?.()).catch(()=>{});
@@ -213,14 +250,18 @@ function closeForced(){
 function value(){
   return {title:String(f('title').value||'').trim(),
     date:String(f('date').value||''),time:String(f('time').value||''),
-    targetProjectId:f('project').value,
-    description:String(f('description').value||'')};
+    ...(active?.ctx?.actor==='Диана'?{}:{targetProjectId:f('project').value}),
+    description:String(f('description').value||''),
+    ...(active?.ctx?.actor==='Диана'?{
+      repeat:f('repeat').value,repeatEvery:Number(f('repeatEvery').value||1),
+      repeatDays:[...modal.querySelectorAll('[name="personalRepeatDay"]:checked')].map(input=>Number(input.value))
+    }:{})};
 }
 function submit(event){event.preventDefault();if(!listed){message('Дождитесь загрузки списков');return}
   void persist(value());
 }
 async function remove(){
-  if(!active||busy||!window.confirm('Удалить личное дело из TickTick?'))return;
+  if(!active||busy||!window.confirm(active.ctx.actor==='Диана'?(active.task.repeat&&active.task.repeat!=='none'?'Удалить все повторения этого дела?':'Удалить личное дело?'):'Удалить личное дело из TickTick?'))return;
   const saved=active;
   enabled(false);message('Удаляю…');
   try{
@@ -237,9 +278,9 @@ async function useQuick(id,fromMenu){
     closeMenu();setTimeout(()=>f('date')?.focus(),40);return;
   }
   const date=q.value();
-  if(id==='clear'&&String(active.task.repeatFlag||'').trim()){
+  if(id==='clear'&&(active.ctx.actor==='Диана'||String(active.task.repeatFlag||'').trim())){
     if(fromMenu){open(active.task,active.ctx)}
-    message('У повторяющегося дела нельзя убрать дату');return;
+    message(active.ctx.actor==='Диана'?'Выбери дату дела':'У повторяющегося дела нельзя убрать дату');return;
   }
   if(fromMenu){
     const task=active.task,ctx=active.ctx;
@@ -247,7 +288,7 @@ async function useQuick(id,fromMenu){
     try{
       await request('personal-task-edit',{
         operation:'save',taskId:task.id,projectId:task.projectId,
-        targetProjectId:task.projectId,
+        ...(ctx.actor==='Диана'?{}:{targetProjectId:task.projectId}),
         title:task.title,date,time:task.allDay?'':String(task.startTime||''),
         description:String(task.description||'')
       });
@@ -272,6 +313,7 @@ function showMenu(task,ctx,event){
   init();
   active={task:{...task},ctx};
   closeMenu();
+  menu.querySelector('[data-personal-date-action="clear"]').hidden=ctx.actor==='Диана';
   menu.hidden=false;
   const w=menu.offsetWidth,h=menu.offsetHeight;
   menu.style.left=Math.max(8,Math.min(window.innerWidth-w-8,event.clientX))+'px';

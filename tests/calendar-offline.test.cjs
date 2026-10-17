@@ -41,7 +41,7 @@ function harness(){
     if(fail)throw TypeError('Lost response');
     return {ok:true,json:async()=>({ok:true})};
   };
-  const CustomEvent=function(type,options){this.type=type;this.detail=options.detail};
+  const CustomEvent=function(type,options={}){this.type=type;this.detail=options.detail};
   const navigator={get onLine(){return online}};
   const code=fs.readFileSync('public/calendar-offline.js','utf8');
   vm.runInNewContext(code,{window,indexedDB,navigator,fetch,CustomEvent,Math,JSON,Date,Promise,Error,String,Number,Array});
@@ -103,7 +103,7 @@ test('offline shell is versioned and pre-caches critical calendar assets before 
   assert.match(sw,/const CACHE_NAME='rudi-shell-/);
   assert.match(app,/await queueCalendarWhenOffline\('create',\{value\}\)/);
   assert.match(app,/offlineStore\.capture\(currentActor,offlineScope,month,result\)/);
-  assert.match(app,/offlineStore\.materialize\(currentActor,month,result\)/);
+  assert.match(app,/offlineStore\.materialize\(currentActor,month,result,offlineScope\)/);
 });
 
 test('calendar detects unreachable network before mutations even if navigator says online',async()=>{
@@ -189,4 +189,41 @@ test('offline calendar periodically rechecks network and refresh swipe attempts 
   assert.match(app,/rudi-calendar-network-recovered/);
   assert.match(pwa,/addEventListener\('rudi-calendar-network-recovered'/);
   assert.match(pwa,/banner\.hidden=true;[\s\S]*?document\.body\.dataset\.offlineMode='0'/);
+});
+
+test('Diana private offline create/edit/delete stays actor- and scope-isolated and replays only private endpoints',async()=>{
+ const h=harness(),o=h.api;
+ const base={days:[{date:'2026-10-17',events:[]}],ticktickDays:[]};
+ await o.enqueue('Диана','diana-create',{clientId:'local-a',title:'Аптека',date:'2026-10-17',time:'18:15',description:'Личное'});
+ let own=await o.materialize('Диана','2026-10',base,'personal');
+ assert.equal(own.ticktickDays[0].events[0].id,'diana-local-a');assert.equal(own.ticktickDays[0].events[0].privateLocal,true);
+ assert.equal(own.ticktickDays[0].events[0].startTime,'18:15');
+ assert.equal((await o.materialize('Рустам','2026-10',base,'personal')).ticktickDays.length,0);
+ assert.equal((await o.materialize('Диана','2026-10',base,'shared')).ticktickDays.length,0);
+ await o.enqueue('Диана','diana-update',{taskId:'diana-local-a',operation:'save',title:'Магазин',date:'2026-10-17',time:'09:00'});
+ own=await o.materialize('Диана','2026-10',base,'personal');assert.equal(own.ticktickDays[0].events[0].title,'Магазин');assert.equal(own.ticktickDays[0].events[0].startTime,'09:00');
+ await o.enqueue('Диана','diana-delete',{taskId:'diana-local-a',operation:'delete'});
+ own=await o.materialize('Диана','2026-10',base,'personal');assert.equal(own.ticktickDays[0].events.length,0);
+ h.setOnline(true);const sent=await o.flush('Диана',()=>({initData:'diana-session'}));assert.equal(sent.sent,3);
+ assert.ok(h.calls.every(call=>call.url.includes('ticktickAction=personal-task-')));
+ assert.equal(h.calls[0].body.clientId,'local-a');assert.equal(h.calls[2].body.operation,'delete');assert.ok(h.calls.every(call=>!call.body.targetProjectId));
+});
+test('Diana uncertain create retries use the same idempotency id and never duplicate',async()=>{
+ const h=harness();await h.api.enqueue('Диана','diana-create',{clientId:'stable-id',title:'Дело',date:'2026-10-17'});
+ h.setOnline(true);h.setFail(true);await h.api.flush('Диана',()=>({initData:'diana'}));
+ const queued=[...h.records.get('outbox').values()][0];queued.checkAt=0;h.records.get('outbox').set(queued.id,queued);
+ h.setFail(false);const result=await h.api.flush('Диана',()=>({initData:'diana'}));
+ assert.equal(result.sent,1);assert.equal(h.calls.length,2);assert.equal(h.calls[0].body.clientId,h.calls[1].body.clientId);
+});
+test('Diana recurring offline create, occurrence completion, series edit/delete preserves completed history',async()=>{
+ const h=harness(),o=h.api,base={days:[{date:'2026-10-17',events:[]}],ticktickDays:[]};
+ await o.enqueue('Диана','diana-create',{clientId:'repeat-a',title:'Витамины',date:'2026-10-17',time:'09:00',repeat:'daily',repeatEvery:2});
+ let result=await o.materialize('Диана','2026-10',base,'personal');
+ assert.equal(result.ticktickDays.length,8);assert.equal(result.ticktickDays[0].events[0].id,'diana-repeat-a__2026-10-17');
+ await o.enqueue('Диана','diana-complete',{taskId:'diana-repeat-a__2026-10-19',operation:'complete'});
+ result=await o.materialize('Диана','2026-10',base,'personal');assert.equal(result.ticktickDays.find(day=>day.date==='2026-10-19').events[0].completed,true);assert.equal(result.ticktickDays.find(day=>day.date==='2026-10-21').events[0].completed,undefined);
+ await o.enqueue('Диана','diana-update',{taskId:'diana-repeat-a__2026-10-21',operation:'move',time:'18:15'});
+ result=await o.materialize('Диана','2026-10',base,'personal');assert.equal(result.ticktickDays.find(day=>day.date==='2026-10-21').events[0].startTime,'18:15');assert.equal(result.ticktickDays.find(day=>day.date==='2026-10-19').events[0].startTime,'09:00');
+ await o.enqueue('Диана','diana-delete',{taskId:'diana-repeat-a__2026-10-21',operation:'delete'});
+ result=await o.materialize('Диана','2026-10',base,'personal');const remaining=result.ticktickDays.flatMap(day=>day.events);assert.equal(remaining.length,1);assert.equal(remaining[0].completed,true);
 });

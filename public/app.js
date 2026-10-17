@@ -5515,9 +5515,40 @@
         }else appendFinanceLiteracyInline(li,value);
         host.append(li);
       }
+      let financeLiteracyExplanationRevision=0;
+      function configureFinanceLiteracyExplanation(article){
+        const revision=++financeLiteracyExplanationRevision,actor=currentActor;
+        const button=document.getElementById('financeLiteracyExplainButton'),status=document.getElementById('financeLiteracyExplainStatus'),host=document.getElementById('financeLiteracyExplanation');
+        if(!button||!host||!status)return;
+        let busy=false,ready=false;
+        button.hidden=!article?.id;button.disabled=false;button.textContent='Объяснить по-простому';
+        status.textContent='';host.hidden=true;host.replaceChildren();
+        button.onclick=async()=>{
+          if(busy||actor!==currentActor||revision!==financeLiteracyExplanationRevision)return;
+          if(ready){host.hidden=!host.hidden;button.textContent=host.hidden?'Объяснить по-простому':'Скрыть объяснение';return;}
+          busy=true;button.disabled=true;status.textContent='Объясняю простыми словами…';
+          try{
+            const data=await financeRequest('literacy-explain',{articleId:article.id});
+            if(actor!==currentActor||revision!==financeLiteracyExplanationRevision)return;
+            if(data.articleId!==article.id)throw Error('finance-literacy-stale');
+            const text=String(data.explanation?.text||'').trim();
+            if(!text)throw Error('empty-explanation');
+            host.replaceChildren();
+            appendFinanceLiteracyParagraph(host,'Объяснение простыми словами','h3');
+            for(const paragraph of text.split(/\n\s*\n/).filter(Boolean))appendFinanceLiteracyParagraph(host,paragraph);
+            host.hidden=false;ready=true;button.textContent='Скрыть объяснение';status.textContent='';
+          }catch(error){
+            if(actor===currentActor&&revision===financeLiteracyExplanationRevision)
+              status.textContent=String(error?.message||'').includes('stale')?'Статья обновилась. Открой раздел заново.':'Не удалось получить объяснение. Попробуй ещё раз.';
+          }finally{
+            busy=false;if(actor===currentActor&&revision===financeLiteracyExplanationRevision)button.disabled=false;
+          }
+        };
+      }
       function renderFinanceLiteracy(article){
         const title=document.getElementById('financeLiteracyTitle'),body=document.getElementById('financeLiteracyBody'),source=document.getElementById('financeLiteracySource'),status=document.getElementById('financeLiteracyStatus');
         if(!article||!body)return;
+        configureFinanceLiteracyExplanation(article);
         if(title)title.textContent=String(article.title||'Финансовая грамотность');
         body.replaceChildren();
         const raw=String(article.body||'').replace(/\r\n?/g,'\n').trim();
@@ -13901,6 +13932,13 @@
       async function requestPersonalTickTickTaskCompletion(task){
         const taskId=String(task?.id||'').trim();
         const projectId=String(task?.projectId||'').trim();
+        if(task?.privateLocal===true&&currentActor==='Диана'){
+          const details={operation:'complete',taskId};
+          const queued=await queueCalendarWhenOffline('diana-complete',{...details,task});
+          if(queued)return queued;
+          return managedJsonRequest('diana-task-complete:'+taskId,'/api/partner-message?ticktickAction=personal-task-edit',{
+            body:{initData:telegramInitData(),...details},ttlMs:0,timeoutMs:12000});
+        }
         if(!taskId||!projectId||currentActor!=='Рустам')throw new Error('ticktick-personal-task-invalid');
         const queued=await queueCalendarWhenOffline('personal-complete',{taskId,projectId,task});
         if(queued)return queued;
@@ -14001,7 +14039,7 @@
       }
 
       function invalidateTickTickTaskViews(){
-        invalidateManagedRequests('ticktick-today','ticktick-calendar');
+        invalidateManagedRequests('ticktick-today','ticktick-calendar','diana-personal-calendar');
         calendarViewCache.month=null;
         calendarViewCache['next-month']=null;
         calendarViewLoadedAt.clear();
@@ -14094,8 +14132,8 @@
       }
 
       async function completeCalendarTickTickTask(task,row,button,writable){
-        if(!task?.id||row?.dataset?.busy==='1') return;
-        if(!tickTickTaskCanComplete(task)||(task?.personal===true&&currentActor!=='Рустам')){
+        if(!task?.id||task.completed||row?.dataset?.busy==='1') return;
+        if(!tickTickTaskCanComplete(task)||(task?.personal===true&&currentActor!=='Рустам'&&!(task.privateLocal===true&&currentActor==='Диана'))){
           const status=document.getElementById('workCalendarStatus');
           status.hidden=false;
           status.textContent='Задача назначена другому участнику';
@@ -14121,7 +14159,7 @@
             acceptScoreState(payload.score);
             document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:payload.score}}));
           }
-          markTickTickTaskRecentlyCompleted(task.id);
+          markTickTickTaskRecentlyCompleted(task.id+'|'+String(task.date||''));
           button.setAttribute('aria-checked','true');
           button.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 12 4 4 8-9"/></svg>';
           playCalendarConfetti();
@@ -14868,10 +14906,10 @@
       function calendarUpdateCreateButtons(){
         const shared=document.getElementById('calendarCreateTask');
         const personal=document.getElementById('calendarPersonalCreateTask');
-        const isPersonalReady=calendarScope==='personal'&&currentActor==='Рустам'&&calendarPersonalTickTickConnected;
+        const isPersonalReady=calendarScope==='personal'&&(currentActor==='Диана'||currentActor==='Рустам'&&calendarPersonalTickTickConnected);
         if(shared)shared.hidden=calendarScope!=='shared';
         if(personal)personal.hidden=!isPersonalReady;
-        document.body.dataset.personalTicktickConnected=calendarPersonalTickTickConnected?'true':'false';
+        document.body.dataset.personalTicktickConnected=(calendarPersonalTickTickConnected||currentActor==='Диана')?'true':'false';
       }
       function calendarSetScope(scope,{reload=true}={}){
         calendarScope=scope==='shared'?'shared':'personal';
@@ -15099,7 +15137,7 @@
 
       function calendarPersonalTaskEditorContext(task){
         return {
-          initData:telegramInitData(),
+          initData:telegramInitData(),actor:currentActor,queueOffline:queueCalendarWhenOffline,
           refresh:()=>refreshAfterTickTickTaskChange({preserveExpanded:false}),
           openTickTick:()=>calendarOpenPersonalTickTickTask(task)
         };
@@ -15163,11 +15201,11 @@
           personalPlus.addEventListener('contextmenu',event=>event.preventDefault());
           personalPlus.addEventListener('click',event=>{
             event.preventDefault();event.stopPropagation();
-            if(Date.now()<suppressUntil||calendarScope!=='personal'||currentActor!=='Рустам')return;
+            if(Date.now()<suppressUntil||calendarScope!=='personal'||!['Рустам','Диана'].includes(currentActor))return;
             const date=currentSelectedWorkDate||calendarDateCursor||todayState().key;
             const time=financeNowDateTimeInputs().time;
             window.RUDIPersonalTaskEditor?.create({
-              initData:telegramInitData(),date,time,
+              initData:telegramInitData(),actor:currentActor,date,time,queueOffline:queueCalendarWhenOffline,
               refresh:()=>refreshAfterTickTickTaskChange({preserveExpanded:false}),
               openTickTick:()=>calendarOpenPersonalTickTickComposer()
             });
@@ -15355,6 +15393,13 @@
         return 'evening';
       }
       async function requestPersonalTickTickTaskMove(task,date,time){
+        if(task?.privateLocal===true&&currentActor==='Диана'){
+          const details={operation:'move',taskId:task.id,time};
+          const queued=await queueCalendarWhenOffline('diana-update',{...details,task});
+          if(queued)return queued;
+          return managedJsonRequest('diana-task-move:'+task.id,'/api/partner-message?ticktickAction=personal-task-edit',{
+            body:{initData:telegramInitData(),...details},ttlMs:0,timeoutMs:12000});
+        }
         const taskId=String(task?.id||'').trim();
         const projectId=String(task?.projectId||'').trim();
         if(!taskId||!projectId||currentActor!=='Рустам')throw new Error('ticktick-personal-task-invalid');
@@ -15390,8 +15435,8 @@
         const task=event.task;
         if(!task?.id)return;
         if(task.personal===true){
-          if(calendarScope!=='personal'||currentActor!=='Рустам'||
-            !task.projectId||task.canComplete===false)return;
+          if(calendarScope!=='personal'||task.completed||task.canComplete===false||
+            !(task.privateLocal===true&&currentActor==='Диана')&&(currentActor!=='Рустам'||!task.projectId))return;
         }else if(sharedWritable!==true||task.canEdit!==true)return;
         block.classList.add('calendar-week-draggable');
         block.title=String(task?.repeatFlag||'').trim()
@@ -15537,21 +15582,22 @@
           const isPersonal=task.personal===true;
           const writable=isPersonal?task.canComplete!==false:sharedWritable;
           const allowed=isPersonal
-            ?currentActor==='Рустам'&&task.canComplete!==false
+            ?(currentActor==='Рустам'||task.privateLocal===true&&currentActor==='Диана')&&task.canComplete!==false
             :tickTickTaskCanComplete(task);
           const checkbox=document.createElement('button');
           checkbox.type='button';
           checkbox.className='calendar-agenda-task-checkbox';
           checkbox.setAttribute('role','checkbox');
-          checkbox.setAttribute('aria-checked','false');
+          checkbox.setAttribute('aria-checked',task.completed?'true':'false');
+          if(task.completed){row.classList.add('is-completed');checkbox.textContent='✓'}
           checkbox.setAttribute('aria-label','Отметить выполненным: '+String(task.title||'Дело'));
-          checkbox.disabled=!task.id||!writable||!allowed;
+          checkbox.disabled=Boolean(task.completed)||!task.id||!writable||!allowed;
           checkbox.addEventListener('click',event=>{
             event.stopPropagation();
             completeCalendarTickTickTask(task,row,checkbox,writable);
           });
           row.prepend(checkbox);
-          if(isPersonal&&calendarScope==='personal'&&calendarTickTickTaskWebUrl(task)){
+          if(!task.completed&&isPersonal&&calendarScope==='personal'&&(task.privateLocal===true||calendarTickTickTaskWebUrl(task))){
             row.classList.add('calendar-external-task');
             row.style.cursor='pointer';
             row.tabIndex=0;
@@ -15782,7 +15828,7 @@
           }
           const events=Array.isArray(day.events)?day.events:[];
           const tasks=(Array.isArray(tickDays.get(String(day.date))?.events)?tickDays.get(String(day.date)).events:[])
-            .filter(event=>!event?.completed&&!tickTickTaskRecentlyCompleted(event?.id))
+            .filter(event=>event?.completed||!tickTickTaskRecentlyCompleted(event?.id+'|'+String(day.date||'')))
             // Each occurrence gets the day shown on its calendar card.
             .map(event=>({...event,date:String(day.date)}));
           const holidays=(Array.isArray(holidayDays.get(String(day.date))?.items)?holidayDays.get(String(day.date)).items:[])
@@ -15923,22 +15969,23 @@
                 complete.type='button';
                 complete.className='calendar-task-complete';
                 complete.setAttribute('role','checkbox');
-                complete.setAttribute('aria-checked','false');
+                complete.setAttribute('aria-checked',event.completed?'true':'false');
+                if(event.completed){row.classList.add('is-completed');complete.textContent='✓'}
                 const isPersonalTask=event?.personal===true;
                 const canComplete=isPersonalTask
-                  ?currentActor==='Рустам'&&event?.canComplete!==false
+                  ?(currentActor==='Рустам'||event.privateLocal===true&&currentActor==='Диана')&&event?.canComplete!==false
                   :tickTickTaskCanComplete(event);
                 complete.setAttribute('aria-label',canComplete
                   ?'Отметить выполненным: '+String(event.title||'Дело')
                   :isPersonalTask?'Недостаточно прав для выполнения личной задачи':'Эта задача назначена другому участнику');
                 const taskWritable=isPersonalTask?event?.canComplete!==false:payload?.ticktickWritable!==false;
-                complete.disabled=!event?.id||!taskWritable||!canComplete;
+                complete.disabled=Boolean(event.completed)||!event?.id||!taskWritable||!canComplete;
 
                 const taskCopy=document.createElement('button');
                 taskCopy.type='button';
                 taskCopy.className='calendar-task-copy';
-                const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&Boolean(calendarTickTickTaskWebUrl(event));
-                taskCopy.disabled=!event?.id||(!opensInTickTick&&(payload?.ticktickWritable===false||event?.canEdit===false));
+                const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&(event.privateLocal===true||Boolean(calendarTickTickTaskWebUrl(event)));
+                taskCopy.disabled=Boolean(event.completed)||!event?.id||(!opensInTickTick&&(payload?.ticktickWritable===false||event?.canEdit===false));
                 taskCopy.setAttribute('aria-label','Редактировать: '+String(event.title||'Дело'));
                 const start=String(event.startTime||'').trim();
                 const end=String(event.endTime||'').trim();
@@ -15948,7 +15995,7 @@
                 text.textContent=String(event.title||'Дело');
                 const meta=document.createElement('span');
                 meta.className='calendar-task-time';
-                meta.textContent=[range,event?.personal?String(event.projectName||'Личный список'):tickTickAssigneeLabel(event)].filter(Boolean).join(' · ');
+                meta.textContent=[range,event?.personal?(event.privateLocal?'':String(event.projectName||'Личный список')):tickTickAssigneeLabel(event)].filter(Boolean).join(' · ');
                 taskCopy.append(text,meta);
                 row.append(complete,taskCopy);
                 complete.addEventListener('click',clickEvent=>{
@@ -16089,7 +16136,7 @@
         const offlineScope=calendarScope;
         if(offlineStore?.isOffline?.()){
           const local=await offlineStore.cached(currentActor,offlineScope,month).catch(()=>null);
-          if(local)return offlineStore.materialize(currentActor,month,local);
+          if(local)return offlineStore.materialize(currentActor,month,local,offlineScope);
           return {configured:true,view:requested,days:[],ticktickDays:[],holidayDays:[],
             offlineMissing:true,offlineStale:true,stale:true};
         }
@@ -16099,11 +16146,12 @@
         const base={initData:telegramInitData(),backupToken:currentStateBackupToken,view:requested,month};
         const needsWork=scope==='diana'||scope==='shared';
         const ttlMs=month===(typeof todayState==='function'?todayState().key.slice(0,7):month)?60*1000:10*60*1000;
-        const [workResult,tickResult,holidayResult,obligationResult]=await Promise.allSettled([
+        const [workResult,tickResult,holidayResult,obligationResult,privateResult]=await Promise.allSettled([
           needsWork?fetchCalendarJson('work-calendar:'+month,'/api/work-calendar',base,ttlMs):Promise.resolve(null),
           fetchCalendarJson('ticktick-calendar:'+month+':'+scope,'/api/ticktick/calendar',{...base,scope},ttlMs),
           scope==='shared'?fetchCalendarJson('holiday-calendar:'+month,'/api/partner-message?rudiAction=holiday-calendar',{initData:telegramInitData(),view:requested,month},60*60*1000):Promise.resolve(null),
-          scope!=='shared'?fetchCalendarJson('finance-calendar-obligations:'+currentActor,'/api/finances',{initData:telegramInitData(),operation:'calendar-obligations'},3*60*1000):Promise.resolve(null)
+          scope!=='shared'?fetchCalendarJson('finance-calendar-obligations:'+currentActor,'/api/finances',{initData:telegramInitData(),operation:'calendar-obligations'},3*60*1000):Promise.resolve(null),
+          scope==='diana'?fetchCalendarJson('diana-personal-calendar:'+month,'/api/partner-message?ticktickAction=personal-task-list',{initData:telegramInitData(),month},0):Promise.resolve(null)
         ]);
         const tick=tickResult.status==='fulfilled'?tickResult.value:{};
         const tickUnavailable=tickResult.status!=='fulfilled'||tick?.ok===false||
@@ -16129,10 +16177,22 @@
           obligationActor:obligationResult.status==='fulfilled'?String(obligationResult.value?.actor||''):'',
           financeObligations:obligationResult.status==='fulfilled'&&obligationResult.value?.actor===currentActor&&Array.isArray(obligationResult.value?.obligations)?obligationResult.value.obligations:[]
         };
+        if(scope==='diana'){
+          const privateFailed=privateResult.status!=='fulfilled'||privateResult.value?.ok!==true;
+          const privateTasks=privateFailed?retainedTick.flatMap(day=>(day.events||[]).filter(task=>task.privateLocal)):(privateResult.value.tasks||[]);
+          result.ticktickDays=result.ticktickDays.map(day=>({...day,events:(day.events||[]).filter(task=>!task.privateLocal)}));
+          for(const task of privateTasks){
+            if(task.date.slice(0,7)!==month)continue;
+            let day=result.ticktickDays.find(day=>day.date===task.date);
+            if(!day){day={date:task.date,events:[]};result.ticktickDays.push(day)}
+            day.events.push(task);
+          }
+          if(privateFailed){result.stale=true;result.privateUnavailable=true}
+        }
         if(offlineStore){
-          if(tickUnavailable||offlineStore.isOffline?.()){
+          if((tickUnavailable&&scope!=='diana')||result.privateUnavailable||offlineStore.isOffline?.()){
             const local=await offlineStore.cached(currentActor,offlineScope,month).catch(()=>null);
-            if(local)return offlineStore.materialize(currentActor,month,local);
+            if(local)return offlineStore.materialize(currentActor,month,local,offlineScope);
             result.offlineStale=offlineStore.isOffline?.()===true;
           }else{
             await offlineStore.capture(currentActor,offlineScope,month,result).catch(error=>{
@@ -16162,7 +16222,7 @@
             result.days.sort((a,b)=>a.date.localeCompare(b.date));
           }
         }
-        return offlineStore?offlineStore.materialize(currentActor,month,result):result;
+        return offlineStore?offlineStore.materialize(currentActor,month,result,offlineScope):result;
       }
       async function prefetchCalendarView(view){
         const key=calendarCacheKey();
@@ -16190,7 +16250,7 @@
         if(offlineStore){
           const disk=await offlineStore.cached(currentActor,calendarScope,calendarActiveMonth()).catch(()=>null);
           if(disk){
-            offlineSnapshot=await offlineStore.materialize(currentActor,calendarActiveMonth(),disk).catch(()=>null);
+            offlineSnapshot=await offlineStore.materialize(currentActor,calendarActiveMonth(),disk,calendarScope).catch(()=>null);
             if(offlineSnapshot&&epoch===calendarLoadEpoch&&key===calendarCacheKey()){
               renderWorkCalendar(offlineSnapshot,{force:true});
             }
@@ -16314,7 +16374,7 @@
         for(const day of days){
           const date=dateFromKey(day.date);
           const events=(Array.isArray(day.events)?day.events:[])
-            .filter(event=>!event?.completed&&!tickTickTaskRecentlyCompleted(event?.id));
+            .filter(event=>event?.completed||!tickTickTaskRecentlyCompleted(event?.id+'|'+String(day.date||'')));
           const hasEvents=events.length>0;
           const cell=document.createElement('button');
           cell.type='button';

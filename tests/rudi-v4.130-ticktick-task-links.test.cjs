@@ -72,7 +72,7 @@ test('shared tasks, non-personal calendars and other users do not open personal 
 test('calendar personal task clicks edit, long press opens TickTick, right click shows actions',()=>{
   const editor=fs.readFileSync('public/personal-task-editor.js','utf8');
   const html=fs.readFileSync('public/index.html','utf8');
-  assert.ok(app.includes("const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&Boolean"));
+  assert.ok(app.includes("const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&(event.privateLocal===true||Boolean"));
   assert.ok(app.includes('window.RUDIPersonalTaskEditor?.open(event,calendarPersonalTaskEditorContext(event))'));
   assert.ok(app.includes('window.RUDIPersonalTaskEditor?.bind(taskCopy,event,calendarPersonalTaskEditorContext(event))'));
   assert.ok(app.includes('window.RUDIPersonalTaskEditor?.bind(row,task,ctx)'));

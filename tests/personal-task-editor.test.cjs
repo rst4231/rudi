@@ -97,3 +97,12 @@ test('personal editor keeps date and time when switching between different task 
  assert.equal(due.date,'2026-10-18');assert.equal(due.time,'20:30');
  assert.match(src,/byId\('rudiPersonalTaskForm'\)\.reset\(\);refreshTemporalInputs\(\)/);
 });
+
+test('new personal tasks use shared emoji rules and keep an existing emoji',async()=>{
+ const {createPersonalTask}=require('../api/personal-task-editor.cjs');
+ for(const [title,expected] of [['Купить продукты','🛒 Купить продукты'],['💡 Идея','💡 Идея']]){
+  const {deps,calls}=fake();
+  await createPersonalTask({...input,title},deps);
+  assert.equal(calls.find(row=>row[0]==='create')[1].title,expected);
+ }
+});

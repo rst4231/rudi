@@ -1,6 +1,18 @@
 const crypto = require('node:crypto');
 const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
 const { createRudiStateClient } = require('./rudi-state-client.cjs');
+const {archiveCompletedTask,readCompletedTasks,forgetCompletedTask}=require('./completed-task-history.cjs');
+async function updateCompletedTaskHistory(operation){
+  try{await operation();}
+  catch(error){
+    console.warn('RUDI_COMPLETED_TASK_HISTORY_RETRY',String(error?.message||error));
+    // The external completion/reopen has already succeeded. Preserve its Undo
+    // response even when the archive is briefly unavailable, and retry in-flight.
+    waitUntil(Promise.resolve().then(operation).catch(retryError=>{
+      console.warn('RUDI_COMPLETED_TASK_HISTORY_WARN',String(retryError?.message||retryError));
+    }));
+  }
+}
 const { homeSectionHashes, buildHomeDelta } = require('./home-bootstrap-delta.cjs');
 const { decorateSharedTaskTitle } = require('./shared-task-emoji.cjs');
 const { waitUntil } = require('@vercel/functions');
@@ -2213,14 +2225,27 @@ async function handleTickTick(req, res, action, options = {}) {
 
 
   // Dedicated private editor and project picker. Shared token is never used.
-  if(action==='personal-task-projects'||action==='personal-task-edit'||action==='personal-task-create'){
+  if(action==='personal-task-projects'||action==='personal-task-edit'||action==='personal-task-create'||action==='personal-task-list'){
     if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
     let body,actor;
     try{
       body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       ({actor}=authorizeRequest(req,body.initData,options));
     }catch(error){return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)})}
-    if(actor!=='Рустам')return res.status(403).json({ok:false,error:'ticktick-personal-owner-forbidden'});
+    if(actor==='Диана'){
+      try{
+        const {personalTasks}=require('./diana-personal-tasks.cjs');
+        if(action==='personal-task-projects')return res.status(200).json({ok:true,lists:[],writable:true});
+        const operation=action==='personal-task-list'?'list':action==='personal-task-create'?'create':String(body.operation||'');
+        return res.status(200).json(await personalTasks({...body,actor,operation},options));
+      }catch(error){
+        const code=String(error?.message||error);
+        const status=code.includes('forbidden')?403:code.includes('not-found')?404:
+          /invalid|required/.test(code)?400:503;
+        return res.status(status).json({ok:false,error:status===503?'calendar-save-unavailable':code});
+      }
+    }
+    if(actor!=='Рустам'||action==='personal-task-list')return res.status(403).json({ok:false,error:'ticktick-personal-owner-forbidden'});
     if(!credentialsConfigured(options.env||process.env))return res.status(503).json({ok:false,error:'ticktick-not-configured'});
     try{
       const token=await readPersonalToken('Рустам',options);
@@ -2314,6 +2339,7 @@ async function handleTickTick(req, res, action, options = {}) {
         actor,token,taskId:body.taskId,projectId:body.projectId,
         sharedProjectId:config.projectId,options
       });
+      if(result.wasOpen&&result.taskSnapshot)await updateCompletedTaskHistory(()=>archiveCompletedTask(actor,result.taskSnapshot,options));
       const undoToken=result.wasOpen?sealSnapshot({
         version:2,type:'ticktick-task-completion-undo-v1',
         actor,personal:true,taskId:String(body.taskId||''),
@@ -2378,6 +2404,7 @@ async function handleTickTick(req, res, action, options = {}) {
         result=await reopenRustamPersonalTask({actor,token,taskId:snapshot.taskId,
           projectId:snapshot.projectId,sharedProjectId:config.projectId,
           taskSnapshot:snapshot.taskSnapshot,options});
+        await updateCompletedTaskHistory(()=>forgetCompletedTask(actor,snapshot.taskSnapshot||{id:snapshot.taskId,projectId:snapshot.projectId},options));
       } else {
         const task=await fetchTask(token.accessToken,config.projectId,snapshot.taskId,options);
         if(String(task?.id||'')!==String(snapshot.taskId))
@@ -2746,6 +2773,15 @@ async function handleTickTick(req, res, action, options = {}) {
               console.warn('RUDI_PERSONAL_TICKTICK_CALENDAR_WARN',String(error?.message||error));
             }
           }
+        }
+      }
+      if(selectedScope==='rustam'&&actor==='Рустам'){
+        const completed=await readCompletedTasks(actor,options);
+        const byDate=new Map((calendar.days||[]).map(day=>[day.date,day]));
+        for(const item of completed){
+          const target=byDate.get(item.date);
+          if(target&&!target.events.some(event=>event.completed&&event.id===item.id&&event.projectId===item.projectId))
+            target.events.push(item);
         }
       }
       return res.status(200).json({

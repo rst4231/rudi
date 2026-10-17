@@ -7,7 +7,7 @@ const {
   savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, viewState, cryptoOperationKey, classifyCryptoOperation,
 } = require('./finance-store.cjs');
-const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport, moscowDateKey } = require('./finance-ai.cjs');
+const { getDailyLiteracyArticle, getMonthlyFinanceInsight, getFinancialAnalystReport, moscowDateKey, literacyArticleId, getSimpleLiteracyExplanation } = require('./finance-ai.cjs');
 const { createRudiStateClient } = require('./rudi-state-client.cjs');
 const { readMarketTicker } = require('./market-ticker.cjs');
 const cryptoWallets = require('./crypto-wallets.cjs');
@@ -61,6 +61,8 @@ async function reverseDeletedDailyExpense(actor, expenseId) {
 function statusFor(code, error) {
   const auth = statusForError(error);
   if (auth !== 500) return auth;
+  if (code === 'finance-literacy-stale') return 409;
+  if (code === 'finance-literacy-explanation-unavailable') return 503;
   if (code === 'finance-owner-only') return 403;
   if (code === 'crypto-owner-only') return 403;
   if (code === 'crypto-wallet-not-found') return 404;
@@ -556,9 +558,13 @@ async function handler(req, res) {
       });
       return res.status(200).json({ ok: true, insight });
     }
+    if (operation === 'literacy-explain') {
+      const result=await getSimpleLiteracyExplanation({actor,articleId:body.articleId});
+      return res.status(200).json({ok:true,...result});
+    }
     if (operation === 'literacy') {
       const article = await getDailyLiteracyArticle();
-      return res.status(200).json({ ok: true, article });
+      return res.status(200).json({ ok: true, article:{...article,id:literacyArticleId(article)} });
     }
     if (operation === 'analyst') {
       const month = String(body.month || '').trim();

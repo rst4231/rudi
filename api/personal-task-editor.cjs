@@ -103,6 +103,7 @@ async function createPersonalTask(input,deps={}){
  const date=String(input.date||'').trim();
  if(!date)throw Error('ticktick-personal-date-required');
  const changes=editable(input,{title:'',repeatFlag:'',desc:''});
+ changes.title=require('./shared-task-emoji.cjs').decorateSharedTaskTitle(changes.title).slice(0,500);
  const saved=await (deps.createTickTickTask||createTickTickTask)(token.accessToken,{
   ...changes,projectId,assigneeUsername:''
  },input.options||{});

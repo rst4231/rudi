@@ -150,9 +150,19 @@ async function acknowledge(id,stamp){
   }catch(e){db.close();reject(e)}
  });
 }
-async function rebaseNote(expectedUpdatedAt,who=actor){
+async function advanceNoteRevision(id,expectedUpdatedAt){
+ const db=await open();
+ await new Promise((resolve,reject)=>{
+  const tr=db.transaction('outbox','readwrite'),store=tr.objectStore('outbox'),get=store.get(id);
+  get.onsuccess=()=>{const row=get.result;if(row?.kind==='note')store.put({...row,data:{...row.data,expectedUpdatedAt}})};
+  tr.oncomplete=()=>{db.close();resolve()};
+  tr.onerror=()=>{db.close();reject(tr.error||Error('offline-note-revision-failed'))};
+  tr.onabort=()=>{db.close();reject(tr.error||Error('offline-note-revision-aborted'))};
+ });
+}
+async function rebaseNote(expectedUpdatedAt,who=actor,scope='home'){
  if(!actors.has(who)||typeof expectedUpdatedAt!=='string')throw Error('offline-rebase-invalid');
- const row=(await pending('note','home',who))[0];
+ const row=(await pending('note',scope,who))[0];
  if(!row)throw Error('offline-note-missing');
  const revised={...row,data:{...row.data,expectedUpdatedAt},error:'',stamp:makeId()};
  await tx('outbox','readwrite',store=>store.put(revised));
@@ -184,7 +194,7 @@ async function send(row){
  let url,body;
  if(row.kind==='note'||row.kind==='note-view'){
   url='/api/home-note';
-  body={operation:row.kind==='note'?'save':'set-expanded',...row.data};
+  body={operation:row.kind==='note'?'save':'set-expanded',...(row.kind==='note'?{id:row.scope||'home'}:{}),...row.data};
  }else if(row.kind==='question'){
   url='/api/partner-message?rudiAction=daily-question';
   body={operation:'answer',...row.data};
@@ -227,7 +237,7 @@ async function flush(){
   try{
    const blockedGroups=new Set();
    const group=row=>row.kind==='wellness'?'wellness:'+row.data?.area:
-      row.kind==='note'||row.kind==='note-view'?'note':
+      row.kind==='note'?'note:'+row.scope:row.kind==='note-view'?'note-view':
       row.kind+':'+row.scope;
    for(const row of await entries(who)){
     if(actor!==who)break;
@@ -240,12 +250,15 @@ async function flush(){
      const stored=acked?null:await tx('outbox','readonly',store=>store.get(row.id));
      if(acked)sent++;
      else if(stored&&row.kind==='note'&&result.note?.updatedAt){
-      stored.data.expectedUpdatedAt=result.note.updatedAt;
-      await tx('outbox','readwrite',store=>store.put(stored));
+      await advanceNoteRevision(row.id,result.note.updatedAt);
      }
      if(row.kind==='note'&&result.note?.updatedAt){
       const prior=await cached('note',who);
-      if(prior?.text===row.data.text)await capture('note',{...prior,updatedAt:result.note.updatedAt},who);
+      if(prior){
+       const id=row.data.id||row.scope||'home';
+       const notes=Array.isArray(prior.notes)?prior.notes.map(note=>note.id===id&&note.text===row.data.text&&(!('title' in row.data)||note.title===row.data.title)&&(!('pinned' in row.data)||note.pinned===row.data.pinned)?{...note,updatedAt:result.note.updatedAt,history:result.note.history||note.history}:note):prior.notes;
+       await capture('note',{...prior,...(id==='home'&&prior.text===row.data.text?{updatedAt:result.note.updatedAt}:{}),...(notes?{notes}:{})},who);
+      }
      }
      root.dispatchEvent(new CustomEvent('rudi-content-operation-synced',{detail:{actor:who,kind:row.kind,scope:row.scope,area:row.data?.area,operation:row.data?.operation,result}}));
     }catch(error){

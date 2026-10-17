@@ -58,10 +58,17 @@ test('personal + button is next to Today, blue and exactly equal height',()=>{
   assert.ok(app.includes("calendarOpenPersonalTickTickComposer();"));
 });
 
-test('personal + is controlled by confirmed personal OAuth connectivity and owner',()=>{
+test('Rustam personal + needs OAuth; Diana personal + uses private calendar',()=>{
   assert.ok(api.includes("personalConnected:selectedScope==='rustam'&&actor==='Рустам'&&Boolean(rustamToken?.accessToken)"));
   assert.ok(app.includes("calendarPersonalTickTickConnected=currentActor==='Рустам'&&data.personalConnected===true"));
-  assert.ok(app.includes("const isPersonalReady=calendarScope==='personal'&&currentActor==='Рустам'&&calendarPersonalTickTickConnected"));
+  const start=app.indexOf('function calendarUpdateCreateButtons(){');
+  const end=app.indexOf('function calendarSetScope(',start);
+  for(const [actor,connected,scope,shown] of [['Рустам',false,'personal',false],['Рустам',true,'personal',true],['Диана',false,'personal',true],['Диана',false,'shared',false]]){
+    const personal={hidden:true},body={dataset:{}};
+    const context={calendarScope:scope,currentActor:actor,calendarPersonalTickTickConnected:connected,document:{body,getElementById:id=>id==='calendarPersonalCreateTask'?personal:null}};
+    vm.runInNewContext(app.slice(start,end)+';calendarUpdateCreateButtons()',context);
+    assert.equal(!personal.hidden,shown);
+  }
   for(const opt of [{connected:false},{actor:'Диана'},{scope:'shared'}]){
     const {ctx,navigation}=harness(opt);
     assert.equal(ctx.openComposer(),false);

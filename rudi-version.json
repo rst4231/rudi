@@ -1,25 +1,29 @@
 {
-  "current": "v4.263",
-  "versionBranch": "feature/battleship-ocean-ru",
+  "current": "v4.264",
+  "versionBranch": "feature/notes-diana-calendar",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-17",
-  "basedOnProduction": "v4.262",
+  "basedOnProduction": "v4.263",
   "notes": [
-    "Морской бой: оформление по морскому образцу, русские подписи, аватары и миниатюра своего флота",
-    "Тренировка мышления: расширенный офлайн-набор задач и история показов отдельно для каждого игрока",
-    "Умный дом: температурные push и отдельная настройка с защитой от повторов",
-    "Статус визита: компактная строка под аватаром с формулировкой Был/Была в сети",
-    "Диагностика базы проверяет активное хранилище и показывает Cloudflare D1 вместо жёсткой подписи Neon",
-    "Единый релиз; production deploy только после явного подтверждения"
+    "Личные заметки: несколько записей, названия, закрепление и чек-листы",
+    "История версий и отмена исправления Groq с сохранением исходного текста",
+    "Копирование всей заметки, карандаш редактирования и заголовок без стрелки",
+    "Календарь Дианы: личные дела с группировкой утро/день/вечер без выбора категории",
+    "Календарь: повторы и дни недели, перетаскивание Дианы, редактор по нажатию для обоих",
+    "Завершённые личные дела сохраняются в календаре два месяца",
+    "Грамотность: объяснение статьи простыми словами через Groq",
+    "Один проверенный релиз; пользователь разрешил сразу опубликовать весь пакет"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Russian ocean battleship layout",
-    "Offline thinking question variety and persistent history",
-    "Temperature notifications using existing climate cron",
-    "Inline gender-aware last-seen status",
-    "Actual database backend health probe"
+    "Private multi-note collection with pinning and checklist items",
+    "Per-note version history and undo after Groq proofreading",
+    "Copy-all note action and compact controls",
+    "Diana actor-scoped private calendar tasks with day-period grouping",
+    "Recurring Diana tasks, existing drag behavior and tap-to-edit for both users",
+    "Completed personal task history retained for two calendar months",
+    "Age-8 plain-language article explanation via Groq"
   ]
 }
