@@ -85,7 +85,7 @@
   }
   async function enqueue(who, kind, details) {
     if (kind.startsWith('diana-') && who !== 'Диана')throw Error('calendar-offline-owner-forbidden');
-    if (!who || !['create', 'update', 'delete', 'complete', 'personal-complete', 'move', 'personal-move', 'diana-create', 'diana-update', 'diana-delete', 'diana-complete'].includes(kind))
+    if (!who || !['create', 'update', 'delete', 'complete', 'personal-complete', 'personal-update', 'personal-delete', 'move', 'personal-move', 'diana-create', 'diana-update', 'diana-delete', 'diana-complete'].includes(kind))
       throw Error('calendar-offline-invalid-action');
     const row = {
       id: id(), actor: who, kind, details: clone(details || {}),
@@ -184,9 +184,9 @@
         if (entry) old = clone(entry);
         day.events = day.events.filter(x => String(x?.id || '') !== taskId);
       }
-      if (row.kind === 'complete' || row.kind === 'personal-complete' || row.kind === 'delete' || row.kind === 'diana-delete' || row.kind === 'diana-complete') continue;
+      if (row.kind === 'complete' || row.kind === 'personal-complete' || row.kind === 'personal-delete' || row.kind === 'delete' || row.kind === 'diana-delete' || row.kind === 'diana-complete') continue;
       if (!old) continue;
-      const value = row.kind==='diana-update'?d:(d.value || {});
+      const value = row.kind==='diana-update'||row.kind==='personal-update'?d:(d.value || {});
       const next = {
         ...old, title: value.title === undefined ? old.title : value.title,
         description: value.description === undefined ? old.description : value.description,
@@ -221,6 +221,7 @@
     if (k === 'delete') return '/api/ticktick/task-delete';
     if (k === 'complete') return '/api/ticktick/task-complete';
     if (k === 'personal-complete') return '/api/partner-message?ticktickAction=personal-task-complete';
+    if (k === 'personal-update'||k==='personal-delete') return '/api/partner-message?ticktickAction=personal-task-edit';
     if (k === 'personal-move') return '/api/partner-message?ticktickAction=personal-task-move';
     if (k === 'move') return '/api/partner-message?ticktickAction=task-move';
     throw Error('calendar-offline-unsupported-action');
@@ -238,7 +239,7 @@
     // Diana creates use atomic insert-if-absent IDs; edits and tombstones are
     // idempotent too. Retrying never creates a second task after a lost response.
     if(row.kind.startsWith('diana-'))return who==='Диана'?'retry':'unknown';
-    const data=row.details||{}, value=data.value||{}, taskId=string(data.taskId);
+    const data=row.details||{}, value=data.value||(row.kind==='personal-update'?data:{}), taskId=string(data.taskId);
     const personal=row.kind.startsWith('personal-');
     const scope=personal?'rustam':'shared';
     const snapshots=(await all('snapshots')).filter(s=>
@@ -282,16 +283,16 @@
       // Cannot safely infer a failed create from absence alone.
       return 'unknown';
     }
-    if(row.kind==='complete'||row.kind==='personal-complete'||row.kind==='delete'){
+    if(row.kind==='complete'||row.kind==='personal-complete'||row.kind==='personal-delete'||row.kind==='delete'){
       if(row.kind!=='delete'&&found?.completed===true)return 'done';
       if(!found&&original)return 'done';
       if(found&&age>20000)return 'retry';
       return 'unknown';
     }
-    if(row.kind==='update'||row.kind==='move'||row.kind==='personal-move'){
+    if(row.kind==='update'||row.kind==='personal-update'||row.kind==='move'||row.kind==='personal-move'){
       const targetDate=string(value.date||data.date),targetTime=string(value.time??data.time);
       if(found&&string(found.date)===targetDate&&string(found.startTime)===targetTime
-        &&(row.kind!=='update'||string(found.title)===string(value.title)))return 'done';
+        &&(!['update','personal-update'].includes(row.kind)||string(found.title)===string(value.title)))return 'done';
       if(found&&age>20000)return 'retry';
       return 'unknown';
     }

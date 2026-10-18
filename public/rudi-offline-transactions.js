@@ -101,14 +101,26 @@ function financeProjection(state,op,data,row){
   if(previous?.walletId)adjust(previous.walletId,Number(previous.sourceAmount||previous.amount||0));
   next.personalExpenses=next.personalExpenses.filter(x=>x!==previous);
   if(op==='save-expense'){
-   const amount=Number(data.amount||0),wallet=next.wallets.find(w=>w.id===data.walletId);
+   const wallet=next.wallets.find(w=>w.id===data.walletId);
+   const category=next.categories?.find(c=>c.id===data.categoryId);
+   const sourceCurrency=String(wallet?.currency||category?.currency||'RUB').toUpperCase();
+   const targetCurrency=String(category?.currency||'RUB').toUpperCase();
+   const quote=data.offlineConversion||{};
+   const input=Number(data.amount||0);
+   const inputCurrency=String(data.inputCurrency||sourceCurrency).toUpperCase();
+   const sourceAmount=Number(quote.sourceAmount)>0?Number(quote.sourceAmount):
+      inputCurrency===sourceCurrency?input:0;
+   const amount=Number(quote.amount)>0?Number(quote.amount):
+      sourceCurrency===targetCurrency&&inputCurrency===sourceCurrency?input:0;
+   const rubAmount=Number(quote.rubAmount)>0?Number(quote.rubAmount):
+      sourceCurrency==='RUB'&&targetCurrency==='RUB'?input:0;
    const month=String(data.month||time.slice(0,7));
    const expense={...(previous||{}),...data,id:data.id||sid,actor:row.actor,month,
-    amount,sourceAmount:Number(data.sourceAmount||amount),
-    rubAmount:Number(data.rubAmount||amount),
-    sourceCurrency:wallet?.currency||'RUB',targetCurrency:'RUB',
+    amount,sourceAmount,rubAmount,sourceCurrency,targetCurrency,
+    exchangeRate:Number(quote.exchangeRate)||0,
+    offlineRatePending:rubAmount<=0||sourceAmount<=0,
     occurredAt:data.occurredAt||time,createdAt:previous?.createdAt||time,updatedAt:time,
-    requestId:row.id,offlinePending:true};
+    requestId:data.requestId||row.id,offlinePending:true};
    next.personalExpenses.push(expense);
    if(expense.walletId)adjust(expense.walletId,-expense.sourceAmount);
   }
@@ -118,8 +130,13 @@ function financeProjection(state,op,data,row){
   next.walletIncomes=next.walletIncomes.filter(x=>x!==previous);
   if(op==='save-wallet-income'){
    const wallet=next.wallets.find(w=>w.id===data.walletId),amount=Number(data.amount||0);
+   const quote=data.offlineConversion||{};
+   const currency=wallet?.currency||'RUB';
    const income={...(previous||{}),...data,id:data.id||sid,actor:row.actor,
-    amount,month:data.month||time.slice(0,7),currency:wallet?.currency||'RUB',
+    amount,rubAmount:Number(quote.rubAmount)||(currency==='RUB'?amount:0),
+    exchangeRate:Number(quote.exchangeRate)||(currency==='RUB'?1:0),
+    offlineRatePending:currency!=='RUB'&&!Number(quote.rubAmount),
+    month:data.month||time.slice(0,7),currency,
     occurredAt:data.occurredAt||time,createdAt:previous?.createdAt||time,
     updatedAt:time,offlinePending:true};
    next.walletIncomes.push(income);
@@ -150,7 +167,7 @@ async function view(area,who=actor){
  return state;
 }
 function offline(){
- if(connected===true)return false;
+ if(connected===true||root.__rudiNetworkReachable===true)return false;
  return root.navigator?.onLine===false||root.document?.body?.dataset?.offlineMode==='1'||connected===false;
 }
 function networkError(err){
@@ -162,7 +179,7 @@ function normalized(area,op,data,row){
  const body={...data,operation:op};
  if(area==='products'&&row?.id)body.offlineOperationId=row.id;
  if(area==='finances'){
-  if(op==='save-expense'&&!data.id)body.requestId=row.id;
+  if(op==='save-expense'&&!data.id)body.requestId=data.requestId||row.id;
   if(op==='save-wallet-income'&&!data.id)body.offlineOperationId=row.id;
   if(op==='delete-expense'||op==='delete-wallet-income')body.offlineOperationId=row.id;
  }
@@ -196,14 +213,15 @@ async function request(area,operation,payload={},live=null){
  if(!AREAS.has(area)||!actor)throw Error('offline-transactions-unavailable');
  const who=actor,read=operation==='list';
  if(read){
-  if(offline()){const state=await view(area,who);if(state)return state}
+  // A stale offline UI flag must not prevent refreshing a recovered connection.
+  if(offline()&&!(await probe())){const state=await view(area,who);if(state)return state}
   try{
    const state=await live();
    if(state?.ok===true)await capture(area,state,who);
    return (await view(area,who))||state;
   }catch(err){
    const state=await view(area,who);
-   if(state&&networkError(err)){connected=false;return state}
+   if(state&&networkError(err)){connected=false;root.__rudiNetworkReachable=false;return state}
    throw err;
   }
  }
@@ -213,7 +231,7 @@ async function request(area,operation,payload={},live=null){
  if(!supported.includes(operation))return live();
  const opId=id();
  const draft={id:opId,area,actor:who,operation,payload:clean(payload),createdAt:Date.now(),error:''};
- if(area==='finances'&&operation==='save-expense'&&!draft.payload.id)draft.payload.requestId=opId;
+ if(area==='finances'&&operation==='save-expense'&&!draft.payload.id)draft.payload.requestId=String(payload.requestId||opId);
  if(!offline()){
   try{
    const livePayload=area==='products'
@@ -222,13 +240,14 @@ async function request(area,operation,payload={},live=null){
      ?{...payload,offlineOperationId:opId}
      :area==='finances'&&operation==='save-wallet-income'&&!payload.id
      ?{...payload,offlineOperationId:opId}
-     :area==='finances'&&operation==='save-expense'&&!payload.id?{...payload,requestId:opId}:payload;
+     :area==='finances'&&operation==='save-expense'&&!payload.id?{...payload,requestId:payload.requestId||opId}:payload;
    const result=await live(livePayload);
    if(result?.ok===true)await capture(area,result,who).catch(()=>false);
    return (await view(area,who).catch(()=>null))||result;
   }catch(error){
    if(!networkError(error))throw error;
    connected=false;
+   root.__rudiNetworkReachable=false;
   }
  }
  const saved=await base(area,who);
@@ -236,9 +255,9 @@ async function request(area,operation,payload={},live=null){
  if(area==='finances'&&(operation==='save-expense'||operation==='save-wallet-income')){
   const wallet=saved.wallets?.find(x=>x.id===payload.walletId);
   const category=saved.categories?.find(x=>x.id===payload.categoryId);
-  if(String(wallet?.currency||category?.currency||'RUB').toUpperCase()!=='RUB'||
-    (category&&String(category.currency||'RUB').toUpperCase()!=='RUB'))
-    throw Error('offline-finance-currency-unsupported');
+  if(payload.walletId&&!wallet)throw Error('offline-finance-wallet-not-found');
+  if(operation==='save-expense'&&!category)throw Error('offline-finance-category-not-found');
+  if(!(Number(payload.amount)>0))throw Error('offline-finance-amount-invalid');
  }
  await tx('outbox','readwrite',tr=>tr.objectStore('outbox').put(draft));
  root.document.body.dataset.offlineMode='1';
@@ -257,6 +276,7 @@ async function probe(){
   const recovered=Boolean(response?.ok&&response.headers?.get?.('X-RUDI-Offline')!=='1');
   const previouslyOffline=offline();
   connected=recovered;
+  root.__rudiNetworkReachable=recovered;
   if(recovered&&previouslyOffline){
    if(root.document?.body)root.document.body.dataset.offlineMode='0';
    root.dispatchEvent(new CustomEvent('rudi-transactions-network-recovered'));

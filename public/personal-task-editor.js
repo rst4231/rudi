@@ -117,10 +117,14 @@ function enabled(flag){
 async function request(action,payload={}){
   if(!active)throw Error('Задача не выбрана');
   const local=active.ctx.actor==='Диана';
-  if(local&&action!=='personal-task-projects'){
-    const kind=action==='personal-task-create'?'diana-create':payload.operation==='delete'?'diana-delete':'diana-update';
-    const queued=await active.ctx.queueOffline?.(kind,{...payload,task:active.task});
-    if(queued)return queued;
+  if(action!=='personal-task-projects'){
+    const kind=local
+      ?action==='personal-task-create'?'diana-create':payload.operation==='delete'?'diana-delete':'diana-update'
+      :action==='personal-task-edit'?(payload.operation==='delete'?'personal-delete':'personal-update'):null;
+    if(kind){
+      const queued=await active.ctx.queueOffline?.(kind,{...payload,task:active.task});
+      if(queued)return queued;
+    }
   }
   const response=await fetch('/api/partner-message?ticktickAction='+action,{
     method:'POST',headers:{'Content-Type':'application/json'},
@@ -157,7 +161,8 @@ async function projects(){
     if(!active||active.task!==task)return;
     select.replaceChildren(new Option(task.projectName||'Текущий список',task.projectId));
     select.value=task.projectId;select.disabled=true;
-    message('Не удалось загрузить списки. Попробуйте открыть дело ещё раз');
+    listed=true;
+    message('Офлайн режим · изменения сохранятся и отправятся после подключения');
   }
 }
 function normalizedEditorWhen(task){

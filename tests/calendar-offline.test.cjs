@@ -102,6 +102,8 @@ test('offline shell is versioned and pre-caches critical calendar assets before 
   assert.match(sw,/await Promise\.all\(critical\.map\(url=>cache\.add\(url\)\)\)/);
   assert.match(sw,/const CACHE_NAME='rudi-shell-/);
   assert.match(app,/await queueCalendarWhenOffline\('create',\{value\}\)/);
+  assert.match(app,/await calendarNetworkUnavailable\(true\)/);
+  assert.match(app,/rudiCalendarOffline\?\.isOffline/);
   assert.match(app,/offlineStore\.capture\(currentActor,offlineScope,month,result\)/);
   assert.match(app,/offlineStore\.materialize\(currentActor,month,result,offlineScope\)/);
 });
@@ -126,19 +128,23 @@ test('calendar detects unreachable network before mutations even if navigator sa
     )(window,navigator,document,fetch,'Рустам',setTimeout,clearTimeout,AbortController);
     return {...tools,queued,document};
   };
-  const hidden=instantiate(true,true,async()=>{throw Error('should not request')});
+  const hidden=instantiate(true,true,async()=>{throw Error('actual network unavailable')});
   assert.equal((await hidden.queueCalendarWhenOffline('create',{value:{title:'Тест'}})).queued,true);
   assert.equal(hidden.queued.length,1);
   const disconnected=instantiate(true,false,async()=>{throw new TypeError('Failed to fetch')});
   assert.equal((await disconnected.queueCalendarWhenOffline('complete',{taskId:'one'})).queued,true);
   assert.equal(disconnected.queued.length,1);
   assert.equal(disconnected.document.body.dataset.offlineMode,'1');
-  const connected=instantiate(true,false,async()=>({ok:true}));
+  const connected=instantiate(true,false,async()=>({ok:true,headers:{get:()=>null}}));
   assert.equal(await connected.queueCalendarWhenOffline('create',{value:{title:'Live'}}),null);
   assert.equal(connected.queued.length,0);
+  const reconnected=instantiate(true,true,async()=>({ok:true,headers:{get:()=>null}}));
+  assert.equal(await reconnected.queueCalendarWhenOffline('update',{taskId:'task1'}),null);
+  assert.equal(reconnected.queued.length,0,'a stale offline flag must not trap new edits');
+  assert.equal(reconnected.document.body.dataset.offlineMode,'0','successful probe clears the stale flag');
 });
 
-test('cached calendar renders immediately and offline path never waits for TickTick',()=>{
+test('cached calendar renders first and probes before choosing offline path',()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const start=app.indexOf('async function loadWorkCalendar(');
   const end=app.indexOf('function setSharedCalendarRangeActive(',start);
@@ -147,7 +153,7 @@ test('cached calendar renders immediately and offline path never waits for TickT
   assert.match(fn,/renderWorkCalendar\(offlineSnapshot,\{force:true\}\)/);
   assert.ok(fn.indexOf('renderWorkCalendar(offlineSnapshot,{force:true})')<
     fn.indexOf("promise=fetchCombinedCalendar('month')"),'disk cache should render before fetch');
-  assert.match(fn,/if\(offlineStore\?\.isOffline\?\.\(\)\)\{/);
+  assert.match(fn,/if\(offlineStore\?\.isOffline\?\.\(\)&&await calendarNetworkUnavailable\(true\)\)\{/);
   assert.match(fn,/if\(offlineSnapshot\)return offlineSnapshot;/);
   assert.match(fn,/Офлайн · нет сохранённых данных/);
   assert.match(app,/hasRecentOfflineIdentity\?1800:5000/);
@@ -189,6 +195,27 @@ test('offline calendar periodically rechecks network and refresh swipe attempts 
   assert.match(app,/rudi-calendar-network-recovered/);
   assert.match(pwa,/addEventListener\('rudi-calendar-network-recovered'/);
   assert.match(pwa,/banner\.hidden=true;[\s\S]*?document\.body\.dataset\.offlineMode='0'/);
+});
+
+test('personal TickTick edits are durable and use the personal API endpoint',async()=>{
+  const h=harness(),store=h.api;
+  const task={id:'t-one',projectId:'p-one',personal:true,title:'Старое',
+    date:'2026-10-18',startTime:'10:00'};
+  const saved={ok:true,ticktickDays:[{date:'2026-10-18',events:[task]}],days:[]};
+  await store.capture('Рустам','personal','2026-10',saved);
+  await store.enqueue('Рустам','personal-update',{operation:'save',taskId:task.id,
+    projectId:task.projectId,title:'Новое',date:'2026-10-18',time:'11:30',task});
+  const cached=await store.cached('Рустам','personal','2026-10');
+  const view=await store.materialize('Рустам','2026-10',cached,'personal');
+  assert.equal(view.ticktickDays[0].events[0].title,'Новое');
+  assert.equal(view.ticktickDays[0].events[0].startTime,'11:30');
+  assert.equal(view.ticktickDays[0].events[0].offlinePending,true);
+  assert.equal((await store.summary('Рустам')).pending,1);
+  const calendar=fs.readFileSync('public/calendar-offline.js','utf8');
+  assert.match(calendar,/k==='personal-update'\|\|k==='personal-delete'/);
+  const editor=fs.readFileSync('public/personal-task-editor.js','utf8');
+  assert.match(editor,/kind=local/);
+  assert.match(editor,/'personal-update'/);
 });
 
 test('Diana private offline create/edit/delete stays actor- and scope-isolated and replays only private endpoints',async()=>{

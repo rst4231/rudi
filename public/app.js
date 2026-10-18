@@ -3001,6 +3001,7 @@
       function financeExpenseSaveError(error){
         const code=String(error?.message||'');
         return code.includes('wallet-insufficient')?'Превышен кредитный лимит'
+          :code.includes('offline-')?'Не удалось сохранить операцию на устройстве'
           :code.includes('currency')||code.includes('rate')?'Не удалось получить курс валют'
           :'Не удалось сохранить расход';
       }
@@ -5969,10 +5970,16 @@
           financeExpenseMutationInFlight=true;
           button.disabled=true;
           if(status)status.textContent='Сохраняю…';
-          if(preview)financeApplyExpensePreview(preview);
-          closeFinanceCoinModal('financeExpenseComposer');
+          if(preview){
+            payload.offlineConversion={
+              amount:preview.amount,sourceAmount:preview.sourceAmount,
+              rubAmount:preview.rubAmount,exchangeRate:preview.exchangeRate
+            };
+            financeApplyExpensePreview(preview);
+          }
           try{
             const data=await financeRequest('save-expense',payload);
+            closeFinanceCoinModal('financeExpenseComposer');
             delete button.dataset.rudiExpenseSignature;
             delete button.dataset.rudiExpenseRequestId;
             renderFinanceState(data,{personalMonth:expenseMonth,preserveIncome:true,preservePlan:true});
@@ -6068,7 +6075,13 @@
           const occurredAt=financeIncomeOccurredAt(),monthKey=financeMonthFromOccurredAt(occurredAt);
           financeIncomeMutationInFlight=true;button.disabled=true;if(status)status.textContent='Сохраняю…';
           try{
-            const data=await financeRequest('save-wallet-income',{id:editingId||undefined,walletId,amount:value,month:monthKey,occurredAt,note:note?.value||''});
+            const currency=String(financeWalletById(walletId)?.currency||'RUB').toUpperCase();
+            const rate=Number(financeWalletRubRates()[currency]||0);
+            const offlineConversion=rate>0?{exchangeRate:rate,rubAmount:Math.round(value*rate*100)/100}:null;
+            const data=await financeRequest('save-wallet-income',{
+              id:editingId||undefined,walletId,amount:value,month:monthKey,occurredAt,
+              note:note?.value||'',...(offlineConversion?{offlineConversion}:{})
+            });
             renderFinanceState(data,{personalMonth:financeSelectedPersonalMonth(),preservePlan:true});
             closeFinanceCoinModal('financeIncomeComposer');
             financeIncomeEditingId='';
@@ -12598,7 +12611,7 @@
 
       let homeReconnectPromise=null,lastHomeReconnectAt=0;
       function reconnectHome({force=false}={}){
-        if(!currentActor||!appAccessReady||navigator.onLine===false)return Promise.resolve(false);
+        if(!currentActor||!appAccessReady)return Promise.resolve(false);
         if(homeReconnectPromise)return homeReconnectPromise;
         if(!force&&Date.now()-lastHomeReconnectAt<12000)return Promise.resolve(false);
         lastHomeReconnectAt=Date.now();
@@ -12610,10 +12623,11 @@
             const response=await fetch('/version.json?homeReconnect='+Date.now(),{
               cache:'no-store',signal:controller.signal
             });
-            connected=Boolean(response?.ok);
+            connected=Boolean(response?.ok&&response.headers?.get?.('X-RUDI-Offline')!=='1');
           }catch(_){connected=false}
           finally{clearTimeout(timer)}
           if(!connected)return false;
+          window.__rudiNetworkReachable=true;
           document.body.dataset.offlineMode='0';
           window.dispatchEvent(new CustomEvent('rudi-home-network-recovered'));
           // Never discard IndexedDB, and let the existing outboxes flush first.
@@ -14002,22 +14016,24 @@
 
       let calendarReachabilityAt=0,calendarReachabilityOk=true;
       async function calendarNetworkUnavailable(forceProbe=false){
-        if(navigator.onLine===false)return true;
-        if(!forceProbe&&(window.rudiCalendarOffline?.isOffline?.()||
-          document.body.dataset.offlineMode==='1'))return true;
         if(!forceProbe&&calendarReachabilityAt&&Date.now()-calendarReachabilityAt<4000)return !calendarReachabilityOk;
+        // The UI's offline flag is not proof of network failure.
+        // Recheck a real uncached endpoint, including when iOS navigator.onLine is stale.
         const controller=new AbortController();
         const timer=setTimeout(()=>controller.abort(),1600);
         try{
           const response=await fetch('/version.json?calendarProbe='+Date.now(),{
             method:'GET',cache:'no-store',signal:controller.signal
           });
-          calendarReachabilityOk=response.ok;
-          if(calendarReachabilityOk&&document.body.dataset.offlineMode==='1'){
-            document.body.dataset.offlineMode='';
+          calendarReachabilityOk=Boolean(response.ok&&response.headers?.get?.('X-RUDI-Offline')!=='1');
+          if(calendarReachabilityOk){
+            window.__rudiNetworkReachable=true;
+            document.body.dataset.offlineMode='0';
+            window.dispatchEvent(new CustomEvent('rudi-calendar-network-recovered'));
           }
         }catch(_){
           calendarReachabilityOk=false;
+          window.__rudiNetworkReachable=false;
           document.body.dataset.offlineMode='1';
         }finally{
           clearTimeout(timer);calendarReachabilityAt=Date.now();
@@ -14025,7 +14041,7 @@
         return !calendarReachabilityOk;
       }
       async function queueCalendarWhenOffline(kind,details){
-        if(!await calendarNetworkUnavailable())return null;
+        if(!await calendarNetworkUnavailable(true))return null;
         if(!window.rudiCalendarOffline)throw new Error('calendar-offline-unavailable');
         return window.rudiCalendarOffline.enqueue(currentActor,kind,details);
       }
@@ -14178,14 +14194,13 @@
       // Recheck the server from the calendar itself; never require an app restart.
       let reconnectCalendarPromise=null,lastReconnectAttemptAt=0;
       function reconnectCalendar({force=false}={}){
-        if(!currentActor||!appAccessReady||navigator.onLine===false)return Promise.resolve(false);
+        if(!currentActor||!appAccessReady)return Promise.resolve(false);
         if(reconnectCalendarPromise)return reconnectCalendarPromise;
         if(!force&&Date.now()-lastReconnectAttemptAt<5000)return Promise.resolve(false);
         lastReconnectAttemptAt=Date.now();
         reconnectCalendarPromise=(async()=>{
           calendarReachabilityAt=0;
           if(await calendarNetworkUnavailable(true))return false;
-          window.dispatchEvent(new CustomEvent('rudi-calendar-network-recovered'));
           // Clearing the stale flag is not enough: flush the local queue
           // and re-read TickTick, keeping all queued rows until acknowledged.
           const synced=await flushCalendarOffline();
@@ -16394,7 +16409,7 @@
         const requested='month',month=monthOverride||calendarActiveMonth();
         const offlineStore=window.rudiCalendarOffline;
         const offlineScope=calendarScope;
-        if(offlineStore?.isOffline?.()){
+        if(offlineStore?.isOffline?.()&&await calendarNetworkUnavailable(true)){
           const local=await offlineStore.cached(currentActor,offlineScope,month).catch(()=>null);
           if(local)return offlineStore.materialize(currentActor,month,local,offlineScope);
           return {configured:true,view:requested,days:[],ticktickDays:[],holidayDays:[],
@@ -16506,6 +16521,7 @@
         if(force){
           invalidateManagedRequests('ticktick-calendar:'+calendarActiveMonth()+':'+sourceScope);
           calendarViewLoadedAt.delete(key);
+          calendarCombinedPending.clear();
         }
         let offlineSnapshot=null;
         const offlineStore=window.rudiCalendarOffline;
@@ -16518,9 +16534,8 @@
             }
           }
         }
-        if(offlineStore?.isOffline?.()){
-          // Render cached data immediately, then probe connectivity asynchronously.
-          // iOS sometimes fails to dispatch the "online" event after airplane mode.
+        if(offlineStore?.isOffline?.()&&await calendarNetworkUnavailable(true)){
+          // Keep the cached calendar visible while actually disconnected.
           reconnectCalendar();
           if(offlineSnapshot)return offlineSnapshot;
           if(cached){

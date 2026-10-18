@@ -223,6 +223,7 @@
 
   function recordOnlineApiSuccess(input){
     if(!isRudiApiRequest(input)) return;
+    window.__rudiNetworkReachable=true;
     window.dispatchEvent(new CustomEvent('rudi-online-request-success'));
   }
 
@@ -245,7 +246,7 @@
   }
 
   async function snapshotAwareFetch(input,init,snapshotKey){
-    if(navigator.onLine===false){
+    if(navigator.onLine===false&&window.__rudiNetworkReachable!==true){
       const cached=await snapshotFallback(snapshotKey);
       if(cached) return cached;
     }
@@ -261,6 +262,7 @@
         const response=await nativeFetch(input,init);
         return rememberSnapshotResponse(snapshotKey,input,response);
       }catch(error){
+        window.__rudiNetworkReachable=false;
         const cached=await snapshotFallback(snapshotKey);
         if(cached) return cached;
         throw error;
@@ -373,6 +375,7 @@
       const queued=queueableMutation(input,init);
       const snapshotKey=snapshotRequestKey(input,init);
       const queueAndThrow=async(message)=>{
+        window.__rudiNetworkReachable=false;
         await enqueueOfflineMutation(queued);
         await requestOutboxFlush();
         showMiniToast(message);
@@ -381,17 +384,17 @@
         throw error;
       };
 
-      if(queued&&navigator.onLine===false){
+      if(queued&&navigator.onLine===false&&window.__rudiNetworkReachable!==true){
         return queueAndThrow('Нет интернета · сохраню позже');
       }
 
-      if(snapshotKey&&(navigator.onLine===false||document.body.dataset.offlineMode==='1')){
+      if(snapshotKey&&navigator.onLine===false&&window.__rudiNetworkReachable!==true){
         const cached=await snapshotFallback(snapshotKey);
         if(cached) return cached;
         throw new TypeError('offline-no-snapshot');
       }
 
-      if(snapshotKey&&navigator.onLine!==false){
+      if(snapshotKey&&(navigator.onLine!==false||window.__rudiNetworkReachable===true)){
         return snapshotAwareFetch(input,init,snapshotKey);
       }
 
@@ -409,7 +412,8 @@
           return queueAndThrow('Офлайн режим · действие сохранено, отправлю позже');
         }
         if(snapshotKey&&networkFailure){
-          const cached=await snapshotFallback(snapshotKey);
+           window.__rudiNetworkReachable=false;
+           const cached=await snapshotFallback(snapshotKey);
           if(cached) return cached;
         }
         throw error;
@@ -651,7 +655,7 @@
       document.body.appendChild(banner);
     }
     const sync=()=>{
-      const offline=navigator.onLine===false||document.body.dataset.offlineMode==='1';
+      const offline=window.__rudiNetworkReachable===true?false:(navigator.onLine===false||document.body.dataset.offlineMode==='1');
       banner.hidden=!offline;
       document.body.classList.toggle('rudi-offline',offline);
       if(!offline){
@@ -673,12 +677,12 @@
       banner.textContent='Офлайн режим · данные по состоянию на '+time;
     });
     window.addEventListener('rudi-online-request-success',()=>{
-      if(banner.hidden||navigator.onLine===false) return;
+      if(banner.hidden||(navigator.onLine===false&&window.__rudiNetworkReachable!==true)) return;
       recoverySuccesses+=1;
       if(recoverySuccesses<2) return;
       clearTimeout(recoveryTimer);
       recoveryTimer=setTimeout(()=>{
-        if(navigator.onLine===false) return;
+        if(navigator.onLine===false&&window.__rudiNetworkReachable!==true) return;
         banner.hidden=true;
         document.body.classList.remove('rudi-offline');
         document.body.dataset.offlineMode='0';
@@ -686,7 +690,7 @@
       },350);
     });
     window.addEventListener('rudi-home-network-recovered',()=>{
-      if(navigator.onLine===false)return;
+      window.__rudiNetworkReachable=true;
       clearTimeout(recoveryTimer);
       recoverySuccesses=0;
       banner.hidden=true;
@@ -703,9 +707,7 @@
       document.body.dataset.offlineMode='0';
     });
     window.addEventListener('rudi-calendar-network-recovered',()=>{
-      // A successful uncached network probe is authoritative, even if Safari
-      // never emitted "online". Do not leave the stale offline banner visible.
-      if(navigator.onLine===false)return;
+      window.__rudiNetworkReachable=true;
       clearTimeout(recoveryTimer);
       recoverySuccesses=0;
       banner.hidden=true;
@@ -714,7 +716,10 @@
       document.body.dataset.offlineMode='0';
     });
     window.addEventListener('online',sync);
-    window.addEventListener('offline',sync);
+    window.addEventListener('offline',()=>{
+      window.__rudiNetworkReachable=false;
+      sync();
+    });
     sync();
   }
 

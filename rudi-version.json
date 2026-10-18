@@ -1,20 +1,23 @@
 {
-  "current": "v4.274",
-  "versionBranch": "offline-resilience-rudi",
+  "current": "v4.275",
+  "versionBranch": "offline-recovery-calendar-finance",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-18",
-  "basedOnProduction": "v4.273",
+  "basedOnProduction": "v4.274",
   "notes": [
-    "Офлайн режим: синхронизация Лулу, списка покупок и рублёвых финансовых операций",
-    "Защита от повторной отправки прогулок, расходов и доходов",
-    "Убрано открытие TickTick по долгому удержанию задачи"
+    "Исправлено зависание календаря в офлайн-режиме после возвращения Wi-Fi",
+    "Исправлено восстановление личных задач TickTick и повторное чтение после подключения",
+    "Офлайн-редактирование личных и совместных задач сохраняется в IndexedDB",
+    "Расходы RUB и USD сохраняются до перезапуска, исходный requestId защищает от двойного списания",
+    "Для USD учитывается последняя сохраненная котировка, при отсутствии курса конвертация ожидает сеть"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Offline transactions snapshot and replay",
-    "Offline Lulu outbox with idempotency",
-    "Remove long-hold TickTick shortcuts"
+    "Network reachability probe overrides stale iOS offline flag",
+    "Persistent TickTick personal update/delete outbox and shared edits",
+    "Safe durable offline finance with original requestId",
+    "Currency-aware optimistic balance and explicit pending conversion"
   ]
 }

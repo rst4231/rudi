@@ -11,7 +11,8 @@
   let lastActor='';
   let current=null;
   let pendingLoad=null;
-  const offline=()=>navigator.onLine===false||root.document?.body?.dataset?.offlineMode==='1';
+  const offline=()=>root.__rudiNetworkReachable===true?false:
+    navigator.onLine===false||root.document?.body?.dataset?.offlineMode==='1';
 
   function clean(value,depth=0){
     if(depth>18)return null;
