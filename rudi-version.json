@@ -1,20 +1,20 @@
 {
-  "current": "v4.272",
-  "versionBranch": "fix/crypto-audit-ava",
+  "current": "v4.273",
+  "versionBranch": "fix/weather-iphone-layout",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-18",
-  "basedOnProduction": "v4.271",
+  "basedOnProduction": "v4.272",
   "notes": [
-    "Исправлена обработка свечи входа и гэпа через стоп в виртуальных алгоритмах",
-    "Распознаются частичная фиксация и полное закрытие остатков AVA; проценты движения не считаются долей выхода",
-    "Закрытые автором позиции с неизвестными выходами сохраняются без выдуманного PNL"
+    "Окно прогноза учитывает безопасные края iOS и прокручивает только содержимое",
+    "При открытии сегодняшнего прогноза список показывает текущий час по Москве",
+    "В календаре месяца добавлены значки погоды на дни с доступным прогнозом"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Complete pending candle execution audit",
-    "Recognize reversed partial exits and passive residual closure",
-    "Preserve unpriced author-closed virtual history with incomplete totals"
+    "Responsive safe-area weather dialog with fixed controls and compact hourly rows",
+    "Reveal current Moscow hour while retaining earlier hours and resetting other dates",
+    "Render actual forecast weather emoji in month cells"
   ]
 }
