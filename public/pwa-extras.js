@@ -423,7 +423,9 @@
         if(!force&&(row.blocked||Number(row.nextAttemptAt||0)>Date.now()))break;
         let payload;
         try{payload=JSON.parse(row.body||'{}')}catch(_){payload={}}
-        // Never persist credentials, attach only immediately before sending.
+        // Old queued rows can contain a stale backup token; never replay it.
+        for(const key of ['initData','backupToken','token','accessToken','refreshToken','password','credential'])
+          delete payload[key];
         payload.initData=String(window.Telegram?.WebApp?.initData||'');
         const backupToken=window.RUDI_STATE_BACKUP?.getToken?.();
         if(backupToken&&row.url?.startsWith('/api/partner-message'))
@@ -432,7 +434,10 @@
         const timer=setTimeout(()=>controller.abort(),12000);
         try{
           const response=await nativeFetch(row.url,{
-            method:row.method||'POST',headers:row.headers||{'Content-Type':'application/json'},
+            method:row.method||'POST',headers:Object.fromEntries(
+              Object.entries(row.headers||{'Content-Type':'application/json'})
+                .filter(([name])=>!/^(authorization|cookie|proxy-authorization|x-api-key)$/i.test(name))
+            ),
             credentials:'same-origin',body:JSON.stringify(payload),
             signal:controller.signal,cache:'no-store'
           });
@@ -467,6 +472,28 @@
     }).finally(()=>{queueFlushPromise=null;refreshQueueSettings()});
     return queueFlushPromise;
   }
+  async function adoptLegacyOutbox(){
+    const actor=String(document.body?.dataset?.rudiActor||'').trim();
+    if(!['Рустам','Диана'].includes(actor))return false;
+    const legacy=(await outboxRows()).filter(row=>!row.scope);
+    if(!legacy.length)return false;
+    // Legacy rows were created before actor-scoped outboxes existed.
+    // The owner must explicitly claim them to avoid cross-account delivery.
+    if(!window.confirm('Найдено старых офлайн-изменений: '+legacy.length+
+      '. Они были сделаны из профиля '+actor+'? После подтверждения отправим их от этого профиля.'))return false;
+    const scope='actor:'+actor;
+    for(const row of legacy){
+      let body;try{body=JSON.parse(row.body||'{}')}catch(_){body={}}
+      for(const key of ['initData','backupToken','token','accessToken','refreshToken','password','credential'])
+        delete body[key];
+      const headers=Object.fromEntries(Object.entries(row.headers||{})
+        .filter(([key])=>!/^(authorization|cookie|proxy-authorization|x-api-key)$/i.test(key)));
+      await queueTransaction('readwrite',store=>store.put({
+        ...row,scope,body:JSON.stringify(body),headers
+      }));
+    }
+    return true;
+  }
   function installOfflineQueueSettings(){
     const panel=byId('homeSettingsPanel');
     if(!panel||byId('rudiOfflineQueueSettings'))return;
@@ -480,6 +507,7 @@
       .find(x=>x.querySelector('.settings-group-title')?.textContent?.trim()==='О приложении');
     panel.insertBefore(group,about||null);
     byId('rudiOfflineQueueRetry')?.addEventListener('click',async()=>{
+      await adoptLegacyOutbox();
       await requestOutboxFlush(true);
       window.dispatchEvent(new Event('online'));
       await Promise.allSettled([

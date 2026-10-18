@@ -47,6 +47,14 @@ test('queue replays with live auth and never deletes failed writes',()=>{
   assert.match(pwa,/rudiOfflineQueueSettings/);
 });
 
+test('legacy offline rows need explicit actor confirmation and strip stale credentials',()=>{
+  assert.match(pwa,/async function adoptLegacyOutbox\(\)/);
+  assert.match(pwa,/window\.confirm\(/);
+  assert.match(pwa,/await adoptLegacyOutbox\(\)/);
+  assert.match(pwa,/for\(const key of \['initData','backupToken','token','accessToken'/);
+  assert.match(pwa,/Object\.entries\(row\.headers\|\|\{/);
+});
+
 test('offline cache contains version-matching scripts, styles and finance',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
   const urls=[...new Set(html.match(/\/[a-zA-Z0-9_-]+\.(?:js|css)\?v=[0-9.]+/g)||[])];
