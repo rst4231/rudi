@@ -59,6 +59,6 @@ test('offline cache contains version-matching scripts, styles and finance',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
   const urls=[...new Set(html.match(/\/[a-zA-Z0-9_-]+\.(?:js|css)\?v=[0-9.]+/g)||[])];
   assert.deepEqual(urls.filter(url=>!sw.includes('"'+url+'"')),[]);
-  assert.match(sw,/finance-decisions-ui\.js\?v=4\.276/);
-  assert.match(sw,/CACHE_NAME='rudi-shell-v4\.276'/);
+  assert.match(sw,/finance-decisions-ui\.js\?v=4\.278/);
+  assert.match(sw,/CACHE_NAME='rudi-shell-v4\.278'/);
 });

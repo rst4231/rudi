@@ -86,14 +86,28 @@
   }
 
   function offlineSnapshotScope(){
-    const telegramId=String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id||'').trim();
-    if(telegramId) return 'tg:'+telegramId;
-    const actor=String(document.body?.dataset?.rudiActor||'').trim();
-    if(actor) return 'actor:'+actor;
-    try{
-      const cached=JSON.parse(localStorage.getItem('rudi-offline-access-v1')||'null');
-      if(cached?.actor) return 'actor:'+String(cached.actor);
-    }catch(_){}
+    // Preserve snapshots already stored by older releases under Telegram ID,
+    // even if initData is absent on an iOS offline cold start.
+    const currentActor=String(document.body?.dataset?.rudiActor||'').trim();
+    let actor=['Рустам','Диана'].includes(currentActor)?currentActor:'';
+    if(!actor){
+      try{
+        const cached=JSON.parse(localStorage.getItem('rudi-offline-access-v1')||'null');
+        if(['Рустам','Диана'].includes(cached?.actor))actor=cached.actor;
+      }catch(_){}
+    }
+    const id=String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id||'').trim();
+    if(id){
+      if(actor)try{localStorage.setItem('rudi-offline-snapshot-scope:v2:'+actor,'tg:'+id)}catch(_){}
+      return 'tg:'+id;
+    }
+    if(actor){
+      try{
+        const previous=String(localStorage.getItem('rudi-offline-snapshot-scope:v2:'+actor)||'');
+        if(/^tg:[0-9]+$/.test(previous))return previous;
+      }catch(_){}
+      return 'actor:'+actor;
+    }
     return '';
   }
 
@@ -128,6 +142,8 @@
 
     const body=snapshotRequestBody(init);
     const operation=String(body.operation||'').trim().toLowerCase();
+    if(['list','get','status','read','preview','documents'].includes(operation))
+      for(const flag of ['force','refresh','requestedAt','cacheBust','timestamp'])delete body[flag];
     let cacheable=method==='GET';
     if(method==='POST'){
       cacheable=
@@ -138,6 +154,7 @@
       // Read-only widgets on the home dashboard: preserve their last values offline.
       if(url.pathname==='/api/supplements'&&operation==='overview')cacheable=true;
       if(url.pathname==='/api/finances'&&['budget-status','partner-last-expense'].includes(operation))cacheable=true;
+      if(url.pathname==='/api/index'&&url.searchParams.get('route')==='car'&&operation==='documents')cacheable=true;
     }
     if(!cacheable) return '';
 
@@ -179,6 +196,9 @@
     if(type&&!type.includes('json')) return false;
     const payload=await clone.json().catch(()=>null);
     if(payload===null) return false;
+    const safePayload=JSON.parse(JSON.stringify(payload,(key,value)=>
+      /^(?:initData|backupToken|accessToken|refreshToken|authorization|password|secret|credential|token)$/i.test(key)
+        ?undefined:value));
 
     const db=await openSnapshotDb();
     try{
@@ -186,7 +206,7 @@
         const tx=db.transaction(RUDI_SNAPSHOT_STORE,'readwrite');
         tx.objectStore(RUDI_SNAPSHOT_STORE).put({
           key,
-          payload,
+          payload:safePayload,
           updatedAt:Date.now()
         });
         tx.oncomplete=()=>resolve(true);
@@ -317,7 +337,10 @@
     else if(url.pathname==='/api/partner-message'&&!action) queue=Boolean(String(body.text||'').trim());
     else if(action==='ui-preferences'){
       queue=Boolean(body.uiPreferences&&typeof body.uiPreferences==='object'&&!Array.isArray(body.uiPreferences));
-    }else if(action==='saves'||action==='for-di-feed'||action==='reactions'||action==='mood'||action==='cycle'){
+    }else if(action==='saves'){
+      // Saves have their own actor-scoped durable outbox and optimistic data.
+      queue=false;
+    }else if(action==='for-di-feed'||action==='reactions'||action==='mood'||action==='cycle'){
       queue=!readOps.has(operation||'get');
     }
     if(!queue) return null;
@@ -531,6 +554,15 @@
         await enqueueOfflineMutation(queued);
         await requestOutboxFlush();
         showMiniToast(message);
+        if(queued?.url==='/api/partner-message'){
+          // The partner-message editor renders optimistically. Return an
+          // acknowledged LOCAL save so the UI doesn't roll back a durable write.
+          const value=JSON.parse(queued.body||'{}');
+          return new Response(JSON.stringify({
+            ok:true,queued:true,
+            message:{text:String(value.text||''),authorName:String(document.body?.dataset?.rudiActor||''),likes:[]}
+          }),{status:200,headers:{'Content-Type':'application/json','X-RUDI-Offline':'1'}});
+        }
         const error=new TypeError('Сохраню, когда появится интернет');
         error.rudiQueued=true;
         throw error;
@@ -1309,7 +1341,7 @@
   let savesActor='';
   let savesLoadPromise=null;
 
-  async function savesRequest(operation,payload={}){
+  async function savesRequestLive(operation,payload={}){
     const response=await fetch('/api/partner-message?rudiAction=saves',{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -1331,6 +1363,12 @@
     return data;
   }
 
+  window.rudiOfflineSaves?.bind?.(savesRequestLive);
+  function savesRequest(operation,payload={}){
+    return window.rudiOfflineSaves?.request
+      ? window.rudiOfflineSaves.request(operation,payload,savesRequestLive)
+      : savesRequestLive(operation,payload);
+  }
   function savesCollapseKey(type){
     const actor=savesActor==='Диана'?'diana':'rustam';
     return 'rudi:saves:collapsed:v1:'+actor+':'+type;
@@ -1390,7 +1428,7 @@
         const data=await savesRequest('remove',{id});
         savesState=Array.isArray(data.items)?data.items:[];
         renderSaves();
-        showMiniToast('Удалено');
+        showMiniToast(data.queued?'Удаление сохранено офлайн':'Удалено');
         try{window.Telegram?.WebApp?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
       }catch(_){
         button.disabled=false;
@@ -1578,11 +1616,20 @@
   }
 
   async function loadSaves(){
+    const actor=String(document.body?.dataset?.rudiActor||'');
+    if(actor&&savesActor&&actor!==savesActor){savesState=[];savesActor=actor}
     if(savesLoadPromise) return savesLoadPromise;
     const status=byId('savesStatus');
     if(status&&!savesState.length) status.textContent='Загружаю сохранения…';
     savesLoadPromise=(async()=>{
       try{
+        const cached=await window.rudiOfflineSaves?.project?.(
+          String(document.body?.dataset?.rudiActor||'')).catch(()=>null);
+        if(cached?.items?.length){
+          savesActor=String(cached.actor||savesActor);
+          savesState=cached.items;
+          renderSaves();
+        }
         const data=await savesRequest('list');
         savesActor=String(data.actor||savesActor);
         savesState=Array.isArray(data.items)?data.items:[];
@@ -1591,9 +1638,10 @@
         restoreSavesCategoryState('recipe');
         return savesState;
       }catch(error){
-        if(status) status.textContent=navigator.onLine===false
-          ?'Нет сети. Сохранения будут доступны после подключения.'
-          :'Не удалось загрузить сохранения';
+        if(status)status.textContent=savesState.length
+          ?'Показаны последние сохранения · офлайн-режим'
+          :'На устройстве сохранений пока нет. Загрузите их с интернетом.';
+        if(savesState.length)return savesState;
         throw error;
       }finally{
         savesLoadPromise=null;
@@ -1614,7 +1662,7 @@
       if(label) label.textContent='Сохранено';
       button.setAttribute('aria-label','Сохранено');
     }
-    showMiniToast(data.duplicate?'Уже сохранено':'Сохранено');
+    showMiniToast(data.queued?'Сохранено на устройстве · ожидает синхронизации':data.duplicate?'Уже сохранено':'Сохранено');
     return data.item;
   }
 
@@ -1637,6 +1685,10 @@
     }
   }
 
+  window.addEventListener('rudi-saves-synced',()=>{
+    if(['dates','products'].includes(String(document.body?.dataset?.appTab||'')))
+      void loadSaves().catch(()=>{});
+  });
   window.RUDI_SAVES={
     load:loadSaves,
     save:saveSharedItem,

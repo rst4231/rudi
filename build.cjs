@@ -3,7 +3,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { PNG } = require('pngjs');
 
-const WEB_ASSETS = ['home-hero-v2104.css', 'mood-history-v2101.css', 'mood-reason-v2105.css', 'finance-cards.css', 'crypto-signals.css', 'crypto-algorithms.css', 'recommendations.css', 'finance-wallet-currency.js', 'finance-obligation-dates.js', 'recommendations.js', 'crypto-signals.js', 'crypto-algorithms.js', 'home-note.css', 'home-note.js', 'home-offline.js', 'rudi-offline-content.js', 'rudi-offline-transactions.js', 'personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'calendar-entertainment.css', 'calendar-entertainment.js', 'presence.css', 'presence.js', 'rudi-interactions.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'personal-task-editor.js', 'personal-task-editor.css', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'bill-payment.js', 'bill-payment.css', 'weather-forecast.js', 'weather-forecast.css', 'rudi-effects.js', 'rudi-effects.css', 'personal-task-editor.js', 'personal-task-editor.css', 'meditation.js', 'meditation.css', 'meditation-audio.js', 'meditation-audio.css', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js', 'finance-nav-icons.js', 'finance-nav-icons.css', 'rudi-games.js', 'rudi-games-extra.js', 'rudi-games.css', 'home-reference-layout.css', 'home-reference-layout.js'];
+const WEB_ASSETS = ['home-hero-v2104.css', 'mood-history-v2101.css', 'mood-reason-v2105.css', 'finance-cards.css', 'crypto-signals.css', 'crypto-algorithms.css', 'recommendations.css', 'finance-wallet-currency.js', 'finance-obligation-dates.js', 'recommendations.js', 'crypto-signals.js', 'crypto-algorithms.js', 'home-note.css', 'home-note.js', 'home-offline.js', 'rudi-offline-content.js', 'rudi-offline-saves.js', 'rudi-offline-transactions.js', 'personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'calendar-entertainment.css', 'calendar-entertainment.js', 'presence.css', 'presence.js', 'rudi-interactions.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'personal-task-editor.js', 'personal-task-editor.css', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'bill-payment.js', 'bill-payment.css', 'weather-forecast.js', 'weather-forecast.css', 'rudi-effects.js', 'rudi-effects.css', 'personal-task-editor.js', 'personal-task-editor.css', 'meditation.js', 'meditation.css', 'meditation-audio.js', 'meditation-audio.css', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js', 'finance-nav-icons.js', 'finance-nav-icons.css', 'rudi-games.js', 'rudi-games-extra.js', 'rudi-games.css', 'home-reference-layout.css', 'home-reference-layout.js'];
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -261,6 +261,12 @@ function syncServiceWorkerPrecache(assetPaths) {
     '/icon-192-rudi-v460.png',
     '/icon-512.svg',
     '/icon-maskable.svg',
+    '/home-scene-morning.svg?v=2.104',
+    '/home-scene-day.svg?v=2.104',
+    '/home-scene-evening.svg?v=2.104',
+    '/home-scene-night.svg?v=2.104',
+    '/poslanie-background.png?v=1.8.9',
+    '/changan-uni-v-header.webp?v=' + String(JSON.parse(fs.readFileSync(versionConfigPath, 'utf8')).current||'v4.277').replace(/^v/i,''),
   ];
   const precache = [...new Set([...basePrecache, ...assetPaths])];
   let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');

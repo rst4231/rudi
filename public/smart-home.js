@@ -2,7 +2,35 @@
   const tg = window.Telegram?.WebApp;
   const API = '/api/index?route=smart-home';
   const HOME_STALE_MS = 5 * 60 * 1000;
-  const state = { loading:false, lastLoadedAt:0, data:null, expandedVacuumIds:new Set() };
+  const state = { loading:false, lastLoadedAt:0, data:null, actor:'', expandedVacuumIds:new Set() };
+  const controlsOffline=()=>window.__rudiNetworkReachable===true?false:
+    navigator.onLine===false||document.body?.dataset?.offlineMode==='1';
+  const offlineControlMessage='Офлайн-режим: показаны последние данные, управление недоступно';
+  function lockOfflineControl(button){
+    if(!button)return button;
+    if(controlsOffline()){
+      button.disabled=true;
+      button.title='Недоступно без интернета';
+      button.setAttribute('aria-disabled','true');
+    }else{
+      button.removeAttribute('aria-disabled');
+    }
+    return button;
+  }
+  function updateOfflineControls(){
+    const tile=document.getElementById('smartHomeTile');
+    if(!tile)return;
+    const offline=controlsOffline();
+    tile.classList.toggle('is-offline',offline);
+    if(state.data){
+      // Re-render when online/offline changes so formerly disabled buttons
+      // can become active again without restarting RUDI.
+      renderDevices(state.data);
+      renderScenarios(state.data);
+    }
+    if(offline)setStatus(offlineControlMessage,'offline');
+  }
+
 
   function onOff(device){
     return (device?.capabilities || []).find(cap =>
@@ -28,6 +56,11 @@
   }
 
   async function api(operation,payload={}){
+    if(operation!=='list'&&controlsOffline()){
+      const error=new Error('smart-home-offline-control-disabled');
+      error.offline=true;
+      throw error;
+    }
     const response=await fetch(API,{
       method:'POST',
       headers:{'Content-Type':'application/json'},
@@ -149,6 +182,7 @@
 
   async function toggleDevice(device,button,cap){
     const next=!Boolean(cap.state.value);
+    if(controlsOffline()){updateOfflineControls();return}
     if(button.disabled)return;
     button.disabled=true;
     button.classList.add('is-busy');
@@ -175,6 +209,7 @@
   }
 
   async function runCapability(device,cap,value,control){
+    if(controlsOffline()){updateOfflineControls();return}
     if(!cap||control?.disabled)return;
     if(control){
       control.disabled=true;
@@ -317,7 +352,7 @@
         if(hasSpeeds) state.expandedVacuumIds.add(deviceId);
         toggleDevice(device,button,power);
       });
-      actions.appendChild(button);
+      actions.appendChild(lockOfflineControl(button));
     }
 
     const pause=capability(device,'devices.capabilities.toggle','pause');
@@ -334,7 +369,7 @@
         state.expandedVacuumIds.add(deviceId);
         runCapability(device,pause,!Boolean(pause.state?.value),button);
       });
-      actions.appendChild(button);
+      actions.appendChild(lockOfflineControl(button));
     }
 
     row.append(visual,copy,actions);
@@ -370,7 +405,7 @@
           state.expandedVacuumIds.add(deviceId);
           runCapability(device,speed,value,button);
         });
-        options.appendChild(button);
+        options.appendChild(lockOfflineControl(button));
       }
 
       controls.append(head,options);
@@ -414,6 +449,9 @@
     if(!root)return;
     root.replaceChildren();
     syncSmartHomeBatteryBadge(data);
+    const tile=document.getElementById('smartHomeTile');
+    tile?.classList.toggle('is-offline',controlsOffline());
+    if(controlsOffline())setStatus(offlineControlMessage,'offline');
     const groups=roomGroups(data);
     const isHallway=room=>String(room||'').trim().toLocaleLowerCase('ru-RU')==='прихожая';
     // CloudCam is independent of Yandex. Keep it in Hallway, immediately
@@ -519,6 +557,7 @@
   }
 
   async function runScenario(scenario,button){
+    if(controlsOffline()){updateOfflineControls();return}
     if(button.disabled)return;
     button.disabled=true;
     const old=button.textContent;
@@ -528,11 +567,11 @@
       await api('scenario',{scenarioId:scenario.id});
       button.textContent='Запущено';
       setStatus('Сценарий «'+scenario.name+'» запущен','success');
-      setTimeout(()=>{button.textContent=old;button.disabled=!scenario.active},1000);
+      setTimeout(()=>{button.textContent=old;button.disabled=controlsOffline()||!scenario.active},1000);
     }catch(_){
       button.textContent='Ошибка';
       setStatus('Не удалось запустить сценарий','error');
-      setTimeout(()=>{button.textContent=old;button.disabled=!scenario.active},1000);
+      setTimeout(()=>{button.textContent=old;button.disabled=controlsOffline()||!scenario.active},1000);
     }
   }
 
@@ -551,10 +590,10 @@
       const button=document.createElement('button');
       button.type='button';
       button.className='smart-home-scenario';
-      button.disabled=!scenario.active;
+      button.disabled=controlsOffline()||!scenario.active;
       button.textContent=scenario.name;
       button.addEventListener('click',()=>runScenario(scenario,button));
-      list.appendChild(button);
+      list.appendChild(lockOfflineControl(button));
     }
   }
 
@@ -588,7 +627,15 @@
   }
 
   async function loadHome({force=false,silent=false}={}){
-    if(!document.body.classList.contains('auth-ok')||state.loading)return;
+    if(!document.body.classList.contains('auth-ok'))return;
+    const actor=String(document.body?.dataset?.rudiActor||'');
+    if(!['Рустам','Диана'].includes(actor))return;
+    if(state.actor!==actor){
+      state.actor=actor;state.data=null;state.lastLoadedAt=0;
+      document.getElementById('smartHomeRooms')?.replaceChildren();
+      document.getElementById('smartHomeScenarioList')?.replaceChildren();
+    }
+    if(state.loading)return;
     if(!force&&state.data&&Date.now()-state.lastLoadedAt<HOME_STALE_MS){
       renderClimate(state.data);
       renderDevices(state.data);
@@ -601,7 +648,9 @@
     if(!silent)setStatus('Обновляю устройства…');
 
     try{
-      state.data=await api('list',{force});
+      const received=await api('list',{force});
+      if(actor!==String(document.body?.dataset?.rudiActor||''))return;
+      state.data=received;
       state.lastLoadedAt=Date.now();
       renderClimate(state.data);
       renderDevices(state.data);
@@ -609,7 +658,15 @@
       setUpdated();
       setStatus('');
     }catch(error){
-      if(String(error?.message||'').includes('yandex-iot-not-configured')){
+      // Keep the last known devices and readings visible after a network failure.
+      if(state.data){
+        renderClimate(state.data);
+        renderDevices(state.data);
+        renderScenarios(state.data);
+      }
+      if(controlsOffline()){
+        setStatus(offlineControlMessage,'offline');
+      }else if(String(error?.message||'').includes('yandex-iot-not-configured')){
         setStatus('Умный дом ещё не подключён к production','muted');
       }else{
         setStatus('Не удалось обновить умный дом','error');
@@ -649,6 +706,15 @@
     });
   }
 
+  window.addEventListener('offline',updateOfflineControls);
+  window.addEventListener('online',()=>{
+    updateOfflineControls();
+    if(!controlsOffline())void loadHome({force:true,silent:true});
+  });
+  for(const event of ['rudi-home-network-recovered','rudi-transactions-network-recovered'])
+    window.addEventListener(event,updateOfflineControls);
+  const offlineObserver=new MutationObserver(updateOfflineControls);
+  offlineObserver.observe(document.body,{attributes:true,attributeFilter:['data-offline-mode']});
   window.RUDI_SMART_HOME={refresh:()=>loadHome({force:true,silent:true}),assessClimate:assessIndoorClimate};
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});
