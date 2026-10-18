@@ -64,8 +64,25 @@ function simulateVirtual(signals,config,now=Date.now()){
     events.push({kind:'entry',at:openedMs,row:s});
     if(unresolvedClose(s)){
       const closedAt=Date.parse(s.reportedCloseAt||s.exitAt);
-      if(Number.isFinite(closedAt)&&closedAt>=openedMs&&closedAt<=now)
+      if(Number.isFinite(closedAt)&&closedAt>=openedMs&&closedAt<=now){
+        // Preserve provable cashflows before position size becomes unknown.
+        // Later stops/legs cannot tell us what fraction remained after that.
+        const unknownAt=(s.events||[]).filter(e=>e.type==='partial-close'&&e.closeFraction==null)
+          .map(e=>Date.parse(e.at)).filter(Number.isFinite);
+        const safeUntil=unknownAt.length?Math.min(closedAt,...unknownAt):
+          s.status==='author-closed-size-unknown'?openedMs:closedAt;
+        for(const leg of Array.isArray(s.legs)?s.legs:[]){
+          const at=Date.parse(leg.at);
+          if(Number(leg.fraction)>0&&Number(leg.price)>0&&at>=openedMs&&at<safeUntil)
+            events.push({kind:'exit',at,row:s,leg});
+        }
+        if(s.market==='linear')for(const point of Array.isArray(s.fundingRates)?s.fundingRates:[]){
+          const at=Date.parse(point.at),rate=Number(point.rate);
+          if(Number.isFinite(rate)&&at>openedMs&&at<safeUntil)
+            events.push({kind:'funding',at,row:s,rate});
+        }
         events.push({kind:'author-close',at:closedAt,row:s});
+      }
       continue;
     }
     let legs=(Array.isArray(s.legs)?s.legs:[]).filter(l=>
@@ -111,6 +128,7 @@ function simulateVirtual(signals,config,now=Date.now()){
     else if(event.kind==='author-close'){
       existing.status=row.status;existing.closedByAuthor=true;
       existing.exitAt=new Date(event.at).toISOString();existing.reportedCloseUrl=row.reportedCloseUrl;
+      existing.reservedUsd=round(existing.investedUsd*existing.remaining);
       existing.pnlUsd=null;existing.remaining=0;
       positions.delete(row.id);unpricedClosed.push(existing);
       // Keep its collateral reserved. Without the missing exits we cannot
@@ -165,13 +183,18 @@ function simulateVirtual(signals,config,now=Date.now()){
   const invested=active.reduce((s,p)=>s+p.investedUsd*p.remaining,0);
   const equity=completeMarks?round(cash+invested+floating):null;
   const totalPnl=equity===null?null:round(equity-config.initialUsd);
+  // Carry unresolved collateral at cost, explicitly separate from spendable
+  // cash and exact equity. An unknown exit must not hide known ledger values.
+  const reservedUsd=round(unpricedClosed.reduce((n,p)=>n+p.reservedUsd,0));
+  const accountedEquityUsd=known===active.length?round(cash+invested+floating+reservedUsd):null;
+  const knownPnlUsd=round(all.reduce((n,p)=>n+p.realizedPnlUsd,0)+floating);
   const wins=closed.filter(p=>p.pnlUsd>0),losses=closed.filter(p=>p.pnlUsd<0);
   const breakeven=closed.length-wins.length-losses.length,decided=wins.length+losses.length;
   const grossWin=wins.reduce((v,p)=>v+p.pnlUsd,0),grossLoss=losses.reduce((v,p)=>v-Math.abs(p.pnlUsd),0);
   let peak=config.initialUsd,maxDrawdownPct=0;
   for(const point of curve){peak=Math.max(peak,point.usd);
     if(peak>0)maxDrawdownPct=Math.max(maxDrawdownPct,round((peak-point.usd)/peak*100));}
-  const stats={total:all.length,closed:closed.length,open:active.length,
+  const stats={total:all.length,closed:closed.length,closedTotal:closed.length+unpricedClosed.length,open:active.length,
     excluded:excluded.length,maxConcurrent,authorClosedUnpriced:unpricedClosed.length,
     wins:wins.length,losses:losses.length,breakeven,
     winratePct:decided?round(wins.length/decided*100):null,
@@ -191,6 +214,7 @@ function simulateVirtual(signals,config,now=Date.now()){
     if(e.some(x=>x.type==='author-claimed-sl'))reported.slClaims++;
   }
   return {channel:'@ne_investor',config,exchange:'Bybit',
+    availableCashUsd:round(cash),reservedUsd,accountedEquityUsd,knownPnlUsd,
     cashUsd:unpricedClosed.length?null:round(cash),investedUsd:round(invested),equityUsd:equity,
     realizedPnlUsd:unpricedClosed.length?null:round(all.reduce((n,p)=>n+p.realizedPnlUsd,0)),
     unrealizedPnlUsd:completeMarks?round(floating):null,
