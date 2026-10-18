@@ -107,11 +107,11 @@
       canEdit:true,canComplete:true,assigned:false,offlinePending:true
     };
     return {
-      id: 'offline:' + row.id, title: String(value.title || 'Новое дело'),
+      id: 'rudi-'+String(value.clientId||row.id), title: String(value.title || 'Новое дело'),
       date: String(value.date || ''), startTime: String(value.time || ''),
-      endTime: '', allDay: !value.time, description: String(value.description || ''),
+      endTime: String(value.endTime||''), allDay: !value.time, description: String(value.description || ''),
       responsible: String(value.responsible || ''), repeat: value.repeat || 'none',
-      repeatCount: value.repeatCount || 1, together: !value.responsible,
+      repeatCount: value.repeatCount || 1, repeatDays:Array.isArray(value.repeatDays)?value.repeatDays:[], together: !value.responsible,
       assigned: Boolean(value.responsible), personal: false, canEdit: false,
       canComplete: false, canDelete: false, offlinePending: true
     };
@@ -131,6 +131,31 @@
     }
     return items;
   }
+  function sharedOccurrences(task,month) {
+    const anchor=String(task.date||''),repeat=String(task.repeat||'none');
+    if(repeat==='none')return [task];
+    if(!/^20\d\d-\d\d-\d\d$/.test(anchor)||!/^20\d\d-\d\d$/.test(month))return [];
+    const first=new Date(anchor+'T00:00:00Z');
+    if(!Number.isFinite(first.getTime()))return [];
+    const chosen=Array.isArray(task.repeatDays)?task.repeatDays.map(Number):[];
+    const last=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0));
+    const results=[],limit=Math.max(1,Math.min(366,Number(task.repeatCount||1)+1));
+    let count=0;
+    for(let day=new Date(first);day<=last;day.setUTCDate(day.getUTCDate()+1)){
+      const date=day.toISOString().slice(0,10),weekday=day.getUTCDay();
+      const delta=Math.round((day-first)/86400000);
+      const ok=repeat==='daily'||
+        repeat==='weekdays'&&weekday>=1&&weekday<=5||
+        repeat==='custom'&&chosen.includes(weekday)||
+        repeat==='weekly'&&delta%7===0||
+        repeat==='monthly'&&day.getUTCDate()===first.getUTCDate()||
+        repeat==='yearly'&&date.slice(5)===anchor.slice(5);
+      if(!ok)continue;
+      count++;if(count>limit)break;
+      if(date.slice(0,7)===month)results.push({...task,id:task.id+'__'+date,date,seriesId:task.id});
+    }
+    return results;
+  }
   function overlay(source, rows, month) {
     const result = clone(source) || {ok:true,ticktickDays:[]};
     const days = Array.isArray(result.ticktickDays) ? result.ticktickDays : (result.ticktickDays = []);
@@ -144,7 +169,7 @@
       const d = row.details || {};
       if (row.kind === 'create' || row.kind === 'diana-create') {
         const item = eventFromCreate(row);
-        for(const occurrence of row.kind==='diana-create'?dianaOccurrences(item,month):[item]){
+        for(const occurrence of row.kind==='diana-create'?dianaOccurrences(item,month):sharedOccurrences(item,month)){
           if(occurrence.date.slice(0,7)===month&&!getDay(occurrence.date).events.some(task=>task.id===occurrence.id))getDay(occurrence.date).events.push(occurrence);
         }
         continue;
@@ -179,11 +204,14 @@
         continue;
       }
       let old = d.task ? clone(d.task) : null;
+      const sharedSeriesId=taskId.split('__')[0];
+      const seriesMutation=['update','delete','move'].includes(row.kind);
       for (const day of days) {
         if (!Array.isArray(day.events)) continue;
         const entry = day.events.find(x => String(x?.id || '') === taskId);
         if (entry) old = clone(entry);
-        day.events = day.events.filter(x => String(x?.id || '') !== taskId);
+        day.events = day.events.filter(x => String(x?.id || '') !== taskId&&
+          !(seriesMutation&&String(x?.seriesId||'')===sharedSeriesId));
       }
       if (row.kind === 'complete' || row.kind === 'personal-complete' || row.kind === 'personal-delete' || row.kind === 'delete' || row.kind === 'diana-delete' || row.kind === 'diana-complete') continue;
       if (!old) continue;
@@ -194,12 +222,22 @@
         responsible: value.responsible === undefined ? old.responsible : value.responsible,
         repeat: value.repeat === undefined ? old.repeat : value.repeat,
         repeatCount: value.repeatCount === undefined ? old.repeatCount : value.repeatCount,
+        repeatDays: value.repeatDays===undefined?old.repeatDays:value.repeatDays,
         date: String(value.date || d.date || old.date),
         startTime: value.time === undefined && d.time === undefined ? old.startTime : String(value.time ?? d.time ?? ''),
+        endTime: value.endTime===undefined ? old.endTime : String(value.endTime||''),
         offlinePending: true
       };
       next.allDay = !next.startTime;
-      if (next.date.slice(0, 7) === month) getDay(next.date).events.push(next);
+      if(next.personal){
+        if(next.date.slice(0,7)===month)getDay(next.date).events.push(next);
+      }else{
+        const task={...next,id:sharedSeriesId};
+        for(const occurrence of sharedOccurrences(task,month)){
+          if(!getDay(occurrence.date).events.some(event=>String(event.id)===String(occurrence.id)))
+            getDay(occurrence.date).events.push(occurrence);
+        }
+      }
     }
     for(const day of days)day.events=(day.events||[]).filter(task=>!task.completed||!task.expiresAt||Date.parse(task.expiresAt)>Date.now());
     days.sort((a, b) => String(a.date).localeCompare(String(b.date)));
@@ -240,6 +278,7 @@
     // Diana creates use atomic insert-if-absent IDs; edits and tombstones are
     // idempotent too. Retrying never creates a second task after a lost response.
     if(row.kind.startsWith('diana-'))return who==='Диана'?'retry':'unknown';
+    if(!row.kind.startsWith('personal-'))return 'retry'; // native shared mutations are idempotent
     const data=row.details||{}, value=data.value||(row.kind==='personal-update'?data:{}), taskId=string(data.taskId);
     const personal=row.kind.startsWith('personal-');
     const scope=personal?'rustam':'shared';
@@ -353,7 +392,7 @@
               row.retryAt=Date.now()+Math.min(600000,15000*2**Math.min(5,row.attempts-1));
             }
             row.error=response.status===401||response.status===403
-              ?'Подключи TickTick повторно'
+              ?'Проверь авторизацию RUDI'
               :response.status===429?'Сервис ограничил частоту запросов'
               :'Ответ сервера: '+response.status;
             await change('outbox',table=>table.put(row));

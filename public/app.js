@@ -6706,6 +6706,8 @@
             appTabScroll[currentAppTab]=window.scrollY||0;
             persistAppTabScroll();
             const route=routeFromLocation();
+            if(route.tab==='schedule'&&route.item==='calendar-settings')openCalendarConnections({fromRoute:true});
+            else closeCalendarConnections({navigation:false});
             const previous=currentAppTab;
             const nextDepth=Number.isInteger(history.state?.rudiNavDepth)?Math.max(0,history.state.rudiNavDepth):routeHistoryDepth;
             const direction=nextDepth<routeHistoryDepth?'back':'forward';
@@ -13692,7 +13694,7 @@
         const previousMeta=meta?.textContent||'';
         if(meta){
           meta.hidden=false;
-          meta.textContent='Сохраняю в TickTick…';
+          meta.textContent='Сохраняю в RUDI…';
         }
 
         try{
@@ -14079,6 +14081,7 @@
       }
 
       async function requestTickTickTaskCreate(value){
+        value={...value,clientId:value?.clientId||(window.crypto?.randomUUID?.()||String(Date.now())+Math.random().toString(36).slice(2))};
         const queued=await queueCalendarWhenOffline('create',{value});
         if(queued)return queued;
         return managedJsonRequest('ticktick-task-create','/api/ticktick/task-create',{
@@ -14086,12 +14089,14 @@
             initData:telegramInitData(),
             backupToken:currentStateBackupToken,
             title:String(value?.title||'').trim(),
+            clientId:String(value?.clientId||'').trim(),
             date:String(value?.date||'').trim(),
             time:String(value?.time||'').trim(),
+            endTime:String(value?.endTime||'').trim(),
             responsible:String(value?.responsible||'').trim(),
             description:String(value?.description||'').trim(),
             repeat:String(value?.repeat||'none').trim(),
-            repeatCount:Number(value?.repeatCount||1)
+            repeatCount:Number(value?.repeatCount||1),repeatDays:Array.isArray(value?.repeatDays)?value.repeatDays:[]
           },
           ttlMs:0,
           timeoutMs:12000
@@ -14106,9 +14111,9 @@
         return managedJsonRequest('ticktick-task-update:'+id,'/api/ticktick/task-update',{
           body:{initData:telegramInitData(),backupToken:currentStateBackupToken,taskId:id,
             title:String(value?.title||'').trim(),date:String(value?.date||'').trim(),
-            time:String(value?.time||'').trim(),responsible:String(value?.responsible||'').trim(),
+            time:String(value?.time||'').trim(),endTime:String(value?.endTime||'').trim(),responsible:String(value?.responsible||'').trim(),
             description:String(value?.description||'').trim(),repeat:String(value?.repeat||'none'),
-            repeatCount:Number(value?.repeatCount||1),preserveRepeat:value?.preserveRepeat===true},
+            repeatCount:Number(value?.repeatCount||1),repeatDays:Array.isArray(value?.repeatDays)?value.repeatDays:[],preserveRepeat:value?.preserveRepeat===true},
           ttlMs:0,timeoutMs:12000
         });
       }
@@ -14720,9 +14725,12 @@
         const titleInput=document.getElementById('ticktickTaskTitleInput');
         const dateInput=document.getElementById('ticktickTaskDateInput');
         const timeInput=document.getElementById('ticktickTaskTimeInput');
+        const endTimeInput=document.getElementById('ticktickTaskEndTimeInput');
         const responsibleInput=document.getElementById('ticktickTaskResponsibleInput');
         const descriptionInput=document.getElementById('ticktickTaskDescriptionInput');
         const repeatInput=document.getElementById('ticktickTaskRepeatInput');
+        const repeatDaysField=document.getElementById('ticktickTaskRepeatDaysField');
+        const getRepeatDays=()=>[...(repeatDaysField?.querySelectorAll('input:checked')||[])].map(i=>Number(i.value)).sort((a,b)=>a-b);
         const repeatCountField=document.getElementById('ticktickTaskRepeatCountField');
         const repeatCountInput=document.getElementById('ticktickTaskRepeatCountInput');
         const save=document.getElementById('ticktickTaskSaveButton');
@@ -14737,6 +14745,7 @@
           const repeating=String(repeatInput?.value||'none')!=='none';
           if(repeatCountField) repeatCountField.hidden=!repeating;
           if(repeatCountInput) repeatCountInput.required=repeating;
+          if(repeatDaysField)repeatDaysField.hidden=repeatInput?.value!=='custom';
         };
         const close=()=>{
           editingTask=null;
@@ -14753,11 +14762,14 @@
           const chosenDate=/^\d{4}-\d{2}-\d{2}$/.test(String(date))?date:currentDateTime.date;
           if(dateInput)dateInput.value=editingTask?.date||chosenDate;
           if(timeInput)timeInput.value=editingTask?(editingTask.allDay?'':String(editingTask.startTime||'')):(time||currentDateTime.time);
-          syncRudiTemporalControl(dateInput);syncRudiTemporalControl(timeInput);
+          if(endTimeInput)endTimeInput.value=editingTask?(editingTask.allDay?'':String(editingTask.endTime||'')):'';
+          syncRudiTemporalControl(dateInput);syncRudiTemporalControl(timeInput);syncRudiTemporalControl(endTimeInput);
           if(titleInput)titleInput.value=editingTask?.title||'';
           if(responsibleInput)responsibleInput.value=editingTask?.responsible||'';
           if(descriptionInput)descriptionInput.value=editingTask?.description||'';
           if(repeatInput)repeatInput.value=editingTask?.repeat||'none';
+          const selectedDays=Array.isArray(editingTask?.repeatDays)?editingTask.repeatDays:[];
+          repeatDaysField?.querySelectorAll('input').forEach(checkbox=>checkbox.checked=selectedDays.includes(Number(checkbox.value)));
           if(repeatCountInput)repeatCountInput.value=String(editingTask?.repeatCount||1);
           if(heading)heading.textContent=editingTask?'Редактировать дело':'Новое дело';
           if(save)save.textContent=editingTask?'Сохранить':'Добавить';
@@ -14819,15 +14831,22 @@
           const date=String(dateInput?.value||currentDateTime.date).trim();
           const time=editingTask?String(timeInput?.value||'').trim():String(timeInput?.value||currentDateTime.time).trim();
           if(!title||!date) return;
+          const endTime=String(endTimeInput?.value||'').trim();
+          if(endTime&&(!time||endTime<=time)){
+            if(status)status.textContent='Окончание должно быть позже начала.';
+            endTimeInput?.focus();return;
+          }
           const repeating=String(repeatInput?.value||'none')!=='none';
+          const repeatDays=getRepeatDays();
+          if(repeatInput?.value==='custom'&&!repeatDays.length){if(status)status.textContent='Выбери хотя бы один день недели.';return;}
           const repeatCount=repeating?Math.max(1,Math.min(365,Math.round(Number(repeatCountInput?.value)||1))):1;
           if(save) save.disabled=true;
           if(status) status.textContent=editingTask?'Сохраняю…':'Добавляю…';
           const editedId=editingTask?.id||'';
           try{
-            const data={title,date,time,responsible:String(responsibleInput?.value||'').trim(),
-              description:String(descriptionInput?.value||'').trim(),repeat:String(repeatInput?.value||'none'),repeatCount,
-              preserveRepeat:Boolean(editingTask&&String(repeatInput?.value||'none')===String(editingTask.repeat||'none')
+            const data={title,date,time,endTime,responsible:String(responsibleInput?.value||'').trim(),
+              description:String(descriptionInput?.value||'').trim(),repeat:String(repeatInput?.value||'none'),repeatCount,repeatDays,
+              preserveRepeat:Boolean(editingTask&&(repeatInput?.value!=='custom'||JSON.stringify(repeatDays)===JSON.stringify([...(editingTask.repeatDays||[])].sort((a,b)=>a-b)))&&String(repeatInput?.value||'none')===String(editingTask.repeat||'none')
                 &&(!repeating||repeatCount===Math.max(1,Math.min(365,Math.round(Number(editingTask.repeatCount)||1)))))};
             const payload=editedId?await requestTickTickTaskUpdate(editedId,data,editingTask):await requestTickTickTaskCreate(data);
             if(!payload?.ok) throw new Error(payload?.error||(editedId?'ticktick-task-update':'ticktick-task-create'));
@@ -14837,7 +14856,7 @@
           }catch(error){
             if(status){
               const code=String(error?.message||'');
-              status.textContent=code.includes('permission')?'Нужно заново разрешить запись в TickTick':(editedId?'Не удалось сохранить изменения':'Не удалось добавить задачу');
+              status.textContent=code.includes('time-range')?'Окончание должно быть позже начала.':(editedId?'Не удалось сохранить изменения':'Не удалось добавить задачу');
             }
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{
@@ -14902,7 +14921,7 @@
           }
           const title=document.getElementById('ticktickTitle');
           const list=document.getElementById('ticktickTodayList');
-          title.hidden=false;title.textContent='Не удалось обновить TickTick.';
+          title.hidden=false;title.textContent='Не удалось обновить дела.';
           list.hidden=true;list.replaceChildren();
           const badge=document.getElementById('ticktickBadge');
           badge.hidden=false;badge.textContent='Ошибка';
@@ -15232,11 +15251,15 @@
       }
 
       let calendarConnectionsRefreshPromise=null;
-      function closeCalendarConnections(){
+      function closeCalendarConnections({navigation=true}={}){
         const modal=document.getElementById('calendarConnectionsModal');
         if(!modal)return;
         modal.hidden=true;modal.setAttribute('aria-hidden','true');
         document.body.classList.remove('calendar-connections-open');
+        if(navigation&&new URLSearchParams(window.location.search).get('item')==='calendar-settings'){
+          if(Number(history.state?.rudiNavDepth||0)>0)window.history.back();
+          else updateAppRoute('schedule',{replace:true});
+        }
       }
       async function refreshCalendarConnections(){
         if(calendarConnectionsRefreshPromise)return calendarConnectionsRefreshPromise;
@@ -15252,13 +15275,13 @@
           calendarPersonalTickTickConnected=currentActor==='Рустам'&&data.personalConnected===true;
           calendarUpdateCreateButtons();
           const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value};
-          const sharedButton=document.getElementById('calendarSharedTickTickConnect');
-          if(sharedButton)sharedButton.hidden=currentActor!=='Рустам';
+          const sharedRow=document.getElementById('calendarSharedTickTickRow');
+          if(sharedRow)sharedRow.hidden=data.sharedNativeReady===true||currentActor!=='Рустам';
+          set('calendarSharedTickTickStatus',data.sharedConnected?'Источник подключён':'Нужно подключить источник');
+          set('calendarSharedTickTickConnect',data.sharedConnected?'Переподключить':'Подключить');
           set('calendarPersonalTickTickStatus',data.personalConnected?'Подключён':'Не подключён');
-          set('calendarSharedTickTickStatus',data.sharedConnected?'Подключён':'Не подключён');
           set('calendarWorkCalendarStatus',data.dianaWorkConnected?'Подключён':'Не подключён');
           set('calendarPersonalTickTickConnect',data.personalConnected?'Переподключить':'Подключить');
-          set('calendarSharedTickTickConnect',data.sharedConnected?'Переподключить':'Подключить');
           const work=document.getElementById('calendarWorkCalendarSetup');
           if(work)work.hidden=Boolean(data.dianaWorkConnected);
           return data;
@@ -15266,9 +15289,10 @@
           .finally(()=>{calendarConnectionsRefreshPromise=null});
         return calendarConnectionsRefreshPromise;
       }
-      function openCalendarConnections(){
+      function openCalendarConnections({fromRoute=false}={}){
         const modal=document.getElementById('calendarConnectionsModal');
         if(!modal)return;
+        if(!fromRoute)updateAppRoute('schedule',{item:'calendar-settings'});
         modal.hidden=false;modal.setAttribute('aria-hidden','false');
         document.body.classList.add('calendar-connections-open');
         const personalRow=document.getElementById('calendarPersonalTickTickRow');
@@ -15284,9 +15308,9 @@
         const gear=document.getElementById('calendarConnectionsGear');
         if(!gear||gear.dataset.bound==='1')return;
         gear.dataset.bound='1';
-        gear.addEventListener('click',openCalendarConnections);
+        gear.addEventListener('click',()=>openCalendarConnections());
         document.getElementById('calendarConnectionsClose')?.addEventListener('click',closeCalendarConnections);
-        document.getElementById('calendarConnectionsBackdrop')?.addEventListener('click',closeCalendarConnections);
+        document.getElementById('calendarConnectionsBackdrop')?.addEventListener('click',()=>closeCalendarConnections());
         document.addEventListener('keydown',event=>{
           if(event.key==='Escape'&&!document.getElementById('calendarConnectionsModal')?.hidden)closeCalendarConnections();
         });
@@ -15309,6 +15333,8 @@
             button.disabled=false;
           }
         };
+        if(routeFromLocation().tab==='schedule'&&routeFromLocation().item==='calendar-settings')
+          queueMicrotask(()=>openCalendarConnections({fromRoute:true}));
         const personal=document.getElementById('calendarPersonalTickTickConnect');
         const shared=document.getElementById('calendarSharedTickTickConnect');
         personal?.addEventListener('click',()=>connectTickTick('personal',personal));

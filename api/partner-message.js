@@ -1576,6 +1576,54 @@ function tickTickTaskSnapshot(task, meta = null) {
 }
 
 async function handleTickTick(req, res, action, options = {}) {
+
+  // Shared tasks now persist in RUDI; personal TickTick remains unchanged.
+  const native=require('./shared-native-routes.cjs');
+  const payload=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+  let selected=native.shouldHandle(action,payload);
+  if((action==='task-completion-undo'||action==='task-restore')&&selected){
+    try{
+      const snapshot=openSnapshot(String(payload.undoToken||''),options);
+      selected=action==='task-completion-undo'
+        ? snapshot?.type==='rudi-shared-completion-v1'
+        : snapshot?.type==='rudi-shared-delete-v1';
+    }catch(_){selected=false}
+  }
+  if(selected){
+    try{
+      const {actor}=authorizeRequest(req,payload.initData,options);
+      const nativeStore=require('./shared-native-tasks.cjs');
+      let imported=await nativeStore.ready(options).catch(()=>null);
+      if(!imported?.complete){
+        // The switch is atomic: a failed import leaves TickTick as the live source.
+        try{imported=await nativeStore.migrate(options)}
+        catch(error){console.warn('RUDI_SHARED_MIGRATION_RETRY_LATER',String(error?.message||error))}
+      }
+      if(imported?.complete)return await native.handle(req,res,action,actor,options,{
+        seal:state=>sealSnapshot({...state,version:2},options),
+        open:token=>openSnapshot(String(token||''),options),
+        onCompleted:async(result,who)=>{
+          try{
+            await sendTaskCompletedNotificationToPartner(who,result.title,options);
+            await recordActivity({type:'task-complete',actor:who,text:who+' выполнил(а) задачу: '+result.title,icon:'✅',targetTab:'schedule'},options);
+          }catch(error){console.warn('RUDI_SHARED_TASK_NOTIFY_WARN',String(error?.message||error))}
+          for(const recipient of (result.responsible?[result.responsible]:['Рустам','Диана'])){
+            try{const award=await awardScore(recipient,20,{label:'Общая задача',detail:result.title,icon:'✅',
+              dedupeKey:'score:task:'+result.taskId+':'+result.scoreDate+':'+recipient},options);
+              scheduleShopUnlockNotification(recipient,award?.unlockedRewards,options);
+            }catch(error){console.warn('RUDI_SHARED_TASK_SCORE_WARN',String(error?.message||error))}
+          }
+        },
+        onUndo:async(task,date)=>{
+          const id=task.repeatFlag?task.id+'__'+date:task.id;
+          for(const recipient of (task.responsible?[task.responsible]:['Рустам','Диана']))
+            await reverseScoreByDedupeKey('score:task:'+id+':'+date+':'+recipient,{
+              label:'Отмена выполнения задачи',detail:'Задача возвращена в список',
+              icon:'↩️',clearDedupe:true},options).catch(()=>{});
+        }
+      });
+    }catch(error){return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)})}
+  }
   if (action === 'connect') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
@@ -1643,13 +1691,14 @@ async function handleTickTick(req, res, action, options = {}) {
     try{
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const { actor }=authorizeRequest(req,body.initData,options);
-      const [shared,personal,calendarUrl]=await Promise.all([
+      const [shared,personal,calendarUrl,sharedNative]=await Promise.all([
         readTickTickTokenWithBackup(body,options),
         actor==='Рустам'?readPersonalToken('Рустам',options).catch(()=>null):Promise.resolve(null),
-        readCalendarUrl(options).catch(()=>null)
+        readCalendarUrl(options).catch(()=>null),
+        require('./shared-native-tasks.cjs').ready(options).catch(()=>null)
       ]);
       return res.status(200).json({
-        ok:true,sharedConnected:Boolean(shared?.accessToken),
+        ok:true,sharedConnected:Boolean(shared?.accessToken),sharedNativeReady:Boolean(sharedNative?.complete),
         personalAvailable:actor==='Рустам',
         personalConnected:actor==='Рустам'&&Boolean(personal?.accessToken),
         dianaWorkConnected:Boolean(calendarUrl)

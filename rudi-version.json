@@ -1,22 +1,24 @@
 {
-  "current": "v4.276",
-  "versionBranch": "offline-audit-20261018",
+  "current": "v4.277",
+  "versionBranch": "feat/shared-native-tasks-time-range-20261018",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-18",
-  "basedOnProduction": "v4.275",
+  "basedOnProduction": "v4.276",
   "notes": [
-    "Не удалять локальные операции при ошибках сервера; повторная отправка из окна приложения с текущей авторизацией",
-    "Сохранение настроек в офлайн-очередь, отображение ожидающих действий в разделе настроек",
-    "Исправлен статус подключения календаря и восстановление личных задач из пустого снимка",
-    "Подготовка офлайн-кэша финансовых модулей; единая версия JS/CSS в PWA"
+    "Миграция существующих совместных дел из TickTick в RUDI DB с проверкой идентификаторов",
+    "Редактор совместных дел: время начала, окончания и выбор дней недели",
+    "Отдельная страница настроек календаря, сохранение личного TickTick",
+    "Офлайн-очередь и idempotent-create совместных дел",
+    "Напоминания совместных дел из RUDI DB после переноса"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Network reachability probe overrides stale iOS offline flag",
-    "Persistent TickTick personal update/delete outbox and shared edits",
-    "Safe durable offline finance with original requestId",
-    "Currency-aware optimistic balance and explicit pending conversion"
+    "Миграция существующих совместных дел из TickTick в RUDI DB с проверкой идентификаторов",
+    "Редактор совместных дел: время начала, окончания и выбор дней недели",
+    "Отдельная страница настроек календаря, сохранение личного TickTick",
+    "Офлайн-очередь и idempotent-create совместных дел",
+    "Напоминания совместных дел из RUDI DB после переноса"
   ]
 }
