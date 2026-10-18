@@ -81,7 +81,7 @@ test('offline cold launch serves cached HTML before waiting for network',()=>{
   assert.match(src,/return cached/);
   const html=fs.readFileSync('public/index.html','utf8');
   assert.match(html,/<style>html,body\{background:#0b0d12/);
-  assert.match(html,/html body\.auth-pending #appGate\{display:grid!important/);
+  assert.match(html,/html body\.auth-pending #appGate\{display:none!important/);
 });
 test('all referenced versioned assets, including saved module and home images, in worker cache',()=>{
   const sw=fs.readFileSync('public/sw.js','utf8');

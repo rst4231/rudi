@@ -66,14 +66,16 @@ test('PWA has an offline fallback screen when cache and network are unavailable'
   assert.equal(result.status,200);
   const html=await result.text();
   assert.match(html,/Повторить/);
-  assert.match(html,/RUDI пока не загрузился/);
+  assert.match(html,/Для первого запуска потребуется/);
 });
 
-test('app shell exposes a non-destructive startup retry when bootstrap stalls',()=>{
+test('app shell never blocks an offline startup with a retry/spinner overlay',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
-  assert.match(html,/rudiStartupRetry/);
-  assert.match(html,/auth-pending/);
-  assert.match(html,/(?:RUDI|РуДи) долго загружается/);
-  assert.match(html,/rudi-retry/);
+  const css=fs.readFileSync('public/app.css','utf8');
+  assert.match(html,/html body\.auth-pending #appGate\{display:none!important\}/);
+  assert.match(html,/html body\.auth-pending \.shell\{opacity:1!important/);
+  assert.match(css,/body\.auth-login \.app-gate/);
+  assert.match(css,/body\.auth-denied \.app-gate/);
+  assert.doesNotMatch(html,/rudiStartupRetry|РуДи долго загружается|app-gate-spinner/);
   assert.doesNotMatch(html,/caches\.delete\(|indexedDB\.deleteDatabase\(/);
 });
