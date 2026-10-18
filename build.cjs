@@ -196,6 +196,10 @@ function syncWebVersion(env = process.env) {
   if (fs.existsSync(webServiceWorkerPath)) {
     let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');
     serviceWorker = serviceWorker.replace(/const CACHE_NAME='rudi-shell-v[^']+';/, "const CACHE_NAME='rudi-shell-" + label + "';");
+    serviceWorker = serviceWorker.replace(
+      /(\/[a-zA-Z0-9._-]+\.(?:js|css)\?v=)[0-9.]+/g,
+      (_, prefix) => prefix + assetVersion
+    );
     writeBuiltFile(webServiceWorkerPath, serviceWorker);
   }
   return label;
@@ -275,9 +279,8 @@ function buildWebAssets(env = process.env) {
   const assetVersion = label.replace(/^v/i, '');
   const missingAssets = WEB_ASSETS.filter((name) => !fs.existsSync(path.join(__dirname, 'public', name)));
   if (missingAssets.length) throw new Error('Missing web assets: ' + missingAssets.join(', '));
-  // Optional financial planning modules must not compete with the home screen during SW installation.
-  const lazyAssets = new Set(['finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js']);
-  const versionedAssets = WEB_ASSETS.filter(name => !lazyAssets.has(name)).map(name => '/' + name + '?v=' + assetVersion);
+  // Noncritical finance files use Promise.allSettled, after critical shell cache.
+  const versionedAssets = WEB_ASSETS.map(name => '/' + name + '?v=' + assetVersion);
   syncServiceWorkerPrecache(versionedAssets);
 }
 

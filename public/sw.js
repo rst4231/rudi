@@ -1,4 +1,4 @@
-const CACHE_NAME='rudi-shell-v4.275';
+const CACHE_NAME='rudi-shell-v4.276';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
@@ -11,75 +11,78 @@ const PRECACHE=[
   "/icon-192-rudi-v460.png",
   "/icon-512.svg",
   "/icon-maskable.svg",
-  "/home-hero-v2104.css?v=4.275",
-  "/mood-history-v2101.css?v=4.275",
-  "/mood-reason-v2105.css?v=4.275",
-  "/finance-cards.css?v=4.275",
-  "/crypto-signals.css?v=4.275",
-  "/crypto-algorithms.css?v=4.275",
-  "/recommendations.css?v=4.275",
-  "/finance-wallet-currency.js?v=4.275",
-  "/finance-obligation-dates.js?v=4.275",
-  "/recommendations.js?v=4.275",
-  "/crypto-signals.js?v=4.275",
-  "/crypto-algorithms.js?v=4.275",
-  "/home-note.css?v=4.275",
-  "/home-note.js?v=4.275",
-  "/home-offline.js?v=4.275",
-  "/rudi-offline-content.js?v=4.275",
-  "/rudi-offline-transactions.js?v=4.275",
-  "/personal-center.css?v=4.275",
-  "/personal-center.js?v=4.275",
-  "/app.css?v=4.275",
-  "/finance-bank.css?v=4.275",
-  "/rudi-design-system.css?v=4.275",
-  "/pwa-extras.css?v=4.275",
-  "/calendar.css?v=4.275",
-  "/calendar-offline.js?v=4.275",
-  "/calendar-entertainment.css?v=4.275",
-  "/calendar-entertainment.js?v=4.275",
-  "/presence.css?v=4.275",
-  "/presence.js?v=4.275",
-  "/rudi-interactions.js?v=4.275",
-  "/smart-home.css?v=4.275",
-  "/car.css?v=4.275",
-  "/profile-supplements.css?v=4.275",
-  "/supplement-advanced.css?v=4.275",
-  "/app.js?v=4.275",
-  "/personal-task-editor.js?v=4.275",
-  "/personal-task-editor.css?v=4.275",
-  "/calendar-day-recap.js?v=4.275",
-  "/wallet-brand-icons.js?v=4.275",
-  "/finance-bank.js?v=4.275",
-  "/crypto-wallets.css?v=4.275",
-  "/crypto-wallets.js?v=4.275",
-  "/pwa-extras.js?v=4.275",
-  "/weather.js?v=4.275",
-  "/bill-payment.js?v=4.275",
-  "/bill-payment.css?v=4.275",
-  "/weather-forecast.js?v=4.275",
-  "/weather-forecast.css?v=4.275",
-  "/rudi-effects.js?v=4.275",
-  "/rudi-effects.css?v=4.275",
-  "/meditation.js?v=4.275",
-  "/meditation.css?v=4.275",
-  "/meditation-audio.js?v=4.275",
-  "/meditation-audio.css?v=4.275",
-  "/smart-home.js?v=4.275",
-  "/car.js?v=4.275",
-  "/profile-supplements.js?v=4.275",
-  "/mood-history.js?v=4.275",
-  "/supplement-editor.js?v=4.275",
-  "/supplement-advanced.js?v=4.275",
-  "/product-extras.css?v=4.275",
-  "/product-extras.js?v=4.275",
-  "/finance-nav-icons.js?v=4.275",
-  "/finance-nav-icons.css?v=4.275",
-  "/rudi-games.js?v=4.275",
-  "/rudi-games-extra.js?v=4.275",
-  "/rudi-games.css?v=4.275",
-  "/home-reference-layout.css?v=4.275",
-  "/home-reference-layout.js?v=4.275"
+  "/home-hero-v2104.css?v=4.276",
+  "/mood-history-v2101.css?v=4.276",
+  "/mood-reason-v2105.css?v=4.276",
+  "/finance-cards.css?v=4.276",
+  "/finance-decisions.css?v=4.276",
+  "/finance-decisions-core.js?v=4.276",
+  "/finance-decisions-ui.js?v=4.276",
+  "/crypto-signals.css?v=4.276",
+  "/crypto-algorithms.css?v=4.276",
+  "/recommendations.css?v=4.276",
+  "/finance-wallet-currency.js?v=4.276",
+  "/finance-obligation-dates.js?v=4.276",
+  "/recommendations.js?v=4.276",
+  "/crypto-signals.js?v=4.276",
+  "/crypto-algorithms.js?v=4.276",
+  "/home-note.css?v=4.276",
+  "/home-note.js?v=4.276",
+  "/home-offline.js?v=4.276",
+  "/rudi-offline-content.js?v=4.276",
+  "/rudi-offline-transactions.js?v=4.276",
+  "/personal-center.css?v=4.276",
+  "/personal-center.js?v=4.276",
+  "/app.css?v=4.276",
+  "/finance-bank.css?v=4.276",
+  "/rudi-design-system.css?v=4.276",
+  "/pwa-extras.css?v=4.276",
+  "/calendar.css?v=4.276",
+  "/calendar-offline.js?v=4.276",
+  "/calendar-entertainment.css?v=4.276",
+  "/calendar-entertainment.js?v=4.276",
+  "/presence.css?v=4.276",
+  "/presence.js?v=4.276",
+  "/rudi-interactions.js?v=4.276",
+  "/smart-home.css?v=4.276",
+  "/car.css?v=4.276",
+  "/profile-supplements.css?v=4.276",
+  "/supplement-advanced.css?v=4.276",
+  "/app.js?v=4.276",
+  "/personal-task-editor.js?v=4.276",
+  "/personal-task-editor.css?v=4.276",
+  "/calendar-day-recap.js?v=4.276",
+  "/wallet-brand-icons.js?v=4.276",
+  "/finance-bank.js?v=4.276",
+  "/crypto-wallets.css?v=4.276",
+  "/crypto-wallets.js?v=4.276",
+  "/pwa-extras.js?v=4.276",
+  "/weather.js?v=4.276",
+  "/bill-payment.js?v=4.276",
+  "/bill-payment.css?v=4.276",
+  "/weather-forecast.js?v=4.276",
+  "/weather-forecast.css?v=4.276",
+  "/rudi-effects.js?v=4.276",
+  "/rudi-effects.css?v=4.276",
+  "/meditation.js?v=4.276",
+  "/meditation.css?v=4.276",
+  "/meditation-audio.js?v=4.276",
+  "/meditation-audio.css?v=4.276",
+  "/smart-home.js?v=4.276",
+  "/car.js?v=4.276",
+  "/profile-supplements.js?v=4.276",
+  "/mood-history.js?v=4.276",
+  "/supplement-editor.js?v=4.276",
+  "/supplement-advanced.js?v=4.276",
+  "/product-extras.css?v=4.276",
+  "/product-extras.js?v=4.276",
+  "/finance-nav-icons.js?v=4.276",
+  "/finance-nav-icons.css?v=4.276",
+  "/rudi-games.js?v=4.276",
+  "/rudi-games-extra.js?v=4.276",
+  "/rudi-games.css?v=4.276",
+  "/home-reference-layout.css?v=4.276",
+  "/home-reference-layout.js?v=4.276"
 ];
 
 const SYNC_DB='rudi-background-sync-v1';
@@ -140,41 +143,13 @@ async function notifyClients(payload){
 }
 
 async function flushOutbox(){
+  // Background workers cannot recover a fresh Telegram token or safely
+  // infer whether a rejected mutation reached the server.
+  // Keep all writes durably until an authenticated foreground app confirms.
   const rows=await readOutbox().catch(()=>[]);
-  if(!rows.length) return {sent:0,dropped:0,pending:0};
-
-  let sent=0;
-  let dropped=0;
-  for(const row of rows){
-    try{
-      const response=await fetch(row.url,{
-        method:row.method||'POST',
-        headers:row.headers||{'content-type':'application/json'},
-        body:row.body||undefined,
-        credentials:'include',
-        cache:'no-store'
-      });
-
-      if(response.ok){
-        await deleteOutboxItem(row.id);
-        sent+=1;
-        continue;
-      }
-
-      const retryable=response.status===401||response.status===403||response.status===408||response.status===425||response.status===429||response.status>=500;
-      if(retryable) break;
-
-      await deleteOutboxItem(row.id);
-      dropped+=1;
-    }catch(_){
-      break;
-    }
-  }
-
-  const pending=(await readOutbox().catch(()=>[])).length;
-  if(sent>0||dropped>0) await notifyClients({type:'RUDI_SYNC_COMPLETE',sent,dropped,pending});
-  else if(pending>0) await notifyClients({type:'RUDI_SYNC_PENDING',pending});
-  return {sent,dropped,pending};
+  if(!rows.length)return {sent:0,pending:0};
+  await notifyClients({type:'RUDI_OUTBOX_REPLAY_REQUEST',pending:rows.length});
+  return {sent:0,pending:rows.length};
 }
 
 self.addEventListener('install',event=>{

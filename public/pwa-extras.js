@@ -315,25 +315,30 @@
     let queue=false;
     if(url.pathname==='/api/wishlist') queue=!readOps.has(operation||'list');
     else if(url.pathname==='/api/partner-message'&&!action) queue=Boolean(String(body.text||'').trim());
-    else if(action==='saves'||action==='for-di-feed'||action==='reactions'||action==='mood'||action==='cycle'||action==='ui-preferences'){
+    else if(action==='ui-preferences'){
+      queue=Boolean(body.uiPreferences&&typeof body.uiPreferences==='object'&&!Array.isArray(body.uiPreferences));
+    }else if(action==='saves'||action==='for-di-feed'||action==='reactions'||action==='mood'||action==='cycle'){
       queue=!readOps.has(operation||'get');
     }
     if(!queue) return null;
 
     const headers={};
     try{
-      new Headers(init.headers||{}).forEach((value,key)=>{headers[key]=value});
+      new Headers(init.headers||{}).forEach((value,key)=>{
+        if(!/^(authorization|cookie|proxy-authorization|x-api-key)$/i.test(key)) headers[key]=value;
+      });
     }catch(_){}
     if(!headers['content-type']) headers['content-type']='application/json';
 
     const queuedBody={...body};
-    if(Object.prototype.hasOwnProperty.call(queuedBody,'initData')) queuedBody.initData='';
+    for(const key of ['initData','backupToken','token','accessToken','refreshToken','password','credential'])delete queuedBody[key];
     return {
       url:url.pathname+url.search,
       method,
       headers,
       body:JSON.stringify(queuedBody),
-      credentials:'include'
+      credentials:'include',
+      scope:offlineSnapshotScope()
     };
   }
 
@@ -342,7 +347,7 @@
     const row={
       id:(window.crypto?.randomUUID?.()||('sync-'+Date.now()+'-'+Math.random().toString(36).slice(2))),
       ...descriptor,
-      createdAt:Date.now()
+      createdAt:Date.now(),attempts:0,nextAttemptAt:0,blocked:false
     };
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(RUDI_SYNC_STORE,'readwrite');
@@ -354,17 +359,136 @@
     return row;
   }
 
-  async function requestOutboxFlush(){
-    if(!('serviceWorker' in navigator)) return false;
-    try{
-      const registration=await navigator.serviceWorker.ready;
-      if(registration.sync?.register){
-        await registration.sync.register(RUDI_SYNC_TAG);
-        return true;
+  let queueFlushPromise=null;
+  function currentQueueScope(){
+    const actor=String(document.body?.dataset?.rudiActor||'').trim();
+    return actor==='Рустам'||actor==='Диана'?'actor:'+actor:offlineSnapshotScope();
+  }
+  function ownsQueuedRow(row){
+    const scope=currentQueueScope();
+    if(!scope||!row.scope)return false;
+    if(row.scope===scope)return true;
+    const telegramId=String(window.Telegram?.WebApp?.initDataUnsafe?.user?.id||'');
+    return Boolean(telegramId&&row.scope==='tg:'+telegramId&&
+      ['Рустам','Диана'].includes(String(document.body?.dataset?.rudiActor||'')));
+  }
+  async function queueTransaction(mode,fn){
+    const db=await openOutboxDb();
+    return new Promise((resolve,reject)=>{
+      try{
+        const tx=db.transaction(RUDI_SYNC_STORE,mode);
+        const request=fn(tx.objectStore(RUDI_SYNC_STORE));
+        tx.oncomplete=()=>{db.close();resolve(request?.result)};
+        tx.onerror=()=>{db.close();reject(tx.error||Error('rudi-outbox-transaction-error'))};
+        tx.onabort=()=>{db.close();reject(tx.error||Error('rudi-outbox-transaction-aborted'))};
+      }catch(error){db.close();reject(error)}
+    });
+  }
+  async function outboxRows(){
+    const rows=await queueTransaction('readonly',store=>store.getAll());
+    return (rows||[]).sort((a,b)=>Number(a.createdAt||0)-Number(b.createdAt||0));
+  }
+  async function updateQueueSettings(){
+    const rows=await outboxRows(),mine=rows.filter(ownsQueuedRow);
+    const legacy=rows.filter(row=>!row.scope);
+    const actor=String(document.body?.dataset?.rudiActor||'').trim();
+    let total=mine.length,blocked=mine.filter(row=>row.blocked).length+legacy.length;
+    const checks=await Promise.allSettled([
+      window.rudiCalendarOffline?.summary?.(actor),
+      window.rudiOfflineContent?.entries?.(actor),
+      window.rudiOfflineTransactions?.pending?.('',actor)
+    ]);
+    const [calendar,content,transactions]=checks.map(x=>x.status==='fulfilled'?x.value:null);
+    total+=Number(calendar?.pending||0)+legacy.length;
+    blocked+=Number(calendar?.needsReview||0);
+    for(const items of [content,transactions])if(Array.isArray(items)){
+      total+=items.length;
+      blocked+=items.filter(x=>x.error).length;
+    }
+    const label=byId('rudiOfflineQueueStatus'),button=byId('rudiOfflineQueueRetry');
+    if(label)label.textContent=!currentQueueScope()?'Открой приложение под своим профилем':
+      total?'Ожидают отправки: '+total+(blocked?' · нужна проверка: '+blocked:'')
+        :'Все изменения синхронизированы';
+    if(button)button.disabled=total===0;
+  }
+  function refreshQueueSettings(){void updateQueueSettings().catch(()=>{})}
+  async function requestOutboxFlush(force=false){
+    if(queueFlushPromise)return queueFlushPromise;
+    queueFlushPromise=(async()=>{
+      if(!currentQueueScope()||navigator.onLine===false&&window.__rudiNetworkReachable!==true)
+        return {sent:0,offline:true};
+      let sent=0;
+      for(const row of await outboxRows()){
+        if(!ownsQueuedRow(row))continue;
+        if(!force&&(row.blocked||Number(row.nextAttemptAt||0)>Date.now()))break;
+        let payload;
+        try{payload=JSON.parse(row.body||'{}')}catch(_){payload={}}
+        // Never persist credentials, attach only immediately before sending.
+        payload.initData=String(window.Telegram?.WebApp?.initData||'');
+        const backupToken=window.RUDI_STATE_BACKUP?.getToken?.();
+        if(backupToken&&row.url?.startsWith('/api/partner-message'))
+          payload.backupToken=backupToken;
+        const controller=new AbortController();
+        const timer=setTimeout(()=>controller.abort(),12000);
+        try{
+          const response=await nativeFetch(row.url,{
+            method:row.method||'POST',headers:row.headers||{'Content-Type':'application/json'},
+            credentials:'same-origin',body:JSON.stringify(payload),
+            signal:controller.signal,cache:'no-store'
+          });
+          const data=await response.json().catch(()=>null);
+          if(response.ok&&data?.ok===true){
+            await queueTransaction('readwrite',store=>store.delete(row.id));
+            window.__rudiNetworkReachable=true;sent++;continue;
+          }
+          const attempts=Number(row.attempts||0)+1;
+          const blocked=response.ok||[400,404,409,422].includes(response.status);
+          const retryAfter=Number(response.headers?.get?.('Retry-After'))*1000||0;
+          await queueTransaction('readwrite',store=>store.put({...row,attempts,blocked,
+            error:String(data?.error||'HTTP '+response.status).slice(0,160),
+            nextAttemptAt:Date.now()+(!blocked?(retryAfter||Math.min(300000,5000*2**Math.min(6,attempts))):0)
+          }));
+          break;
+        }catch(error){
+          window.__rudiNetworkReachable=false;
+          const attempts=Number(row.attempts||0)+1;
+          await queueTransaction('readwrite',store=>store.put({...row,attempts,
+            error:String(error?.message||error).slice(0,160),
+            nextAttemptAt:Date.now()+Math.min(300000,5000*2**Math.min(6,attempts))
+          }));
+          break;
+        }finally{clearTimeout(timer)}
       }
-      registration.active?.postMessage({type:'FLUSH_OUTBOX'});
-      return true;
-    }catch(_){return false}
+      if(sent)window.dispatchEvent(new CustomEvent('rudi-background-sync-complete',{detail:{sent}}));
+      return {sent};
+    })().catch(error=>{
+      console.warn('RUDI_OUTBOX_REPLAY_WARN',String(error?.message||error));
+      return {sent:0,error:true};
+    }).finally(()=>{queueFlushPromise=null;refreshQueueSettings()});
+    return queueFlushPromise;
+  }
+  function installOfflineQueueSettings(){
+    const panel=byId('homeSettingsPanel');
+    if(!panel||byId('rudiOfflineQueueSettings'))return;
+    const group=document.createElement('section');
+    group.className='settings-group';group.id='rudiOfflineQueueSettings';
+    group.innerHTML='<div class="settings-group-title">Офлайн-данные</div>'+
+      '<div class="home-settings-row"><div class="home-settings-copy"><strong>Синхронизация изменений</strong>'+
+      '<small id="rudiOfflineQueueStatus">Проверяю сохранённые изменения…</small></div></div>'+
+      '<button type="button" id="rudiOfflineQueueRetry" class="rudi-health-run">Повторить отправку</button>';
+    const about=[...panel.querySelectorAll('.settings-group')]
+      .find(x=>x.querySelector('.settings-group-title')?.textContent?.trim()==='О приложении');
+    panel.insertBefore(group,about||null);
+    byId('rudiOfflineQueueRetry')?.addEventListener('click',async()=>{
+      await requestOutboxFlush(true);
+      window.dispatchEvent(new Event('online'));
+      await Promise.allSettled([
+        window.rudiOfflineContent?.flush?.(),
+        window.rudiOfflineTransactions?.flush?.()
+      ]);
+      refreshQueueSettings();
+    });
+    refreshQueueSettings();
   }
 
   function installBackgroundSync(){
@@ -428,10 +552,24 @@
       requestOutboxFlush();
     });
     window.addEventListener('rudi-transactions-network-recovered',()=>requestOutboxFlush());
+    window.addEventListener('rudi-calendar-network-recovered',()=>requestOutboxFlush());
+    window.addEventListener('rudi-content-network-recovered',()=>requestOutboxFlush());
+    for(const event of ['focus','pageshow'])window.addEventListener(event,()=>requestOutboxFlush());
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible')requestOutboxFlush();
+    });
+    window.setInterval(()=>{
+      if(document.visibilityState==='visible')requestOutboxFlush();
+    },20000);
+    window.setTimeout(()=>requestOutboxFlush(),1200);
+    for(const event of ['rudi-calendar-synced','rudi-content-sync','rudi-transactions-updated'])
+      window.addEventListener(event,refreshQueueSettings);
 
     navigator.serviceWorker?.addEventListener?.('message',event=>{
       const data=event.data||{};
-      if(data.type==='RUDI_SYNC_COMPLETE'&&Number(data.sent||0)>0){
+      if(data.type==='RUDI_OUTBOX_REPLAY_REQUEST'){
+        requestOutboxFlush();
+      }else if(data.type==='RUDI_SYNC_COMPLETE'&&Number(data.sent||0)>0){
         showMiniToast('Всё сохранено');
         window.dispatchEvent(new CustomEvent('rudi-background-sync-complete',{detail:data}));
       }else if(data.type==='RUDI_SYNC_PENDING'){
@@ -1861,6 +1999,7 @@
   function installDynamicExtras(){
     byId('rudiSearchButton')?.remove();
     installHealthSettings();
+    installOfflineQueueSettings();
     removeRetiredQuickAdd();
     setupSavesPage();
     setupForDiPage();

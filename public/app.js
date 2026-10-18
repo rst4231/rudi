@@ -14029,7 +14029,8 @@
           if(calendarReachabilityOk){
             window.__rudiNetworkReachable=true;
             document.body.dataset.offlineMode='0';
-            window.dispatchEvent(new CustomEvent('rudi-calendar-network-recovered'));
+            if(typeof window.dispatchEvent==='function')
+              window.dispatchEvent(new CustomEvent('rudi-calendar-network-recovered'));
           }
         }catch(_){
           calendarReachabilityOk=false;
@@ -14207,6 +14208,8 @@
           if(currentAppTab==='schedule'&&!synced?.sent){
             await loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true});
           }
+          if(typeof window.dispatchEvent==='function')
+            window.dispatchEvent(new CustomEvent('rudi-calendar-network-recovered'));
           return true;
         })().catch(error=>{
           console.warn('RUDI_CALENDAR_RECONNECT_WARN',String(error?.message||error));

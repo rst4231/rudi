@@ -6,7 +6,8 @@
   let pending = 0;
   let needsReview = 0;
   let syncing = false;
-  const offlineNow = () => navigator.onLine === false || root.document?.body?.dataset?.offlineMode === '1';
+  const offlineNow = () => root.__rudiNetworkReachable === true ? false :
+    navigator.onLine === false || root.document?.body?.dataset?.offlineMode === '1';
   const clone = value => JSON.parse(JSON.stringify(value));
   const id = () => (root.crypto?.randomUUID?.() || String(Date.now()) + '-' + Math.random().toString(36).slice(2));
   const key = (who, scope, month) => [who, scope, month].join('|');
@@ -131,7 +132,7 @@
     return items;
   }
   function overlay(source, rows, month) {
-    const result = clone(source);
+    const result = clone(source) || {ok:true,ticktickDays:[]};
     const days = Array.isArray(result.ticktickDays) ? result.ticktickDays : (result.ticktickDays = []);
     const getDay = date => {
       let day = days.find(x => x.date === date);
@@ -221,7 +222,7 @@
     if (k === 'delete') return '/api/ticktick/task-delete';
     if (k === 'complete') return '/api/ticktick/task-complete';
     if (k === 'personal-complete') return '/api/partner-message?ticktickAction=personal-task-complete';
-    if (k === 'personal-update'||k==='personal-delete') return '/api/partner-message?ticktickAction=personal-task-edit';
+    if (k==='personal-update'||k==='personal-delete') return '/api/partner-message?ticktickAction=personal-task-edit';
     if (k === 'personal-move') return '/api/partner-message?ticktickAction=personal-task-move';
     if (k === 'move') return '/api/partner-message?ticktickAction=task-move';
     throw Error('calendar-offline-unsupported-action');
