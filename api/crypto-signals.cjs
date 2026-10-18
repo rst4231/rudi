@@ -376,15 +376,20 @@ function buildView(state,now=Date.now()){
     const row=state.results?.[signal.id];
     return {...signal,...(row||{}),url:signal.url,id:signal.id,at:signal.at};
   });
-  attachTradeUpdates(signals,messages);
-  linkUpdates(signals,messages);
+  const published=messages.filter(m=>Date.parse(m.at)<=now);
+  attachTradeUpdates(signals,published);
+  linkUpdates(signals,published);
   for(const signal of signals){
     const reported=(signal.events||[]).findLast(event=>event.type==='full-close');
-    if(reported&&!['won','lost','breakeven','author-closed-size-unknown'].includes(signal.status)){
+    if(reported){
       // The author explicitly closed the position, while an executable exit
       // quote may still be unavailable. Never invent a PnL or execution price.
-      signal.status='author-closed-awaiting-price';
+      const unknownPartial=signal.events.some(e=>e.type==='partial-close'&&e.closeFraction===null);
+      if(unknownPartial)signal.status='author-closed-size-unknown';
+      else if(!['won','lost','breakeven','author-closed-size-unknown'].includes(signal.status))
+        signal.status='author-closed-awaiting-price';
       signal.closedByAuthor=true;
+      signal.openFraction=0;
       signal.reportedCloseAt=reported.at;
       signal.reportedCloseUrl=reported.url;
     }

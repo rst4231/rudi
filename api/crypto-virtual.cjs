@@ -46,6 +46,7 @@ function simulateVirtual(signals,config,now=Date.now()){
   const feeRates={spot:0.001,linear:0.00055};
   const slippageRate=0.0005; // Model assumption, NOT a Bybit execution receipt.
   const source=(Array.isArray(signals)?signals:[]);
+  const unresolvedClose=s=>['author-closed-awaiting-price','author-closed-size-unknown'].includes(s.status);
   const liquidationRisk=s=>s.market==='linear'&&s.entry>0&&s.markExtremes&&
     (s.direction==='short'?s.markExtremes.high>=s.entry*(1+1/config.leverage):
       s.markExtremes.low<=s.entry*(1-1/config.leverage));
@@ -53,7 +54,7 @@ function simulateVirtual(signals,config,now=Date.now()){
     Date.parse(s.at)>=start&&Date.parse(s.at)<=now&&Number.isFinite(Date.parse(s.entryAt))&&
     Date.parse(s.entryAt)>=start&&s.entry>0&&['linear','spot'].includes(s.market)&&
     (s.market!=='spot'||s.direction==='long')&&
-    (s.qualified||s.paperEligible)&&['open','won','lost','breakeven'].includes(s.status)&&
+    (s.qualified||s.paperEligible)&&(['open','won','lost','breakeven'].includes(s.status)||unresolvedClose(s))&&
     !liquidationRisk(s));
   const excluded=source.filter(s=>['size-unknown','ambiguous',
     'liquidation-risk-unverified'].includes(s.status)||liquidationRisk(s));
@@ -61,6 +62,12 @@ function simulateVirtual(signals,config,now=Date.now()){
   for(const s of rows){
     const openedMs=Date.parse(s.entryAt),rate=feeRates[s.market];
     events.push({kind:'entry',at:openedMs,row:s});
+    if(unresolvedClose(s)){
+      const closedAt=Date.parse(s.reportedCloseAt||s.exitAt);
+      if(Number.isFinite(closedAt)&&closedAt>=openedMs&&closedAt<=now)
+        events.push({kind:'author-close',at:closedAt,row:s});
+      continue;
+    }
     let legs=(Array.isArray(s.legs)?s.legs:[]).filter(l=>
       Number(l.fraction)>0&&Number(l.price)>0&&Number.isFinite(Date.parse(l.at)));
     if(!legs.length&&['won','lost','breakeven'].includes(s.status)&&Number.isFinite(Date.parse(s.exitAt))&&s.exitPrice>0)
@@ -74,9 +81,9 @@ function simulateVirtual(signals,config,now=Date.now()){
       }
     }
   }
-  events.sort((a,b)=>a.at-b.at||({funding:0,exit:1,entry:2}[a.kind]-{funding:0,exit:1,entry:2}[b.kind])||(Number(a.row.id)-Number(b.row.id)));
+  events.sort((a,b)=>a.at-b.at||({funding:0,exit:1,entry:2,'author-close':3}[a.kind]-{funding:0,exit:1,entry:2,'author-close':3}[b.kind])||(Number(a.row.id)-Number(b.row.id)));
   let cash=round(config.initialUsd), maxConcurrent=0;
-  const positions=new Map(),closed=[],all=[],curve=[{at:config.startedAt,usd:round(config.initialUsd)}];
+  const positions=new Map(),closed=[],unpricedClosed=[],all=[],curve=[{at:config.startedAt,usd:round(config.initialUsd)}];
   const calcEquity=()=>round(cash+[...positions.values()].reduce((s,p)=>s+p.investedUsd*p.remaining,0));
   for(const event of events){
     const row=event.row,existing=positions.get(row.id);
@@ -101,7 +108,14 @@ function simulateVirtual(signals,config,now=Date.now()){
         warnings:row.unquantifiedAdditions?['Unquantified additions were not executed']:[]};
       positions.set(row.id,p);all.push(p);maxConcurrent=Math.max(maxConcurrent,positions.size);
     }else if(!existing)continue;
-    else if(event.kind==='funding'){
+    else if(event.kind==='author-close'){
+      existing.status=row.status;existing.closedByAuthor=true;
+      existing.exitAt=new Date(event.at).toISOString();existing.reportedCloseUrl=row.reportedCloseUrl;
+      existing.pnlUsd=null;existing.remaining=0;
+      positions.delete(row.id);unpricedClosed.push(existing);
+      // Keep its collateral reserved. Without the missing exits we cannot
+      // release invented proceeds into subsequent virtual trades.
+    }else if(event.kind==='funding'){
       // Actual Bybit historical settlement rates, when fetched and complete.
       const sign=existing.direction==='long'?-1:1;
       const cashflow=round(sign*existing.investedUsd*existing.leverage*existing.remaining*event.rate);
@@ -133,7 +147,7 @@ function simulateVirtual(signals,config,now=Date.now()){
         positions.delete(row.id);closed.push(existing);
       }
     }
-    curve.push({at:new Date(event.at).toISOString(),usd:calcEquity()});
+    if(!unpricedClosed.length)curve.push({at:new Date(event.at).toISOString(),usd:calcEquity()});
   }
   let floating=0,known=0;
   for(const p of positions.values()){
@@ -147,7 +161,7 @@ function simulateVirtual(signals,config,now=Date.now()){
     p.returnPct=round(p.pnlUsd/p.investedUsd*100);
     floating+=afterCosts;known++;
   }
-  const active=[...positions.values()],completeMarks=known===active.length;
+  const active=[...positions.values()],completeMarks=known===active.length&&unpricedClosed.length===0;
   const invested=active.reduce((s,p)=>s+p.investedUsd*p.remaining,0);
   const equity=completeMarks?round(cash+invested+floating):null;
   const totalPnl=equity===null?null:round(equity-config.initialUsd);
@@ -158,7 +172,7 @@ function simulateVirtual(signals,config,now=Date.now()){
   for(const point of curve){peak=Math.max(peak,point.usd);
     if(peak>0)maxDrawdownPct=Math.max(maxDrawdownPct,round((peak-point.usd)/peak*100));}
   const stats={total:all.length,closed:closed.length,open:active.length,
-    excluded:excluded.length,maxConcurrent,
+    excluded:excluded.length,maxConcurrent,authorClosedUnpriced:unpricedClosed.length,
     wins:wins.length,losses:losses.length,breakeven,
     winratePct:decided?round(wins.length/decided*100):null,
     lossratePct:decided?round(losses.length/decided*100):null,
@@ -177,8 +191,8 @@ function simulateVirtual(signals,config,now=Date.now()){
     if(e.some(x=>x.type==='author-claimed-sl'))reported.slClaims++;
   }
   return {channel:'@ne_investor',config,exchange:'Bybit',
-    cashUsd:round(cash),investedUsd:round(invested),equityUsd:equity,
-    realizedPnlUsd:round(all.reduce((n,p)=>n+p.realizedPnlUsd,0)),
+    cashUsd:unpricedClosed.length?null:round(cash),investedUsd:round(invested),equityUsd:equity,
+    realizedPnlUsd:unpricedClosed.length?null:round(all.reduce((n,p)=>n+p.realizedPnlUsd,0)),
     unrealizedPnlUsd:completeMarks?round(floating):null,
     totalPnlUsd:totalPnl,totalPnlPct:totalPnl===null?null:round(totalPnl/config.initialUsd*100),
     stats,reported,equityCurve:curve.slice(-600),

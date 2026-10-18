@@ -4,7 +4,12 @@
 function classifyUpdate(message){
   const text=String(message?.text||'');
   let type=null;
-  if(/(?:закрыл|закрываю|фиксирую|зафиксировал|снял)\s*(?:часть|частично|\d+(?:[.,]\d+)?\s*%)/iu.test(text)||/(?:частичн\p{L}*\s+(?:закрыл|закрываю|фиксац\p{L}*)|часть\s+(?:позиции\s+)?(?:закрыл|закрываю|зафиксировал)|(?:закрыл|закрываю)\s+часть\s+позиции)/iu.test(text))type='partial-close';
+  const passiveClose=/(?:остат(?:ок|ки)|позици\p{L}*|сделк\p{L}*)[^.!?\n]{0,70}\sзакрыт(?:а|о|ы)?(?=$|[^\p{L}])/iu.test(text)&&
+    !/(?:не\s+закрыт|буд(?:ет|ут)\s+закрыт|долж\p{L}*\s+быть\s+закрыт)/iu.test(text);
+  const passivePartial=passiveClose&&/(?:часть|частично)[^.!?\n]{0,70}\sзакрыт/iu.test(text);
+  const residualClose=passiveClose&&/остат(?:ок|ки)[^.!?\n]{0,70}\sзакрыт/iu.test(text);
+  if(passiveClose&&(!passivePartial||residualClose))type='full-close';
+  else if(passivePartial||/(?:закрыл|закрываю|фиксирую|зафиксировал|снял)\s*(?:часть|частично|\d+(?:[.,]\d+)?\s*%)/iu.test(text)||/(?:частичн\p{L}*\s+(?:закрыл|закрываю|фиксирую|фиксац\p{L}*)|часть\s+(?:позиции\s+)?(?:закрыл|закрываю|фиксирую|зафиксировал)|(?:закрыл|закрываю)\s+часть\s+позиции)/iu.test(text))type='partial-close';
   else if(/(?:стоп\s*(?:в|на)\s*(?:бу|б\/у|безубыт)|(?:перен[её]с|переношу|переставил)\s+стоп\s+(?:в|на)\s+(?:бу|б\/у|безубыт))/iu.test(text))type='stop-to-breakeven';
   else if(/(?:закрыл[ао]?\s+полностью|полностью\s+закрыл[ао]?|(?:закрыл[ао]?|закрываю|закрыли|закрыта|закрыто|закрываю)\s+(?:(?:всю|весь|свою|мою|эту)\s+)?(?:позици\p{L}*|позу|сделк\p{L}*|(?:шорт|лонг)\p{L}*)|(?:вышел|выхожу)\s+(?:из\s+)?(?:позици\p{L}*|сделк\p{L}*|(?:шорт|лонг)\p{L}*)|(?:позици\p{L}*|поза|сделка|шорт|лонг)\s+закрыт[ао]?)/iu.test(text))type='full-close';
   else if(/(?:сработал\s+(?:тейк|tp)|(?:достигли|взял|отработал)\s+(?:тейк|tp|цель))/iu.test(text))type='author-claimed-tp';
@@ -13,7 +18,8 @@ function classifyUpdate(message){
     type=/(?:марж|залог|обеспеч|collateral)/iu.test(text)?'collateral-addition':
       /(?:позици|объ[её]м|объем)/iu.test(text)?'position-addition':'unspecified-addition';
   if(!type)return null;
-  const pctToken=text.match(/(?:закрыл|закрываю|фиксирую|снял|часть|частично)\D{0,30}(\d{1,3}(?:[.,]\d+)?)\s*%/iu)
+  // A claimed "7% price move" or ROI is not the fraction of the position sold.
+  const pctToken=text.match(/(?:закрыл|закрываю|фиксирую|зафиксировал|снял|часть|частично)\s*(?:часть|частично)?\s*(?:(?:позиции|объ[её]ма)\s*)?(\d{1,3}(?:[.,]\d+)?)\s*%(?!\s*(?:чист\p{L}*|движ\p{L}*|прибыл\p{L}*|roi))/iu)
     ||text.match(/(\d{1,3}(?:[.,]\d+)?)\s*%\s*(?:позиции|объ[её]ма|закрыл|фиксирую|зафиксировал)/iu);
   const fraction=pctToken?Number(pctToken[1].replace(',','.'))/100:null;
   const closeFraction=type==='partial-close'&&Number.isFinite(fraction)&&fraction>0&&fraction<1?fraction:null;

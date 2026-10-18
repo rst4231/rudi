@@ -122,7 +122,10 @@ function draw(){
     const desc=document.createElement('small');
     desc.textContent='Вход '+Number(t.entry).toPrecision(7)+' · Выход '+Number(t.exitPrice).toPrecision(7)+
       ' · Маржа '+usd(t.margin)+' · Объём '+usd(t.notional)+
-      ' · Комиссии '+usd(t.feeUsd)+' · Сила сигнала '+t.score+'/100';
+      ' · Комиссии '+usd(t.feeUsd)+' · Сила сигнала '+t.score+'/100'+
+      (t.entryCandleIgnored?' · Свеча входа исключена: порядок экстремумов неизвестен':'')+
+      (t.ambiguousExit?' · TP и SL в одной свече: модель выбрала SL первым':'')+
+      (t.executionEvidence==='stop-gap-open'?' · Гэп через стоп: выход по худшему открытию':'');
     details.append(summary,desc);node.append(details);trades.append(linkDeal(node,t.symbol));
   }
   if(!trades.children.length)trades.textContent='Закрытых сделок пока нет. История начинается только после запуска сканера.';

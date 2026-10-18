@@ -53,7 +53,7 @@ function chart(paper){
   shape.setAttribute('stroke-width','2.7');shape.setAttribute('stroke-linecap','round');svg.append(shape);
   const label=document.createElementNS(ns,'text');label.setAttribute('x','12');label.setAttribute('y','15');
   label.setAttribute('font-size','11');label.setAttribute('fill','#aeb0bf');
-  label.textContent='Кривая капитала (реализованные события) · '+signed(points.at(-1)-points[0]);
+  label.textContent=(paper?.dataComplete===false?'Неполная кривая капитала · ':'Кривая капитала (реализованные события) · ')+signed(points.at(-1)-points[0]);
   svg.append(label);
 }
 function render(data){
@@ -61,8 +61,8 @@ function render(data){
   const e=$('cryptoVirtualEquity');if(e)e.textContent=p.equityUsd===null?'—':sum(p.equityUsd);
   const start=$('cryptoVirtualStart');if(start)start.textContent='Старт '+sum(p.config?.initialUsd||10000);
   const pnl=$('cryptoVirtualPnl');if(pnl){pnl.textContent=signed(p.totalPnlUsd);withColor(pnl,p.totalPnlUsd);}
-  const pct=$('cryptoVirtualPnlPct');if(pct)pct.textContent=p.totalPnlPct===null?'Нет полной оценки открытых позиций':signed(p.totalPnlPct,true);
-  const cash=$('cryptoVirtualCash');if(cash)cash.textContent=sum(p.cashUsd);
+  const pct=$('cryptoVirtualPnlPct');if(pct)pct.textContent=p.totalPnlPct===null?'Для точного итога не хватает данных':signed(p.totalPnlPct,true);
+  const cash=$('cryptoVirtualCash');if(cash)cash.textContent=p.cashUsd===null?'—':sum(p.cashUsd);
   const invested=$('cryptoVirtualInvested');if(invested)invested.textContent='В сделках '+sum(p.investedUsd);
   const closed=$('cryptoVirtualClosed');if(closed)closed.textContent=String(stats.closed??0);
   const winrate=$('cryptoVirtualWinrate');if(winrate)winrate.textContent='Winrate '+(stats.winratePct===null?'—':percent(stats.winratePct));
@@ -90,7 +90,8 @@ function render(data){
     const left=document.createElement('p'),right=document.createElement('p');
     left.textContent='Автор сообщил: TP '+(reported.tpClaims||0)+' · SL '+(reported.slClaims||0)+
       ' · обновлений сделок '+(reported.withLinkedUpdates||0);
-    right.textContent='Модель RUDI: '+(stats.closed||0)+' закрыто · '+(stats.excluded||0)+
+    right.textContent='Модель RUDI: '+(stats.closed||0)+' закрыто с расчётом'+
+      (stats.authorClosedUnpriced?' · '+stats.authorClosedUnpriced+' закрыто автором без точного PNL':'')+' · '+(stats.excluded||0)+
       ' неоднозначных исключено · '+(stats.fundingMissing||0)+' без подтверждённого funding';
     compare.append(left,right);
   }
@@ -101,7 +102,9 @@ function render(data){
       cal.append(line(day.date,signed(day.pnlUsd),{meta:day.count+' закрытых сделок',
         color:day.pnlUsd>0?'is-positive':day.pnlUsd<0?'is-negative':''}));
     }
-    if(!cal.children.length)cal.textContent='Закрытых виртуальных сделок пока нет.';
+    if(!cal.children.length)cal.textContent=stats.authorClosedUnpriced?
+      'Автор закрыл позицию. Для результата в календаре не хватает данных о выходах.':
+      'Закрытых виртуальных сделок пока нет.';
   }
   const list=$('cryptoVirtualPositions');if(list){list.replaceChildren();
     for(const x of p.positions||[]){
@@ -120,7 +123,7 @@ function render(data){
         const point=document.createElement('p');
         point.textContent=new Date(event.at).toLocaleString('ru-RU')+' · '+
           (event.type||'Обновление')+(event.closeFraction?' · '+percent(event.closeFraction*100):'')+
-          (event.measured===false?' · объём неизвестен':'');
+          (event.measured===false&&['partial-close','collateral-addition','position-addition','unspecified-addition'].includes(event.type)?' · объём неизвестен':'');
         details.append(point);
       }
       if(x.fundingComplete===false){const n=document.createElement('p');
@@ -156,9 +159,10 @@ function render(data){
     if(s.priceError)parts.push('Некоторые котировки Bybit не удалось проверить.');
     if(s.referencePricesCount)parts.push('Bybit ограничивает доступ (HTTP 403). Для '+s.referencePricesCount+' сигналов использованы справочные котировки OKX — они не входят в подтверждённую статистику Bybit.');
     if(stats.excluded)parts.push('Исключено неопределённых сделок: '+stats.excluded+'.');
+    if(stats.authorClosedUnpriced)parts.push('Автор закрыл '+stats.authorClosedUnpriced+' позиций. Неизвестны доли или цены выходов, поэтому итоговый PNL и баланс не рассчитаны.');
     if(!p.netIncludesFunding)parts.push('Funding по некоторым сделкам неизвестен; итог учитывает оценочные комиссии, но не претендует на полный net PNL.');
     if(s.gapsEstimate)parts.push('Обнаружены разрывы ID публикаций ('+s.gapsEstimate+'). Это могут быть удалённые посты, полнота истории не подтверждена.');
-    if(!p.dataComplete)parts.push('Баланс пока нельзя точно оценить: нет рыночных цен по всем открытым сделкам.');
+    if(!p.dataComplete&&!stats.authorClosedUnpriced)parts.push('Баланс пока нельзя точно оценить: нет рыночных цен по всем открытым сделкам.');
     parts.push('Bybit Spot — без плеча; фьючерсы Bybit — изолированная маржа. Неуказанный рынок не исполняется. «Докидывает» не доказывает кросс. Реальные ликвидации пока не моделируются.');
     parts.push('Виртуальный баланс не связан с реальными кошельками. История до запуска симуляции не торгуется задним числом. Отдельные выплаты и ликвидации помечаются как неподтверждённые.');
     status.textContent=parts.join('\n');

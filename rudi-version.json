@@ -1,18 +1,20 @@
 {
-  "current": "v4.271",
-  "versionBranch": "fix/nearest-together-events",
+  "current": "v4.272",
+  "versionBranch": "fix/crypto-audit-ava",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-18",
-  "basedOnProduction": "v4.270",
+  "basedOnProduction": "v4.271",
   "notes": [
-    "В блоке Ближайшее совместные события показаны только с категорией Вместе; личные события сохранены",
-    "Выбранная тема применяется до загрузки интерфейса и сохраняет фон при возврате в приложение"
+    "Исправлена обработка свечи входа и гэпа через стоп в виртуальных алгоритмах",
+    "Распознаются частичная фиксация и полное закрытие остатков AVA; проценты движения не считаются долей выхода",
+    "Закрытые автором позиции с неизвестными выходами сохраняются без выдуманного PNL"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Exclude individually assigned shared tasks from Home nearest events while retaining together and personal events",
-    "Preserve explicit theme before authentication and synchronously restore the canvas and Telegram background on resume"
+    "Complete pending candle execution audit",
+    "Recognize reversed partial exits and passive residual closure",
+    "Preserve unpriced author-closed virtual history with incomplete totals"
   ]
 }
