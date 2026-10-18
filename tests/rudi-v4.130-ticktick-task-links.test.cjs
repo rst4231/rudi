@@ -69,7 +69,7 @@ test('shared tasks, non-personal calendars and other users do not open personal 
   assert.equal(context.openPersonalTask({...ownedTask,canEdit:true}),true);
 });
 
-test('calendar personal task clicks edit, long press opens TickTick, right click shows actions',()=>{
+test('calendar personal task clicks edit, long hold stays in RUDI and right click shows actions',()=>{
   const editor=fs.readFileSync('public/personal-task-editor.js','utf8');
   const html=fs.readFileSync('public/index.html','utf8');
   assert.ok(app.includes("const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&!event.externalCalendar&&(event.privateLocal===true||Boolean"));
@@ -80,7 +80,7 @@ test('calendar personal task clicks edit, long press opens TickTick, right click
   assert.ok(app.includes('calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable)'));
   assert.ok(app.includes('openTickTick:()=>calendarOpenPersonalTickTickTask(task)'));
   assert.ok(editor.includes("element.addEventListener('contextmenu'"));
-  assert.ok(editor.includes("element.addEventListener('pointerup'"));
+  assert.ok(!editor.includes("element.__rudiPersonalTaskBinding?.ctx?.openTickTick?.()"));
   assert.ok(editor.includes("event.pointerType==='mouse'"));
   assert.ok(editor.includes('rudiPersonalTaskProject'));
   assert.ok(!editor.includes('rudiPersonalTaskResponsible'));
@@ -90,8 +90,8 @@ test('calendar personal task clicks edit, long press opens TickTick, right click
   assert.ok(app.includes('completeCalendarTickTickTask(event,row,complete,taskWritable)'));
 });
 
-test('stationary long hold on a personal weekly task opens TickTick without disabling time drag',()=>{
-  assert.match(app,/longOpenTimer=setTimeout\(\(\)=>\{/);
-  assert.match(app,/calendarOpenPersonalTickTickTask\(task\)/);
-  assert.match(app,/Math\.hypot\(movedX,movedY\)>10/);
+test('stationary long hold does not open TickTick and does not disable time drag',()=>{
+  assert.doesNotMatch(app,/longOpenTimer=setTimeout/);
+  assert.match(app,/holdTimer=setTimeout/);
+  assert.match(app,/requestCalendarTickTickTaskMove\(task,dateKey/);
 });

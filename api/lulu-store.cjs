@@ -102,6 +102,10 @@ function normalizeLuluState(value) {
     lastPoopAt,
     toiletAlert,
     updatedAt,
+    // Stable IDs prevent duplicate walks when a lost response is retried.
+    appliedOperations:(Array.isArray(source.appliedOperations)?source.appliedOperations:[])
+      .filter(id=>typeof id==='string'&&/^[a-z0-9_-]{8,96}$/i.test(id))
+      .slice(-96),
   };
 }
 
@@ -145,9 +149,22 @@ async function markLuluWalk(actor, toilet = {}, options = {}) {
   const peed=toilet?.peed===true;
   const pooped=toilet?.pooped===true;
   if(!peed&&!pooped) throw new Error('lulu-toilet-required');
+  const operationId=String(options.offlineOperationId||'').trim();
+  if(operationId&&!/^[a-z0-9_-]{8,96}$/i.test(operationId))
+    throw new Error('lulu-operation-id-invalid');
+  const nowMs=new Date(options.now||Date.now()).getTime();
+  const requested=options.walkedAt?normalizeStamp(options.walkedAt):'';
+  if(options.walkedAt&&!requested)throw new Error('lulu-walk-invalid');
+  if(requested&&(Date.parse(requested)>nowMs+5*60000||Date.parse(requested)<nowMs-30*24*3600000))
+    throw new Error('lulu-walk-age-invalid');
   return enqueueMutation(async () => {
     const current = await readLuluState(options);
-    const walkedAt = new Date(options.now || Date.now()).toISOString();
+    if(operationId&&current.appliedOperations.includes(operationId))
+      return {...current,duplicateOperation:true};
+    const walkedAt=requested||new Date(nowMs).toISOString();
+    const duplicate=[...(current.walksToday||[]),current.lastWalk]
+      .some(row=>row?.walkedAt===walkedAt&&row?.actor===clean);
+    if(duplicate) return {...current,duplicateOperation:true};
     const walk = {
       actor: clean,
       walkedAt,
@@ -156,20 +173,26 @@ async function markLuluWalk(actor, toilet = {}, options = {}) {
       previousPeeAt: peed ? String(current.lastPeeAt||'') : '',
       previousPoopAt: pooped ? String(current.lastPoopAt||'') : '',
     };
-    const today = moscowDateKey(walkedAt);
+    const today = moscowDateKey(nowMs);
     const previous = (Array.isArray(current.walksToday) ? current.walksToday : [])
       .filter((row) => moscowDateKey(row.walkedAt) === today);
-    const walksToday = [...previous.filter((row) => row.walkedAt !== walkedAt), walk].slice(-16);
+    const walksToday = moscowDateKey(walkedAt)===today
+      ? [...previous.filter((row) => row.walkedAt !== walkedAt), walk]
+        .sort((a,b)=>Date.parse(a.walkedAt)-Date.parse(b.walkedAt)).slice(-16)
+      : previous;
+    const isLatest=!current.lastWalk||Date.parse(walkedAt)>=Date.parse(current.lastWalk.walkedAt);
+    const newest=(existing)=>!existing||Date.parse(walkedAt)>Date.parse(existing)?walkedAt:existing;
     return writeLuluState({
       ...current,
       initialized: true,
       version: Math.max(0, Number(current.version || 0)) + 1,
-      lastWalk: walk,
+      lastWalk:isLatest?walk:current.lastWalk,
       walksToday,
-      lastPeeAt: peed ? walkedAt : current.lastPeeAt,
-      lastPoopAt: pooped ? walkedAt : current.lastPoopAt,
-      toiletAlert: null,
-      updatedAt: walkedAt,
+      lastPeeAt:peed?newest(current.lastPeeAt):current.lastPeeAt,
+      lastPoopAt:pooped?newest(current.lastPoopAt):current.lastPoopAt,
+      appliedOperations:operationId?[...current.appliedOperations,operationId].slice(-96):current.appliedOperations,
+      toiletAlert: isLatest?null:current.toiletAlert,
+      updatedAt: isLatest?walkedAt:current.updatedAt,
     }, options);
   });
 }

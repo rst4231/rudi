@@ -313,7 +313,7 @@
     let queue=false;
     if(url.pathname==='/api/wishlist') queue=!readOps.has(operation||'list');
     else if(url.pathname==='/api/partner-message'&&!action) queue=Boolean(String(body.text||'').trim());
-    else if(action==='products'||action==='saves'||action==='for-di-feed'||action==='reactions'||action==='mood'||action==='lulu'||action==='cycle'||action==='ui-preferences'){
+    else if(action==='saves'||action==='for-di-feed'||action==='reactions'||action==='mood'||action==='cycle'||action==='ui-preferences'){
       queue=!readOps.has(operation||'get');
     }
     if(!queue) return null;
@@ -406,7 +406,7 @@
           || String(error?.name||'')==='AbortError'
           || /network|fetch|load failed|aborted|timeout/i.test(String(error?.message||''));
         if(queued&&!aborted&&networkFailure){
-          return queueAndThrow('Сеть нестабильна · действие отправится позже');
+          return queueAndThrow('Офлайн режим · действие сохранено, отправлю позже');
         }
         if(snapshotKey&&networkFailure){
           const cached=await snapshotFallback(snapshotKey);
@@ -423,6 +423,7 @@
       // iOS PWA may restore network access without firing "online".
       requestOutboxFlush();
     });
+    window.addEventListener('rudi-transactions-network-recovered',()=>requestOutboxFlush());
 
     navigator.serviceWorker?.addEventListener?.('message',event=>{
       const data=event.data||{};
@@ -645,17 +646,17 @@
       banner.className='rudi-offline-banner';
       banner.setAttribute('role','status');
       banner.setAttribute('aria-live','polite');
-      banner.textContent='Нет сети · РуДи работает из сохранённых данных';
+      banner.textContent='Офлайн режим · доступны сохранённые данные';
       banner.hidden=true;
       document.body.appendChild(banner);
     }
     const sync=()=>{
-      const offline=navigator.onLine===false;
+      const offline=navigator.onLine===false||document.body.dataset.offlineMode==='1';
       banner.hidden=!offline;
       document.body.classList.toggle('rudi-offline',offline);
       if(!offline){
         document.body.dataset.offlineMode='0';
-        banner.textContent='Нет сети · РуДи работает из сохранённых данных';
+        banner.textContent='Офлайн режим · доступны сохранённые данные';
       }
     };
     let recoverySuccesses=0;
@@ -669,7 +670,7 @@
       banner.hidden=false;
       document.body.classList.add('rudi-offline');
       document.body.dataset.offlineMode='1';
-      banner.textContent='Связь нестабильна · данные по состоянию на '+time;
+      banner.textContent='Офлайн режим · данные по состоянию на '+time;
     });
     window.addEventListener('rudi-online-request-success',()=>{
       if(banner.hidden||navigator.onLine===false) return;
@@ -689,7 +690,15 @@
       clearTimeout(recoveryTimer);
       recoverySuccesses=0;
       banner.hidden=true;
-      banner.textContent='Нет сети · РуДи работает из сохранённых данных';
+      banner.textContent='Офлайн режим · доступны сохранённые данные';
+      document.body.classList.remove('rudi-offline');
+      document.body.dataset.offlineMode='0';
+    });
+    for(const name of ['rudi-transactions-network-recovered','rudi-content-network-recovered'])window.addEventListener(name,()=>{
+      clearTimeout(recoveryTimer);
+      recoverySuccesses=0;
+      banner.hidden=true;
+      banner.textContent='Офлайн режим · доступны сохранённые данные';
       document.body.classList.remove('rudi-offline');
       document.body.dataset.offlineMode='0';
     });
@@ -700,7 +709,7 @@
       clearTimeout(recoveryTimer);
       recoverySuccesses=0;
       banner.hidden=true;
-      banner.textContent='Нет сети · РуДи работает из сохранённых данных';
+      banner.textContent='Офлайн режим · доступны сохранённые данные';
       document.body.classList.remove('rudi-offline');
       document.body.dataset.offlineMode='0';
     });

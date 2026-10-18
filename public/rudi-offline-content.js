@@ -71,7 +71,7 @@ function signal(extra={}){
   const errors=rows.filter(x=>x.error).length;
   const detail={actor,pending:rows.length,errors,syncing,connected,lastSynced,...extra};
   root.dispatchEvent(new CustomEvent('rudi-content-sync',{detail}));
-  const status=syncing?'Синхронизация…':rows.length?'Ожидают синхронизации: '+rows.length+(errors?' · Ошибка синхронизации':''):connected===false?'Офлайн':lastSynced?'Синхронизировано':'';
+  const status=syncing?'Синхронизация…':rows.length?'Ожидают синхронизации: '+rows.length+(errors?' · Ошибка синхронизации':''):connected===false?'Офлайн режим':lastSynced?'Синхронизировано':'';
   for(const [id,area] of [['fastingOfflineSync','fasting'],['meditationOfflineSync','meditation'],['supplementOfflineSync','supplements']]){
    const node=root.document?.getElementById(id);
    if(!node)continue;
@@ -84,7 +84,7 @@ function signal(extra={}){
   if(el){
    const active=root.document.body?.dataset?.appTab;
    el.hidden=!((active==='feed'||active==='home'||active==='fasting'||active==='supplements'||root.document.body?.classList?.contains?.('meditation-page-open'))&&(rows.length||connected===false||syncing||lastSynced));
-   el.textContent=syncing?'Синхронизация…':rows.length?'Ожидают синхронизации: '+rows.length+(errors?' · Ошибка синхронизации':''):connected===false?'Офлайн':lastSynced?'Синхронизировано':'';
+   el.textContent=syncing?'Синхронизация…':rows.length?'Ожидают синхронизации: '+rows.length+(errors?' · Ошибка синхронизации':''):connected===false?'Офлайн режим':lastSynced?'Синхронизировано':'';
   }
  }).catch(()=>{});
 }
@@ -101,18 +101,31 @@ function isOffline(){
  return root.navigator?.onLine===false||root.document?.body?.dataset?.offlineMode==='1';
 }
 async function enqueue(kind,scope,data,who=actor){
- if(!actors.has(who)||!['note','note-view','question','feed-reaction','wellness'].includes(kind))throw Error('offline-operation-invalid');
+ if(!actors.has(who)||!['note','note-view','question','feed-reaction','wellness','lulu'].includes(kind))throw Error('offline-operation-invalid');
  const rows=await entries(who);
  const match=rows.find(row=>row.kind===kind&&row.scope===scope);
  // Coalesce only idempotent SETs, keeping the original server revision.
  if(match&&kind==='question')return match;
  const row=match?{...match,data:safe(data),stamp:makeId(),error:''}:{
-  id:makeId(),actor:who,kind,scope,data:safe(data),createdAt:Date.now(),stamp:makeId(),error:''
+  id:kind==='lulu'&&/^[a-z0-9_-]{8,96}$/i.test(String(data?.offlineOperationId||''))?String(data.offlineOperationId):makeId(),
+  actor:who,kind,scope,data:safe(data),createdAt:Date.now(),stamp:makeId(),error:''
  };
  if(match&&kind==='note')row.data.expectedUpdatedAt=match.data.expectedUpdatedAt;
  await tx('outbox','readwrite',store=>store.put(row));
+ if(kind==='lulu'&&isOffline()){
+  if(root.document?.body)root.document.body.dataset.offlineMode='1';
+  root.dispatchEvent(new CustomEvent('rudi-offline-snapshot-used',{detail:{updatedAt:Date.now()}}));
+ }
  signal();
  return row;
+}
+async function discard(id,who=actor){
+ if(!actors.has(who)||!id)return false;
+ const row=await tx('outbox','readonly',store=>store.get(String(id)));
+ if(row?.actor!==who||row.kind!=='lulu')return false;
+ await tx('outbox','readwrite',store=>store.delete(String(id)));
+ signal();
+ return true;
 }
 async function commitWellness(area,operation,payload,snapshotKind,snapshot,who=actor){
  if(!actors.has(who)||!['fasting','meditation','supplements'].includes(area)||!operation||!snapshotKind)
@@ -198,6 +211,10 @@ async function send(row){
  }else if(row.kind==='question'){
   url='/api/partner-message?rudiAction=daily-question';
   body={operation:'answer',...row.data};
+ }else if(row.kind==='lulu'){
+  url='/api/partner-message?rudiAction=lulu';
+  body={operation:'walk',peed:row.data?.peed===true,pooped:row.data?.pooped===true,
+   walkedAt:String(row.data?.walkedAt||''),offlineOperationId:row.id};
  }else if(row.kind==='wellness'){
   const area=String(row.data?.area||'');
   const params={...row.data?.payload};
@@ -295,5 +312,5 @@ for(const event of ['online','focus','pageshow','rudi-home-network-recovered'])
 root.document?.addEventListener('visibilitychange',()=>{if(root.document.visibilityState==='visible')scheduled()});
 root.addEventListener('rudi-app-pull-refresh',()=>scheduled());
 setInterval(scheduled,15000);
-root.rudiOfflineContent={init,actor:()=>actor,cached,capture,enqueue,commitWellness,pending,entries,rebaseNote,flush,probe,isOffline,signal,isSyncing:()=>syncing};
+root.rudiOfflineContent={init,actor:()=>actor,cached,capture,enqueue,discard,commitWellness,pending,entries,rebaseNote,flush,probe,isOffline,signal,isSyncing:()=>syncing};
 })(window);

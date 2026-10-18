@@ -330,49 +330,15 @@ function bind(element,task,ctx){
  binding.ctx=ctx;
  if(element.dataset.personalTaskBound==='1')return;
  element.dataset.personalTaskBound='1';
- let start=null,suppressUntil=0,holdTimer=0;
- const reset=()=>{clearTimeout(holdTimer);holdTimer=0;start=null;element.classList.remove('rudi-personal-holding')};
- const blocked=target=>{const control=target?.closest?.('input,button,a,textarea,select');return control&&control!==element};
- const beginHold=(id,x,y)=>{
-  reset();start={id,x,y};element.classList.add('rudi-personal-holding');
-  holdTimer=setTimeout(()=>{
-   if(!start)return;
-   suppressUntil=Date.now()+1600;reset();
-   element.__rudiPersonalTaskBinding?.ctx?.openTickTick?.();
-  },550);
- };
- // On iOS, touch events survive native pointercancel during a long press.
- element.addEventListener('touchstart',event=>{
-  if(event.touches.length!==1||blocked(event.target))return;
-  const t=event.touches[0];beginHold(t.identifier,t.clientX,t.clientY);
- },{passive:true,capture:true});
- element.addEventListener('touchmove',event=>{
-  const t=event.touches[0];
-  if(start&&t&&t.identifier===start.id&&Math.hypot(t.clientX-start.x,t.clientY-start.y)>12)reset();
- },{passive:true,capture:true});
- element.addEventListener('touchend',reset,{passive:true,capture:true});
- element.addEventListener('touchcancel',reset,{passive:true,capture:true});
- element.addEventListener('pointerdown',event=>{
-  if(event.pointerType==='touch'||(event.pointerType==='mouse'&&event.button!==0)||event.isPrimary===false||blocked(event.target))return;
-  beginHold(event.pointerId,event.clientX,event.clientY);
- },true);
- element.addEventListener('pointermove',event=>{
-  if(event.pointerType==='touch')return;
-  if(start&&event.pointerId===start.id&&Math.hypot(event.clientX-start.x,event.clientY-start.y)>12)reset();
- },true);
- element.addEventListener('pointerup',event=>{if(event.pointerType!=='touch')reset()},true);
- element.addEventListener('pointercancel',event=>{if(event.pointerType!=='touch')reset()},true);
+ // Long hold must never navigate away to TickTick.
+ // Keep the contextual menu on desktop right-click; normal tap opens RUDI editor.
  element.addEventListener('contextmenu',event=>{
-  event.preventDefault();event.stopPropagation();
-  if(start||Date.now()<suppressUntil)return;
-  if(event.pointerType==='mouse'){
-    const current=element.__rudiPersonalTaskBinding;
-    if(current?.task)showMenu(current.task,current.ctx,event);
-  }
+   event.preventDefault();
+   event.stopPropagation();
+   const current=element.__rudiPersonalTaskBinding;
+   if(event.pointerType==='mouse'&&current?.task)
+     showMenu(current.task,current.ctx,event);
  });
- element.addEventListener('click',event=>{
-  if(Date.now()<suppressUntil){event.preventDefault();event.stopImmediatePropagation()}
- },true);
 }
 window.RUDIPersonalTaskEditor={open,create,bind,showMenu};
 })();

@@ -1,20 +1,20 @@
 {
-  "current": "v4.273",
-  "versionBranch": "fix/weather-iphone-layout",
+  "current": "v4.274",
+  "versionBranch": "offline-resilience-rudi",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-18",
-  "basedOnProduction": "v4.272",
+  "basedOnProduction": "v4.273",
   "notes": [
-    "Окно прогноза учитывает безопасные края iOS и прокручивает только содержимое",
-    "При открытии сегодняшнего прогноза список показывает текущий час по Москве",
-    "В календаре месяца добавлены значки погоды на дни с доступным прогнозом"
+    "Офлайн режим: синхронизация Лулу, списка покупок и рублёвых финансовых операций",
+    "Защита от повторной отправки прогулок, расходов и доходов",
+    "Убрано открытие TickTick по долгому удержанию задачи"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Responsive safe-area weather dialog with fixed controls and compact hourly rows",
-    "Reveal current Moscow hour while retaining earlier hours and resetting other dates",
-    "Render actual forecast weather emoji in month cells"
+    "Offline transactions snapshot and replay",
+    "Offline Lulu outbox with idempotency",
+    "Remove long-hold TickTick shortcuts"
   ]
 }

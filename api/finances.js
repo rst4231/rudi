@@ -375,6 +375,11 @@ async function handler(req, res) {
       const current = await readFinanceState();
       const view = viewState(current, actor);
       const editId = String(body.id || '').trim();
+      const offlineId=String(body.offlineOperationId||'').trim();
+      if(offlineId&&!/^[a-z0-9_-]{8,96}$/i.test(offlineId))throw Error('finance-operation-id-invalid');
+      const stableId=offlineId?'offline-'+offlineId:'';
+      if(stableId&&(view.walletIncomes||[]).some(row=>row.id===stableId))
+        return res.status(200).json({ok:true,actor,canEdit:actor==='Рустам',...view});
       const existing = editId ? (view.walletIncomes || []).find(row => row.id === editId) : null;
       if (editId && !existing) throw new Error('finance-wallet-income-not-found');
       if (existing && String(body.walletId || '') !== String(existing.walletId)) throw new Error('finance-wallet-income-wallet-locked');
@@ -398,7 +403,7 @@ async function handler(req, res) {
         occurredAt: body.occurredAt,
         month: body.month,
         note: body.note,
-      });
+      },stableId?{id:stableId}:{});
       return res.status(200).json({
         ok: true,
         actor,
@@ -408,6 +413,12 @@ async function handler(req, res) {
       });
     }
     if (operation === 'delete-wallet-income') {
+      const offlineId=String(body.offlineOperationId||'').trim();
+      if(offlineId&&/^[a-z0-9_-]{8,96}$/i.test(offlineId)){
+        const previous=await readFinanceState();
+        if(!viewState(previous,actor).walletIncomes.some(row=>row.id===String(body.id||'')))
+          return res.status(200).json({ok:true,actor,canEdit:actor==='Рустам',...viewState(previous,actor)});
+      }
       const state = await deleteWalletIncome(actor, body.id);
       return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
     }
@@ -505,6 +516,8 @@ async function handler(req, res) {
       const { sourceAmount, amount, rubAmount, exchangeRate } = conversion;
 
       const isNew=!String(body.id||'').trim();
+      const requestId=String(body.requestId||'').trim();
+      const stableId=requestId&&/^[a-z0-9_-]{8,96}$/i.test(requestId)?'offline-'+requestId:'';
       const state = await savePersonalExpense(actor, {
         ...body,
         amount,
@@ -513,7 +526,7 @@ async function handler(req, res) {
         targetCurrency,
         rubAmount,
         exchangeRate,
-      });
+      },stableId?{id:stableId}:{});
       const newExpense=isNew?(state.personalExpenses||[]).at(-1):null;
       const score=newExpense?.actor===actor&&!newExpense.importKey
         ?await awardFirstDailyExpense(actor,newExpense.id)
@@ -539,6 +552,9 @@ async function handler(req, res) {
     if (operation === 'delete-expense') {
       const current=await readFinanceState();
       const removed=(current.personalExpenses||[]).find(row=>row.actor===actor&&row.id===String(body.id||''));
+      const offlineId=String(body.offlineOperationId||'').trim();
+      if(!removed&&offlineId&&/^[a-z0-9_-]{8,96}$/i.test(offlineId))
+        return res.status(200).json({ok:true,actor,canEdit:actor==='Рустам',...viewState(current,actor)});
       const state = await deletePersonalExpense(actor, body.id);
       const score=removed&&!removed.manualAdjustment&&!removed.importKey
         ?await reverseDeletedDailyExpense(actor,removed.id)

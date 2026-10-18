@@ -2807,15 +2807,20 @@
         financeSaveTimers.set(key,setTimeout(()=>{financeSaveTimers.delete(key);Promise.resolve(fn()).catch(()=>{})},delay));
       }
       async function financeRequest(operation='list',payload={}){
+        const requestLive=async(nextPayload=payload)=>{
         const response=await fetch('/api/finances',{
           method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'
+          body:JSON.stringify({initData:tg?.initData||'',operation,...nextPayload}),cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok){const error=new Error(data.error||'finance-request-failed');error.status=response.status;throw error}
         if(data.score) renderScoreStickers(data.score);
         if(/expense|categor/i.test(operation))document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
         return data;
+        };
+        if(window.rudiOfflineTransactions&&['list','save-expense','delete-expense','save-wallet-income','delete-wallet-income'].includes(operation))
+          return window.rudiOfflineTransactions.request('finances',operation,payload,requestLive);
+        return requestLive();
       }
       function financeRowForMonth(month){return (financeState.months||[]).find(row=>String(row?.month||'')===String(month||''))||null}
       function financePersonalRowForMonth(month){return (financeState.personalMonths||[]).find(row=>String(row?.month||'')===String(month||''))||null}
@@ -8300,12 +8305,16 @@
         modal.querySelector('.lulu-walk-modal-confirm')?.addEventListener('click',async()=>{
           const confirm=modal.querySelector('.lulu-walk-modal-confirm');
           if(confirm.disabled) return;
+          confirm.textContent='Сохранение…';
           const peed=modal.querySelector('[data-lulu-toilet="peed"]')?.getAttribute('aria-pressed')==='true';
           const pooped=modal.querySelector('[data-lulu-toilet="pooped"]')?.getAttribute('aria-pressed')==='true';
           confirm.disabled=true;
           try{
             await saveLuluWalk({peed,pooped});
             close();
+          }catch(error){
+            console.warn('RUDI_LULU_SAVE_WARN',String(error?.message||error));
+            confirm.textContent='Не удалось сохранить · повторить';
           }finally{sync()}
         });
         return modal;
@@ -8315,18 +8324,25 @@
         const modal=ensureLuluWalkModal();
         modal.querySelectorAll('[data-lulu-toilet]').forEach(button=>button.setAttribute('aria-pressed','false'));
         modal.querySelector('.lulu-walk-modal-confirm').disabled=true;
+        modal.querySelector('.lulu-walk-modal-confirm').textContent='Сохранить прогулку';
         modal.hidden=false;
         document.body.classList.add('lulu-walk-modal-open');
       }
 
       async function luluRequest(operation,payload={}){
         const backupContext=backupRequestContext();
-        const response=await fetch('/api/partner-message?rudiAction=lulu',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,...payload}),
-          cache:'no-store'
-        });
+        const controller=operation==='walk'?new AbortController():null;
+        const timer=controller?setTimeout(()=>controller.abort(),6000):null;
+        let response;
+        try{
+          response=await fetch('/api/partner-message?rudiAction=lulu',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,...payload}),
+            cache:'no-store',
+            ...(controller?{signal:controller.signal}:{})
+          });
+        }finally{if(timer!==null)clearTimeout(timer)}
         const result=await response.json().catch(()=>({}));
         if(!response.ok||!result.ok) throw new Error(result.error||'lulu-request-failed');
         if(result.backupToken) await storeStateBackupToken(result.backupToken,backupContext);
@@ -8337,6 +8353,16 @@
         const walkedAt=String(row?.walkedAt||'').trim();
         const owner=String(row?.actor||'').trim();
         if(!walkedAt||owner!==currentActor||button?.disabled) return;
+        if(row?.offlinePending&&row?.offlineOperationId){
+          const removed=await window.rudiOfflineContent?.discard?.(row.offlineOperationId,currentActor).catch(()=>false);
+          if(removed){
+            const disk=await window.rudiHomeOffline?.snapshot?.(currentActor).catch(()=>null);
+            const baseline=disk?.home?.activity?.lulu||{};
+            renderLulu(baseline);
+            await renderPendingLuluWalks();
+          }
+          return;
+        }
         if(button){
           button.disabled=true;
           button.classList.add('is-canceling');
@@ -8363,18 +8389,84 @@
         }
       }
 
+      function applyLocalLuluWalk(base,row){
+        const state=base&&typeof base==='object'?{...base}:{};
+        const walkedAt=String(row?.data?.walkedAt||'');
+        const date=new Date(walkedAt);
+        if(!row||Number.isNaN(date.getTime()))return state;
+        const walk={actor:row.actor,walkedAt,peed:row.data.peed===true,pooped:row.data.pooped===true,
+          offlinePending:true,offlineOperationId:row.id};
+        const today=sharedAlbumDateKey(new Date());
+        const existing=(Array.isArray(state.walksToday)?state.walksToday:[])
+          .filter(item=>!item.offlinePending&&sharedAlbumDateKey(new Date(item.walkedAt))===today);
+        if(sharedAlbumDateKey(date)===today)existing.push(walk);
+        const last=state.lastWalk;
+        const isLast=!last||Date.parse(walkedAt)>=Date.parse(last.walkedAt);
+        state.walksToday=existing.sort((a,b)=>Date.parse(a.walkedAt)-Date.parse(b.walkedAt));
+        if(isLast)state.lastWalk=walk;
+        if(walk.peed&&(!state.lastPeeAt||Date.parse(walkedAt)>=Date.parse(state.lastPeeAt)))state.lastPeeAt=walkedAt;
+        if(walk.pooped&&(!state.lastPoopAt||Date.parse(walkedAt)>=Date.parse(state.lastPoopAt)))state.lastPoopAt=walkedAt;
+        return state;
+      }
+
+      async function renderPendingLuluWalks(){
+        const who=currentActor;
+        if(!who||!window.rudiOfflineContent?.pending)return;
+        const rows=await window.rudiOfflineContent.pending('lulu','',who).catch(()=>[]);
+        if(currentActor!==who||!rows.length)return;
+        let base={...(homeDashboardState.lulu||{})};
+        const regular=(Array.isArray(base.walksToday)?base.walksToday:[]).filter(row=>!row.offlinePending);
+        base.walksToday=regular;
+        if(base.lastWalk?.offlinePending)base.lastWalk=regular[regular.length-1]||null;
+        for(const row of rows.filter(r=>r.data?.operation==='walk'))
+          base=applyLocalLuluWalk(base,row);
+        renderLulu(base);
+      }
+
+      window.addEventListener('rudi-content-operation-synced',event=>{
+        if(event.detail?.kind!=='lulu'||event.detail.actor!==currentActor)return;
+        if(event.detail.result?.lulu)renderLulu(event.detail.result.lulu);
+        void loadActivityJournal({silent:true}).catch(()=>{});
+        void renderPendingLuluWalks();
+        void loadHomeBootstrap({force:true}).catch(()=>{});
+      });
+
       async function saveLuluWalk(toilet){
         const button=document.getElementById('luluWalkButton');
         if(!button||button.disabled) return;
         button.disabled=true;
         button.classList.add('is-saving');
+        const walkedAt=new Date().toISOString();
+        const offlineOperationId=window.crypto?.randomUUID?.()||('walk-'+Date.now()+'-'+Math.random().toString(36).slice(2));
+        const detail={operation:'walk',peed:toilet?.peed===true,pooped:toilet?.pooped===true,
+          walkedAt,offlineOperationId};
         try{
-          const payload=await luluRequest('walk',{
-            peed:toilet?.peed===true,
-            pooped:toilet?.pooped===true,
-          });
-          renderLulu(payload.lulu);
-          setTimeout(()=>loadActivityJournal({silent:true}),120);
+          const offline=window.rudiHomeOffline?.isOffline?.()||window.rudiOfflineContent?.isOffline?.();
+          if(!offline){
+            try{
+              const payload=await luluRequest('walk',detail);
+              renderLulu(payload.lulu);
+              void renderPendingLuluWalks();
+              setTimeout(()=>loadActivityJournal({silent:true}),120);
+              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+              return;
+            }catch(error){
+              const networkFailure=['TypeError','AbortError'].includes(String(error?.name||''))
+                ||/network|fetch|timeout|aborted|load failed|offline/i.test(String(error?.message||''));
+              if(!networkFailure)throw error;
+              document.body.dataset.offlineMode='1';
+            }
+          }
+          if(!window.rudiOfflineContent?.enqueue)throw Error('offline-storage-unavailable');
+          const queued=await window.rudiOfflineContent.enqueue('lulu',offlineOperationId,detail,currentActor);
+          renderLulu(applyLocalLuluWalk(homeDashboardState.lulu,queued));
+          showUndoSnackbar('Офлайн режим · прогулка сохранена',async()=>{
+            if(await window.rudiOfflineContent.discard(queued.id,currentActor)){
+              const disk=await window.rudiHomeOffline?.snapshot?.(currentActor).catch(()=>null);
+              renderLulu(disk?.home?.activity?.lulu||{});
+              await renderPendingLuluWalks();
+            }
+          },10000);
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
         }catch(error){
           try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
@@ -9217,7 +9309,7 @@
       }
 
       function renderActivityJournal(payload){
-        renderLulu(payload?.lulu);if(payload?.score)renderScoreStickers(payload.score);
+        renderLulu(payload?.lulu);void renderPendingLuluWalks();if(payload?.score)renderScoreStickers(payload.score);
         const items=(Array.isArray(payload?.items)?payload.items:[]).slice(0,80);
         homeDashboardState.activity=items;homeDashboardState.activityVersion=Math.max(0,Number(payload?.version||0));
         migrateLegacyActivitySeenMarker(items,homeDashboardState.activityVersion);
@@ -12436,6 +12528,7 @@
           if(!homeBootstrapPayload||window.rudiHomeOffline.isOffline()){
             homeBootstrapHashes=null;
             applyHomeBootstrap(snapshot.home,{fromCache:true});
+            void renderPendingLuluWalks();
           }
           window.rudiHomeOffline.showCachedStatus(snapshot.savedAt);
           return snapshot;
@@ -12713,6 +12806,7 @@
         }
         if(!currentActor) return false;
         window.rudiHomeOffline?.init(currentActor);
+        window.rudiOfflineTransactions?.init(currentActor,()=>telegramInitData());
         restoreHomeFromDisk().catch(()=>{});
         window.rudiCalendarOffline?.init(currentActor)
           .then(()=>flushCalendarOffline()).catch(error=>console.warn('RUDI_CALENDAR_OFFLINE_INIT_WARN',String(error?.message||error)));
@@ -15625,8 +15719,8 @@
         const maxStart=Math.max(0,Math.floor((1440-duration)/15)*15);
         const timeLabel=minutes=>String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');
         const HOLD_MS=420;
-        let gesture=null,holdTimer=null,longOpenTimer=null,busy=false,suppressClickUntil=0;
-        const clearHold=()=>{if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null}if(longOpenTimer!==null){clearTimeout(longOpenTimer);longOpenTimer=null}};
+        let gesture=null,holdTimer=null,busy=false,suppressClickUntil=0;
+        const clearHold=()=>{if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null}};
         const restorePreview=()=>{
           block.style.top=originalTop;
           stamp.textContent=originalTime;
@@ -15650,27 +15744,13 @@
             block.classList.add('is-dragging');
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           },HOLD_MS);
-          // Stationary hold opens the exact TickTick task; moving retains time-drag.
-          if(task.personal===true&&calendarScope==='personal'&&currentActor==='Рустам'&&calendarTickTickTaskWebUrl(task)){
-            longOpenTimer=setTimeout(()=>{
-              longOpenTimer=null;
-              const g=gesture;
-              if(!g||g.id!==pointerEvent.pointerId||g.scrolling||g.changed)return;
-              if(calendarOpenPersonalTickTickTask(task)){
-                suppressClickUntil=Date.now()+1300;
-                gesture=null;clearHold();restorePreview();
-                try{block.releasePointerCapture(g.id)}catch(_){}
-                try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-              }
-            },700);
-          }
+
         });
         block.addEventListener('pointermove',pointerEvent=>{
           const g=gesture;
           if(!g||g.id!==pointerEvent.pointerId)return;
           const movedY=pointerEvent.clientY-g.startY;
           const movedX=pointerEvent.clientX-g.startX;
-          if(Math.hypot(movedX,movedY)>10&&longOpenTimer!==null){clearTimeout(longOpenTimer);longOpenTimer=null}
           if(!g.dragging){
             if(Math.abs(movedY)>8||Math.abs(movedX)>8){
               clearHold();
@@ -15873,7 +15953,7 @@
             block.appendChild(owner);
           }
           attachCompletion(block,event.task);
-          // Keep the existing vertical time drag; long hold with no movement opens TickTick.
+          // Keep vertical time drag on hold; do not open TickTick.
           calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable);
           track.appendChild(block);
         }
@@ -19589,19 +19669,36 @@
       }
 
       async function productsRequest(operation,payload={}){
+        const request=async(epoch)=>{
+          const data=window.rudiOfflineTransactions
+            ?await window.rudiOfflineTransactions.request('products',operation,payload,next=>
+               executeProductsRequest(operation,next||payload,epoch))
+            :await executeProductsRequest(operation,payload,epoch);
+          if(data&&typeof data==='object'){
+            data.__clientProductsOperation=operation;
+            data.__clientProductsEpoch=epoch;
+          }
+          return data;
+        };
         if(operation==='list'){
           const clientEpoch=productsMutationEpoch;
           await productsMutationChain.catch(()=>{});
-          return executeProductsRequest(operation,payload,clientEpoch);
+          return request(clientEpoch);
         }
         const clientEpoch=++productsMutationEpoch;
         const task=productsMutationChain.then(
-          ()=>executeProductsRequest(operation,payload,clientEpoch),
-          ()=>executeProductsRequest(operation,payload,clientEpoch)
+          ()=>request(clientEpoch),()=>request(clientEpoch)
         );
         productsMutationChain=task.then(()=>undefined,()=>undefined);
         return task;
       }
+
+      window.addEventListener('rudi-transactions-updated',event=>{
+        if(event.detail?.actor!==currentActor)return;
+        if(!event.detail?.synced&&!event.detail?.error)return;
+        if(event.detail.area==='products'&&currentAppTab==='products')void loadProducts({silent:true});
+        if(event.detail.area==='finances'&&currentAppTab==='finances')void loadFinances({silent:true});
+      });
 
       function setProductsBadge(count){
         const badge=document.getElementById('productsTabBadge');

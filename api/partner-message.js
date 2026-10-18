@@ -3091,11 +3091,14 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
 
       if (operation === 'walk') {
+        const requestedWalkedAt=String(body.walkedAt||'').trim();
+        const offlineOperationId=String(body.offlineOperationId||'').trim();
         const lulu = await markLuluWalk(actor, {
           peed: body.peed === true,
           pooped: body.pooped === true,
-        }, options);
-        const walkedAt = String(lulu?.lastWalk?.walkedAt || new Date(options.now || Date.now()).toISOString());
+        }, {...options,walkedAt:requestedWalkedAt,offlineOperationId});
+        if(lulu.duplicateOperation)return res.status(200).json({ok:true,actor,lulu});
+        const walkedAt = requestedWalkedAt || String(lulu?.lastWalk?.walkedAt || new Date(options.now || Date.now()).toISOString());
         const actionWord = actor === 'Диана' ? 'погуляла' : 'погулял';
         await recordActivity({
           type: 'lulu-walk',actor,text: actor + ' ' + actionWord + ' с Лулу',icon:'🐾',targetTab:'home',
@@ -4709,6 +4712,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'remove') {
         const before = await readProductList(options);
         const removedItem = (before.items || []).find((item) => item.id === String(body.id || '')) || null;
+        const offlineId=String(body.offlineOperationId||'').trim();
+        if(offlineId&&/^[a-z0-9_-]{8,96}$/i.test(offlineId)&&!removedItem){
+          return res.status(200).json({ok:true,actor,...before});
+        }
         const state = await removeProduct(body.id, options);
         const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ ok: true, actor, ...state, removedItem, backupToken });
