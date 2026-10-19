@@ -116,6 +116,19 @@ function enabled(flag){
 }
 async function request(action,payload={}){
   if(!active)throw Error('Задача не выбрана');
+  const selected=active,store=window.rudiCalendarOffline;
+  // Record simple edits before touching the network. Moving between TickTick
+  // lists keeps its existing confirmation and server verification flow.
+  if(action==='personal-task-edit'&&payload.operation==='save'&&store?.enqueue&&
+    (selected.ctx.actor==='Диана'||payload.targetProjectId===selected.task.projectId)){
+    const who=selected.ctx.actor,kind=who==='Диана'?'diana-update':'personal-update';
+    const queued=await store.enqueue(who,kind,{...payload,task:selected.task});
+    setTimeout(()=>{
+      if(store.isOffline?.())return;
+      return store.flush?.(who,()=>({initData:selected.ctx.initData||''})).catch(()=>{});
+    },0);
+    return queued;
+  }
   const local=active.ctx.actor==='Диана';
   if(action!=='personal-task-projects'){
     const kind=local
@@ -145,8 +158,10 @@ const errorText=e=>{
   return 'Не удалось сохранить. Попробуйте ещё раз';
 };
 async function projects(){
-  listed=false;const select=f('project'),task=active?.task;
-  select.replaceChildren(new Option('Загружаю списки…',''));select.disabled=true;
+  const select=f('project'),task=active?.task;
+  listed=Boolean(!active?.creating&&task?.projectId);
+  if(!listed)select.replaceChildren(new Option('Загружаю списки…',''));
+  select.disabled=true;
   try{
     const data=await request('personal-task-projects');
     if(!active||active.task!==task)return;

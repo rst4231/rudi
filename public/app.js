@@ -15868,11 +15868,11 @@
         panel.setAttribute('aria-label','Расписание на '+dateKey);
         const allDayItems=[];
         const timed=[];
-        const put=(kind,title,startTime,endTime,task=null)=>{
+        const put=(kind,title,startTime,endTime,task=null,amount='')=>{
           const start=calendarAgendaMinutes(startTime);
           const finish=calendarAgendaMinutes(endTime);
           if(start===null){
-            allDayItems.push({kind,title,task});
+            allDayItems.push({kind,title,task,amount});
           }else{
             timed.push({kind,title,task,start,end:finish!==null&&finish>start?finish:Math.min(start+45,1440)});
           }
@@ -15922,7 +15922,7 @@
           }
         };
         // Weekly timeline shows tasks, shifts and obligations; holidays remain in month view.
-        for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':''),'','');
+        for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':''),'','',null,financeOverviewMoney(entry.amount));
         for(const item of tasks)put('task',String(item.title||'Задача'),item.allDay?'':item.startTime,item.endTime,item);
         if(calendarScope==='shared'||currentActor==='Диана'){
           for(const event of workEvents){
@@ -15945,6 +15945,12 @@
             const title=document.createElement('span');
             title.textContent=item.title;
             pill.appendChild(title);
+            if(item.kind==='payment'){
+              const amount=document.createElement('small');
+              amount.className='calendar-obligation-amount';
+              amount.textContent=item.amount;
+              pill.appendChild(amount);
+            }
             const ownerLabel=calendarSharedTaskOwnerLabel(item.task);
             if(ownerLabel){
               const owner=document.createElement('small');

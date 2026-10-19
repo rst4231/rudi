@@ -925,6 +925,7 @@ body[data-calendar-scope="shared"] .work-page .calendar-connections-gear{color:#
   padding:5px 8px!important;border-radius:8px!important;max-width:100%!important;overflow-wrap:anywhere!important;
   background:color-mix(in srgb,var(--accent) 11%,var(--surface))!important;color:var(--text)!important
 }
+.work-page .calendar-week-allday-item > .calendar-obligation-amount{display:block!important;margin-top:3px!important}
 .work-page .calendar-week-time-viewport{
   width:100%!important;max-height:clamp(360px,57svh,620px)!important;
   overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;
