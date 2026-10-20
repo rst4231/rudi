@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const {dates: expandedRecurrenceDates}=require('./ticktick-recurrence.cjs');
 
 const AUTH_URL = 'https://ticktick.com/oauth/authorize';
 const TOKEN_URL = 'https://ticktick.com/oauth/token';
@@ -670,7 +671,7 @@ function tickTickTaskDateKey(task, timeZone = CALENDAR_TIMEZONE) {
   return tickTickTaskDateKeys(task, timeZone)[0] || '';
 }
 
-function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone = CALENDAR_TIMEZONE, monthKey = '') {
+function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone = CALENDAR_TIMEZONE, monthKey = '', options = {}) {
   const range = tickTickMonthRange(now, view, timeZone, monthKey);
   const days = Array.from({ length: range.dayCount }, (_, index) => {
     const date = new Date(Date.UTC(range.year, range.month - 1, index + 1));
@@ -685,6 +686,13 @@ function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone
 
   for (const task of Array.isArray(tasks) ? tasks : []) {
     const keys = tickTickTaskDateKeys(task, timeZone);
+    if(options.expandRecurrence && keys.length && Number(task?.status||0)===0){
+      for(const day of expandedRecurrenceDates({flag:task?.repeatFlag,start:keys[0],
+        monthStart:days[0].date,monthEnd:days[days.length-1].date,
+        timezoneDate:raw=>calendarDateKey(raw,timeZone)})){
+        if(!keys.includes(day))keys.push(day);
+      }
+    }
     if (!keys.length) continue;
 
     const rawStart = String(task?.startDate || task?.dueDate || '').trim();
@@ -695,11 +703,11 @@ function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone
       const day = byDate.get(key);
       if (!day) continue;
 
-      const startTime = allDay || !rawStart || calendarDateKey(rawStart, timeZone) !== key
+      const startTime = allDay || !rawStart || (calendarDateKey(rawStart, timeZone) !== key && !options.expandRecurrence)
         ? null
         : calendarTime(rawStart, timeZone);
       let endTime = null;
-      if (!allDay && rawDue && calendarDateKey(rawDue, timeZone) === key) {
+      if (!allDay && rawDue && (calendarDateKey(rawDue, timeZone) === key || options.expandRecurrence)) {
         endTime = calendarTime(rawDue, timeZone);
       }
 

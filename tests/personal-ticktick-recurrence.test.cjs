@@ -64,3 +64,25 @@ test('mobile recurring controls shown for personal TickTick and hide for never',
   assert.match(css,/max-width:390px/);
   assert.match(html,/personal-task-editor\.js\?v=4\.285-recurrence1/);
 });
+
+const {dates:expanded}=require('../api/ticktick-recurrence.cjs');
+const {buildTickTickCalendar}=require('../api/ticktick-client.cjs');
+const sample=(flag,day='2026-10-20')=>({id:'task',title:'Встреча',startDate:day+'T09:15:00+0300',dueDate:day+'T09:15:00+0300',isAllDay:false,timeZone:'Europe/Moscow',status:0,repeatFlag:flag});
+const occurrence=(flag,start,end)=>expanded({flag,start,monthStart:start,monthEnd:end,timezoneDate:x=>new Date(new Date(x).getTime()+3*3600000).toISOString().slice(0,10)});
+test('personal calendar expands daily repeat without changing shared calendar behavior',()=>{
+ const item=sample('RRULE:FREQ=DAILY;INTERVAL=2;COUNT=5');
+ const a=buildTickTickCalendar([item],new Date('2026-10-20T09:15:00+0300'),'month');
+ const b=buildTickTickCalendar([item],new Date('2026-10-20T09:15:00+0300'),'month',undefined,'',{expandRecurrence:true});
+ assert.equal(a.days.flatMap(x=>x.events).length,1);
+ assert.deepEqual(b.days.filter(x=>x.events.length).map(x=>x.date),['2026-10-20','2026-10-22','2026-10-24','2026-10-26','2026-10-28']);
+ assert.equal(b.days.find(x=>x.date==='2026-10-28').events[0].startTime,'09:15');
+});
+test('weekly selected days, monthly month end and leap years',()=>{
+ assert.deepEqual(occurrence('RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,WE,FR;COUNT=4','2026-10-20','2026-10-31'),['2026-10-21','2026-10-23','2026-10-26','2026-10-28']);
+ assert.deepEqual(occurrence('RRULE:FREQ=MONTHLY;INTERVAL=1;COUNT=4','2026-01-31','2026-05-31'),['2026-01-31','2026-03-31','2026-05-31']);
+ assert.deepEqual(occurrence('RRULE:FREQ=YEARLY;INTERVAL=1;COUNT=3','2024-02-29','2033-12-31'),['2024-02-29','2028-02-29','2032-02-29']);
+});
+test('stop at selected date; do not guess advanced TickTick recurrence',()=>{
+ assert.deepEqual(occurrence('RRULE:FREQ=DAILY;INTERVAL=1;UNTIL=20261022T205959Z','2026-10-20','2026-10-31'),['2026-10-20','2026-10-21','2026-10-22']);
+ assert.deepEqual(occurrence('RRULE:FREQ=MONTHLY;BYSETPOS=-1;BYDAY=FR','2026-10-20','2027-12-31'),[]);
+});

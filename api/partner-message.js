@@ -2170,8 +2170,8 @@ async function handleTickTick(req, res, action, options = {}) {
         const config=await loadTickTickConfig(options);
         const sourceTasks=await fetchPersonalProjectTasks(token.accessToken,config.projectId,options);
         const sourceById=new Map(sourceTasks.map(task=>[String(task.id||''),task]));
-        const calendar=buildTickTickCalendar(sourceTasks,now,'month');
-        const nextCalendar=today.slice(0,7)===tomorrowDate.slice(0,7)?calendar:buildTickTickCalendar(sourceTasks,tomorrowNow,'month');
+        const calendar=buildTickTickCalendar(sourceTasks,now,'month',undefined,'',{expandRecurrence:true});
+        const nextCalendar=today.slice(0,7)===tomorrowDate.slice(0,7)?calendar:buildTickTickCalendar(sourceTasks,tomorrowNow,'month',undefined,'',{expandRecurrence:true});
         const writable=tokenHasWriteScope(token)!==false;
         const mapDay=(cal,date)=>(cal.days.find(day=>day.date===date)?.events||[]).filter(event=>!event.completed).map(event=>{
           const source=sourceById.get(String(event.id||''))||{},repeatFlag=String(source.repeatFlag||'');
@@ -2856,7 +2856,7 @@ async function handleTickTick(req, res, action, options = {}) {
             const personalTasks=await fetchPersonalProjectTasks(personalToken.accessToken,config.projectId,options);
             const ownCalendar=buildTickTickCalendar(
               personalTasks,options.now?new Date(options.now):new Date(),
-              view,undefined,String(body.month||'')
+              view,undefined,String(body.month||''),{expandRecurrence:true}
             );
             const taskById=new Map(personalTasks.map(task=>[String(task.id||''),task]));
             const byDate=new Map((calendar.days||[]).map(day=>[day.date,day]));

@@ -122,7 +122,8 @@ function readRepeatFlag(value){
     const raw=match[1];
     // Rules written by RUDI end at 20:59:59 UTC (=23:59:59 Moscow).
     const date=rule.UNTIL.includes('T')?new Date(rule.UNTIL.slice(0,4)+'-'+rule.UNTIL.slice(4,6)+'-'+rule.UNTIL.slice(6,8)+'T'+rule.UNTIL.slice(9,11)+':'+rule.UNTIL.slice(11,13)+':'+rule.UNTIL.slice(13,15)+'Z'):null;
-    const key=date?new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(date):raw.slice(0,4)+'-'+raw.slice(4,6)+'-'+raw.slice(6,8);
+    const local=date?Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date).map(part=>[part.type,part.value])):null;
+    const key=local?local.year+'-'+local.month+'-'+local.day:raw.slice(0,4)+'-'+raw.slice(4,6)+'-'+raw.slice(6,8);
     repeatUntil=/^\d{4}-\d{2}-\d{2}$/.test(key)?key:'';
     if(!repeatUntil)return keep;
     repeatEnd='date';
