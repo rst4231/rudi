@@ -14889,6 +14889,14 @@
               body:{initData:telegramInitData(),backupToken:currentStateBackupToken,...(scope==='personal'?{scope:'personal'}:{})},
               ttlMs:2*60*1000,timeoutMs:7000
             });
+            if(payload?.personalUnavailable===true){
+              const previous=await cachedHomeAgenda(agendaActor,scope).catch(()=>null);
+              if(previous){
+                const retain=key=>[...(previous[key]||[]).filter(task=>!task.financeObligation),...(payload[key]||[])];
+                return {...payload,offlineStale:true,agendaPartial:true,tasks:retain('tasks'),tomorrowTasks:retain('tomorrowTasks')};
+              }
+              return payload;
+            }
             if(stillCurrent())await window.rudiCalendarOffline?.captureAgenda?.(agendaActor,scope,payload).catch(()=>{});
             const store=window.rudiCalendarOffline;
             return store?.materializeAgenda?store.materializeAgenda(agendaActor,scope,payload):payload;

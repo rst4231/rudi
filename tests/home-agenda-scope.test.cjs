@@ -122,3 +122,14 @@ test('Home bill completion marks the exact finance month paid without invoking t
  await complete(bill,row,button,true);assert.equal(paid.length,1);assert.equal(paid[0][0].id,'rent');assert.equal(paid[0][1],'2026-11');assert.equal(paid[0][2],true);assert.equal(refresh.length,1);
  await complete({...bill,responsible:'Рустам'},row,button,true);assert.equal(paid.length,1);
 });
+test('temporary personal provider failure retains cached tasks alongside current finance bills',async()=>{
+ const h=harness();h.ctx.currentActor='Рустам';h.api.ensureHomeAgendaActor();let saved=0;
+ const task={id:'study',personal:true,responsible:'Рустам',privateLocal:false,title:'Практика с ДПС'};
+ h.ctx.window.rudiCalendarOffline={isOffline:()=>false,
+  cachedAgenda:async()=>({ok:true,date:'2026-10-31',tomorrowDate:'2026-11-01',tasks:[task],tomorrowTasks:[]}),
+  captureAgenda:async()=>{saved++}};
+ h.ctx.managedJsonRequest=async()=>({ok:true,date:'2026-10-31',tomorrowDate:'2026-11-01',writable:false,personalUnavailable:true,tasks:[{id:'bill',financeObligation:true,personal:true,responsible:'Рустам'}],tomorrowTasks:[]});
+ await h.api.setHomeAgendaScope('personal');
+ assert.deepEqual(Array.from(h.rendered.at(-1).tasks,task=>task.id).sort(),['bill','study']);
+ assert.equal(saved,0,'a partial provider response must not overwrite the complete snapshot');
+});

@@ -329,3 +329,10 @@ test('online Home remains readable if local IndexedDB projection is unavailable'
   const rendered=await loadHomeForTest(h,payload);
   assert.equal(rendered.tasks.length,1);
 });
+test('moving one task preserves unrelated today tasks from the same server response',async()=>{
+ const h=harness(),{task,payload}=agendaFixture();h.setOnline(true);
+ payload.tasks.push({...task,id:'study',title:'Практика с ДПС',startTime:'20:00'});
+ await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:task.id,projectId:'joy',task,title:task.title,date:'2026-10-27',time:'19:30'});
+ const rendered=await loadHomeForTest(h,payload);
+ assert.deepEqual(Array.from(rendered.tasks,task=>task.id),['study']);
+});

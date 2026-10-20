@@ -552,6 +552,10 @@ async function fetchPersonalProjectTasks(accessToken, sharedProjectId, options =
   for(let index=0;index<projects.length;index+=4){
     const slice=projects.slice(index,index+4);
     const page=await Promise.allSettled(slice.map(row=>fetchProjectData(accessToken,row.id,options)));
+    // A failed list is unknown, not empty. Let callers retain their last
+    // complete snapshot instead of replacing it with missing tasks.
+    const failed=page.find(result=>result.status==='rejected');
+    if(failed)throw new Error('ticktick-personal-projects-unavailable',{cause:failed.reason});
     for(let i=0;i<page.length;i++){
       if(page[i].status!=='fulfilled')continue;
       const row=slice[i],data=page[i].value;

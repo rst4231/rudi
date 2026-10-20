@@ -37,3 +37,19 @@ test('all-day TickTick task keeps its literal calendar date', () => {
     '2026-09-30'
   );
 });
+
+test('personal project read failures must not masquerade as an empty successful agenda',async()=>{
+  const {fetchPersonalProjectTasks}=require('../api/ticktick-client.cjs');
+  const options={readAttempts:1,fetchImpl:async url=>String(url).endsWith('/project')
+    ?{ok:true,status:200,json:async()=>[{id:'joy'},{id:'study'}]}
+    :{ok:false,status:503}};
+  await assert.rejects(fetchPersonalProjectTasks('test-private','shared',options),/ticktick-personal-projects-unavailable/);
+});
+test('partial personal project read failures never silently drop tasks from failed lists',async()=>{
+  const {fetchPersonalProjectTasks}=require('../api/ticktick-client.cjs');
+  const options={readAttempts:1,fetchImpl:async url=>String(url).endsWith('/project')
+    ?{ok:true,status:200,json:async()=>[{id:'joy'},{id:'study'}]}
+    :String(url).includes('/joy/')?{ok:true,status:200,json:async()=>({tasks:[{id:'meet',status:0}]})}
+    :{ok:false,status:429}};
+  await assert.rejects(fetchPersonalProjectTasks('test-private','shared',options),/ticktick-personal-projects-unavailable/);
+});
