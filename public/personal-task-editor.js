@@ -39,9 +39,8 @@ function init(){
     '<button class="ticktick-task-modal-close" type="button" data-personal-close aria-label="Закрыть">×</button></div>'+
     '<form id="rudiPersonalTaskForm" class="ticktick-task-form">'+
       '<label class="ticktick-task-field"><span>Что сделать</span><input id="rudiPersonalTaskTitle" maxlength="500" required autocomplete="off"></label>'+
-      '<div class="ticktick-task-field-row ticktick-task-date-time-row">'+
-       '<label class="ticktick-task-field"><span>Дата</span><input id="rudiPersonalTaskDate" class="rudi-personal-picker-input" type="date" aria-label="Дата дела"></label>'+
-       '<label class="ticktick-task-field"><span>Время</span><input id="rudiPersonalTaskTime" class="rudi-personal-picker-input" type="time" aria-label="Время дела"></label></div>'+
+      '<label class="ticktick-task-field"><span>Дата</span><input id="rudiPersonalTaskDate" type="date" aria-label="Дата дела"></label>'+
+      '<label class="ticktick-task-field"><span>Время</span><input id="rudiPersonalTaskTime" type="time" aria-label="Время дела"></label>'+
 
       '<label class="ticktick-task-field"><span>Список TickTick</span><select id="rudiPersonalTaskProject"><option value="">Загружаю списки…</option></select></label>'+
       '<div id="rudiPersonalTaskRepeatFields">'+
@@ -68,8 +67,12 @@ function init(){
   byId('rudiPersonalTaskDelete').addEventListener('click',remove);
   f('repeat').addEventListener('change',syncRepeat);
   f('repeatEnd').addEventListener('change',syncRepeat);
-  // Native iOS date/time picker state is recreated each time a task opens.
-  // This prevents the previous task's system picker value being displayed.
+  // Use the same stable native controls as the working shared TickTick composer.
+  // Cloning and resetting WebKit picker nodes can discard the selected value.
+  for(const type of ['date','time']){
+    f(type).addEventListener('input',syncTime);
+    f(type).addEventListener('change',syncTime);
+  }
   // Date shortcuts remain available in the right-click context menu only.
   menu.querySelectorAll('[data-personal-date-action]').forEach(b=>b.addEventListener('click',()=>useQuick(b.dataset.personalDateAction,true)));
   document.addEventListener('pointerdown',event=>{
@@ -77,17 +80,6 @@ function init(){
   },true);
   document.addEventListener('scroll',closeMenu,true);
   document.addEventListener('keydown',event=>{if(event.key==='Escape'){closeMenu();if(!modal.hidden)close()}});
-}
-function refreshTemporalInputs(){
-  for(const type of ['date','time']){
-    const existing=f(type);
-    if(!existing)continue;
-    const input=existing.cloneNode(false);
-    input.value='';input.removeAttribute('value');input.defaultValue='';
-    existing.replaceWith(input);
-    input.addEventListener('change',syncTime);
-    input.addEventListener('input',syncTime);
-  }
 }
 function syncTime(){
   const date=f('date'),time=f('time');
@@ -266,18 +258,12 @@ function normalizedEditorWhen(task){
 function open(task,ctx={}){
   if(!task?.id||!task?.personal||task.externalCalendar)return;
   init();closeMenu();
-  byId('rudiPersonalTaskForm').reset();refreshTemporalInputs();active={task:{...task},ctx,creating:task.isNew===true};
+  byId('rudiPersonalTaskForm').reset();active={task:{...task},ctx,creating:task.isNew===true};
   f('title').value=String(task.title||'');
   const {date,time}=normalizedEditorWhen(task.privateLocal&&task.repeat&&task.repeat!=='none'?{...active.task,date:task.seriesDate||task.date}:active.task);
-  // Reset iOS-native date/time before applying THIS task's values.
-  f('date').value='';
-  f('time').value='';
+  // Apply this task's values to the original date/time inputs after reset.
   f('date').value=date;
   f('time').value=date?time:'';
-  // Never store task-specific values as the inputs' defaultValue: form.reset()
-  // and WebKit may otherwise resurrect a prior task's date/time.
-  f('date').defaultValue='';
-  f('time').defaultValue='';
   f('description').value=String(task.description||'');
   f('project').replaceChildren(new Option(task.projectName||'Текущий список',task.projectId||''));
   f('project').value=task.projectId||'';
