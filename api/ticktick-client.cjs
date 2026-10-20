@@ -686,11 +686,12 @@ function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone
 
   for (const task of Array.isArray(tasks) ? tasks : []) {
     const keys = tickTickTaskDateKeys(task, timeZone);
+    const generatedKeys=new Set();
     if(options.expandRecurrence && keys.length && Number(task?.status||0)===0){
       for(const day of expandedRecurrenceDates({flag:task?.repeatFlag,start:keys[0],
         monthStart:days[0].date,monthEnd:days[days.length-1].date,
         timezoneDate:raw=>calendarDateKey(raw,timeZone)})){
-        if(!keys.includes(day))keys.push(day);
+        if(!keys.includes(day)){keys.push(day);generatedKeys.add(day)}
       }
     }
     if (!keys.length) continue;
@@ -703,11 +704,11 @@ function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone
       const day = byDate.get(key);
       if (!day) continue;
 
-      const startTime = allDay || !rawStart || (calendarDateKey(rawStart, timeZone) !== key && !options.expandRecurrence)
+      const startTime = allDay || !rawStart || (calendarDateKey(rawStart, timeZone) !== key && !generatedKeys.has(key))
         ? null
         : calendarTime(rawStart, timeZone);
       let endTime = null;
-      if (!allDay && rawDue && (calendarDateKey(rawDue, timeZone) === key || options.expandRecurrence)) {
+      if (!allDay && rawDue && (calendarDateKey(rawDue, timeZone) === key || generatedKeys.has(key))) {
         endTime = calendarTime(rawDue, timeZone);
       }
 
