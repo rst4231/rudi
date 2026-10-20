@@ -1,6 +1,6 @@
 {
-  "current": "v4.285",
-  "versionBranch": "fix/personal-task-reschedule-prod",
+  "current": "v4.286",
+  "versionBranch": "feature/personal-ticktick-recurring-20261020",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
