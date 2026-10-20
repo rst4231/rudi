@@ -95,7 +95,7 @@ test('personal editor keeps date and time when switching between different task 
  assert.equal(second.date,'2026-10-15');assert.equal(second.time,'18:40');
  const due=convert({date:'2026-10-18',startTime:'',endTime:'20:30',originalStartDate:'2026-10-12T06:15:00Z'});
  assert.equal(due.date,'2026-10-18');assert.equal(due.time,'20:30');
- assert.match(src,/byId\('rudiPersonalTaskForm'\)\.reset\(\);refreshTemporalInputs\(\)/);
+ assert.match(src,/byId\('rudiPersonalTaskForm'\)\.reset\(\);active=/);
 });
 
 test('new personal tasks use shared emoji rules and keep an existing emoji',async()=>{
