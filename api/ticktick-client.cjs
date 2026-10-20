@@ -686,6 +686,7 @@ function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone
 
   for (const task of Array.isArray(tasks) ? tasks : []) {
     const keys = tickTickTaskDateKeys(task, timeZone);
+    // Only generated recurrence dates inherit the parent task's clock time.
     const generatedKeys=new Set();
     if(options.expandRecurrence && keys.length && Number(task?.status||0)===0){
       for(const day of expandedRecurrenceDates({flag:task?.repeatFlag,start:keys[0],
