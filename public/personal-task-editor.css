@@ -67,3 +67,13 @@
 .rudi-personal-weekdays span{display:grid;place-items:center;width:39px;height:37px;border-radius:10px;background:var(--soft);border:1px solid var(--line);font-size:13px}
 .rudi-personal-weekdays input:checked+span{background:#4578e6;color:#fff;border-color:#4578e6}
 .rudi-personal-weekdays input:focus-visible+span{outline:2px solid #4578e6;outline-offset:2px}
+
+/* Compact recurrence controls, designed for narrow iPhone sheets. */
+.rudi-personal-task-modal :is(#rudiPersonalTaskRepeatEndFields,#rudiPersonalTaskRepeatUntilField,#rudiPersonalTaskRepeatCountField)[hidden]{display:none!important}
+#rudiPersonalTaskRepeatEndFields{display:grid;gap:12px}
+.rudi-personal-task-modal .rudi-personal-interval-row{display:flex;align-items:center;gap:12px;min-width:0}
+.rudi-personal-task-modal .rudi-personal-interval-row input{width:90px;min-width:70px;min-height:42px;box-sizing:border-box;padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-strong);color:var(--text);font:inherit}
+.rudi-personal-task-modal .rudi-personal-interval-row small{color:var(--muted);font-weight:700}
+.rudi-personal-task-modal #rudiPersonalTaskRepeatEndFields input{width:100%;max-width:100%;box-sizing:border-box;min-height:44px;color:var(--text);color-scheme:dark}
+.rudi-personal-task-modal .rudi-personal-weekdays label{flex:0 1 39px;min-width:0}
+@media(max-width:390px){.rudi-personal-weekdays{gap:4px}.rudi-personal-weekdays span{width:35px;height:35px;font-size:12px}}

@@ -20,17 +20,59 @@ function dateTime(date,time){
   if(time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))throw Error('ticktick-personal-time-invalid');
   return date+'T'+(time||'00:00')+':00+0300';
 }
+const WEEKDAY_CODES=['SU','MO','TU','WE','TH','FR','SA'];
+function personalRepeatFlag(input,previousFlag='',date=''){
+  if(!Object.prototype.hasOwnProperty.call(input,'repeat'))return String(previousFlag||'');
+  const frequency=String(input.repeat||'none').toLowerCase();
+  if(frequency==='none')return '';
+  if(!['daily','weekly','monthly','yearly'].includes(frequency))
+    throw Error('ticktick-personal-repeat-invalid');
+  if(!date)throw Error('ticktick-personal-repeat-date-required');
+  dateTime(date,'');
+  const max={daily:365,weekly:52,monthly:60,yearly:20}[frequency];
+  const interval=Number(input.repeatEvery??1);
+  if(!Number.isInteger(interval)||interval<1||interval>max)
+    throw Error('ticktick-personal-repeat-interval-invalid');
+  let rule='RRULE:FREQ='+frequency.toUpperCase()+';INTERVAL='+interval;
+  if(frequency==='weekly'){
+    if(!Array.isArray(input.repeatDays)||!input.repeatDays.length)
+      throw Error('ticktick-personal-repeat-weekdays-required');
+    const days=[...new Set(input.repeatDays.map(Number))];
+    if(days.some(day=>!Number.isInteger(day)||day<0||day>6))
+      throw Error('ticktick-personal-repeat-weekdays-invalid');
+    rule+=';BYDAY='+days.sort((a,b)=>(a+6)%7-(b+6)%7).map(day=>WEEKDAY_CODES[day]).join(',');
+  }
+  const ending=String(input.repeatEnd||'never');
+  if(ending==='never')return rule;
+  if(ending==='count'){
+    const count=Number(input.repeatCount);
+    if(!Number.isInteger(count)||count<1||count>365)
+      throw Error('ticktick-personal-repeat-count-invalid');
+    return rule+';COUNT='+count;
+  }
+  if(ending==='date'){
+    const until=String(input.repeatUntil||'');
+    dateTime(until,'');
+    if(!until||until<date)throw Error('ticktick-personal-repeat-until-invalid');
+    // End of selected Moscow day in UTC. All occurrences on this day remain valid.
+    const stamp=Date.parse(until+'T23:59:59+03:00');
+    const utc=new Date(stamp).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
+    return rule+';UNTIL='+utc;
+  }
+  throw Error('ticktick-personal-repeat-end-invalid');
+}
 function editable(input,task){
   const title=String(input.title??task.title??'').trim().slice(0,500);
   if(!title)throw Error('ticktick-personal-title-required');
   const date=String(input.date??'').trim();
   const time=date?String(input.time||'').trim():'';
-  if(!date&&String(task.repeatFlag||'').trim())throw Error('ticktick-personal-repeat-date-required');
+  const repeatFlag=personalRepeatFlag(input,task.repeatFlag,date);
+  if(!date&&repeatFlag.trim())throw Error('ticktick-personal-repeat-date-required');
   const datetime=dateTime(date,time);
   const changes={
     title,desc:String(input.description??task.desc??'').slice(0,5000),
     isAllDay:!time,startDate:datetime,dueDate:datetime,
-    timeZone:'Europe/Moscow',repeatFlag:String(task.repeatFlag||'')
+    timeZone:'Europe/Moscow',repeatFlag
   };
   return changes;
 }
@@ -133,4 +175,4 @@ async function readPersonalTaskState(input,deps={}){
   startTime:raw&&!task.isAllDay?calendarTime(raw):'',completed:Number(task.status||0)!==0,
   recurring:Boolean(String(task.repeatFlag||'').trim())}};
 }
-module.exports={personalLists,dateTime,editable,editPersonalTask,createPersonalTask,readPersonalTaskState};
+module.exports={personalLists,dateTime,personalRepeatFlag,editable,editPersonalTask,createPersonalTask,readPersonalTaskState};
