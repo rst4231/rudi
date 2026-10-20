@@ -69,6 +69,9 @@ test('personal agenda today count ignores tomorrow selection; edit and checkbox 
  h.ctx.renderActual({ok:true,writable:false,agendaActor:'Рустам',agendaScope:'personal',tasks:[{id:'bill:rent:2026-10',title:'Квартира',financeObligation:true,amount:1000,personal:true,responsible:'Рустам',canEdit:false,canComplete:true}],tomorrowTasks:[]});
  const bill=nodes.ticktickTodayList.children[0];assert.equal(bill.children[1].disabled,false,'finance payment stays writable when personal TickTick is unavailable');assert.equal(bill.children[2].disabled,true);assert.match(bill.children[2].children[1].textContent,/1000 ₽/);
  bill.children[1].events.click({stopPropagation(){}});assert.equal(completions.at(-1)[3],true);
+ h.ctx.renderActual({ok:true,writable:true,agendaActor:'Рустам',agendaScope:'personal',tasks:[],tomorrowTasks:[],offlinePending:12,offlineNeedsReview:12});
+ assert.equal(nodes.ticktickTitle.textContent,'Изменения ожидают синхронизации');
+ assert.equal(nodes.ticktickBadge.hidden,false);assert.match(nodes.ticktickBadge.textContent,/12/);
 });
 test('personal completion never calls shared completion endpoint',async()=>{
  const h=harness(),calls=[];h.ctx.completeCalendarTickTickTask=async(...args)=>{calls.push(args);return {ok:true}};

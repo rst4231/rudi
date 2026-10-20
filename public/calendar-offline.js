@@ -166,6 +166,9 @@
       return day;
     };
     for (const row of rows) {
+      // A definite server refusal is not a successful local mutation. Keep
+      // the requested change in outbox, but leave the server task visible.
+      if(row.state==='blocked')continue;
       const d = row.details || {};
       if (row.kind === 'create' || row.kind === 'diana-create') {
         const item = eventFromCreate(row);
@@ -247,7 +250,8 @@
   }
   async function materialize(who, month, payload, scope) {
     const rows = (await all('outbox')).filter(row => row.actor === who && (!scope ||
-      (row.kind.startsWith('personal-')||row.kind.startsWith('diana-')?scope==='personal':scope==='shared')));
+      (row.kind.startsWith('personal-')||row.kind.startsWith('diana-')?scope==='personal':scope==='shared')))
+      .sort((a,b)=>a.createdAt-b.createdAt||a.id.localeCompare(b.id));
     return overlay(payload, rows, month);
   }
 
@@ -260,11 +264,13 @@
       overlay(source,rows,month).ticktickDays.filter(day=>day.date.slice(0,7)===month));
     const forDay = date=>days.filter(day=>day.date===date).flatMap(day=>day.events)
       .filter(task=>!task.completed).sort((a,b)=>String(a.startTime||'99:99').localeCompare(String(b.startTime||'99:99')));
-    return {...payload,tasks:forDay(payload.date),tomorrowTasks:forDay(payload.tomorrowDate)};
+    return {...payload,tasks:forDay(payload.date),tomorrowTasks:forDay(payload.tomorrowDate),
+      offlinePending:rows.length,offlineNeedsReview:rows.filter(row=>row.state!=='queued').length};
   }
   async function materializeAgenda(who, scope, payload) {
     const rows=(await all('outbox')).filter(row=>row.actor===who&&
-      ((row.kind.startsWith('personal-')||row.kind.startsWith('diana-'))?scope==='personal':scope==='shared'));
+      ((row.kind.startsWith('personal-')||row.kind.startsWith('diana-'))?scope==='personal':scope==='shared'))
+      .sort((a,b)=>a.createdAt-b.createdAt||a.id.localeCompare(b.id));
     return overlayAgenda(payload,rows);
   }
   async function acknowledge(row) {
@@ -313,6 +319,11 @@
     if(row.kind.startsWith('diana-'))return who==='Диана'?'retry':'unknown';
     if(!row.kind.startsWith('personal-'))return 'retry'; // native shared mutations are idempotent
     const data=row.details||{}, value=data.value||(row.kind==='personal-update'?data:{}), taskId=string(data.taskId);
+    // Updating the same stable task ID with the same fields is idempotent.
+    // It does not need a month-calendar read (which also depends on the shared
+    // integration). Cross-list moves create a copy, so still require readback.
+    if(row.kind==='personal-update'&&data.operation==='save'&&taskId&&string(data.projectId)&&
+      string(data.targetProjectId||data.projectId)===string(data.projectId))return 'retry';
     const personal=row.kind.startsWith('personal-');
     const scope=personal?'rustam':'shared';
     const snapshots=(await all('snapshots')).filter(s=>
@@ -335,7 +346,7 @@
           });
           const value=await response.json().catch(()=>null);
           reads.set(key,response.ok&&value?.ok!==false&&value?.stale!==true
-            &&value?.personalUnavailable!==true&&value?.sharedUnavailable!==true
+            &&(personal?value?.personalUnavailable!==true&&value?.personalConnected!==false:value?.sharedUnavailable!==true)
             &&Array.isArray(value?.days)?snapshotEvents({ticktickDays:value.days}):null);
         }catch(_){reads.set(key,null)}
       }
@@ -381,14 +392,20 @@
     try{
       const rows=(await all('outbox')).filter(row=>row.actor===who)
         .sort((a,b)=>a.createdAt-b.createdAt||a.id.localeCompare(b.id));
+      const waitingTasks=new Set();
       for(const row of rows){
         if(offlineNow())break;
+        const details=row.details||{};
+        const taskKey=details.taskId
+          ?(row.kind.startsWith('personal-')?'personal':row.kind.startsWith('diana-')?'diana':'shared')+'|'+string(details.taskId).split('__')[0]
+          :row.id;
+        if(waitingTasks.has(taskKey))continue;
         const now=Date.now();
         if(row.state==='blocked'){
-          if(now<Number(row.retryAt||0))break;
+          if(now<Number(row.retryAt||0)){waitingTasks.add(taskKey);continue;}
           row.state='queued';
         }else if(row.state!=='queued'){
-          if(now<Number(row.checkAt||0))break;
+          if(now<Number(row.checkAt||0)){waitingTasks.add(taskKey);continue;}
           const decision=await reconcile(row,who,auth,reads);
           if(decision==='done'){
             await acknowledge(row);
@@ -400,7 +417,8 @@
             row.checkAt=Date.now()+30000;
             row.error='Не удалось подтвердить изменение на сервере';
             await change('outbox',table=>table.put(row));
-            break;
+            waitingTasks.add(taskKey);
+            continue;
           }
           row.state='queued';
         }
@@ -455,7 +473,7 @@
   root.setInterval?.(()=>{
     if(actor&&pending>0&&lastAuth&&!syncing&&
       root.document?.visibilityState==='visible'&&
-      root.document?.body?.dataset?.appTab==='schedule'&&!offlineNow()){
+      ['schedule','home'].includes(root.document?.body?.dataset?.appTab)&&!offlineNow()){
       flush(actor,lastAuth).catch(error=>console.warn(
         'RUDI_CALENDAR_RECONCILE_WARN',String(error?.message||error)));
     }

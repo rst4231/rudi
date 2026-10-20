@@ -4,7 +4,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 
-function harness(){
+function harness(responder=null){
   const records=new Map();
   let upgraded=false, online=false, fail=false;
   const calls=[];
@@ -38,6 +38,7 @@ function harness(){
   const window={document:{body:{dataset:{offlineMode:''}}},dispatchEvent(){},crypto:{randomUUID:()=>String(Math.random())}};
   const fetch=async(url,options)=>{
     calls.push({url,body:JSON.parse(options.body)});
+    if(responder)return responder(url,JSON.parse(options.body));
     if(fail)throw TypeError('Lost response');
     return {ok:true,json:async()=>({ok:true})};
   };
@@ -335,4 +336,87 @@ test('moving one task preserves unrelated today tasks from the same server respo
  await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:task.id,projectId:'joy',task,title:task.title,date:'2026-10-27',time:'19:30'});
  const rendered=await loadHomeForTest(h,payload);
  assert.deepEqual(Array.from(rendered.tasks,task=>task.id),['study']);
+});
+
+test('twelve interrupted same-list edits recover without a calendar read or duplicate tasks',async()=>{
+ const h=harness();h.setOnline(true);
+ for(let n=0;n<12;n++)await h.api.enqueue('Рустам','personal-update',{
+  operation:'save',taskId:'task-'+n,projectId:'joy',targetProjectId:'joy',title:'Дело '+n,date:'2026-10-27',time:'19:30'});
+ for(const row of h.records.get('outbox').values()){row.state='review';row.checkAt=0;}
+ const result=await h.api.flush('Рустам',()=>({initData:'session'}));
+ assert.equal(result.sent,12);assert.equal(result.pending,0);
+ assert.equal(h.calls.length,12);
+ assert.ok(h.calls.every(call=>call.url.includes('personal-task-edit')));
+});
+test('an uncertain project move does not block an independent task but preserves same-task ordering',async()=>{
+ const h=harness();h.setOnline(true);
+ await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:'move',projectId:'old',targetProjectId:'new',date:'2026-10-27',title:'Move'});
+ const first=[...h.records.get('outbox').values()][0];first.state='review';first.createdAt-=1000;
+ await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:'move',projectId:'old',targetProjectId:'old',date:'2026-10-28',title:'Later'});
+ await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:'other',projectId:'joy',targetProjectId:'joy',date:'2026-10-27',title:'Independent'});
+ const result=await h.api.flush('Рустам',()=>({}));
+ assert.equal(result.sent,1);assert.equal(result.pending,2);
+ const writes=h.calls.filter(call=>call.url.includes('personal-task-edit'));
+ assert.equal(writes.length,1);assert.equal(writes[0].body.taskId,'other');
+});
+test('rejected transfers cannot hide server tasks and retain their unsent changes for recovery',async()=>{
+ const h=harness(),{task,payload}=agendaFixture();
+ await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:task.id,projectId:'joy',targetProjectId:'joy',task,date:'2026-10-27',title:task.title});
+ const row=[...h.records.get('outbox').values()][0];row.state='blocked';row.error='Проверь авторизацию RUDI';
+ const home=await h.api.materializeAgenda('Рустам','personal',payload);
+ assert.equal(home.tasks.length,1,'a server refusal must not masquerade as a successful move');
+ assert.equal(home.offlineNeedsReview,1);assert.equal((await h.api.summary('Рустам')).pending,1);
+ assert.equal(row.details.date,'2026-10-27','the requested change is retained');
+});
+test('private completion readback succeeds even while the unrelated shared integration is unavailable',async()=>{
+ const task={id:'done',projectId:'joy',personal:true,date:'2026-10-20'};
+ const h=harness(async url=>{
+  assert.equal(url,'/api/ticktick/calendar');
+  return {ok:true,json:async()=>({ok:true,sharedUnavailable:true,personalUnavailable:false,personalConnected:true,
+   days:[{date:task.date,events:[{...task,completed:true}]}]})};
+ });h.setOnline(true);
+ await h.api.enqueue('Рустам','personal-complete',{taskId:task.id,projectId:'joy',task});
+ for(const row of h.records.get('outbox').values())row.state='review';
+ const result=await h.api.flush('Рустам',()=>({}));
+ assert.equal(result.sent,1);assert.equal(result.pending,0);assert.equal(h.calls.length,1);
+});
+test('lost real editor reply recovers twelve ordered writes without creating or deleting any task',async()=>{
+ const {editPersonalTask}=require('../api/personal-task-editor.cjs');
+ const server=new Map([['meeting',{id:'meeting',projectId:'joy',status:0,title:'Встреча',startDate:'2026-10-20T19:30:00+0300'}],
+  ['study',{id:'study',projectId:'joy',status:0,title:'Практика с ДПС',startDate:'2026-10-20T20:00:00+0300'}]]);
+ let lost=false,updates=0;
+ const h=harness(async(url,body)=>{
+  assert.ok(url.includes('personal-task-edit'),'retry must not depend on the combined calendar');
+  const output=await editPersonalTask({...body,actor:'Рустам',token:{accessToken:'test'},sharedProjectId:'shared'},{
+   tokenHasWriteScope:()=>true,listTickTickProjects:async()=>[{id:'joy',name:'Личный'}],
+   fetchTask:async(_token,_project,id)=>({...server.get(id)}),
+   updateTickTickTask:async(_token,_project,id,changes)=>{updates++;server.set(id,{...server.get(id),...changes});},
+   createTickTickTask:async()=>{throw Error('must not create task')},deleteTickTickTask:async()=>{throw Error('must not delete task')}
+  });
+  if(!lost){lost=true;throw TypeError('Reply lost after server committed')}
+  return {ok:true,json:async()=>output};
+ });h.setOnline(true);
+ for(let n=0;n<12;n++){
+  const id=n%2?'study':'meeting',task={...server.get(id),date:'2026-10-20',personal:true};
+  await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:id,projectId:'joy',targetProjectId:'joy',
+   task,title:task.title,date:id==='meeting'?'2026-10-27':'2026-10-20',time:'20:'+String(n).padStart(2,'0')});
+ }
+ const rows=[...h.records.get('outbox').values()];rows.forEach((row,index)=>{row.createdAt=Date.now()-20000+index;});
+ assert.equal((await h.api.flush('Рустам',()=>({}))).pending,12);
+ for(const row of h.records.get('outbox').values())row.checkAt=0;
+ const restored=await h.api.flush('Рустам',()=>({}));
+ assert.equal(restored.pending,0);assert.equal(restored.sent,12);
+ assert.equal(server.size,2);assert.equal(updates,13,'one reply was lost, so that stable-ID update is replayed once');
+ assert.equal(server.get('meeting').startDate,'2026-10-27T20:10:00+0300');
+ assert.equal(server.get('study').startDate,'2026-10-20T20:11:00+0300');
+});
+test('persisted UUID key order cannot override a newer local edit with an older date',async()=>{
+ const h=harness(),{task,payload}=agendaFixture();
+ for(const date of ['2026-10-21','2026-10-27'])await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:task.id,projectId:'joy',targetProjectId:'joy',task,date,title:task.title,time:'19:30'});
+ const table=h.records.get('outbox'),rows=[...table.values()];rows.forEach((row,index)=>{row.createdAt=Date.now()-1000+index});
+ table.clear();for(const row of rows.reverse())table.set(row.id,row);
+ const view=await h.api.materialize('Рустам','2026-10',{ticktickDays:[{date:task.date,events:[task]}]},'personal');
+ assert.equal(view.ticktickDays.find(day=>day.date==='2026-10-27')?.events.length,1);
+ const home=await h.api.materializeAgenda('Рустам','personal',payload);
+ assert.equal(home.tomorrowTasks.length,0);
 });

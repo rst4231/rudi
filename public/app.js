@@ -14406,6 +14406,8 @@
           .sort((a,b)=>String(a.startTime||'99:99').localeCompare(String(b.startTime||'99:99')));
         return {ok:true,configured:true,connected:true,enabled:true,writable:true,date:personal?.date||shared?.date||todayState().key,
           tomorrowDate:personal?.tomorrowDate||shared?.tomorrowDate||calendarDateShift(todayState().key,1),
+          offlinePending:Number(personal?.offlinePending||0)+Number(shared?.offlinePending||0),
+          offlineNeedsReview:Number(personal?.offlineNeedsReview||0)+Number(shared?.offlineNeedsReview||0),
           agendaPartial:!personal||!shared,offlineStale:!!(personal?.offlineStale||shared?.offlineStale),tasks:merge('tasks'),tomorrowTasks:merge('tomorrowTasks')};
       }
       async function cachedHomeAgenda(actor,scope){
@@ -14430,6 +14432,8 @@
         const days=snapshots.filter(Boolean).flatMap(payload=>payload.ticktickDays||[]);
         const forDay=key=>homeAgendaTasks(days.filter(day=>day.date===key).flatMap(day=>(day.events||[]).map(task=>({...task,date:key}))),actor,scope);
         return {ok:true,configured:true,connected:true,enabled:true,writable:true,offlineStale:true,date,tomorrowDate,
+          offlinePending:Math.max(0,...snapshots.map(payload=>Number(payload?.offlinePending||0))),
+          offlineNeedsReview:Math.max(0,...snapshots.map(payload=>Number(payload?.offlineNeedsReview||0))),
           tasks:forDay(date),tomorrowTasks:forDay(tomorrowDate),agendaActor:actor,agendaScope:scope};
       }
       async function setHomeAgendaScope(scope){
@@ -14548,9 +14552,11 @@
           :todayTasks;
         homeDashboardState.tasks=todayTasks;
         renderHomeDashboard();
+        const syncPending=Number(payload?.offlinePending||0);
+        const syncLabel=syncPending?'Синхронизация · '+syncPending:'';
         if(!tasks.length){
-          title.textContent=payload?.agendaLoading?'Загружаю дела…':payload?.agendaPartial?'Часть календарей недоступна':sharedAgendaSelectedDay==='tomorrow'?'Завтра дел нет':'Сегодня дел нет';
-          badge.hidden=!payload?.offlineStale;badge.textContent=payload?.offlineStale?'Офлайн':'';
+          title.textContent=payload?.agendaLoading?'Загружаю дела…':syncPending?'Изменения ожидают синхронизации':payload?.agendaPartial?'Часть календарей недоступна':sharedAgendaSelectedDay==='tomorrow'?'Завтра дел нет':'Сегодня дел нет';
+          badge.hidden=!payload?.offlineStale&&!syncPending;badge.textContent=syncLabel||(payload?.offlineStale?'Офлайн':'');
           if(payload?.writable===false&&!payload?.personalUnavailable) showTickTickWritePermission();
           return;
         }
@@ -14558,7 +14564,7 @@
         title.hidden=true;list.hidden=false;
         panel.classList.add('is-list-visible');
         badge.hidden=false;
-        badge.textContent=(tasks.length===1?'1 дело':(tasks.length<5?tasks.length+' дела':tasks.length+' дел'))+(payload?.agendaPartial?' · Часть данных недоступна':'');
+        badge.textContent=syncLabel||((tasks.length===1?'1 дело':(tasks.length<5?tasks.length+' дела':tasks.length+' дел'))+(payload?.agendaPartial?' · Часть данных недоступна':''));
         let reopenTask=null;
 
         for(const task of tasks){
