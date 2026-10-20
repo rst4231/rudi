@@ -2323,13 +2323,24 @@ async function handleTickTick(req, res, action, options = {}) {
 
 
   // Dedicated private editor and project picker. Shared token is never used.
-  if(action==='personal-task-projects'||action==='personal-task-edit'||action==='personal-task-create'||action==='personal-task-list'){
+  if(action==='personal-task-projects'||action==='personal-task-edit'||action==='personal-task-create'||action==='personal-task-list'||action==='personal-task-state'){
     if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
     let body,actor;
     try{
       body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       ({actor}=authorizeRequest(req,body.initData,options));
     }catch(error){return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)})}
+    if(action==='personal-task-state'&&actor!=='Рустам')return res.status(403).json({ok:false,error:'ticktick-personal-owner-forbidden'});
+    if(action==='personal-task-state'&&body.operation==='queue-report'){
+      const issues=(Array.isArray(body.issues)?body.issues:[]).slice(0,20).map(row=>({
+        kind:String(row?.kind||'').replace(/[^a-z-]/g,'').slice(0,40),
+        state:['review','blocked','inflight'].includes(row?.state)?row.state:'unknown',
+        code:String(row?.code||'').replace(/[^a-z0-9:-]/gi,'').slice(0,100),
+        attempts:Math.max(0,Math.min(1000,Number(row?.attempts)||0))
+      }));
+      console.info('RUDI_PERSONAL_QUEUE_STATE',JSON.stringify(issues));
+      return res.status(200).json({ok:true});
+    }
     if(actor==='Диана'){
       try{
         const {personalTasks}=require('./diana-personal-tasks.cjs');
@@ -2350,7 +2361,13 @@ async function handleTickTick(req, res, action, options = {}) {
       if(!token?.accessToken)return res.status(401).json({ok:false,error:'ticktick-personal-not-connected'});
       const config=await loadTickTickConfig(options);
       if(!config.enabled)return res.status(409).json({ok:false,error:'ticktick-disabled'});
-      const {personalLists,editPersonalTask,createPersonalTask}=require('./personal-task-editor.cjs');
+      const {personalLists,editPersonalTask,createPersonalTask,readPersonalTaskState}=require('./personal-task-editor.cjs');
+      if(action==='personal-task-state'){
+        const result=await readPersonalTaskState({...body,actor,token,sharedProjectId:config.projectId,options});
+        const kind=String(body.syncKind||'').replace(/[^a-z-]/g,'').slice(0,40);
+        console.info('RUDI_PERSONAL_SYNC_STATE',JSON.stringify({kind,found:result.found,completed:result.task?.completed,recurring:result.task?.recurring}));
+        return res.status(200).json(result);
+      }
       if(action==='personal-task-projects'){
         const {listTickTickProjects}=require('./ticktick-client.cjs');
         const lists=personalLists(await listTickTickProjects(token.accessToken,options),config.projectId);

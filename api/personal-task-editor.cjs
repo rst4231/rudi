@@ -3,7 +3,7 @@
 // Rustam's private TickTick mutations. Never fall back to the shared OAuth token.
 const {
   listTickTickProjects, fetchTask, updateTickTickTask, createTickTickTask,
-  deleteTickTickTask, tokenHasWriteScope
+  deleteTickTickTask, tokenHasWriteScope, calendarDateKey, calendarTime
 }=require('./ticktick-client.cjs');
 
 function personalLists(projects,sharedProjectId){
@@ -111,4 +111,26 @@ async function createPersonalTask(input,deps={}){
  if(!taskId)throw Error('ticktick-personal-create-unconfirmed');
  return {ok:true,created:true,taskId,projectId,date};
 }
-module.exports={personalLists,dateTime,editable,editPersonalTask,createPersonalTask};
+// A lost mutation reply is checked against this task alone. Loading every
+// project/month here can exhaust the provider's read limit before checking it.
+async function readPersonalTaskState(input,deps={}){
+ if(input.actor!=='Рустам')throw Error('ticktick-personal-owner-forbidden');
+ const token=input.token;
+ if(!token?.accessToken)throw Error('ticktick-personal-not-connected');
+ const projectId=String(input.projectId||''),taskId=String(input.taskId||'');
+ if(!/^[A-Za-z0-9_-]{1,200}$/.test(projectId)||!/^[A-Za-z0-9_-]{1,200}$/.test(taskId))
+  throw Error('ticktick-personal-task-invalid');
+ if(projectId===String(input.sharedProjectId||''))throw Error('ticktick-personal-project-forbidden');
+ const options=input.options||{};
+ const lists=personalLists(await (deps.listTickTickProjects||listTickTickProjects)(token.accessToken,options),input.sharedProjectId);
+ if(!lists.some(row=>row.id===projectId))throw Error('ticktick-personal-project-forbidden');
+ let task;
+ try{task=await (deps.fetchTask||fetchTask)(token.accessToken,projectId,taskId,options)}
+ catch(error){if(error?.message==='ticktick-task-not-found')return {ok:true,found:false};throw error;}
+ if(String(task?.id||'')!==taskId||String(task?.projectId||'')!==projectId)throw Error('ticktick-personal-task-mismatch');
+ const raw=String(task.startDate||task.dueDate||'');
+ return {ok:true,found:true,task:{id:taskId,projectId,date:raw?calendarDateKey(raw):'',
+  startTime:raw&&!task.isAllDay?calendarTime(raw):'',completed:Number(task.status||0)!==0,
+  recurring:Boolean(String(task.repeatFlag||'').trim())}};
+}
+module.exports={personalLists,dateTime,editable,editPersonalTask,createPersonalTask,readPersonalTaskState};

@@ -371,14 +371,40 @@ test('rejected transfers cannot hide server tasks and retain their unsent change
 test('private completion readback succeeds even while the unrelated shared integration is unavailable',async()=>{
  const task={id:'done',projectId:'joy',personal:true,date:'2026-10-20'};
  const h=harness(async url=>{
-  assert.equal(url,'/api/ticktick/calendar');
+  assert.equal(url,'/api/partner-message?ticktickAction=personal-task-state');
   return {ok:true,json:async()=>({ok:true,sharedUnavailable:true,personalUnavailable:false,personalConnected:true,
-   days:[{date:task.date,events:[{...task,completed:true}]}]})};
+   found:true,task:{...task,completed:true}})};
  });h.setOnline(true);
  await h.api.enqueue('Рустам','personal-complete',{taskId:task.id,projectId:'joy',task});
  for(const row of h.records.get('outbox').values())row.state='review';
  const result=await h.api.flush('Рустам',()=>({}));
  assert.equal(result.sent,1);assert.equal(result.pending,0);assert.equal(h.calls.length,1);
+});
+
+test('three uncertain private actions reconcile by task without a full calendar read or repeated completion',async()=>{
+ const tasks={daily:{date:'2026-10-21',startTime:'20:00',recurring:true,completed:false},moved:{date:'2026-10-20',startTime:'19:45',completed:false}};
+ const h=harness(async(url,body)=>{
+  if(!url.includes('personal-task-state'))return {ok:false,status:429,json:async()=>({ok:false})};
+  return {ok:true,json:async()=>({ok:true,found:body.taskId!=='deleted',task:tasks[body.taskId]})};
+ });h.setOnline(true);
+ for(const [kind,id] of [['personal-complete','daily'],['personal-delete','deleted'],['personal-move','moved']]){
+  await h.api.enqueue('Рустам',kind,{taskId:id,projectId:'own',date:'2026-10-20',time:'19:45',task:{id,personal:true,date:'2026-10-20'}});
+ }
+ for(const row of h.records.get('outbox').values()){row.state='review';row.createdAt=Date.now()-60000;}
+ const result=await h.api.flush('Рустам',()=>({}));
+ assert.equal(result.pending,0);assert.equal(result.sent,3);
+ assert.equal(h.calls.length,3);assert.ok(h.calls.every(call=>call.url.includes('personal-task-state')));
+});
+test('acknowledging yesterdays recurring completion preserves the next occurrence in Home snapshots',async()=>{
+ const task={id:'daily',projectId:'own',personal:true,title:'Практика',date:'2026-10-21',startTime:'20:00'};
+ const payload={ok:true,date:'2026-10-20',tomorrowDate:'2026-10-21',tasks:[],tomorrowTasks:[task]};
+ const h=harness(async()=>({ok:true,json:async()=>({ok:true,found:true,task:{...task,completed:false,recurring:true}})}));
+ await h.api.captureAgenda('Рустам','personal',payload);
+ await h.api.enqueue('Рустам','personal-complete',{taskId:task.id,projectId:task.projectId,task:{...task,date:'2026-10-20'}});
+ for(const row of h.records.get('outbox').values())row.state='review';
+ assert.equal((await h.api.materializeAgenda('Рустам','personal',payload)).tomorrowTasks.length,1);
+ h.setOnline(true);assert.equal((await h.api.flush('Рустам',()=>({}))).pending,0);
+ assert.equal((await h.api.cachedAgenda('Рустам','personal')).tomorrowTasks.length,1);
 });
 test('lost real editor reply recovers twelve ordered writes without creating or deleting any task',async()=>{
  const {editPersonalTask}=require('../api/personal-task-editor.cjs');

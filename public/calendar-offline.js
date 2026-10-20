@@ -45,7 +45,9 @@
     const rows = (await all('outbox')).filter(row => row.actor === who);
     pending = rows.length;
     needsReview = rows.filter(row => row.state !== 'queued').length;
-    root.dispatchEvent(new CustomEvent('rudi-calendar-queue', { detail: { actor: who, pending, needsReview } }));
+    const issues=rows.filter(row=>row.state!=='queued').map(row=>({kind:row.kind,state:row.state,
+      code:row.errorCode||'',attempts:Number(row.attempts||0)}));
+    root.dispatchEvent(new CustomEvent('rudi-calendar-queue', { detail: { actor: who, pending, needsReview, issues } }));
     return { pending, needsReview };
   }
   async function init(who) {
@@ -211,6 +213,8 @@
       const seriesMutation=['update','delete','move'].includes(row.kind);
       for (const day of days) {
         if (!Array.isArray(day.events)) continue;
+        const completedDate=row.kind==='personal-complete'?String(d.task?.date||d.date||''):'';
+        if(completedDate&&day.date!==completedDate)continue;
         const entry = day.events.find(x => String(x?.id || '') === taskId);
         if (entry) old = clone(entry);
         day.events = day.events.filter(x => String(x?.id || '') !== taskId&&
@@ -276,7 +280,7 @@
   async function acknowledge(row) {
     // Keep the confirmed edit in disk snapshots before removing its overlay.
     // Reapplying an edit after a crash is safe; losing the edit is not.
-    if(row.kind==='personal-update'||row.kind==='diana-update'){
+    if(row.kind.startsWith('personal-')||row.kind==='diana-update'){
       const snapshots=(await all('snapshots')).filter(item=>item.key.startsWith(row.actor+'|'));
       for(const snapshot of snapshots){
         const [,scope,month]=snapshot.key.split('|');
@@ -324,6 +328,39 @@
     // integration). Cross-list moves create a copy, so still require readback.
     if(row.kind==='personal-update'&&data.operation==='save'&&taskId&&string(data.projectId)&&
       string(data.targetProjectId||data.projectId)===string(data.projectId))return 'retry';
+    if(['personal-complete','personal-delete','personal-move'].includes(row.kind)&&taskId&&string(data.projectId)){
+      const readKey='task|'+string(data.projectId)+'|'+taskId;
+      if(!reads.has(readKey)){
+        try{
+          const response=await fetch('/api/partner-message?ticktickAction=personal-task-state',{
+            method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
+            body:JSON.stringify({...auth(),taskId,projectId:data.projectId,syncKind:row.kind})
+          });
+          const state=await response.json().catch(()=>null);
+          reads.set(readKey,response.ok&&state?.ok===true&&typeof state.found==='boolean'?state:null);
+        }catch(_){reads.set(readKey,null)}
+      }
+      const state=reads.get(readKey);
+      if(!state)return 'unknown';
+      const original=data.task;
+      const age=Date.now()-row.createdAt;
+      if(row.kind==='personal-complete'||row.kind==='personal-delete'){
+        if(!state.found&&original)return 'done';
+        if(state.found&&row.kind==='personal-complete'){
+          if(state.task?.completed)return 'done';
+          // A recurring completion advances this stable ID to the next day.
+          // Replaying completion would complete that next occurrence too.
+          const before=string(original?.date||data.date),after=string(state.task?.date);
+          if(state.task?.recurring&&before&&after>before)return 'done';
+          if(state.task?.recurring&&(!before||after!==before))return 'unknown';
+        }
+        return state.found&&age>20000?'retry':'unknown';
+      }
+      if(!state.found)return 'unknown';
+      if(string(state.task?.startTime)===string(data.time)&&
+        (state.task?.recurring||string(state.task?.date)===string(data.date)))return 'done';
+      return age>20000?'retry':'unknown';
+    }
     const personal=row.kind.startsWith('personal-');
     const scope=personal?'rustam':'shared';
     const snapshots=(await all('snapshots')).filter(s=>
@@ -435,6 +472,7 @@
           });
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||payload.ok!==true){
+            row.errorCode=string(payload.error||'http-'+response.status).slice(0,100);
             if(response.status>=500||response.status===408||response.status===504){
               row.state='review'; // Unclear whether an upstream write committed.
               row.checkAt=Date.now()+30000;

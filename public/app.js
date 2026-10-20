@@ -14196,6 +14196,19 @@
           }));
         }catch(error){console.warn('RUDI_CALENDAR_OFFLINE_FLUSH_WARN',String(error?.message||error));return null}
       }
+      let lastCalendarQueueReport='';
+      window.addEventListener('rudi-calendar-queue',event=>{
+        const state=event.detail;
+        if(currentActor!=='Рустам'||state?.actor!==currentActor||!state?.issues?.length||window.rudiCalendarOffline?.isOffline?.())return;
+        // Only operation types/error codes, never task names, IDs or credentials.
+        const issues=state.issues.slice(0,20),signature=JSON.stringify(issues);
+        if(signature===lastCalendarQueueReport)return;
+        lastCalendarQueueReport=signature;
+        fetch('/api/partner-message?ticktickAction=personal-task-state',{
+          method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
+          body:JSON.stringify({initData:telegramInitData(),operation:'queue-report',issues})
+        }).catch(()=>{});
+      });
       // iOS can restore connectivity without emitting the browser "online" event.
       // Recheck the server from the calendar itself; never require an app restart.
       let reconnectCalendarPromise=null,lastReconnectAttemptAt=0;
