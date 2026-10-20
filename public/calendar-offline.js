@@ -251,6 +251,39 @@
     return overlay(payload, rows, month);
   }
 
+  function overlayAgenda(payload, rows) {
+    if (!payload?.date) return payload;
+    const dates = [payload.date, payload.tomorrowDate].filter(Boolean);
+    const source = {ticktickDays: dates.map((date,index)=>({date,
+      events:(payload[index?'tomorrowTasks':'tasks']||[]).map(task=>({...task,date}))}))};
+    const days = [...new Set(dates.map(date=>date.slice(0,7)))].flatMap(month=>
+      overlay(source,rows,month).ticktickDays.filter(day=>day.date.slice(0,7)===month));
+    const forDay = date=>days.filter(day=>day.date===date).flatMap(day=>day.events)
+      .filter(task=>!task.completed).sort((a,b)=>String(a.startTime||'99:99').localeCompare(String(b.startTime||'99:99')));
+    return {...payload,tasks:forDay(payload.date),tomorrowTasks:forDay(payload.tomorrowDate)};
+  }
+  async function materializeAgenda(who, scope, payload) {
+    const rows=(await all('outbox')).filter(row=>row.actor===who&&
+      ((row.kind.startsWith('personal-')||row.kind.startsWith('diana-'))?scope==='personal':scope==='shared'));
+    return overlayAgenda(payload,rows);
+  }
+  async function acknowledge(row) {
+    // Keep the confirmed edit in disk snapshots before removing its overlay.
+    // Reapplying an edit after a crash is safe; losing the edit is not.
+    if(row.kind==='personal-update'||row.kind==='diana-update'){
+      const snapshots=(await all('snapshots')).filter(item=>item.key.startsWith(row.actor+'|'));
+      for(const snapshot of snapshots){
+        const [,scope,month]=snapshot.key.split('|');
+        if(scope==='home-agenda'&&month==='personal')snapshot.payload=overlayAgenda(snapshot.payload,[row]);
+        else if(scope==='personal')snapshot.payload=overlay(snapshot.payload,[row],month);
+        else continue;
+        snapshot.savedAt=Math.max(snapshot.savedAt,row.createdAt);
+        await change('snapshots',table=>table.put(snapshot));
+      }
+    }
+    await change('outbox',table=>table.delete(row.id));
+  }
+
   function endpoint(row) {
     const k = row.kind;
     if(k==='diana-create')return '/api/partner-message?ticktickAction=personal-task-create';
@@ -358,7 +391,7 @@
           if(now<Number(row.checkAt||0))break;
           const decision=await reconcile(row,who,auth,reads);
           if(decision==='done'){
-            await change('outbox',table=>table.delete(row.id));
+            await acknowledge(row);
             sent++;
             continue;
           }
@@ -398,7 +431,7 @@
             await change('outbox',table=>table.put(row));
             break;
           }
-          await change('outbox',table=>table.delete(row.id));
+          await acknowledge(row);
           sent++;
           reads.clear();
         }catch(_){
@@ -428,7 +461,7 @@
     }
   },20000);
   root.rudiCalendarOffline = {
-    init, cached, capture, cachedAgenda, captureAgenda, materialize, enqueue, flush, summary,
+    init, cached, capture, cachedAgenda, captureAgenda, materialize, materializeAgenda, enqueue, flush, summary,
     hasPendingSync: () => pending > 0,
     isSyncing: () => syncing,
     isOffline: offlineNow,

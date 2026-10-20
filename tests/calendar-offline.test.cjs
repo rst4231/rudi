@@ -263,3 +263,69 @@ test('Home agenda durable snapshots isolate scope and actor without overwriting 
  assert.equal((await o.cached('Диана','personal','2026-10')).days.length,1);
  assert.equal(JSON.stringify([...h.records.get('snapshots').values()]).includes('secret'),false);
 });
+
+function agendaFixture(date='2026-10-20',tomorrowDate='2026-10-21'){
+  const task={id:'personal-date',personal:true,projectId:'joy',responsible:'Рустам',title:'Увидеться с друзьями',date,startTime:'19:30'};
+  return {task,payload:{ok:true,date,tomorrowDate,tasks:[task],tomorrowTasks:[],writable:true}};
+}
+async function loadHomeForTest(h,payload){
+  const source=fs.readFileSync('public/app.js','utf8');
+  const from=source.indexOf('async function loadTickTickNext('),to=source.indexOf('function holidayDateLabel()',from);
+  let rendered;
+  const store=h.api;
+  const context={currentActor:'Рустам',sharedAgendaScope:'personal',ensureHomeAgendaActor(){},
+    window:{rudiCalendarOffline:store},invalidateManagedRequests(){},telegramInitData:()=>'',currentStateBackupToken:'',
+    managedJsonRequest:async()=>payload,renderTickTickTodayState:value=>{rendered=value},
+    cachedHomeAgenda:async()=>store.cachedAgenda('Рустам','personal'),
+    mergeHomeAgendas(){throw Error('unexpected combined scope')},setTimeout,Promise};
+  const load=vm.runInNewContext(source.slice(from,to)+';loadTickTickNext',context);
+  await load({force:true});return rendered;
+}
+test('Home online refresh uses queued date instead of stale TickTick response',async()=>{
+  const h=harness(),{task,payload}=agendaFixture();h.setOnline(true);
+  await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:task.id,projectId:'joy',targetProjectId:'joy',task,title:task.title,date:'2026-10-27',time:'19:30'});
+  const rendered=await loadHomeForTest(h,payload);
+  assert.equal(rendered.tasks.length,0,'a task moved to 27 October must disappear from today immediately');
+  assert.equal(payload.tasks[0].date,'2026-10-20','server data must not be mutated');
+});
+test('Home online refresh moves an edited task to tomorrow across a month boundary',async()=>{
+  const h=harness(),{task,payload}=agendaFixture('2026-10-31','2026-11-01');h.setOnline(true);
+  await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:task.id,projectId:'joy',task,title:task.title,date:'2026-11-01',time:'20:15'});
+  const rendered=await loadHomeForTest(h,payload);
+  assert.equal(rendered.tasks.length,0);
+  assert.equal(rendered.tomorrowTasks.length,1);assert.equal(rendered.tomorrowTasks[0].startTime,'20:15');
+});
+test('acknowledged date persists in Home and calendar snapshots after queue removal',async()=>{
+  const h=harness(),o=h.api,{task,payload}=agendaFixture();
+  await o.captureAgenda('Рустам','personal',payload);
+  await o.captureAgenda('Диана','personal',{...payload,tasks:[{...task,responsible:'Диана'}]});
+  await o.capture('Рустам','personal','2026-10',{days:[{date:task.date}],ticktickDays:[{date:task.date,events:[task]}]});
+  await o.enqueue('Рустам','personal-update',{operation:'save',taskId:task.id,projectId:'joy',task,title:task.title,date:'2026-10-27',time:'19:30'});
+  h.setOnline(true);assert.equal((await o.flush('Рустам',()=>({initData:'secret'}))).sent,1);
+  assert.equal((await o.summary('Рустам')).pending,0);
+  h.setOnline(false);
+  const home=await o.cachedAgenda('Рустам','personal');assert.equal(home.tasks.length,0,'going offline after sync must not resurrect the old date');
+  const calendar=await o.cached('Рустам','personal','2026-10');
+  assert.equal(calendar.ticktickDays.find(day=>day.date==='2026-10-27').events[0].date,'2026-10-27');
+  assert.equal((await o.cachedAgenda('Диана','personal')).tasks.length,1,'other actor remains unchanged');
+  assert.equal(JSON.stringify([...h.records.get('snapshots').values()]).includes('secret'),false);
+});
+test('failed sync keeps the edited Home date visible and retryable',async()=>{
+  const h=harness(),{task,payload}=agendaFixture();h.setOnline(true);h.setFail(true);
+  await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:task.id,projectId:'joy',task,title:task.title,date:payload.tomorrowDate,time:'18:45'});
+  const result=await h.api.flush('Рустам',()=>({}));assert.equal(result.pending,1);
+  const rendered=await loadHomeForTest(h,payload);
+  assert.equal(rendered.tasks.length,0);assert.equal(rendered.tomorrowTasks[0].startTime,'18:45');
+});
+test('Home projection isolates actors and shared tasks from personal date edits',async()=>{
+  const h=harness(),{task,payload}=agendaFixture();
+  await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:task.id,projectId:'joy',task,title:task.title,date:'2026-10-27',time:'19:30'});
+  assert.equal((await h.api.materializeAgenda('Диана','personal',payload)).tasks.length,1);
+  assert.equal((await h.api.materializeAgenda('Рустам','shared',payload)).tasks.length,1);
+});
+test('online Home remains readable if local IndexedDB projection is unavailable',async()=>{
+  const h=harness(),{payload}=agendaFixture();h.setOnline(true);
+  h.api.materializeAgenda=async()=>{throw Error('offline-db-blocked')};
+  const rendered=await loadHomeForTest(h,payload);
+  assert.equal(rendered.tasks.length,1);
+});

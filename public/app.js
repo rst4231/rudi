@@ -14879,13 +14879,19 @@
         }
         if(force) invalidateManagedRequests('ticktick-today');
         try{
+          // Display durable edits immediately, before waiting for TickTick.
+          if(window.rudiCalendarOffline?.hasPendingSync?.()){
+            const local=await cachedHomeAgenda(agendaActor,agendaScope).catch(()=>null);
+            if(local&&stillCurrent())renderTickTickTodayState(local,{preserveExpanded});
+          }
           const fetchScope=async scope=>{
             const payload=await managedJsonRequest(scope==='shared'?'ticktick-today':'ticktick-today:personal:'+agendaActor,'/api/ticktick/today',{
               body:{initData:telegramInitData(),backupToken:currentStateBackupToken,...(scope==='personal'?{scope:'personal'}:{})},
               ttlMs:2*60*1000,timeoutMs:7000
             });
             if(stillCurrent())await window.rudiCalendarOffline?.captureAgenda?.(agendaActor,scope,payload).catch(()=>{});
-            return payload;
+            const store=window.rudiCalendarOffline;
+            return store?.materializeAgenda?store.materializeAgenda(agendaActor,scope,payload):payload;
           };
           let payload;
           if(agendaScope==='combined'){
