@@ -86,3 +86,12 @@ test('stop at selected date; do not guess advanced TickTick recurrence',()=>{
  assert.deepEqual(occurrence('RRULE:FREQ=DAILY;INTERVAL=1;UNTIL=20261022T205959Z','2026-10-20','2026-10-31'),['2026-10-20','2026-10-21','2026-10-22']);
  assert.deepEqual(occurrence('RRULE:FREQ=MONTHLY;BYSETPOS=-1;BYDAY=FR','2026-10-20','2027-12-31'),[]);
 });
+
+test('personal expansion does not alter normal start and due time semantics',()=>{
+ const source={id:'range',title:'Range',startDate:'2026-10-21T19:00:00+0300',dueDate:'2026-10-22T09:00:00+0300',isAllDay:false,status:0};
+ const calendar=buildTickTickCalendar([source],new Date('2026-10-20T08:00:00Z'),'month',undefined,'',{expandRecurrence:true});
+ assert.equal(calendar.days.find(x=>x.date==='2026-10-21').events[0].startTime,'19:00');
+ assert.equal(calendar.days.find(x=>x.date==='2026-10-21').events[0].endTime,null);
+ assert.equal(calendar.days.find(x=>x.date==='2026-10-22').events[0].startTime,null);
+ assert.equal(calendar.days.find(x=>x.date==='2026-10-22').events[0].endTime,'09:00');
+});
