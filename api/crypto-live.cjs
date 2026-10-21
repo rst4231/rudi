@@ -21,8 +21,17 @@ function eligibleSignal(s,cfg,now){
  const at=Date.parse(s?.at),activation=Date.parse(cfg.activatedAt);
  if(!Number.isInteger(Number(s?.id))||Number(s.id)<=0||!Number.isFinite(at)||at<=activation||at>now||now-at>20*60000)return 'live-signal-old';
  if(!/^[A-Z0-9]{2,24}$/.test(s.symbol)||s.market!=='linear'||s.conditional||!['long','short'].includes(s.direction))return 'live-signal-ambiguous';
- if(![s.entry,s.take,s.stop].every(n=>typeof n==='number'&&Number.isFinite(n)&&n>0))return 'live-protection-required';
- if(s.direction==='long'?!(s.stop<s.entry&&s.entry<s.take):!(s.take<s.entry&&s.entry<s.stop))return 'live-levels-invalid';
+ // Preserve the older OKX native-stop requirement, while Pionex may
+ // copy a clearly actionable author signal without quoted prices or protection.
+ // authorEntry is null when the Telegram post provided no entry price.
+ const rawEntry=Object.hasOwn(s,'authorEntry')?s.authorEntry:s.entry;
+ const level=v=>typeof v==='number'&&Number.isFinite(v)&&v>0?v:null;
+ if([rawEntry,s.take,s.stop].some(v=>v!=null&&level(v)===null))return 'live-levels-invalid';
+ const entry=level(rawEntry),take=level(s.take),stop=level(s.stop);
+ if(cfg.provider!=='pionex'&&(!entry||!take||!stop))return 'live-protection-required';
+ if(entry&&(s.direction==='long'?
+    (stop!==null&&stop>=entry)||(take!==null&&take<=entry):
+    (stop!==null&&stop<=entry)||(take!==null&&take>=entry)))return 'live-levels-invalid';
  if((s.events||[]).some(e=>['full-close','partial-close','author-claimed-tp','author-claimed-sl'].includes(e.type)))return 'live-author-closed';
  return '';
 }
@@ -191,9 +200,9 @@ function createLiveService(deps={}){
      if(t.marginLimitUsd&&t.marginUsd>t.marginLimitUsd+1e-8){await close(t,api,pos,'margin-limit');blocked=true;continue;}
      const signal=(feed.signals||[]).find(s=>String(s.id)===String(t.signalId));
      const events=(signal?.events||[]).filter(e=>Date.parse(e.at)>=Date.parse(t.openedAt||t.createdAt)&&Date.parse(e.at)<=now());
-     const full=events.find(e=>e.type==='full-close');
-     const stop=t.side==='Buy'?pos.markPrice<=Number(t.stop):pos.markPrice>=Number(t.stop);
-     const take=t.side==='Buy'?pos.markPrice>=Number(t.take):pos.markPrice<=Number(t.take);
+     const full=events.find(e=>['full-close','author-claimed-tp','author-claimed-sl'].includes(e.type));
+     const stop=Number(t.stop)>0&&(t.side==='Buy'?pos.markPrice<=Number(t.stop):pos.markPrice>=Number(t.stop));
+     const take=Number(t.take)>0&&(t.side==='Buy'?pos.markPrice>=Number(t.take):pos.markPrice<=Number(t.take));
      if(cfg.closeRequestedAt||full||stop||take){await close(t,api,pos,cfg.closeRequestedAt?'manual-close-'+cfg.closeRequestedAt:full?'author-'+full.id:stop?'stop':'take');continue;}
      const partial=events.find(e=>e.type==='partial-close'&&Number(e.closeFraction)>0&&Number(e.closeFraction)<1&&!(t.exits||[]).some(x=>x.trigger==='author-'+e.id));
      if(partial){await close(t,api,pos,'author-'+partial.id,Number(partial.closeFraction));continue;}
@@ -232,18 +241,34 @@ function createLiveService(deps={}){
     const s=candidate,symbol=s.symbol+'USDT';
     const [rule,price]=await Promise.all([api.instrument(symbol),api.price(symbol)]);
     if(limits.leverage>Number(rule.maxLeverage))throw Error('live-leverage-invalid');
-    if(Math.abs(price/s.entry-1)*100>limits.slippagePct){status.message='live-price-moved';continue;}
-    if(s.direction==='long'?(price<=s.stop||price>=s.take):(price>=s.stop||price<=s.take)){status.message='live-levels-passed';continue;}
-    const limit=Number(stepValue(s.entry*(1+(s.direction==='long'?1:-1)*limits.slippagePct/100),rule.priceStep,s.direction==='short'));
-    // A sell IOC limit is a minimum price, not a maximum notional. Reserve
-    // against the upper allowed signal price for both directions, then account
-    // for actual executed margin during reconciliation.
-    const sizingPrice=Math.max(limit,price,s.entry*(1+limits.slippagePct/100));
+    // Explicit author price: bounded IOC. Missing author price: market order.
+    const sourceEntry=Object.hasOwn(s,'authorEntry')?s.authorEntry:s.entry;
+    const authorEntry=Number(sourceEntry)>0?Number(sourceEntry):null;
+    if(authorEntry&&Math.abs(price/authorEntry-1)*100>limits.slippagePct){status.message='live-price-moved';continue;}
+    const takeLevel=Number(s.take)>0?Number(s.take):null;
+    const stopLevel=Number(s.stop)>0?Number(s.stop):null;
+    if(s.direction==='long'?
+       (stopLevel!==null&&price<=stopLevel)||(takeLevel!==null&&price>=takeLevel):
+       (stopLevel!==null&&price>=stopLevel)||(takeLevel!==null&&price<=takeLevel)){
+      status.message='live-levels-passed';continue;
+    }
+    const limit=authorEntry===null?null:Number(stepValue(
+      authorEntry*(1+(s.direction==='long'?1:-1)*limits.slippagePct/100),
+      rule.priceStep,s.direction==='short'));
+    // Sizing is computed against a conservative quote; the fill can vary.
+    const sizingPrice=Math.max(price*(1+limits.slippagePct/100),limit||0,
+      authorEntry?authorEntry*(1+limits.slippagePct/100):0);
     const qty=orderSize(limits.marginUsd*limits.leverage,sizingPrice,rule);
     const margin=Number(qty)*sizingPrice*Number(rule.contractValue)/limits.leverage;
     if(account.available<margin*1.01){status.message='live-insufficient-balance';continue;}
-    const take=stepValue(s.take,rule.priceStep,s.direction==='short'),stop=stepValue(s.stop,rule.priceStep,s.direction==='long');
-    if(s.direction==='long'?!(Number(stop)<limit&&limit<Number(take)):!(Number(take)<limit&&limit<Number(stop)))throw Error('live-levels-invalid');
+    const take=takeLevel===null?null:stepValue(takeLevel,rule.priceStep,s.direction==='short');
+    const stop=stopLevel===null?null:stepValue(stopLevel,rule.priceStep,s.direction==='long');
+    const target=limit||price;
+    if(s.direction==='long'?
+       (stop!==null&&!(Number(stop)<target))||(take!==null&&!(target<Number(take))):
+       (take!==null&&!(Number(take)<target))||(stop!==null&&!(target<Number(stop)))){
+      status.message='live-levels-passed';continue;
+    }
     await api.leverage(symbol,limits.leverage);
     // Re-read both activation and credentials revision immediately before claim.
     const fresh=await config(p);if(!fresh.enabled||fresh.revision!==cfg.revision||fresh.secret!==cfg.secret)continue;
@@ -251,7 +276,7 @@ function createLiveService(deps={}){
      state:'submitted',createdAt:new Date(now()).toISOString(),entryQty:0,remainingQty:0,marginUsd:margin,marginLimitUsd:limits.marginUsd,leverage:limits.leverage,qtyStep:rule.qtyStep,contractValue:Number(rule.contractValue),take,stop,exits:[]};
     if(!await client.setIfAbsent(ORDERS,key,t))continue;
     let accepted=false;
-    try{const result=await api.place({symbol,side:t.side,qty,price:String(limit),clientId,take,stop});accepted=true;t.orderId=result.orderId;await saveTrade(t);await reconcile(t,api);}
+    try{const result=await api.place({symbol,side:t.side,qty,...(limit===null?{}:{price:String(limit)}),clientId,take,stop});accepted=true;t.orderId=result.orderId;await saveTrade(t);await reconcile(t,api);}
     catch(e){t.state=!accepted&&['live-exchange-rejected','live-key-permission','live-rate-limited','live-access-blocked'].includes(safeError(e))?'failed':'unknown';t.error=safeError(e);await saveTrade(t);throw e;}
     let newPosition=null;
     if(t.state==='open'){
