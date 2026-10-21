@@ -11,7 +11,7 @@ const errors={
  'live-network-unavailable':'Нет соединения с сервером. Проверь интернет и попробуй ещё раз.',
  'live-service-unavailable':'Сервер временно недоступен. Попробуй ещё раз.',
  'not-authorized':'Сессия истекла. Войди в приложение заново.',
- 'live-key-permission':'Ключу нужны чтение и торговля фьючерсами. Проверь также Secret и Passphrase.',
+ 'live-key-permission':'Ключу нужны чтение и торговля фьючерсами. Проверь API Key, API Secret и права доступа.',
  'live-withdrawal-key':'Создай отдельный API-ключ без права вывода средств.',
  'live-cross-required':'Для этой пары Pionex нужен режим CROSS. Измени его на бирже при закрытых позициях.',
  'live-position-identity-missing':'Не удалось подтвердить принадлежность позиции. Проверь её на бирже.',
