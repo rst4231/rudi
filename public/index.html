@@ -63,7 +63,7 @@
   <link rel="stylesheet" href="/supplement-advanced.css?v=4.289">
   <link rel="stylesheet" href="/rudi-design-system.css?v=4.289">
   <link rel="stylesheet" href="/finance-cards.css?v=4.289">
-  <link rel="stylesheet" href="/crypto-signals.css?v=4.289">
+  <link rel="stylesheet" href="/crypto-signals.css?v=4.293">
   <link rel="stylesheet" href="/crypto-algorithms.css?v=4.289">
   <link rel="stylesheet" href="/recommendations.css?v=4.289">
   <script>
@@ -168,7 +168,7 @@
   <script defer src="/personal-center.js?v=4.289"></script>
   <link rel="stylesheet" href="/crypto-wallets.css?v=4.289">
   <script defer src="/crypto-wallets.js?v=4.289"></script>
-  <script defer src="/crypto-live.js?v=4.289"></script>
+  <script defer src="/crypto-live.js?v=4.293"></script>
   <script defer src="/crypto-signals.js?v=4.289"></script>
   <script defer src="/crypto-algorithms.js?v=4.289"></script>
   <script defer src="/home-reference-layout.js?v=4.289"></script>
@@ -1185,18 +1185,18 @@
             <button type="button" id="financeCryptoSignalsBack" class="crypto-signals-back">← К криптопортфелю</button>
             <a href="https://t.me/ne_investor" target="_blank" rel="noopener noreferrer">@ne_investor ↗</a>
           </header>
-          <div class="crypto-signals-intro"><h3>Сканер Артемьева</h3><p>OKX · Pionex · реальные счета по API</p></div>
+          <div class="crypto-signals-intro"><h3>Сканер Артемьева</h3><p>Pionex · реальный счёт по API</p></div>
           <div class="crypto-signals-section crypto-live-controls">
             <div class="crypto-signals-row"><h4>Биржа</h4><button type="button" id="cryptoLiveRefresh" class="crypto-signals-inline">Обновить</button></div>
-            <label class="crypto-live-field">Подключение <select id="cryptoLiveProvider"><option value="okx">OKX</option><option value="pionex">Pionex</option></select></label>
+            <div class="crypto-live-provider-label"><span>Подключение</span><strong>Pionex</strong></div><input id="cryptoLiveProvider" type="hidden" value="pionex">
             <p id="cryptoLiveConnection" class="crypto-signals-help">Биржа не подключена</p>
             <details id="cryptoLiveKeys"><summary>Подключить или изменить API</summary>
               <div class="crypto-live-grid">
                 <label class="crypto-live-field">API Key<input id="cryptoLiveApiKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="150"></label>
                 <label class="crypto-live-field">API Secret<input id="cryptoLiveApiSecret" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200"></label>
-                <label class="crypto-live-field" id="cryptoLivePassphraseField">Passphrase<input id="cryptoLivePassphrase" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="100"></label>
+                <label class="crypto-live-field" id="cryptoLivePassphraseField" hidden>Passphrase<input id="cryptoLivePassphrase" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="100"></label>
               </div>
-              <p class="crypto-signals-help">Нужен ключ с чтением и торговлей фьючерсами, без вывода средств. Режим позиций: односторонний (OKX: net, Pionex: BUYSELL). Подключение сохраняет ключи зашифрованными и оставляет торговлю выключенной.</p>
+              <p class="crypto-signals-help">Нужен ключ с чтением и торговлей фьючерсами, без вывода средств. Режим позиций: односторонний (Pionex BUYSELL). Подключение сохраняет ключи зашифрованными и оставляет торговлю выключенной.</p>
               <button type="button" id="cryptoLiveConnect" class="crypto-signals-inline">Подключить API</button>
               <p id="cryptoLiveConnectStatus" class="crypto-signals-status" role="status" aria-live="polite"></p>
             </details>
@@ -1208,7 +1208,7 @@
             <article><small>Позиций на бирже</small><strong id="cryptoLivePositionCount">—</strong><small>Реальные позиции</small></article>
           </div>
           <div class="crypto-signals-section">
-            <div class="crypto-signals-row"><h4>Автоматическая торговля</h4><small id="cryptoLiveMode">Выключена</small></div>
+            <div class="crypto-signals-row"><h4>Автоматическая торговля</h4><div class="crypto-live-mode-group"><small id="cryptoLiveMode">Выключена</small><small id="cryptoLiveActivatedAt" hidden></small></div></div>
             <div class="crypto-live-grid">
               <label class="crypto-live-field">Маржа на сделку, USDT<input id="cryptoLiveMargin" type="number" min="1" max="100000" step="0.01" inputmode="decimal" placeholder="Укажи сумму"></label>
               <label class="crypto-live-field">Общий лимит маржи, USDT<input id="cryptoLiveMarginCap" type="number" min="1" max="100000" step="0.01" inputmode="decimal" placeholder="Укажи лимит"></label>
