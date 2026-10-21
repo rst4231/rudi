@@ -91,7 +91,7 @@ function createExchange(provider,keys,options={}){
    if(!(avgPrice>0)||!(markPrice>0)||!(leverage>0))throw Error('live-response-invalid');
    return {symbol:okx?String(p.instId).replace(/-USDT-SWAP$/,'USDT'):String(p.symbol).replace(/_USDT_PERP$/,'USDT'),qty,side,positionIdx:0,
     avgPrice,markPrice,
-    positionId:String(okx?p.posId||'':p.positionId||''),positionOpenedAt:new Date(number(okx?p.cTime:p.createTime)).toISOString(),unrealizedPnl:number(okx?p.upl:p.unrealizedPnL),leverage};
+    positionId:String(okx?p.posId||'':p.positionId||''),positionOpenedAt:new Date(number(okx?p.cTime:(p.createTime??p.createdTime))).toISOString(),unrealizedPnl:number(okx?p.upl:p.unrealizedPnL),leverage};
   }).filter(Boolean);
  }
  async function balance(){
