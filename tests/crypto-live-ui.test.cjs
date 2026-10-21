@@ -75,3 +75,28 @@ test('Passphrase is physically hidden for Pionex but available for OKX',()=>{
  b.nodes.get('cryptoLiveProvider').value='okx';b.window.RudiCryptoLive.render(b.data);
  assert.equal(b.nodes.get('cryptoLivePassphraseField').hidden,false);
 });
+
+test('Pionex shows scheduler outage before the activation button',async()=>{
+ const b=browser(async()=>({ok:false,json:async()=>({ok:false,error:'live-scheduler-stale'})}));
+ b.nodes.get('cryptoLiveProvider').value='pionex';
+ b.data.accounts=[{provider:'pionex',connected:true,enabled:false,settings:{marginUsd:10,marginCapUsd:50,dailyLossUsd:50,leverage:3,maxOpen:1,slippagePct:2},status:{verified:true,equity:100,available:80,positions:[]}}];
+ b.data.scheduler={healthy:false,lastAt:''};
+ b.window.RudiCryptoLive.render(b.data);
+ assert.match(b.nodes.get('cryptoLivePreflight').textContent,/планировщик ни разу не подтвердил запуск/);
+ b.nodes.get('cryptoLiveConsent').checked=true;
+ b.nodes.get('cryptoLiveProgrammatic').checked=true;
+ await b.nodes.get('cryptoLiveStart').listeners.click();
+ assert.equal(b.requests[0].operation,'crypto-live-configure');
+ assert.equal(b.requests[0].enabled,true);
+ assert.match(b.nodes.get('cryptoLiveStatus').textContent,/Торговля заблокирована/);
+ assert.equal(b.nodes.get('cryptoLiveStart').disabled,false);
+ assert.equal(b.nodes.get('cryptoLiveMode').textContent,'Выключена');
+});
+test('Trade activation preflight clears when the scheduler heartbeat is healthy',()=>{
+ const b=browser();
+ b.nodes.get('cryptoLiveProvider').value='pionex';
+ b.data.accounts=[{provider:'pionex',connected:true,enabled:false,settings:{},status:{verified:true,equity:100,available:80,positions:[]}}];
+ b.data.scheduler={healthy:true,lastAt:new Date().toISOString()};
+ b.window.RudiCryptoLive.render(b.data);
+ assert.match(b.nodes.get('cryptoLivePreflight').textContent,/API и планировщик подтверждены/);
+});
