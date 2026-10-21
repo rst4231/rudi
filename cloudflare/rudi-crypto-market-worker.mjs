@@ -272,11 +272,20 @@ async function scheduledLiveRun(env){
   // No exchange credentials leave D1. Without connected accounts there is no
   // reason to invoke Vercel every minute. The first tick after connection also
   // confirms the heartbeat required before the user can activate trading.
-  const connected=await env.MARKET_DB.prepare(
-    "SELECT 1 AS connected FROM rudi_state WHERE namespace='rudi-crypto-live-config-v1' "+
-    "AND json_extract(value,'$.secret') IS NOT NULL LIMIT 1"
+  const account=await env.MARKET_DB.prepare(
+    "SELECT "+
+    "(SELECT COUNT(*) FROM rudi_state WHERE namespace='rudi-crypto-live-config-v1' AND json_extract(value,'$.secret') IS NOT NULL) AS connected,"+
+    "(SELECT COUNT(*) FROM rudi_state WHERE namespace='rudi-crypto-live-config-v1' AND json_extract(value,'$.enabled')=1) AS enabled,"+
+    "(SELECT COUNT(*) FROM rudi_state WHERE namespace='rudi-crypto-live-orders-v1' AND json_extract(value,'$.state') IN ('submitted','unknown','open','attention')) AS active"
   ).first();
-  if(!connected)return;
+  if(!Number(account?.connected))return;
+  // No open positions and entries disabled? Half the idle Vercel requests.
+  // A successful 2-minute heartbeat remains inside the server's 3-minute TTL.
+  if(!Number(account.enabled)&&!Number(account.active)){
+    const previous=await cachedRow(env,'__live_cron_status');
+    let last=null;try{last=JSON.parse(previous?.body||'null')}catch{}
+    if(last?.ok&&Date.now()-Date.parse(last.at)<110000)return last;
+  }
   const status={at:new Date().toISOString(),ok:false};
   // Avoid 401s and unnecessary request billing while Vercel deployment
   // protection blocks external cron calls. This is a Worker secret binding.
