@@ -421,5 +421,24 @@ async function readSignals(options={}){
   const state=row?.value&&typeof row.value==='object'?row.value:{};
   return buildView(state,options.now??Date.now());
 }
+// Trading feed: one Telegram page per active minute, NO candles/40-coin scan.
+// Read-only merge with archived source results avoids extra D1 writes and replays.
+async function readLiveSignals(options={}){
+ const now=options.now??Date.now(),client=options.client||createRudiStateClient(options);
+ const row=await client.getRecord(NS,KEY);
+ const prior=row?.value&&typeof row.value==='object'?row.value:{};
+ try{
+  const latest=await fetchChannelPage(null,options);
+  const cutoff=now-PERIOD_MS;
+  const byId=new Map([...((Array.isArray(prior.messages)?prior.messages:[])
+    .filter(m=>Date.parse(m.at)>=cutoff)),...latest]
+    .filter(m=>m&&Number.isInteger(Number(m.id))&&Date.parse(m.at)>=cutoff)
+    .map(m=>[String(m.id),m]));
+  const messages=[...byId.values()].sort((a,b)=>Number(b.id)-Number(a.id)).slice(0,1000);
+  return buildView({...prior,messages,sourceError:null,updatedAt:new Date(now).toISOString()},now);
+ }catch(e){
+  return {...buildView(prior,now),sourceError:'live-author-feed-unavailable'};
+ }
+}
 module.exports={NS,parsePreview,parseSignal,collectEntrySignals,evaluateCandles,compareSignal:parseSignal,
-  buildView,readSignals,refreshSignals,candlesForSignal,marketPriceForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk,fundingForSignal};
+  buildView,readSignals,readLiveSignals,refreshSignals,candlesForSignal,marketPriceForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk,fundingForSignal};
