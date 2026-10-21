@@ -138,11 +138,9 @@ function parseSignal(row){
   const ticker=text.match(/\$([a-z0-9]{2,14})\b/i)?.[1]?.toUpperCase();
   if(!ticker||!/(?:^|[^а-яёa-z])(шорт|short|лонг|long)(?=$|[^а-яёa-z])/i.test(text))return null;
   const direction=/(?:^|[^а-яёa-z])(шорт|short)(?=$|[^а-яёa-z])/i.test(text)?'short':'long';
-  // Do not execute speculative opinions: they are not the author's entry.
- if(/(?:^|[^\p{L}])(?:я\s+бы\s+(?:заш[её]л|вош[её]л|взял|открыл|купил)|мог\s+бы\s+(?:войти|открыть|зайти))(?=$|[^\p{L}])/iu.test(lower))return null;
- const actionable=/(?:^|[^а-яёa-z])(?:беру|взял|взяла|заш[её]л|вхожу|открыл|открываю|набираю|набираюсь|докупаю|лонгую|шорчу)(?=$|[^а-яёa-z])|можно\s+(?:брать|открывать)/i.test(lower);
+  const actionable=/(?:^|[^а-яёa-z])(?:беру|взял|взяла|заш[её]л|вхожу|открыл|открываю|набираю|набираюсь|докупаю|лонгую|шорчу)(?=$|[^а-яёa-z])|можно\s+(?:брать|открывать)/i.test(lower);
   if(!actionable)return null;
-  const conditional=/(?:^|[^а-яёa-z])(?:если|после|планирую|хочу|собираюсь|возможно|предполагаю)(?=$|[^а-яёa-z])|при\s+условии/i.test(lower);
+  const conditional=/(?:^|[^а-яёa-z])(?:если|после|планирую)(?=$|[^а-яёa-z])|при\s+условии|можно\s+брать/i.test(lower);
   // Do not infer entry from a mentioned market level or from "now".
   const entry=level(text,/(?:вход(?:а|е|ить)?|открыл\s+по|заш[её]л\s+по|entry)\s*(?:по|от|в|=|:|\$|≈|~|\s)*([\d][\d\s.,]*)/i);
   const take=level(text,/(?:\btp\d*\b|тейк(?:[- ]?профит)?\w*|цель\w*|take\s*profit)\s*(?:по|на|=|:|в|\$|≈|~|\s)*([\d][\d\s.,]*)/i);
