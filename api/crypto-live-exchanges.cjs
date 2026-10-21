@@ -12,11 +12,13 @@ function stepValue(value,step,up=false){
  if(!up&&result>value){count--;result=Number((count*unit).toFixed(digits));}
  return result.toFixed(digits);
 }
-function orderSize(notional,price,rule){
+function orderSize(notional,price,rule,kind='limit'){
  if(!(notional>0)||!(price>0)||!Number.isFinite(notional)||!Number.isFinite(price))throw Error('live-size-invalid');
  const qty=stepValue(notional/(price*Number(rule.contractValue||1)),rule.qtyStep);
- if(!(Number(qty)>0)||Number(qty)<Number(rule.minQty)||Number(qty)*price*Number(rule.contractValue||1)<Number(rule.minNotional||0))throw Error('live-minimum-order');
- if(Number(qty)>Number(rule.maxQty)||Number(qty)*price*Number(rule.contractValue||1)>notional+1e-8)throw Error('live-size-invalid');
+ const minQty=kind==='market'?(rule.marketMinQty??rule.minQty):rule.minQty;
+ const maxQty=kind==='market'?(rule.marketMaxQty??rule.maxQty):rule.maxQty;
+ if(!(Number(qty)>0)||Number(qty)<Number(minQty)||Number(qty)*price*Number(rule.contractValue||1)<Number(rule.minNotional||0))throw Error('live-minimum-order');
+ if(Number(qty)>Number(maxQty)||Number(qty)*price*Number(rule.contractValue||1)>notional+1e-8)throw Error('live-size-invalid');
  return qty;
 }
 function createExchange(provider,keys,options={}){
@@ -155,7 +157,9 @@ function createExchange(provider,keys,options={}){
     return {equity:null,available:null,positions:[],verified:false,error:'live-account-unverified'};
    throw failure.reason;
   }
-  return {...account.value,positions:open.value,verified:true};
+  return {...account.value,positions:open.value,verified:true,
+    // Pionex exposes no read-only proof of trade-order permissions.
+    tradingPermissionVerified:okx};
  }
  async function instrument(symbol){
   validSymbol(symbol);
@@ -165,8 +169,12 @@ function createExchange(provider,keys,options={}){
   if(!row||(okx?row.state!=='live':row.status!=='TRADING'))throw Error('live-symbol-unavailable');
   if(okx&&(row.ctType!=='linear'||row.settleCcy!=='USDT'||row.ctValCcy!==symbol.replace(/USDT$/,'')))throw Error('live-instrument-invalid');
   const rule=okx?{qtyStep:row.lotSz,minQty:row.minSz,maxQty:row.maxLmtSz,minNotional:0,priceStep:row.tickSz,maxLeverage:row.lever,contractValue:row.ctVal}:
-   {qtyStep:row.baseStep,minQty:row.minSizeLimit,maxQty:row.maxSizeLimit,minNotional:row.minNotional,priceStep:row.quoteStep,maxLeverage:5,contractValue:1};
-  for(const key of ['qtyStep','minQty','maxQty','priceStep','maxLeverage','contractValue'])if(!(number(rule[key])>0))throw Error('live-instrument-invalid');return rule;
+   {qtyStep:row.baseStep,minQty:row.minSizeLimit,maxQty:row.maxSizeLimit,
+     marketMinQty:row.minSizeMarket,marketMaxQty:row.maxSizeMarket,
+     minNotional:row.minNotional,priceStep:row.quoteStep,maxLeverage:5,contractValue:1};
+  for(const key of ['qtyStep','minQty','maxQty','priceStep','maxLeverage','contractValue'])if(!(number(rule[key])>0))throw Error('live-instrument-invalid');
+   if(!okx){for(const key of ['marketMinQty','marketMaxQty'])if(!(number(rule[key])>0))throw Error('live-instrument-invalid');}
+   return rule;
  }
  async function price(symbol){
   validSymbol(symbol);const data=await request('GET',okx?'/api/v5/market/ticker':'/api/v1/market/tickers',okx?{instId:inst(symbol)}:{symbol:inst(symbol)},false);
