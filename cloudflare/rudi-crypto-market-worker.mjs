@@ -282,7 +282,8 @@ async function scheduledLiveRun(env){
   // No open positions and entries disabled? Half the idle Vercel requests.
   // A successful 2-minute heartbeat remains inside the server's 3-minute TTL.
   if(!Number(account.enabled)&&!Number(account.active)){
-    const previous=await cachedRow(env,'__live_cron_status');
+    let previous=null;
+    try{previous=await cachedRow(env,'__live_cron_status')}catch(_){}
     let last=null;try{last=JSON.parse(previous?.body||'null')}catch{}
     if(last?.ok&&Date.now()-Date.parse(last.at)<110000)return last;
   }
