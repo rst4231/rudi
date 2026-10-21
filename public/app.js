@@ -8722,12 +8722,67 @@
         })();
         return settingsSecuritySessionsFlight;
       }
+      function setupOfflinePinSettings(){
+        const anchor=document.getElementById('settingsFaceIdRow');
+        if(!anchor||!iphoneFaceIdActor()||telegramInitData())return;
+        let row=document.getElementById('settingsOfflinePinRow');
+        if(!row){
+          row=document.createElement('div');
+          row.id='settingsOfflinePinRow';
+          row.className='home-settings-row settings-faceid-row';
+          const info=document.createElement('div');info.className='home-settings-copy';
+          const title=document.createElement('strong');title.textContent='PIN без интернета';
+          const detail=document.createElement('small');detail.id='settingsOfflinePinStatus';
+          info.append(title,detail);
+          const button=document.createElement('button');
+          button.id='settingsOfflinePinButton';button.type='button';button.className='settings-faceid-action';
+          const form=document.createElement('form');form.id='settingsOfflinePinForm';form.className='rudi-offline-pin-settings-form';form.style.cssText='gap:8px;';form.hidden=true;
+          const input=pinInputNode();input.id='settingsOfflinePinInput';
+          const save=document.createElement('button');save.type='submit';save.className='settings-faceid-action';
+          save.textContent='Подтвердить PIN';
+          const message=document.createElement('small');message.id='settingsOfflinePinMessage';
+          form.append(input,save,message);
+          row.append(info,button,form);
+          anchor.insertAdjacentElement('beforebegin',row);
+          button.addEventListener('click',()=>{
+            if(window.rudiOfflinePin?.isOffline()){message.textContent='Для настройки нужен интернет.';return;}
+            form.hidden=!form.hidden;
+            if(!form.hidden)input.focus();
+          });
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();
+            const pin=String(input.value||'');
+            if(!/^\d{6}$/.test(pin)){message.textContent='PIN должен содержать 6 цифр.';return;}
+            save.disabled=true;button.disabled=true;message.textContent='Проверяю…';
+            try{
+              const response=await browserAuthRequest('login',{actor:currentActor,pin});
+              if(String(response.actor||'')!==currentActor||!window.rudiOfflinePin?.has(currentActor))throw new Error('offline-pin-enroll-failed');
+              input.value='';form.hidden=true;message.textContent='';
+              updateOfflinePinSettingsState();
+            }catch(error){
+              message.textContent=String(error?.message||'')==='rudi-pin-rate-limited'?'Слишком много попыток.':
+                'Не удалось настроить. Проверь PIN и подключение.';
+              input.value='';
+            }finally{save.disabled=false;updateOfflinePinSettingsState();}
+          });
+        }
+        updateOfflinePinSettingsState();
+      }
+      function updateOfflinePinSettingsState(){
+        const row=document.getElementById('settingsOfflinePinRow'),status=document.getElementById('settingsOfflinePinStatus'),button=document.getElementById('settingsOfflinePinButton');
+        if(!row||!status||!button)return;
+        const active=Boolean(window.rudiOfflinePin?.has(currentActor));
+        status.textContent=active?'Готов к работе без интернета (30 дней)':'Не настроен на этом iPhone';
+        button.textContent=active?'Обновить PIN':'Настроить';
+        button.disabled=Boolean(window.rudiOfflinePin?.isOffline());
+      }
 
       function refreshSettingsPageUi(){
         updateSettingsPlatform149();
         updateSettingsVersion();
         updatePwaInstallUi();
         updateSettingsFaceIdUi();
+        setupOfflinePinSettings();
         updateSettingsFaceIdIntervalUi();
         refreshSecuritySessions();
         setupExtendedSettings();
@@ -11842,12 +11897,16 @@
             if(!/^\d{6}$/.test(value)){status.textContent='Введи PIN из 6 цифр.';return;}
             working=true;pinSubmit.disabled=true;status.textContent='Проверяю PIN…';
             try{
-              const response=await browserAuthRequest('login',{actor:lockedActor,pin:value});
-              if(String(response.actor||'')!==lockedActor)throw new Error('rudi-actor-mismatch');
+              if(window.rudiOfflinePin?.isOffline()){
+                await window.rudiOfflinePin.verify(lockedActor,value);
+              }else{
+                const response=await browserAuthRequest('login',{actor:lockedActor,pin:value});
+                if(String(response.actor||'')!==lockedActor)throw new Error('rudi-actor-mismatch');
+              }
               done();
             }catch(error){
               const message=String(error?.message||'');
-              status.textContent=message==='rudi-pin-rate-limited'
+              status.textContent=(message==='rudi-pin-rate-limited'||message==='offline-pin-locked')
                 ?'Слишком много попыток. Попробуй позже.'
                 :message==='rudi-pin-not-configured'
                   ?'PIN ещё не создан. Открой Руди через Telegram и создай PIN.'
@@ -11864,9 +11923,57 @@
             status.textContent='Face ID недоступен в этом браузере. Войди по резервному PIN Руди; для подключения Face ID открой Руди в Safari на iPhone.';
           }else prepare();
         });
+      // Offline iPhone access never accepts an identity without local PIN verification.
+      function showIphoneOfflinePinUnlock(){
+        return new Promise(resolve=>{
+          const actor=iphoneFaceIdActor(),verifier=window.rudiOfflinePin;
+          const available=Boolean(verifier?.has(actor));
+          setAuthGate('Вход без интернета',available
+            ?'Введи 6-значный PIN. Он проверяется на iPhone без сервера.'
+            :'PIN для офлайн-входа ещё не настроен. Подключи интернет и открой Настройки → Безопасность.');
+          const form=document.createElement('form');form.className='rudi-auth-form';
+          const status=document.createElement('div');status.className='rudi-auth-status';
+          const button=document.createElement('button');button.className='rudi-auth-submit';button.type='submit';
+          button.textContent=available?'Войти по PIN':'Повторить подключение';
+          const pin=available?pinInputNode():null;
+          if(pin)form.append(pin);
+          form.append(button,status);
+          document.querySelector('.app-gate-card')?.appendChild(form);
+          let busy=false;
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();if(busy)return;
+            if(!available){
+              if(navigator.onLine===false){status.textContent='Чтобы включить офлайн-вход, один раз нужен интернет.';return;}
+              delete document.body.dataset.offlineMode;
+              clearAuthGateForm();resolve(false);return;
+            }
+            const value=String(pin.value||'');
+            if(!/^\d{6}$/.test(value)){status.textContent='Введи PIN из 6 цифр.';return;}
+            busy=true;pin.disabled=true;button.disabled=true;status.textContent='Проверяю PIN…';
+            try{
+              await verifier.verify(actor,value);
+              grantIphoneFaceIdWindow(actor);
+              clearAuthGateForm();
+              document.body.classList.remove('auth-login');
+              document.body.classList.add('auth-pending');
+              resolve(true);
+            }catch(error){
+              const code=String(error?.message||'');
+              status.textContent=code==='offline-pin-locked'?'Слишком много попыток. Попробуй позже.':
+                code==='offline-pin-not-configured'?'Офлайн-PIN нужно настроить с интернетом.':'Неверный PIN.';
+              pin.value='';pin.disabled=false;button.disabled=false;pin.focus();
+            }finally{busy=false;}
+          });
+          pin?.focus();
+        });
+      }
       }
       async function ensureIphoneFaceIdAccess(){
         if(!isProtectedIphoneAccount()||iphoneFaceIdDeadline())return true;
+          if(window.rudiOfflinePin?.isOffline()){
+            await showIphoneOfflinePinUnlock();
+            continue;
+          }
         while(!iphoneFaceIdDeadline()){
           if(!passkeySupported()){
             // No WebAuthn on this iPhone browser: require a verified Rustam PIN
@@ -11876,7 +11983,15 @@
           }
           let configured;
           try{configured=Boolean((await passkeyRequest('status')).configured)}
-          catch(error){await showIphoneFaceIdErrorRetry(error);continue;}
+          catch(error){
+            const isNetworkError=['AbortError','TypeError'].includes(String(error?.name||''))||
+              /network|fetch|load failed|timeout|aborted/i.test(String(error?.message||''));
+            if(isNetworkError){
+              document.body.dataset.offlineMode='1';
+              await showIphoneOfflinePinUnlock();
+            }else await showIphoneFaceIdErrorRetry(error);
+            continue;
+          }
           if(!configured){
             await showFaceIdSetup({mandatory:true});
             continue;
@@ -11960,6 +12075,14 @@
           error.status=response.status;
           throw error;
         }
+        // A verifier is enrolled only after successful online server validation.
+        const pinActor=String(data.actor||currentActor||'');
+        const verifiedPin=operation==='login'?payload.pin:operation==='create-pin'?payload.pin:operation==='change-pin'?payload.newPin:'';
+        if(['Рустам','Диана'].includes(pinActor)&&verifiedPin&&/iPhone/i.test(String(navigator?.userAgent||''))){
+          try{await window.rudiOfflinePin?.enroll(pinActor,verifiedPin)}
+          catch(error){console.warn('RUDI_OFFLINE_PIN_ENROLL_WARN',String(error?.message||error))}
+        }
+        if(operation==='status'&&data.pinConfigured===false&&currentActor)window.rudiOfflinePin?.forget(currentActor);
         if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
         return data;
       }
@@ -12833,6 +12956,7 @@
               .catch(error=>console.warn('RUDI_PUSH_RESYNC_WARN',String(error?.message||error)));
           },0);
         }
+        if(isProtectedIphoneAccount()&&window.rudiOfflinePin?.isOffline())clearIphoneFaceIdWindow();
         if(telegramInitData()) await ensureTelegramPin();
         if(isProtectedIphoneAccount())await ensureIphoneFaceIdAccess();
         appAccessReady=true;
