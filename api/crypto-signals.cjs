@@ -149,7 +149,7 @@ function parseSignal(row){
   const complete=Boolean(entry&&(take||stop));
   const {market,marketSource}=marketFromText(text,direction);
   return {id:row.id,at:row.at,url:row.url,symbol:ticker,exchange:'bybit',market,marketSource,
-    direction,entry,take,stop,leverage,marginModeReported:parseMarginMode(text),marginSource:parseMarginMode(text)?'signal':'unspecified',conditional,qualified:complete&&!conditional&&market!=='unconfirmed',paperEligible:!conditional&&market!=='unconfirmed',
+    direction,entry,authorEntry:entry,take,stop,leverage,marginModeReported:parseMarginMode(text),marginSource:parseMarginMode(text)?'signal':'unspecified',conditional,qualified:complete&&!conditional&&market!=='unconfirmed',paperEligible:!conditional&&market!=='unconfirmed',
     status:conditional?'conditional':complete?'awaiting-market':'insufficient-levels',
     excerpt:text.slice(0,400),authorClaim:null};
 }
