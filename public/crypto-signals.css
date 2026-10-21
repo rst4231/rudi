@@ -67,3 +67,16 @@
 .crypto-signals-help{overflow-wrap:anywhere}
 @media(min-width:620px){.crypto-signals-riskgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:359px){.crypto-signals-item{font-size:11px;padding:9px}.crypto-signals-riskgrid strong{font-size:14px}}
+
+/* Real exchange controls share the existing scanner layout. */
+.crypto-live-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0}
+.crypto-live-field{display:grid;gap:6px;min-width:0;font-size:12px;color:var(--muted,#aeb0bb)}
+.crypto-live-field input,.crypto-live-field select{box-sizing:border-box;width:100%;min-width:0;max-width:100%;font:inherit;font-size:16px;color:var(--text,#ececf5);background:var(--card,#1c1d28);border:1px solid rgba(170,170,200,.24);border-radius:10px;padding:11px}
+.crypto-live-consent{display:flex;align-items:flex-start;gap:8px;margin:13px 0;font-size:12px;line-height:1.5;color:var(--muted,#aeb0bb)}
+.crypto-live-consent[hidden]{display:none}.crypto-live-consent input{margin-top:3px;flex-shrink:0}
+.crypto-live-actions{display:flex;gap:9px;flex-wrap:wrap;margin:12px 0}
+.crypto-live-actions button{min-height:42px;white-space:normal;text-align:center}
+.crypto-live-archive{border:1px solid rgba(170,170,200,.2);padding:13px;border-radius:15px;margin:17px 0}
+.crypto-live-archive>summary,.crypto-live-controls summary,.crypto-live-extra summary{cursor:pointer;font-size:13px;color:var(--muted,#bcb4d0)}
+.crypto-live-controls details{margin:12px 0}.crypto-live-extra{margin:12px 0}
+@media(max-width:359px){.crypto-live-grid{grid-template-columns:minmax(0,1fr)}}

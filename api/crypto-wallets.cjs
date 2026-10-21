@@ -6,6 +6,8 @@ const { readFinanceState, syncLinkedWalletBalance } = require('./finance-store.c
 const { readMarketTicker } = require('./market-ticker.cjs');
 const { readLpPositions } = require('./uniswap-lp.cjs');
 const bybitHoldings=require('./bybit-holdings.cjs');
+const pionexHoldings=require('./pionex-holdings.cjs');
+const gateHoldings=require('./gate-holdings.cjs');
 const balanceHistory=require('./crypto-balance-history.cjs');
 const cryptoOperations=require('./crypto-operations.cjs');
 const trustChains=require('./crypto-trust-chains.cjs');
@@ -278,16 +280,22 @@ async function connect(actor, input = {}, options = {}) {
   owner(actor);
   const walletId = String(input.walletId || '').trim();
   const provider = String(input.provider || '').toLowerCase();
-  if (!walletId || walletId.length > 100 || !['bybit', 'uniswap', 'trust'].includes(provider)) throw new Error('crypto-input-invalid');
+  if (!walletId || walletId.length > 100 || !['bybit', 'pionex', 'gate', 'uniswap', 'trust'].includes(provider)) throw new Error('crypto-input-invalid');
   await assertWallet(walletId, options);
   let secret = '', address = '', chain = 'ethereum';
-  if (provider === 'bybit') {
+  if (['bybit','pionex','gate'].includes(provider)) {
     const apiKey = String(input.apiKey || '').trim(), apiSecret = String(input.apiSecret || '').trim();
     if (!/^[\w-]{8,150}$/.test(apiKey) || !/^[\w-]{8,200}$/.test(apiSecret)) throw new Error('crypto-credentials-invalid');
-    const details = await bybitGet('/v5/user/query-api', {}, { apiKey, apiSecret }, options);
-    if (Number(details.readOnly) !== 1) throw new Error('crypto-bybit-readonly-required');
-    // Validate wallet read access before persisting anything.
-    await bybitSnapshot({ apiKey, apiSecret }, options);
+    if(provider==='gate'){
+      await gateHoldings.snapshot({apiKey,apiSecret},options);
+    }else if(provider==='pionex'){
+      await pionexHoldings.snapshot({apiKey,apiSecret},{marketRates,options});
+    }else{
+      const details = await bybitGet('/v5/user/query-api', {}, { apiKey, apiSecret }, options);
+      if (Number(details.readOnly) !== 1) throw new Error('crypto-bybit-readonly-required');
+      // Validate wallet read access before persisting anything.
+      await bybitSnapshot({ apiKey, apiSecret }, options);
+    }
     secret = encryptSecret(apiKey, apiSecret);
   } else {
     if(provider==='trust'){
@@ -393,6 +401,10 @@ async function refresh(actor, options = {}) {
         const wallet = await assertWallet(id, limited);
         const snapshot = connection.provider === 'bybit'
           ? await bybitSnapshot(decryptSecret(connection.secret),limited)
+          : connection.provider==='gate'
+            ? await gateHoldings.snapshot(decryptSecret(connection.secret),limited)
+          : connection.provider==='pionex'
+            ? await pionexHoldings.snapshot(decryptSecret(connection.secret),{marketRates,options:limited})
           : connection.provider==='trust'
             ? await trustChains.snapshot(connection.address,connection.chain||'ethereum',limited,
                 {rpc,networkOf,unitAmount})
@@ -468,7 +480,7 @@ async function operations(actor,walletId,options={}) {
   const peers=[];
   entries.forEach(([key,row],index)=>{
     if(key!==id&&reports[index].status==='fulfilled')
-      peers.push({walletId:key,name:row.provider==='bybit'?'Bybit':row.provider==='trust'?'Trust Wallet':'Uniswap',
+      peers.push({walletId:key,name:row.provider==='bybit'?'Bybit':row.provider==='pionex'?'Pionex':row.provider==='trust'?'Trust Wallet':'Uniswap',
         items:reports[index].value.items});
   });
   return cryptoOperations.linkTransfers({...report.value,walletId:id},peers);

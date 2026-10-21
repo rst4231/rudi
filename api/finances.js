@@ -15,6 +15,7 @@ const {calculatePnl24h}=require('./crypto-pnl.cjs');
 const {readSignals,refreshSignals}=require('./crypto-signals.cjs');
 const virtualSignals=require('./crypto-virtual.cjs');
 const cryptoAlgorithms=require('./crypto-algorithms.cjs');
+const cryptoLive=require('./crypto-live.cjs');
 const { createHash } = require('node:crypto');
 function cryptoAssignmentKey(walletId,row){
   if(row?.paired&&row?.peerWalletId&&row?.peerOperationId){
@@ -65,10 +66,16 @@ function statusFor(code, error) {
   if (code === 'finance-literacy-explanation-unavailable') return 503;
   if (code === 'finance-owner-only') return 403;
   if (code === 'crypto-owner-only') return 403;
+  if (/^live-(scheduler-stale|exchange-unavailable|rate-limited|access-blocked|service-unavailable|source-stale)$/.test(code)) return 503;
+  if(code.startsWith('live-')) return 400;
   if (code === 'crypto-wallet-not-found') return 404;
   if (['crypto-bybit-readonly-required','crypto-bybit-key-invalid',
     'crypto-bybit-sign-invalid','crypto-bybit-ip-mismatch','crypto-bybit-permission-denied',
     'crypto-bybit-time-invalid'].includes(code)) return 400;
+  if (/^crypto-pionex-(key-invalid|sign-invalid|ip-mismatch|permission-denied|time-invalid)$/.test(code)) return 400;
+  if (/^crypto-gate-(key-invalid|permission-denied)$/.test(code)) return 400;
+  if (code.startsWith('crypto-gate-')) return 503;
+  if (code.startsWith('crypto-pionex-')) return 503;
   if (code.startsWith('crypto-provider-') || code.startsWith('crypto-bybit-') || code.startsWith('crypto-rpc-') || code.startsWith('crypto-price-')) return 503;
   if (code.startsWith('crypto-')) return 400;
   if (code.startsWith('market-ticker-unavailable')) return 503;
@@ -150,6 +157,7 @@ function categorySummary(view, month) {
 }
 async function handler(req, res) {
   res.setHeader?.('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+  if(req.query?.liveCron==='1')return require('./crypto-live-cron.cjs')(req,res);
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
   try {
     const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
@@ -158,6 +166,23 @@ async function handler(req, res) {
 
     if (operation.startsWith('crypto-')) {
       if (actor !== 'Рустам') throw new Error('crypto-owner-only');
+      if (operation === 'crypto-live-report') {
+        return res.status(200).json({ok:true,...await cryptoLive.report(actor,{refreshBalances:true})});
+      }
+      if (operation === 'crypto-live-connect') {
+        const account=await cryptoLive.connect(actor,body);
+        return res.status(200).json({ok:true,account});
+      }
+      if (operation === 'crypto-live-configure') {
+        const account=await cryptoLive.configure(actor,body);
+        return res.status(200).json({ok:true,account});
+      }
+      if (operation === 'crypto-live-pause' || operation === 'crypto-live-disconnect' || operation === 'crypto-live-close') {
+        if(operation==='crypto-live-pause')await cryptoLive.pause(actor,body.provider);
+        else if(operation==='crypto-live-disconnect')await cryptoLive.disconnect(actor,body.provider);
+        else await cryptoLive.requestClose(actor,body.provider);
+        return res.status(200).json({ok:true});
+      }
       if (operation === 'crypto-list') {
         return res.status(200).json({ ok: true, actor, connections: await cryptoWallets.list(actor) });
       }
@@ -186,23 +211,24 @@ async function handler(req, res) {
         return res.status(200).json({ok:true,actor,...result});
       }
       if (operation === 'crypto-signal-report') {
-        const [signals,config]=await Promise.all([readSignals(),virtualSignals.settings()]);
-        const paper=virtualSignals.simulateVirtual(signals.signals,config);
-        return res.status(200).json({ok:true,actor,signals,paper});
+        const [signals,config,live]=await Promise.all([readSignals(),virtualSignals.settings(),cryptoLive.report(actor,{refreshBalances:true})]);
+        const paper=await cryptoLive.archivePaper(signals,config);
+        return res.status(200).json({ok:true,actor,signals,paper,live});
       }
       if (operation === 'crypto-signal-sync') {
         // An owner-initiated bounded first sync can bootstrap the page even if
         // GitHub's best-effort scheduled workflow has not fired yet.
         const config=await virtualSignals.settings();
         const signals=await refreshSignals({maxBackfillPages:1,maxChecks:2});
-        return res.status(200).json({ok:true,actor,signals,
-          paper:virtualSignals.simulateVirtual(signals.signals,config)});
+        const live=await cryptoLive.report(actor,{refreshBalances:true});
+        return res.status(200).json({ok:true,actor,signals,live,
+          paper:await cryptoLive.archivePaper(signals,config)});
       }
       if (operation === 'crypto-signal-settings') {
         const config=await virtualSignals.updateSettings(body);
         const signals=await readSignals();
         return res.status(200).json({ok:true,actor,config,
-          paper:virtualSignals.simulateVirtual(signals.signals,config)});
+          paper:await cryptoLive.archivePaper(signals,config)});
       }
       if (operation === 'crypto-history') {
         const result=await cryptoWallets.history(actor,

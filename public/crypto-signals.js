@@ -57,7 +57,7 @@ function chart(paper){
   svg.append(label);
 }
 function render(data){
-  if(!data)return;current=data;const s=data.signals||{},p=data.paper||{},stats=p.stats||{};
+  if(!data)return;current=data;window.RudiCryptoLive?.render(data.live);const s=data.signals||{},p=data.paper||{},stats=p.stats||{};
   const pending=Number(stats.authorClosedUnpriced||0),partial=p.totalPnlUsd===null;
   const equity=p.equityUsd??p.accountedEquityUsd,pnlValue=p.totalPnlUsd??p.knownPnlUsd;
   const equityLabel=$('cryptoVirtualEquityLabel');if(equityLabel)equityLabel.textContent=partial?'Баланс без уточняемого PNL':'Виртуальный баланс';
@@ -154,6 +154,7 @@ function render(data){
     if(!signals.children.length)signals.textContent='В доступной истории пока нет подтверждённых сигналов.';
   }
   const sv=$('cryptoSignalSummary');if(sv)sv.textContent=(s.stats?.total||0)+' сигналов · '+(s.stats?.verified||0)+' проверено · '+(s.messagesCount||0)+' сообщений';
+  const feedStatus=$('cryptoSignalsFeedStatus');if(feedStatus)feedStatus.textContent=s.sourceError?'Telegram временно недоступен. Показаны сохранённые сигналы.':s.updatedAt?'Сигналы обновлены '+new Date(s.updatedAt).toLocaleString('ru-RU'): 'Сигналы ещё не загружены.';
   const count=$('cryptoVirtualPositionsCount');if(count)count.textContent=(stats.total||0)+' виртуальных сделок';
   const updated=$('cryptoSignalsUpdated');if(updated)updated.textContent=s.updatedAt?
     'Синхр. '+new Date(s.updatedAt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Ещё не синхронизировано';
@@ -178,7 +179,7 @@ function render(data){
 }
 async function load(){
   if(loading)return;loading=true;
-  const status=$('cryptoSignalsStatus'),button=$('cryptoSignalsRefresh');
+  const status=$('cryptoSignalsFeedStatus'),button=$('cryptoSignalsRefresh');
   if(button)button.disabled=true;
   if(status&&!current)status.textContent='Получаю сигналы и виртуальный портфель…';
   try{
@@ -199,6 +200,7 @@ function show(open){
   if(open)void load();
 }
 function boot(){
+  document.addEventListener?.('rudi-crypto-live-refresh',()=>void load());
   $('financeCryptoSignalsOpen')?.addEventListener('click',()=>show(true));
   $('financeCryptoSignalsBack')?.addEventListener('click',()=>show(false));
   $('cryptoSignalsRefresh')?.addEventListener('click',async()=>{

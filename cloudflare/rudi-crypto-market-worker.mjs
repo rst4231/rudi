@@ -262,17 +262,41 @@ async function scheduledRun(env){
   catch(error){console.error('RUDI_CRYPTO_STATUS_WRITE_ERROR',String(error?.message||error));}
   return status;
 }
+async function scheduledLiveRun(env){
+  // No exchange credentials leave D1. Without connected accounts there is no
+  // reason to invoke Vercel every minute. The first tick after connection also
+  // confirms the heartbeat required before the user can activate trading.
+  const connected=await env.MARKET_DB.prepare(
+    "SELECT 1 AS connected FROM rudi_state WHERE namespace='rudi-crypto-live-config-v1' "+
+    "AND json_extract(value,'$.secret') IS NOT NULL LIMIT 1"
+  ).first();
+  if(!connected)return;
+  const status={at:new Date().toISOString(),ok:false};
+  try{
+    const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-live-cron',{
+      headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json'},
+      redirect:'error',signal:AbortSignal.timeout(55000)});
+    const payload=await response.json().catch(()=>null);
+    status.httpStatus=response.status;
+    status.ok=Boolean(response.ok&&payload?.ok);
+    if(!status.ok)status.error='rudi-live-http-'+response.status;
+  }catch(_){status.error='rudi-live-unavailable';}
+  await persist(env,'__live_cron_status',JSON.stringify(status));
+  if(!status.ok)console.warn('RUDI_CRYPTO_LIVE_WARN',status.error);
+  return status;
+}
 export default {
   async fetch(req,env){
     const u=new URL(req.url);
     if(u.pathname==='/health'){
-      let last=null;
-      try{if(env.MARKET_DB)last=await cachedRow(env,'__cron_status');}
+      let last=null,live=null;
+      try{if(env.MARKET_DB)[last,live]=await Promise.all([cachedRow(env,'__cron_status'),cachedRow(env,'__live_cron_status')]);}
       catch(error){console.warn('RUDI_CRYPTO_HEALTH_READ_WARN',String(error?.message||error));}
       let stat=null;try{stat=JSON.parse(last?.body||'null')}catch{}
+      let liveStat=null;try{liveStat=JSON.parse(live?.body||'null')}catch{}
       return Response.json({ok:true,service:'rudi-crypto-market',
         source:'Bybit',database:Boolean(env.MARKET_DB),scheduled:Boolean(env.CRON_SECRET),
-        lastRun:stat},{headers:{'cache-control':'no-store'}});
+        lastRun:stat,liveLastRun:liveStat},{headers:{'cache-control':'no-store'}});
     }
     if(req.method!=='GET')return new Response('method-not-allowed',{status:405});
     const path=verifiedMarketPath(req.url);
@@ -282,7 +306,8 @@ export default {
   },
   async scheduled(event,env,ctx){
     if(!env.CRON_SECRET||!env.MARKET_DB){console.error('RUDI_CRYPTO_BINDINGS_MISSING');return;}
-    try{await scheduledRun(env);}
-    catch(error){console.error('RUDI_CRYPTO_SCHEDULE_ERROR',String(error?.message||error));}
+    const outcomes=await Promise.allSettled([scheduledRun(env),scheduledLiveRun(env)]);
+    for(const outcome of outcomes)if(outcome.status==='rejected')
+      console.error('RUDI_CRYPTO_SCHEDULE_ERROR',String(outcome.reason?.message||outcome.reason));
   }
 };

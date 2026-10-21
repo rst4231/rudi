@@ -164,6 +164,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/crypto-live-cron",
+      "destination": "/api/finances?liveCron=1"
+    },
+    {
       "source": "/api/meditation",
       "destination": "/api/index?route=meditation"
     },
