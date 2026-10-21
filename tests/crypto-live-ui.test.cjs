@@ -73,7 +73,7 @@ test('unverified Pionex shows account warning without claiming there are zero po
 test('Passphrase remains hidden and OKX is unavailable from Artemyev scanner UI',()=>{
  const css=require('node:fs').readFileSync('public/crypto-signals.css','utf8');
  const html=require('node:fs').readFileSync('public/index.html','utf8');
- assert.match(css,/\\.crypto-live-field\\[hidden\\]\\s*\\{\\s*display\\s*:\\s*none/);
+ assert.ok(css.includes('.crypto-live-field[hidden]{display:none}'));
  assert.doesNotMatch(html,/<option value="okx"/);
  const b=browser();b.window.RudiCryptoLive.render(b.data);
  assert.equal(b.nodes.get('cryptoLivePassphraseField').hidden,true);
