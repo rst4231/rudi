@@ -25,7 +25,7 @@ const errors={
  'live-exchange-unavailable':'Биржа временно недоступна. Последние данные сохранены.',
  'live-not-connected':'Сначала подключи API выбранной биржи.',
  'live-risk-invalid':'Укажи положительные суммы, плечо 1–5, максимум 1–5 позиций и отклонение 0,05–2%. Общий лимит должен покрывать сделку.',
- 'live-scheduler-stale':'Планировщик не подтверждён. Дождись его проверки; без неё торговля не включается.',
+ 'live-scheduler-stale':'Серверный планировщик не подтверждает работу. Торговля заблокирована для безопасности. Это проблема RUDI, не твоих настроек.',
  'live-consent-required':'Отметь включение реальных сделок после проверки лимитов.',
  'live-programmatic-consent':'Подтверди программный контроль стопа и тейка на Pionex.',
  'live-review-required':'Нужна проверка незавершённого ордера или изменённой позиции. Новые входы приостановлены.',
@@ -89,7 +89,19 @@ function render(data){
  $('cryptoLiveUpdated').textContent=s?.at?'Данные '+new Date(s.at).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Подключи биржу';
  if(!dirty){for(const [key,id] of Object.entries(fields))$(id).value=String(a?.settings?.[key]??({leverage:1,maxOpen:1,slippagePct:0.5}[key]??''));$('cryptoLiveProgrammatic').checked=a?.programmaticStops===true;}
  const status=$('cryptoLiveStatus');status.textContent=s?.error?label(s.error):s?.message?label(s.message):'';
- if(a?.connected&&!data.scheduler?.healthy)status.textContent+=(status.textContent?' ':'')+'Планировщик ещё не подтверждён. Включение новых входов недоступно.';
+ const preflight=$('cryptoLivePreflight');
+ if(preflight){
+  const blockers=[];
+  if(!a?.connected)blockers.push('биржа не подключена');
+  else if(s?.verified!==true)blockers.push('баланс и позиции не подтверждены биржей');
+  if(a?.connected&&!data.scheduler?.healthy){
+   const last=data.scheduler?.lastAt;
+   blockers.push(last&&Number.isFinite(Date.parse(last))?'нет свежего запуска планировщика, последний: '+new Date(last).toLocaleString('ru-RU'):'планировщик ни разу не подтвердил запуск');
+  }
+  if((data.trades||[]).some(t=>t.provider===p&&['unknown','submitted','attention'].includes(t.state)))blockers.push('есть сделки, требующие проверки');
+  preflight.textContent=blockers.length?'Включение заблокировано: '+blockers.join('; ')+'.':'API и планировщик подтверждены. Проверь лимиты перед включением.';
+ }
+ if(a?.connected&&!data.scheduler?.healthy)status.textContent+=(status.textContent?' ':'')+label('live-scheduler-stale');
  const root=$('cryptoLivePositions');root.replaceChildren();
  for(const pos of positions)root.append(row(pos.symbol+' · '+(pos.side==='Buy'?'Лонг':'Шорт'),'Объём '+pos.qty+' · вход '+pos.avgPrice+' · цена '+pos.markPrice,money(pos.unrealizedPnl)+' USDT'));
  if(s?.verified===false)root.textContent='Позиции не подтверждены биржей. Новые сделки заблокированы.';
@@ -111,15 +123,18 @@ async function action(operation,values={},success='Сохранено'){
  const connect=operation==='crypto-live-connect';
  if(busy)return false;
  busy=true;
- const button=connect?$('cryptoLiveConnect'):null;
- if(button){button.disabled=true;button.textContent='Проверяю API…';}
+ const button=connect?$('cryptoLiveConnect'):operation==='crypto-live-configure'&&values.enabled?$('cryptoLiveStart'):null;
+ const originalLabel=button?.textContent;
+ if(button){button.disabled=true;button.textContent=connect?'Проверяю API…':'Проверяю условия…';}
  if(connect)showStatus('Проверяю ключи на бирже. Это может занять до 30 секунд…',true);
+ else if(operation==='crypto-live-configure'&&values.enabled)showStatus('Проверяю биржу и серверный планировщик. Торговля пока не включена.');
  let accepted=false;
  try{
   await request(operation,{provider:selected(),...values});accepted=true;dirty=false;
   if(connect){clearKeys();showStatus('API подключён. Загружаю баланс…',true);}
   const data=await request('crypto-live-report');render(data);
   const connected=data.accounts?.find(a=>a.provider===selected());
+  if(operation==='crypto-live-configure'&&values.enabled&&connected?.enabled!==true){showStatus('Сервер не подтвердил запуск реальных сделок. Проверь статус планировщика.');return false;}
   showStatus(connect&&connected?.status?.verified===false?label('live-account-unverified'):success,connect);
   return true;
  }catch(e){
@@ -127,7 +142,7 @@ async function action(operation,values={},success='Сохранено'){
   return accepted&&connect;
  }finally{
   busy=false;
-  if(button){button.disabled=false;button.textContent='Подключить API';}
+  if(button){button.disabled=false;button.textContent=originalLabel;}
  }
 }
 function settings(){return Object.fromEntries(Object.entries(fields).map(([key,id])=>[key,Number($(id).value)]));}
