@@ -5,7 +5,7 @@ function fixture(){
  const records=new Map();
  const client={getRecord:async(ns,key)=>records.get(ns+':'+key)||null,setRecord:async r=>records.set(r.namespace+':'+r.key,{key:r.key,value:structuredClone(r.value),expires_at:r.expires_at}),list:async ns=>[...records.entries()].filter(([k,r])=>k.startsWith(ns+':')&&(!r.expires_at||Date.parse(r.expires_at)>now)).map(([,r])=>structuredClone(r)),
  setIfAbsent:async(ns,key,value,opts={})=>{const k=ns+':'+key,r=records.get(k);if(r&&(!r.expires_at||Date.parse(r.expires_at)>now))return false;records.set(k,{key,value:structuredClone(value),expires_at:opts.expiresAt});return true;},remove:async(ns,key)=>records.delete(ns+':'+key)};
- const exchange={inspect:async()=>({equity:1000,available:1000,positions:[]}),balance:async()=>({equity:1000,available:1000}),positions:async()=>positions,instrument:async()=>({qtyStep:'0.001',minQty:'0.001',maxQty:100,minNotional:5,priceStep:'0.1',maxLeverage:5,contractValue:1}),price:async()=>100,leverage:async()=>{},protect:async()=>({native:true}),
+ const exchange={inspect:async()=>({equity:1000,available:1000,positions:[],verified:true}),balance:async()=>({equity:1000,available:1000}),positions:async()=>positions,instrument:async()=>({qtyStep:'0.001',minQty:'0.001',maxQty:100,minNotional:5,priceStep:'0.1',maxLeverage:5,contractValue:1}),price:async()=>100,leverage:async()=>{},protect:async()=>({native:true}),
  place:async o=>{orders.push(o);if(!o.reduceOnly)positions=[{symbol:o.symbol,qty:Number(o.qty),side:o.side,avgPrice:100,markPrice:100,unrealizedPnl:0,positionId:'managed-position',positionOpenedAt:new Date(now).toISOString()}];else positions=[];if(lost)throw Error('live-order-unknown');return {orderId:'order-'+orders.length};},
  findOrder:async(s,id)=>{const o=orders.find(o=>o.clientId===id);return o?{orderId:'order-1',clientId:id,filledQty:Number(o.qty),avgPrice:100,closed:true,fee:0.01}:null;}};
  const {createLiveService}=require('../api/crypto-live.cjs');
@@ -112,4 +112,18 @@ test('pause cannot be overwritten by a configuration write already in flight',as
 test('legacy virtual archive is frozen and survives a later empty rolling feed',async()=>{
  const f=fixture();const paper=await f.service.archivePaper({signals:[{id:1,at:'2026-10-20T10:00:00Z',market:'linear',symbol:'BTC',direction:'long',entry:100,take:110,stop:90,qualified:true}]},{initialUsd:10000});
  const later=await f.service.archivePaper({signals:[]},{initialUsd:20000});assert.deepEqual(later,paper);
+});
+
+test('Pionex connection persists a validated key but cannot start real trading if balances or positions remain unverified',async()=>{
+ const f=fixture();
+ f.exchange.inspect=async()=>({equity:null,available:null,positions:[],verified:false,error:'live-account-unverified'});
+ const account=await f.service.connect('Рустам',{...input,provider:'pionex'});
+ assert.equal(account.connected,true);
+ assert.equal(account.enabled,false);
+ assert.ok(f.records.has('rudi-crypto-live-config-v1:pionex'));
+ const report=await f.service.report('Рустам');
+ assert.equal(report.accounts.find(a=>a.provider==='pionex').status.verified,false);
+ await f.service.run({scheduled:true});
+ await assert.rejects(()=>f.service.configure('Рустам',{provider:'pionex',...limits,enabled:true,tradeConsent:true,programmaticStops:true}),{message:'live-account-unverified'});
+ assert.equal(f.orders.length,0);
 });
