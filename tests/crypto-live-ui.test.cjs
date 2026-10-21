@@ -4,7 +4,7 @@ function browser(fetchHandler){
  const nodes=new Map(),events={};
  function element(){return {value:'',hidden:false,textContent:'',checked:false,disabled:false,dataset:{},children:[],listeners:{},classList:{values:new Set(),add(x){this.values.add(x)},remove(x){this.values.delete(x)},toggle(x,enabled){if(enabled)this.values.add(x);else this.values.delete(x)},contains(x){return this.values.has(x)}},setAttribute(){},append(...xs){this.children.push(...xs);},replaceChildren(...xs){this.children=xs;},addEventListener(k,fn){this.listeners[k]=fn;}};}
  const html=fs.readFileSync('public/index.html','utf8');for(const m of html.matchAll(/id="(cryptoLive[^"]*)"/g))nodes.set(m[1],element());
- nodes.get('cryptoLiveProvider').value='pionex';let requests=[];
+ nodes.get('cryptoLiveProvider').value='pionex';nodes.get('cryptoLiveConnect').textContent='Подключить API';nodes.get('cryptoLiveStart').textContent='Включить торговлю';let requests=[];
  const document={readyState:'complete',getElementById:id=>nodes.get(id)||null,createElement:element,querySelectorAll:()=>[],addEventListener:(k,f)=>events[k]=f,dispatchEvent(){},activeElement:null};
  const window={addEventListener(){},Telegram:{WebApp:{initData:'test-auth'}}};
  const data={accounts:[{provider:'pionex',connected:true,enabled:false,settings:{},status:{equity:321.5,available:200,positions:[],at:new Date().toISOString()}}],trades:[],scheduler:{healthy:true}};
