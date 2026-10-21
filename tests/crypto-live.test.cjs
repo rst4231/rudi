@@ -139,3 +139,58 @@ test('real minute scheduler heartbeat stays fast when API is connected but tradi
  assert.equal(report.accounts.find(a=>a.provider==='pionex').enabled,false);
  assert.equal(f.orders.length,0);
 });
+
+test('Pionex author entry without a quoted price, stop or take opens MARKET_QTY and does not auto-stop',async()=>{
+ const f=fixture(),signal=await start(f,'pionex');
+ signal.entry=null;signal.authorEntry=null;signal.stop=null;signal.take=null;
+ f.setSignals([signal]);f.advance(90000);
+ await f.service.run({scheduled:true});
+ const entry=f.orders.filter(o=>!o.reduceOnly);
+ assert.equal(entry.length,1);
+ assert.equal(entry[0].price,undefined);
+ assert.equal(entry[0].stop,null);assert.equal(entry[0].take,null);
+ f.advance(65000);await f.service.run({scheduled:true});
+ assert.equal(f.orders.filter(o=>o.reduceOnly).length,0,'missing author exit is not an auto-stop');
+ const r=await f.service.report('Рустам');
+ assert.equal(r.trades[0].state,'open');
+});
+test('Pionex follows author full close at market with no protective levels and no duplicate order',async()=>{
+ const f=fixture(),signal=await start(f,'pionex');
+ signal.entry=null;signal.authorEntry=null;signal.stop=null;signal.take=null;
+ f.setSignals([signal]);f.advance(90000);await f.service.run({scheduled:true});
+ f.advance(65000);
+ signal.events=[{id:456,at:new Date(Date.parse(signal.at)+120000).toISOString(),type:'full-close'}];
+ f.setSignals([signal]);await f.service.run({scheduled:true});
+ const exits=f.orders.filter(o=>o.reduceOnly);
+ assert.equal(exits.length,1);assert.equal(exits[0].price,undefined);assert.equal(exits[0].side,'Sell');
+ f.advance(65000);await f.service.run({scheduled:true});
+ assert.equal(f.orders.filter(o=>o.reduceOnly).length,1);
+});
+test('Pionex ignores simulated entry quotes when authorEntry was not provided',async()=>{
+ const f=fixture(),signal=await start(f,'pionex');
+ signal.entry=100;signal.authorEntry=null;signal.stop=null;signal.take=null;
+ f.exchange.price=async()=>101;
+ f.setSignals([signal]);f.advance(90000);await f.service.run({scheduled:true});
+ assert.equal(f.orders.filter(o=>!o.reduceOnly).length,1);
+ assert.equal(f.orders[0].price,undefined);
+});
+test('Pionex with explicit author entry keeps bounded IOC entry',async()=>{
+ const f=fixture(),signal=await start(f,'pionex');
+ signal.authorEntry=100;signal.stop=null;signal.take=null;
+ f.setSignals([signal]);f.advance(90000);await f.service.run({scheduled:true});
+ assert.equal(f.orders.filter(o=>!o.reduceOnly).length,1);
+ assert.ok(Number(f.orders[0].price)>0);
+});
+test('Pionex blocks a new entry when author has already closed the same signal',async()=>{
+ const f=fixture(),signal=await start(f,'pionex');
+ signal.entry=null;signal.authorEntry=null;signal.stop=null;signal.take=null;
+ signal.events=[{id:777,type:'full-close',at:new Date(Date.parse(signal.at)+500).toISOString()}];
+ f.setSignals([signal]);f.advance(90000);await f.service.run({scheduled:true});
+ assert.equal(f.orders.length,0);
+});
+test('OKX still rejects entries with missing native stop or take',()=>{
+ const {eligibleSignal}=require('../api/crypto-live.cjs'),now=Date.now();
+ const s={id:44,at:new Date(now-5000).toISOString(),symbol:'BTC',market:'linear',direction:'long',entry:null,take:null,stop:null,events:[]};
+ assert.equal(eligibleSignal(s,{provider:'okx',activatedAt:new Date(now-10000).toISOString()},now),'live-protection-required');
+ assert.equal(eligibleSignal(s,{provider:'pionex',activatedAt:new Date(now-10000).toISOString()},now),'');
+});
