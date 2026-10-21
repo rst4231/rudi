@@ -73,7 +73,7 @@ function statusFor(code, error) {
     'crypto-bybit-sign-invalid','crypto-bybit-ip-mismatch','crypto-bybit-permission-denied',
     'crypto-bybit-time-invalid'].includes(code)) return 400;
   if (/^crypto-pionex-(key-invalid|sign-invalid|ip-mismatch|permission-denied|time-invalid)$/.test(code)) return 400;
-  if (/^crypto-gate-(key-invalid|permission-denied)$/.test(code)) return 400;
+  if (/^crypto-gate-(key-invalid|sign-invalid|ip-mismatch|time-invalid|permission-denied|account-locked)$/.test(code)) return 400;
   if (code.startsWith('crypto-gate-')) return 503;
   if (code.startsWith('crypto-pionex-')) return 503;
   if (code.startsWith('crypto-provider-') || code.startsWith('crypto-bybit-') || code.startsWith('crypto-rpc-') || code.startsWith('crypto-price-')) return 503;

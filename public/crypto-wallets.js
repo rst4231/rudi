@@ -65,10 +65,19 @@
       'crypto-encryption-unavailable':'На сервере не настроено шифрование ключей.',
     };
     if(code.startsWith('crypto-gate-'))return ({
-      'crypto-gate-key-invalid':'Gate не распознал API Key. Проверь ключ и Secret.',
-      'crypto-gate-permission-denied':'Включи для ключа Gate чтение Wallet. Проверь разрешённые IP.',
+      'crypto-gate-key-invalid':'Gate не распознал API Key или Secret. Проверь пару ключей.',
+      'crypto-gate-sign-invalid':'Gate отклонил подпись API. Проверь, что Key и Secret из одной пары.',
+      'crypto-gate-ip-mismatch':'Gate запретил IP сервера. Проверь IP-ограничения API-ключа.',
+      'crypto-gate-time-invalid':'Gate отклонил временную метку запроса. Это ошибка синхронизации времени сервера.',
+      'crypto-gate-permission-denied':'Gate запретил доступ. Проверь право чтения Wallet у API-ключа.',
+      'crypto-gate-account-locked':'Gate сообщает о блокировке аккаунта. Проверь статус аккаунта.',
+      'crypto-gate-request-invalid':'Gate отклонил формат API-запроса. Это ошибка интеграции RUDI.',
+      'crypto-gate-endpoint-unavailable':'Gate не нашёл API-метод баланса. Попробуй позже.',
       'crypto-gate-rate-limited':'Gate ограничил частоту запросов. Повтори через минуту.',
-      'crypto-gate-response-invalid':'Gate вернул некорректный баланс. Последнее значение сохранено.'
+      'crypto-gate-network-unavailable':'Не удалось связаться с Gate. Предыдущий баланс сохранён.',
+      'crypto-gate-response-invalid':'Gate вернул некорректный баланс. Последнее значение сохранено.',
+      'crypto-gate-api-rejected-400':'Gate вернул HTTP 400 без понятного кода причины. Проверь диагностику сервера RUDI.',
+      'crypto-gate-api-rejected':'Gate отклонил запрос. Подробность можно уточнить по журналу сервера RUDI.'
     })[code]||'Не удалось получить баланс Gate. Последнее значение сохранено.';
     return messages[code]||'Не удалось получить баланс. Проверь соединение и доступ к API. Ручной баланс не изменён.';
   };
