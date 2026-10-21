@@ -3,12 +3,12 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs');
 
 test('minute live scanner has its own protected Vercel function and no finance rewrite',()=>{
- const handler=require('../api/crypto-live-cron.js');
+ const handler=require('../api/crypto-live-runner.js');
  const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
  assert.equal(typeof handler,'function');
- assert.equal(config.functions['api/crypto-live-cron.js'].maxDuration,60);
- assert.deepEqual(config.functions['api/crypto-live-cron.js'].regions,['fra1']);
- assert.equal(config.rewrites.some(x=>x.source==='/api/crypto-live-cron'),false);
+ assert.equal(config.functions['api/crypto-live-runner.js'].maxDuration,60);
+ assert.deepEqual(config.functions['api/crypto-live-runner.js'].regions,['fra1']);
+ assert.deepEqual(config.rewrites.find(x=>x.source==='/api/crypto-live-cron'),{source:'/api/crypto-live-cron',destination:'/api/crypto-live-runner'});
 });
 test('live cron only runs with valid authorization and real GET requests',async()=>{
  const {createHandler}=require('../api/crypto-live-cron.cjs');
