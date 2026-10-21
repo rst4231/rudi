@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 function fixture(){
- let now=Date.parse('2026-10-21T10:00:00Z'),orders=[],positions=[],lost=false,source=[];
+ let now=Date.parse('2026-10-21T10:00:00Z'),orders=[],positions=[],lost=false,source=[],readCount=0;
  const records=new Map();
  const client={getRecord:async(ns,key)=>records.get(ns+':'+key)||null,setRecord:async r=>records.set(r.namespace+':'+r.key,{key:r.key,value:structuredClone(r.value),expires_at:r.expires_at}),list:async ns=>[...records.entries()].filter(([k,r])=>k.startsWith(ns+':')&&(!r.expires_at||Date.parse(r.expires_at)>now)).map(([,r])=>structuredClone(r)),
  setIfAbsent:async(ns,key,value,opts={})=>{const k=ns+':'+key,r=records.get(k);if(r&&(!r.expires_at||Date.parse(r.expires_at)>now))return false;records.set(k,{key,value:structuredClone(value),expires_at:opts.expiresAt});return true;},remove:async(ns,key)=>records.delete(ns+':'+key)};
@@ -9,8 +9,8 @@ function fixture(){
  place:async o=>{orders.push(o);if(!o.reduceOnly)positions=[{symbol:o.symbol,qty:Number(o.qty),side:o.side,avgPrice:100,markPrice:100,unrealizedPnl:0,positionId:'managed-position',positionOpenedAt:new Date(now).toISOString()}];else positions=[];if(lost)throw Error('live-order-unknown');return {orderId:'order-'+orders.length};},
  findOrder:async(s,id)=>{const o=orders.find(o=>o.clientId===id);return o?{orderId:'order-1',clientId:id,filledQty:Number(o.qty),avgPrice:100,closed:true,fee:0.01}:null;}};
  const {createLiveService}=require('../api/crypto-live.cjs');
- const service=createLiveService({client,exchangeFactory:()=>exchange,readSignals:async()=>({updatedAt:new Date(now).toISOString(),signals:source}),now:()=>now,encrypt:(k,s,p)=>JSON.stringify({k,s,p}),decrypt:s=>{const {k,s:secret,p}=JSON.parse(s);return {apiKey:k,apiSecret:secret,passphrase:p};}});
- return {service,records,client,exchange,get orders(){return orders;},setPositions:p=>positions=p.map(q=>({...positions.find(x=>x.symbol===q.symbol),...q})),setLost:v=>lost=v,setSignals:s=>source=s,advance:ms=>now+=ms,signal:()=>({id:123,at:new Date(now+1000).toISOString(),symbol:'BTC',market:'linear',direction:'long',entry:100,take:110,stop:90,qualified:true,events:[]})};
+ const service=createLiveService({client,exchangeFactory:()=>exchange,readSignals:async()=>{readCount++;return {updatedAt:new Date(now).toISOString(),signals:source};},now:()=>now,encrypt:(k,s,p)=>JSON.stringify({k,s,p}),decrypt:s=>{const {k,s:secret,p}=JSON.parse(s);return {apiKey:k,apiSecret:secret,passphrase:p};}});
+ return {service,records,client,exchange,get signalReads(){return readCount;},get orders(){return orders;},setPositions:p=>positions=p.map(q=>({...positions.find(x=>x.symbol===q.symbol),...q})),setLost:v=>lost=v,setSignals:s=>source=s,advance:ms=>now+=ms,signal:()=>({id:123,at:new Date(now+1000).toISOString(),symbol:'BTC',market:'linear',direction:'long',entry:100,take:110,stop:90,qualified:true,events:[]})};
 }
 const input={provider:'okx',apiKey:'test-key-123',apiSecret:'test-secret-123',passphrase:'test-pass'};
 const limits={marginUsd:20,marginCapUsd:100,dailyLossUsd:30,leverage:2,maxOpen:2,slippagePct:0.5};
@@ -125,5 +125,17 @@ test('Pionex connection persists a validated key but cannot start real trading i
  assert.equal(report.accounts.find(a=>a.provider==='pionex').status.verified,false);
  await f.service.run({scheduled:true});
  await assert.rejects(()=>f.service.configure('Рустам',{provider:'pionex',...limits,enabled:true,tradeConsent:true,programmaticStops:true}),{message:'live-account-unverified'});
+ assert.equal(f.orders.length,0);
+});
+
+test('real minute scheduler heartbeat stays fast when API is connected but trading disabled',async()=>{
+ const f=fixture();
+ await f.service.connect('Рустам',{...input,provider:'pionex'});
+ const result=await f.service.run({scheduled:true});
+ assert.equal(result.ok,true);assert.equal(result.idle,true);
+ assert.equal(f.signalReads,0);
+ const report=await f.service.report('Рустам');
+ assert.equal(report.scheduler.healthy,true);
+ assert.equal(report.accounts.find(a=>a.provider==='pionex').enabled,false);
  assert.equal(f.orders.length,0);
 });
