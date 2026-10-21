@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <style>html,body{background:#0b0d12;color:#f5f7fb}html{min-height:100%;color-scheme:dark}html body.auth-pending #appGate{display:none!important}html body.auth-pending .shell{opacity:1!important;visibility:visible!important;pointer-events:none!important}</style>
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.287">
+  <meta name="rudi-version" content="v4.294">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -63,7 +63,7 @@
   <link rel="stylesheet" href="/supplement-advanced.css?v=4.289">
   <link rel="stylesheet" href="/rudi-design-system.css?v=4.289">
   <link rel="stylesheet" href="/finance-cards.css?v=4.289">
-  <link rel="stylesheet" href="/crypto-signals.css?v=4.293">
+  <link rel="stylesheet" href="/crypto-signals.css?v=4.294">
   <link rel="stylesheet" href="/crypto-algorithms.css?v=4.289">
   <link rel="stylesheet" href="/recommendations.css?v=4.289">
   <script>
@@ -168,7 +168,7 @@
   <script defer src="/personal-center.js?v=4.289"></script>
   <link rel="stylesheet" href="/crypto-wallets.css?v=4.289">
   <script defer src="/crypto-wallets.js?v=4.289"></script>
-  <script defer src="/crypto-live.js?v=4.293"></script>
+  <script defer src="/crypto-live.js?v=4.294"></script>
   <script defer src="/crypto-signals.js?v=4.289"></script>
   <script defer src="/crypto-algorithms.js?v=4.289"></script>
   <script defer src="/home-reference-layout.js?v=4.289"></script>
@@ -1190,6 +1190,7 @@
             <div class="crypto-signals-row"><h4>Биржа</h4><button type="button" id="cryptoLiveRefresh" class="crypto-signals-inline">Обновить</button></div>
             <div class="crypto-live-provider-label"><span>Подключение</span><strong>Pionex</strong></div><input id="cryptoLiveProvider" type="hidden" value="pionex">
             <p id="cryptoLiveConnection" class="crypto-signals-help">Биржа не подключена</p>
+            <p class="crypto-signals-help">Подключение Pionex подтверждает чтение счёта, но не проверяет право размещать ордера. Торговое разрешение станет известно при первом реальном ордере. Пробные сделки автоматически не создаются.</p>
             <details id="cryptoLiveKeys"><summary>Подключить или изменить API</summary>
               <div class="crypto-live-grid">
                 <label class="crypto-live-field">API Key<input id="cryptoLiveApiKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="150"></label>
