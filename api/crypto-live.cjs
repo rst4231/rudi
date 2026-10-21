@@ -71,8 +71,8 @@ function createLiveService(deps={}){
   const accounts=await Promise.all(PROVIDERS.map(async p=>{
    const c=await config(p);let status=await get(META,'status-'+p);
    if(options.refreshBalances&&c.secret&&(!status?.at||now()-Date.parse(status.at)>30000)&&await client.setIfAbsent(META,'balance-lease-'+p,{at:now()},{expiresAt:new Date(now()+15000).toISOString()})){
-    try{const api=apiFor(p,c,Date.now()+14000),[balance,positions]=await Promise.all([api.balance(),api.positions()]);status={...status,...balance,positions,at:new Date(now()).toISOString(),error:''};}
-    catch(e){status={...status,error:safeError(e),at:new Date(now()).toISOString()};}
+    try{const api=apiFor(p,c,Date.now()+14000),[balance,positions]=await Promise.all([api.balance(),api.positions()]);status={...status,...balance,positions,verified:true,at:new Date(now()).toISOString(),error:''};}
+    catch(e){status={...status,verified:false,error:safeError(e),at:new Date(now()).toISOString()};}
     await put(META,'status-'+p,status);
    }
    return publicConfig(c,status);
@@ -87,13 +87,17 @@ function createLiveService(deps={}){
   if(!/^[\w-]{8,150}$/.test(apiKey)||!/^\S{8,200}$/.test(apiSecret)||(p==='okx'&&(!passphrase||passphrase.length>100||/[\r\n\x00]/.test(passphrase))))throw Error('live-key-invalid');
   const account=await exchangeFactory(p,{apiKey,apiSecret,passphrase},{deadlineAt:Date.now()+20000}).inspect();
   const c={...old,provider:p,secret:encrypt(apiKey,apiSecret,passphrase),enabled:false,connectedAt:new Date(now()).toISOString()};
-  await put(CONFIG,p,c);await put(META,'status-'+p,{...account,at:new Date(now()).toISOString(),error:'',message:'live-connected'});
+  await put(CONFIG,p,c);await put(META,'status-'+p,{...account,at:new Date(now()).toISOString(),error:account.verified===false?'live-account-unverified':'',message:account.verified===false?'':'live-connected'});
   return publicConfig(c);});
  }
  async function configure(actor,input){
   owner(actor);const p=providerOf(input.provider);return locked(p,async()=>{const c=await config(p);if(!c.secret)throw Error('live-not-connected');
   const settings=riskSettings(input);if(input.enabled===true){
    if(input.tradeConsent!==true)throw Error('live-consent-required');
+   // Never enable real entries if account balances or open exposure could not be verified.
+   const checked=await apiFor(p,c,Date.now()+18000).inspect();
+   if(checked.verified!==true)throw Error('live-account-unverified');
+   await put(META,'status-'+p,{...checked,at:new Date(now()).toISOString(),error:''});
    if(!(await scheduler()).healthy)throw Error('live-scheduler-stale');
    if(p==='pionex'&&input.programmaticStops!==true)throw Error('live-programmatic-consent');
    if((await trades()).some(t=>t.provider===p&&['unknown','submitted','attention'].includes(t.state)))throw Error('live-review-required');
