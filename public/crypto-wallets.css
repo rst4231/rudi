@@ -164,3 +164,33 @@
 .finance-crypto-history-check{opacity:.89;margin-top:2px}
 .finance-crypto-history-check:disabled{opacity:.53;cursor:wait}
 .finance-crypto-history-check-status{display:block;margin-top:5px;font-size:11px;line-height:1.5;overflow-wrap:anywhere;color:var(--muted,#aeb0bb)}
+
+
+/* RUDI crypto portfolio is always dark, independently of the global theme.
+   Scope variables and backgrounds to the crypto finance tab only. */
+body[data-app-tab="finances"][data-finance-tone="crypto"]{
+  --bg:#0b0d12;--surface:rgba(20,23,31,.96);
+  --surface-strong:#171b25;--surface-hover:#202532;
+  --text:#f5f7fb;--muted:#aab2c2;--line:rgba(255,255,255,.11);
+  --soft:rgba(255,255,255,.055);
+  background:#0b0d12!important;color:#f5f7fb;
+}
+#financePage[data-finance-tone="crypto"]{
+  color-scheme:dark;
+  --bg:#0b0d12;--surface:rgba(20,23,31,.96);
+  --surface-strong:#171b25;--surface-hover:#202532;
+  --text:#f5f7fb;--muted:#aab2c2;--line:rgba(255,255,255,.11);
+  --soft:rgba(255,255,255,.055);
+  --market-bg:#151923;--market-text:#f5f7fb;
+  --market-muted:#aab2c2;--market-line:rgba(255,255,255,.1);
+  color:#f5f7fb;background:#0b0d12;
+}
+#financePage[data-finance-tone="crypto"] .finance-tab,
+#financePage[data-finance-tone="crypto"] .finance-crypto-source-card,
+#financePage[data-finance-tone="crypto"] .finance-crypto-history,
+#financePage[data-finance-tone="crypto"] .finance-crypto-allocation-sheet{
+  color:#f5f7fb;
+}
+#financePage[data-finance-tone="crypto"] .finance-crypto-allocation-sheet{
+  background:#171b25;
+}
