@@ -4,7 +4,13 @@ let current=null,dirty=false,busy=false;
 const fields={marginUsd:'cryptoLiveMargin',marginCapUsd:'cryptoLiveMarginCap',dailyLossUsd:'cryptoLiveDailyLoss',leverage:'cryptoLiveLeverage',maxOpen:'cryptoLiveMaxOpen',slippagePct:'cryptoLiveSlippage'};
 const errors={
  'live-busy':'Сервер завершает проверку этой биржи. Повтори действие через минуту.',
- 'live-key-invalid':'Проверь формат API Key, Secret и Passphrase.',
+ 'live-key-invalid':'Проверь формат API Key и API Secret. Для OKX также нужен Passphrase.',
+ 'live-exchange-rejected':'Биржа отклонила проверку. Проверь права ключа, фьючерсный счёт и режим позиций.',
+ 'live-response-invalid':'Не удалось разобрать ответ биржи. Подключение не завершено.',
+ 'live-request-timeout':'Биржа не ответила за 30 секунд. Попробуй ещё раз.',
+ 'live-network-unavailable':'Нет соединения с сервером. Проверь интернет и попробуй ещё раз.',
+ 'live-service-unavailable':'Сервер временно недоступен. Попробуй ещё раз.',
+ 'not-authorized':'Сессия истекла. Войди в приложение заново.',
  'live-key-permission':'Ключу нужны чтение и торговля фьючерсами. Проверь также Secret и Passphrase.',
  'live-withdrawal-key':'Создай отдельный API-ключ без права вывода средств.',
  'live-cross-required':'Для этой пары Pionex нужен режим CROSS. Измени его на бирже при закрытых позициях.',
@@ -45,9 +51,21 @@ const selected=()=>$('cryptoLiveProvider')?.value||'okx';
 const account=()=>current?.accounts?.find(a=>a.provider===selected());
 function clearKeys(){for(const id of ['cryptoLiveApiKey','cryptoLiveApiSecret','cryptoLivePassphrase'])if($(id))$(id).value='';}
 async function request(operation,values={}){
- try{await Promise.resolve(window.__rudiTelegramSdkReady)}catch(_){}
- const r=await fetch('/api/finances',{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation,initData:window.Telegram?.WebApp?.initData||'',...values})});
- const json=await r.json().catch(()=>({}));if(!r.ok||!json.ok)throw Error(json.error||'live-service-unavailable');return json;
+ const sdk=window.__rudiTelegramSdkReady;
+ if(sdk)await Promise.race([Promise.resolve(sdk).catch(()=>{}),new Promise(resolve=>setTimeout(resolve,1800))]);
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),30000);
+ try{
+  const r=await fetch('/api/finances',{method:'POST',cache:'no-store',signal:controller.signal,
+   headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({operation,initData:window.Telegram?.WebApp?.initData||'',...values})});
+  const json=await r.json().catch(()=>({}));
+  if(!r.ok||!json.ok)throw Error(json.error||'live-service-unavailable');
+  return json;
+ }catch(e){
+  if(e?.name==='AbortError')throw Error('live-request-timeout');
+  if(e?.name==='TypeError')throw Error('live-network-unavailable');
+  throw e;
+ }finally{clearTimeout(timer);}
 }
 function row(title,detail,value){
  const box=document.createElement('div');box.className='crypto-signals-item';
@@ -80,22 +98,40 @@ function render(data){
  }
  if(!journal.children.length)journal.textContent='Реальных сделок сканера пока нет';
 }
+function showStatus(message,connect=false){
+ const main=$('cryptoLiveStatus');if(main)main.textContent=message;
+ if(connect){const inline=$('cryptoLiveConnectStatus');if(inline)inline.textContent=message;}
+}
 async function action(operation,values={},success='Сохранено'){
- if(busy)return;busy=true;
- try{await request(operation,{provider:selected(),...values});dirty=false;
-  const data=await request('crypto-live-report');render(data);$('cryptoLiveStatus').textContent=success;
- }catch(e){$('cryptoLiveStatus').textContent=label(e.message);}
- finally{busy=false;}
+ const connect=operation==='crypto-live-connect';
+ if(busy)return false;
+ busy=true;
+ const button=connect?$('cryptoLiveConnect'):null;
+ if(button){button.disabled=true;button.textContent='Проверяю API…';}
+ if(connect)showStatus('Проверяю ключи на бирже. Это может занять до 30 секунд…',true);
+ let accepted=false;
+ try{
+  await request(operation,{provider:selected(),...values});accepted=true;dirty=false;
+  if(connect){clearKeys();showStatus('API подключён. Загружаю баланс…',true);}
+  const data=await request('crypto-live-report');render(data);showStatus(success,connect);
+  return true;
+ }catch(e){
+  showStatus(accepted&&connect?'API подключён, но обновить баланс не удалось. Нажми «Обновить».':label(e?.message),connect);
+  return accepted&&connect;
+ }finally{
+  busy=false;
+  if(button){button.disabled=false;button.textContent='Подключить API';}
+ }
 }
 function settings(){return Object.fromEntries(Object.entries(fields).map(([key,id])=>[key,Number($(id).value)]));}
 function boot(){
  if(!$('cryptoLiveProvider'))return;
- $('cryptoLiveProvider').addEventListener('change',()=>{clearKeys();dirty=false;$('cryptoLiveConsent').checked=false;render(current||{accounts:[],trades:[]});});
+ $('cryptoLiveProvider').addEventListener('change',()=>{clearKeys();dirty=false;$('cryptoLiveConsent').checked=false;const notice=$('cryptoLiveConnectStatus');if(notice)notice.textContent='';render(current||{accounts:[],trades:[]});});
  for(const id of Object.values(fields))$(id)?.addEventListener('input',()=>{dirty=true;});
  $('cryptoLiveConnect').addEventListener('click',async()=>{
   if(busy)return;
   const values={apiKey:$('cryptoLiveApiKey').value,apiSecret:$('cryptoLiveApiSecret').value,passphrase:$('cryptoLivePassphrase').value};
-  await action('crypto-live-connect',values,'API подключён. Укажи лимиты и включи торговлю, когда будешь готов.');clearKeys();
+  await action('crypto-live-connect',values,'API подключён. Новые сделки выключены. Настрой лимиты перед запуском.');
  });
  const configure=enabled=>action('crypto-live-configure',{...settings(),enabled,tradeConsent:$('cryptoLiveConsent').checked,programmaticStops:$('cryptoLiveProgrammatic').checked},enabled?'Торговля включена. Будут исполняться только новые сигналы.':'Настройки сохранены. Новые входы выключены.');
  $('cryptoLiveSave').addEventListener('click',()=>configure(false));$('cryptoLiveStart').addEventListener('click',()=>configure(true));
