@@ -51,7 +51,7 @@ const errors={
  'live-connected':'API подключён, торговля выключена.'
 };
 const label=code=>errors[code]||'Не удалось выполнить действие. Проверь подключение и настройки API.';
-const selected=()=>$('cryptoLiveProvider')?.value||'okx';
+const selected=()=>'pionex';
 const account=()=>current?.accounts?.find(a=>a.provider===selected());
 function clearKeys(){for(const id of ['cryptoLiveApiKey','cryptoLiveApiSecret','cryptoLivePassphrase'])if($(id))$(id).value='';}
 async function request(operation,values={}){
@@ -78,10 +78,23 @@ function row(title,detail,value){
 }
 function render(data){
  if(!data)return;current=data;const p=selected(),a=account(),s=a?.status;
- if($('cryptoLivePassphraseField'))$('cryptoLivePassphraseField').hidden=p!=='okx';
- if($('cryptoLiveProgrammaticField'))$('cryptoLiveProgrammaticField').hidden=p!=='pionex';
+ if($('cryptoLivePassphraseField'))$('cryptoLivePassphraseField').hidden=true;
+ if($('cryptoLiveProgrammaticField'))$('cryptoLiveProgrammaticField').hidden=false;
  $('cryptoLiveConnection').textContent=a?.connected?(s?.verified===false?'API подключён · данные счёта не подтверждены':('API подключён · '+(a.enabled?'торговля включена':'новые входы выключены'))):'Биржа не подключена';
- $('cryptoLiveMode').textContent=a?.enabled?'Включена':'Выключена';
+ const enabled=a?.enabled===true,mode=$('cryptoLiveMode'),started=$('cryptoLiveActivatedAt');
+ mode.textContent=enabled?'Включена':'Выключена';
+ mode.classList.toggle('is-enabled',enabled);
+ if(started){
+  const ms=Date.parse(a?.activatedAt||'');
+  started.hidden=!enabled;
+  if(enabled){
+   if(Number.isFinite(ms)){
+    const date=new Date(ms);
+    started.textContent='С '+date.toLocaleDateString('ru-RU',{day:'2-digit',month:'2-digit',year:'numeric'})+
+      ' в '+date.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+   }else started.textContent='Время включения не сохранено';
+  }else started.textContent='';
+ }
  $('cryptoLiveEquity').textContent=money(s?.equity);$('cryptoLiveAvailable').textContent=money(s?.available);
  const positions=s?.positions||[];
  $('cryptoLiveUnrealized').textContent=s?money(positions.reduce((n,r)=>n+Number(r.unrealizedPnl||0),0)):'—';
