@@ -14,6 +14,8 @@ function classifyUpdate(message){
   else if(/(?:закрыл[ао]?\s+полностью|полностью\s+закрыл[ао]?|(?:закрыл[ао]?|закрываю|закрыли|закрыта|закрыто|закрываю)\s+(?:(?:всю|весь|свою|мою|эту)\s+)?(?:позици\p{L}*|позу|сделк\p{L}*|(?:шорт|лонг)\p{L}*)|(?:вышел|выхожу)\s+(?:из\s+)?(?:позици\p{L}*|сделк\p{L}*|(?:шорт|лонг)\p{L}*)|(?:позици\p{L}*|поза|сделка|шорт|лонг)\s+закрыт[ао]?)/iu.test(text))type='full-close';
   else if(/(?:сработал\s+(?:тейк|tp)|(?:достигли|взял|отработал)\s+(?:тейк|tp|цель))/iu.test(text))type='author-claimed-tp';
   else if(/(?:выбил\s+стоп|сработал\s+(?:стоп|sl)|закрыл[ао]?\s+по\s+стоп)/iu.test(text))type='author-claimed-sl';
+  else if(/(?:^|[^\\p{L}])(?:перен[её]с|переношу|двигаю|передвинул|установил|поставил|изменил|новый|подтянул)[^.!?\\n]{0,45}\\b(?:стоп|stop|sl)\\b|(?:^|[^\\p{L}])(?:стоп|stop|sl)\\s*(?:на|по|=|:)\\s*\\d/iu.test(text))type='stop-level-update';
+  else if(/(?:^|[^\\p{L}])(?:перен[её]с|переношу|изменил|новый|поставил)[^.!?\\n]{0,45}(?:тейк|take|tp)\\b|(?:^|[^\\p{L}])(?:тейк|take|tp)\\s*(?:на|по|=|:)\\s*\\d/iu.test(text))type='take-level-update';
   else if(/(?:докид\p{L}*|докин\p{L}*|добав\p{L}*\s+(?:марж|обеспеч)|добир\p{L}*|усредня\p{L}*|увелич\p{L}*\s+(?:позици|объ[её]м|объем))/iu.test(text))
     type=/(?:марж|залог|обеспеч|collateral)/iu.test(text)?'collateral-addition':
       /(?:позици|объ[её]м|объем)/iu.test(text)?'position-addition':'unspecified-addition';
@@ -23,7 +25,14 @@ function classifyUpdate(message){
     ||text.match(/(\d{1,3}(?:[.,]\d+)?)\s*%\s*(?:позиции|объ[её]ма|закрыл|фиксирую|зафиксировал)/iu);
   const fraction=pctToken?Number(pctToken[1].replace(',','.'))/100:null;
   const closeFraction=type==='partial-close'&&Number.isFinite(fraction)&&fraction>0&&fraction<1?fraction:null;
-  return {id:message.id,at:message.at,url:message.url,type,closeFraction,
+  const priceValue=(pattern)=>{const m=text.match(pattern);if(!m)return null;const n=Number(m[1].replace(/\\s/g,'').replace(',','.'));return Number.isFinite(n)&&n>0&&n<1e8?n:null;};
+  const exitPrice=['full-close','author-claimed-tp','author-claimed-sl'].includes(type)?
+    priceValue(/(?:закрыл[ао]?|закрываю|вышел|выхожу|фиксирую|зафиксировал)[^.!?\\n]{0,40}\\bпо\\s*(?:\\$|≈|~)?\\s*([\\d][\\d\\s.,]*)/iu):null;
+  const levelPrice=type==='stop-level-update'?
+    priceValue(/(?:стоп|stop|sl)\\s*(?:-?лосс)?\\s*(?:на|по|=|:|в)?\\s*(?:\\$|≈|~)?\\s*([\\d][\\d\\s.,]*)/iu):
+    type==='take-level-update'?priceValue(/(?:тейк|take|tp)\\s*(?:-?профит)?\\s*(?:на|по|=|:|в)?\\s*(?:\\$|≈|~)?\\s*([\\d][\\d\\s.,]*)/iu):null;
+  if(['stop-level-update','take-level-update'].includes(type)&&levelPrice===null)return null;
+  return {id:message.id,at:message.at,url:message.url,type,closeFraction,exitPrice,levelPrice,
     measured:closeFraction!==null,source:'author-message',
     excerpt:text.slice(0,230)};
 }
