@@ -151,7 +151,11 @@ function createLiveService(deps={}){
   const existing=(t.exits||[]).filter(e=>e.trigger===trigger);
   if(fraction<1&&existing.length)return;
   if(authorExitPrice&&existing.length>=3){t.state='attention';t.error='live-author-exit-unfilled';await saveTrade(t);return;}
-  const qty=stepValue(Math.min(position.qty,t.remainingQty)*fraction,t.qtyStep);
+  const desired=Math.min(position.qty,t.remainingQty)*fraction;
+  // Market exits honour the separate Pionex market-order cap. Large exits are
+  // completed across successive confirmed minute ticks, never over-sized.
+  const marketCap=!authorExitPrice&&Number(t.marketMaxQty)>0?Number(t.marketMaxQty):Infinity;
+  const qty=stepValue(Math.min(desired,marketCap),t.qtyStep);
   if(!(Number(qty)>0))return;
   const priceStep=authorExitPrice?(t.priceStep||(await api.instrument(t.symbol)).priceStep):null;
   const price=authorExitPrice?stepValue(Number(authorExitPrice),priceStep,t.side==='Sell'):null;
@@ -297,7 +301,7 @@ function createLiveService(deps={}){
     // Re-read both activation and credentials revision immediately before claim.
     const fresh=await config(p);if(!fresh.enabled||fresh.revision!==cfg.revision||fresh.secret!==cfg.secret)continue;
     const key=p+'-'+s.id,clientId=cid(p,s.id),t={key,provider:p,signalId:s.id,symbol,side:s.direction==='long'?'Buy':'Sell',clientId,
-     state:'submitted',createdAt:new Date(now()).toISOString(),entryQty:0,remainingQty:0,marginUsd:margin,marginLimitUsd:limits.marginUsd,leverage:limits.leverage,qtyStep:rule.qtyStep,priceStep:rule.priceStep,contractValue:Number(rule.contractValue),take,stop,exits:[]};
+     state:'submitted',createdAt:new Date(now()).toISOString(),entryQty:0,remainingQty:0,marginUsd:margin,marginLimitUsd:limits.marginUsd,leverage:limits.leverage,qtyStep:rule.qtyStep,priceStep:rule.priceStep,marketMaxQty:rule.marketMaxQty,contractValue:Number(rule.contractValue),take,stop,exits:[]};
     if(!await client.setIfAbsent(ORDERS,key,t))continue;
     let accepted=false;
     try{const result=await api.place({symbol,side:t.side,qty,...(limit===null?{}:{price:String(limit)}),clientId,take,stop});accepted=true;t.orderId=result.orderId;await saveTrade(t);await reconcile(t,api);}
