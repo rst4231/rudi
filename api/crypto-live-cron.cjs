@@ -5,7 +5,12 @@ function createHandler({authorized=req=>isCronRequestAuthorized(req)||isCronRequ
   res.setHeader('Cache-Control','no-store');
   if(!authorized(req))return res.status(401).json({ok:false,error:'not-authorized'});
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'method-not-allowed'});
-  try{return res.status(200).json(await run({scheduled:true}));}
+  try{
+   const result=await run({scheduled:true});
+   // A degraded exchange or author feed is a failed scheduled execution.
+   // Expose it through the HTTP status so Worker and monitoring can react.
+   return res.status(result?.ok===true?200:503).json(result);
+  }
   catch(error){
    // Log only stable internal error codes: never leak exchange keys or response bodies.
    const code=String(error?.message||'');
