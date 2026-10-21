@@ -56,3 +56,22 @@ test('successful Pionex connection shows success inline and clears credentials',
  assert.equal(b.nodes.get('cryptoLiveApiSecret').value,'');
  assert.equal(b.requests.length,2);
 });
+
+test('unverified Pionex shows account warning without claiming there are zero positions',()=>{
+ const b=browser();
+ b.nodes.get('cryptoLiveProvider').value='pionex';
+ b.data.accounts=[{provider:'pionex',connected:true,enabled:false,settings:{},status:{equity:null,available:null,verified:false,error:'live-account-unverified',positions:[]}}];
+ b.window.RudiCryptoLive.render(b.data);
+ assert.match(b.nodes.get('cryptoLiveConnection').textContent,/данные счёта не подтверждены/);
+ assert.equal(b.nodes.get('cryptoLivePositionCount').textContent,'—');
+ assert.match(b.nodes.get('cryptoLivePositions').textContent,/Позиции не подтверждены/);
+ assert.match(b.nodes.get('cryptoLiveStatus').textContent,/Торговля заблокирована/);
+});
+test('Passphrase is physically hidden for Pionex but available for OKX',()=>{
+ const html=require('node:fs').readFileSync('public/crypto-signals.css','utf8');
+ assert.match(html,/\.crypto-live-field\[hidden\]\s*\{\s*display\s*:\s*none/);
+ const b=browser();b.nodes.get('cryptoLiveProvider').value='pionex';b.window.RudiCryptoLive.render(b.data);
+ assert.equal(b.nodes.get('cryptoLivePassphraseField').hidden,true);
+ b.nodes.get('cryptoLiveProvider').value='okx';b.window.RudiCryptoLive.render(b.data);
+ assert.equal(b.nodes.get('cryptoLivePassphraseField').hidden,false);
+});
