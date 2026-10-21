@@ -18,7 +18,7 @@ test('live copy polls one author channel page without crawling 40 crypto markets
  assert.equal(result.signals[0].symbol,'BTC');assert.equal(result.signals[0].authorEntry,null);
  assert.equal(result.signals[0].market,'linear');
 });
-test('live author's linked close is detectable immediately without waiting for 15-minute scans',async()=>{
+test("live author's linked close is detectable immediately without waiting for 15-minute scans",async()=>{
  const client={getRecord:async()=>({value:{messages:[],results:{}}})};
  const result=await readLiveSignals({client,now,fetchImpl:async()=>({
   ok:true,text:async()=>post(101,'$BTC беру в лонг')+post(102,'Закрыл всю позицию',101)
