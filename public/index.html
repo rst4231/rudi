@@ -1219,17 +1219,19 @@
             </div>
             <label class="crypto-live-consent" id="cryptoLiveProgrammaticField" hidden><input id="cryptoLiveProgrammatic" type="checkbox"><span>На Pionex используется кросс-маржа; стоп и тейк исполняет сервер RUDI с проверкой раз в минуту. При сбое сервера или API выход может задержаться.</span></label>
             <label class="crypto-live-consent"><input id="cryptoLiveConsent" type="checkbox"><span>Включить реальные сделки за деньги на выбранной бирже с указанными лимитами.</span></label>
+            <p id="cryptoLivePreflight" class="crypto-signals-help" role="status" aria-live="polite"></p>
             <div class="crypto-live-actions">
               <button type="button" id="cryptoLiveSave" class="crypto-signals-inline">Сохранить настройки</button>
               <button type="button" id="cryptoLiveStart" class="crypto-signals-inline">Включить торговлю</button>
               <button type="button" id="cryptoLivePause" class="crypto-signals-inline">Пауза новых входов</button>
             </div>
+            <p id="cryptoLiveStatus" class="crypto-signals-status" role="status" aria-live="assertive"></p>
             <details class="crypto-live-extra"><summary>Управление подключением</summary><div class="crypto-live-actions">
               <button type="button" id="cryptoLiveClose" class="crypto-signals-inline">Закрыть позиции сканера</button>
               <button type="button" id="cryptoLiveDisconnect" class="crypto-signals-inline">Отключить API</button>
             </div></details>
             <p class="crypto-signals-help">Сканер использует текущие сигналы Артемьева. Реальные входы: новые USDT-фьючерсы после включения, с понятным входом, стопом и тейком. Лимитный IOC-вход ограничивает цену; старые сигналы и неоднозначные идеи пропускаются. Пауза сохраняет сопровождение уже открытых позиций. Лимит потерь блокирует новые входы и запрашивает закрытие позиций сканера, но не гарантирует цену выхода.</p>
-            <p id="cryptoLiveStatus" class="crypto-signals-status" role="status" aria-live="polite"></p>
+
           </div>
           <div class="crypto-signals-section"><div class="crypto-signals-row"><h4>Позиции на бирже</h4></div><div id="cryptoLivePositions" class="crypto-signals-list"></div></div>
           <div class="crypto-signals-section"><div class="crypto-signals-row"><h4>Сделки сканера</h4></div><div id="cryptoLiveTrades" class="crypto-signals-list"></div></div>
