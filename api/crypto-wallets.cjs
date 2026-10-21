@@ -287,7 +287,7 @@ async function connect(actor, input = {}, options = {}) {
     const apiKey = String(input.apiKey || '').trim(), apiSecret = String(input.apiSecret || '').trim();
     if (!/^[\w-]{8,150}$/.test(apiKey) || !/^[\w-]{8,200}$/.test(apiSecret)) throw new Error('crypto-credentials-invalid');
     if(provider==='gate'){
-      await gateHoldings.snapshot({apiKey,apiSecret},options);
+      await gateHoldings.snapshot({apiKey,apiSecret},{...options,marketRates});
     }else if(provider==='pionex'){
       await pionexHoldings.snapshot({apiKey,apiSecret},{marketRates,options});
     }else{
@@ -402,7 +402,7 @@ async function refresh(actor, options = {}) {
         const snapshot = connection.provider === 'bybit'
           ? await bybitSnapshot(decryptSecret(connection.secret),limited)
           : connection.provider==='gate'
-            ? await gateHoldings.snapshot(decryptSecret(connection.secret),limited)
+            ? await gateHoldings.snapshot(decryptSecret(connection.secret),{...limited,marketRates})
           : connection.provider==='pionex'
             ? await pionexHoldings.snapshot(decryptSecret(connection.secret),{marketRates,options:limited})
           : connection.provider==='trust'

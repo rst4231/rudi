@@ -76,6 +76,7 @@
       'crypto-gate-rate-limited':'Gate ограничил частоту запросов. Повтори через минуту.',
       'crypto-gate-network-unavailable':'Не удалось связаться с Gate. Предыдущий баланс сохранён.',
       'crypto-gate-response-invalid':'Gate вернул некорректный баланс. Последнее значение сохранено.',
+      'crypto-gate-price-unavailable':'Gate ответил, но курс USDT/USD сейчас недоступен. Баланс не менялся.',
       'crypto-gate-api-rejected-400':'Gate вернул HTTP 400 без понятного кода причины. Проверь диагностику сервера RUDI.',
       'crypto-gate-api-rejected':'Gate отклонил запрос. Подробность можно уточнить по журналу сервера RUDI.'
     })[code]||'Не удалось получить баланс Gate. Последнее значение сохранено.';

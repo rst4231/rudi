@@ -5,19 +5,20 @@ const { snapshot, failure } = require('../api/gate-holdings.cjs');
 
 test('Gate signs documented read-only wallet request and preserves account breakdown', async () => {
   const data = await snapshot({ apiKey: 'test-key', apiSecret: 'test-secret' }, {
+    marketRates: async () => ({ USDT: 1 }),
     fetchImpl: async (url, init) => {
-      assert.equal(url, 'https://api.gateio.ws/api/v4/wallet/total_balance?currency=USD');
+      assert.equal(url, 'https://api.gateio.ws/api/v4/wallet/total_balance');
       assert.equal(init.method, 'GET');
       assert.equal(init.headers['Content-Type'], 'application/json');
       assert.equal(init.headers.SIGN, crypto.createHmac('sha512', 'test-secret')
-        .update(['GET', '/api/v4/wallet/total_balance', 'currency=USD',
+        .update(['GET', '/api/v4/wallet/total_balance', '',
           crypto.createHash('sha512').update('').digest('hex'), init.headers.Timestamp].join('\n'))
         .digest('hex'));
       return { ok: true, status: 200, json: async () => ({
-        total: { currency: 'USD', amount: '250' },
+        total: { currency: 'USDT', amount: '250' },
         details: {
-          spot: { currency: 'USD', amount: '200' },
-          futures: { currency: 'USD', amount: '50' },
+          spot: { currency: 'USDT', amount: '200' },
+          futures: { currency: 'USDT', amount: '50' },
         },
       }) };
     },
@@ -77,4 +78,28 @@ test('Gate reports unknown HTTP 400 separately, does not mistake it for invalid 
     }), { message: 'crypto-gate-network-unavailable' });
   } finally { console.warn = warn; }
   assert.equal(failure(400, 'UNEXPECTED'), 'crypto-gate-api-rejected-400');
+});
+
+test('Gate converts the default USDT response to USD using checked reference prices', async () => {
+  const data = await snapshot({ apiKey: 'read-key', apiSecret: 'read-secret' }, {
+    marketRates: async () => ({ USDT: 0.999 }),
+    fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({
+      total: { currency: 'USDT', amount: '100' },
+      details: { spot: { currency: 'USDT', amount: '70' }, finance: { currency: 'USDT', amount: '30' } },
+    }) }),
+  });
+  assert.equal(data.balanceUsd, 99.9);
+  assert.equal(data.sections[0].usd, 69.93);
+  assert.equal(data.sections[1].usd, 29.97);
+});
+
+test('Gate never treats a missing USDT price as a valid or zero balance', async () => {
+  for (const marketRates of [async () => ({ USDT: NaN }), async () => { throw Error('ticker offline'); }]) {
+    await assert.rejects(() => snapshot({ apiKey: 'read-key', apiSecret: 'read-secret' }, {
+      marketRates,
+      fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({
+        total: { currency: 'USDT', amount: '10' },
+      }) }),
+    }), { message: 'crypto-gate-price-unavailable' });
+  }
 });

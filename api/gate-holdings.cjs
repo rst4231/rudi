@@ -3,7 +3,7 @@ const crypto = require('node:crypto');
 
 const API_ORIGIN = 'https://api.gateio.ws';
 const BALANCE_PATH = '/api/v4/wallet/total_balance';
-const QUERY = 'currency=USD';
+const QUERY = ''; // Gate's documented default is USDT; omit optional parameter.
 // Gate provides stable public error labels; never surface or log arbitrary upstream
 // messages, request headers, API keys or secrets.
 const LABEL_ERRORS = Object.freeze({
@@ -45,13 +45,15 @@ function failure(status, label) {
   if (status === 404) return 'crypto-gate-endpoint-unavailable';
   return 'crypto-gate-api-rejected';
 }
-function usd(row) {
-  if (row?.currency !== 'USD' || !['string','number'].includes(typeof row.amount) || String(row.amount).trim() === '') {
-    throw Error('crypto-gate-response-invalid');
-  }
-  const value = Number(row.amount);
-  if (!Number.isFinite(value * 100) || value < 0) throw Error('crypto-gate-response-invalid');
-  return Math.round(value * 100) / 100;
+function usd(row, usdtUsd) {
+  const unit = row?.currency;
+  if (!['USD','USDT'].includes(unit) || !['string','number'].includes(typeof row.amount) ||
+      String(row.amount).trim() === '') throw Error('crypto-gate-response-invalid');
+  const amount = Number(row.amount);
+  const rate = unit === 'USD' ? 1 : usdtUsd;
+  if (!Number.isFinite(amount) || amount < 0 || !(rate > 0) ||
+      !Number.isFinite(amount * rate * 100)) throw Error('crypto-gate-response-invalid');
+  return Math.round(amount * rate * 100) / 100;
 }
 async function snapshot(keys, options = {}) {
   const timestamp = String(Math.floor(Date.now() / 1000));
@@ -60,7 +62,7 @@ async function snapshot(keys, options = {}) {
     .update(['GET', BALANCE_PATH, QUERY, bodyHash, timestamp].join('\n')).digest('hex');
   let response;
   try {
-    response = await (options.fetchImpl || fetch)(API_ORIGIN + BALANCE_PATH + '?' + QUERY, {
+    response = await (options.fetchImpl || fetch)(API_ORIGIN + BALANCE_PATH + (QUERY ? '?' + QUERY : ''), {
       method: 'GET',
       headers: { KEY: keys.apiKey, Timestamp: timestamp, SIGN: signature,
         Accept: 'application/json', 'Content-Type': 'application/json' },
@@ -80,14 +82,32 @@ async function snapshot(keys, options = {}) {
   }
   let data;
   try { data = await response.json(); } catch (_) { throw Error('crypto-gate-response-invalid'); }
-  const balanceUsd = usd(data?.total);
+  // Gate's standard, unparameterized response is denominated in USDT.
+  // Convert using the same checked market prices as RUDI's other exchanges.
+  const details = data?.details && typeof data.details === 'object' && !Array.isArray(data.details)
+    ? data.details : {};
+  const needUsdt = data?.total?.currency === 'USDT' ||
+    Object.values(details).some(row => row?.currency === 'USDT');
+  let usdtUsd = null;
+  if (needUsdt) {
+    try {
+      if (typeof options.marketRates !== 'function') throw Error('missing-rates-provider');
+      const rates = await options.marketRates(options);
+      usdtUsd = Number(rates?.USDT);
+      if (!(usdtUsd > 0) || !Number.isFinite(usdtUsd) || usdtUsd > 2)
+        throw Error('invalid-usdt-usd-rate');
+    } catch (_) {
+      throw Error('crypto-gate-price-unavailable');
+    }
+  }
+  const balanceUsd = usd(data?.total, usdtUsd);
   const names = {
     spot: 'Спот', futures: 'Фьючерсы', finance: 'Earn', margin: 'Маржа',
     cross_margin: 'Кросс-маржа', quant: 'Боты', delivery: 'Поставочные фьючерсы',
     options: 'Опционы', payment: 'Платежи', unified: 'Единый счёт',
   };
-  const sections = Object.entries(data.details || {}).map(([id, row]) =>
-    ({ id, name: names[id] || id, usd: usd(row), verified: true, assets: [] }));
+  const sections = Object.entries(details).map(([id, row]) =>
+    ({ id, name: names[id] || id, usd: usd(row, usdtUsd), verified: true, assets: [] }));
   return {
     balanceUsd, incomplete: false, assets: [], sections,
     scope: 'Оценка общего баланса Gate по Wallet API. Данные биржи могут кэшироваться до минуты.',
