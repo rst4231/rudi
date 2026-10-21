@@ -146,29 +146,34 @@ function createLiveService(deps={}){
    await saveTrade(t);
   }
  }
- async function close(t,api,position,trigger,fraction=1){
+ async function close(t,api,position,trigger,fraction=1,authorExitPrice=null){
   if((t.exits||[]).some(e=>!e.closed))return;
   const existing=(t.exits||[]).filter(e=>e.trigger===trigger);
   if(fraction<1&&existing.length)return;
+  if(authorExitPrice&&existing.length>=3){t.state='attention';t.error='live-author-exit-unfilled';await saveTrade(t);return;}
   const qty=stepValue(Math.min(position.qty,t.remainingQty)*fraction,t.qtyStep);
   if(!(Number(qty)>0))return;
-  const clientId=cid(t.clientId,trigger,existing.length),exit={clientId,trigger,qty,filledQty:0,closed:false};
+  const priceStep=authorExitPrice?(t.priceStep||(await api.instrument(t.symbol)).priceStep):null;
+  const price=authorExitPrice?stepValue(Number(authorExitPrice),priceStep,t.side==='Sell'):null;
+  const clientId=cid(t.clientId,trigger,existing.length),exit={clientId,trigger,qty,filledQty:0,closed:false,...(price?{limitPrice:price}:{})};
   const inserted=await client.setIfAbsent(CLAIMS,clientId,{tradeKey:t.key,at:new Date(now()).toISOString()});
   t.exits=t.exits||[];t.exits.push(exit);await saveTrade(t);
   if(!inserted){await reconcile(t,api);return;}
-  try{const r=await api.place({symbol:t.symbol,side:t.side==='Buy'?'Sell':'Buy',qty,clientId,reduceOnly:true});exit.orderId=r.orderId;}
+  try{const r=await api.place({symbol:t.symbol,side:t.side==='Buy'?'Sell':'Buy',qty,clientId,reduceOnly:true,...(price?{price}:{})});exit.orderId=r.orderId;}
   catch(e){exit.error=safeError(e);if(['live-deadline','live-order-invalid','live-protection-required','live-exchange-rejected','live-key-permission','live-rate-limited','live-access-blocked'].includes(exit.error)){exit.closed=true;exit.filledQty=0;}await saveTrade(t);throw e;}
   await saveTrade(t);await reconcile(t,api);
  }
  async function run(options={}){
   const at=new Date(now()).toISOString();
-  if(options.scheduled)await put(META,'heartbeat',{at});
+  const failures=[];
   const configs=await Promise.all(PROVIDERS.map(config)),rows=await trades();
   // Idle ticks must still report a genuine scheduler heartbeat without
   // spending request time loading signals for disabled accounts.
   const hasWork=configs.some(c=>c.secret&&(c.enabled||rows.some(t=>t.provider===c.provider&&ACTIVE.includes(t.state))));
-  if(!hasWork)return {ok:true,checkedAt:at,idle:true};
-  let feed;try{feed=await readSignals();}catch(_){feed={sourceError:true,signals:[]};}
+  if(!hasWork){if(options.scheduled)await put(META,'heartbeat',{at});return {ok:true,checkedAt:at,idle:true};}
+  const activeIds=[...new Set(rows.filter(t=>ACTIVE.includes(t.state)).map(t=>String(t.signalId)))];
+  let feed;try{feed=await readSignals({activeSignalIds:activeIds});}catch(_){feed={sourceError:true,signals:[]};}
+  if(feed.sourceError)failures.push('live-author-feed-unavailable');
   for(const initial of configs){
    let cfg=initial;
    const p=cfg.provider,owned=rows.filter(t=>t.provider===p&&ACTIVE.includes(t.state));
@@ -180,7 +185,7 @@ function createLiveService(deps={}){
    let status={at,error:'',message:''};
    try{
     const [account,positions]=await Promise.all([api.balance(),api.positions()]);
-    status={...status,...account,positions};
+    status={...status,...account,positions,verified:true};
     let blocked=false;
     for(const t of owned){
      if(Date.now()>=deadlineAt-1000)throw Error('live-deadline');
@@ -200,10 +205,27 @@ function createLiveService(deps={}){
      if(t.marginLimitUsd&&t.marginUsd>t.marginLimitUsd+1e-8){await close(t,api,pos,'margin-limit');blocked=true;continue;}
      const signal=(feed.signals||[]).find(s=>String(s.id)===String(t.signalId));
      const events=(signal?.events||[]).filter(e=>Date.parse(e.at)>=Date.parse(t.openedAt||t.createdAt)&&Date.parse(e.at)<=now());
+     const applied=new Set(t.appliedLevelEvents||[]);
+     for(const e of events){
+      if(applied.has(String(e.id)))continue;
+      let next=null,kind=null;
+      if(e.type==='stop-to-breakeven'&&Number(t.entryPrice)>0){next=Number(t.entryPrice);kind='stop';}
+      else if(e.type==='stop-level-update'&&Number(e.levelPrice)>0){next=Number(e.levelPrice);kind='stop';}
+      else if(e.type==='take-level-update'&&Number(e.levelPrice)>0){next=Number(e.levelPrice);kind='take';}
+      if(!kind)continue;
+      if(!Number.isFinite(next)||next<=0){blocked=true;continue;}
+      t[kind]=next;applied.add(String(e.id));
+     }
+     if(applied.size!==(t.appliedLevelEvents||[]).length){
+      t.appliedLevelEvents=[...applied].slice(-80);await saveTrade(t);
+     }
      const full=events.find(e=>['full-close','author-claimed-tp','author-claimed-sl'].includes(e.type));
      const stop=Number(t.stop)>0&&(t.side==='Buy'?pos.markPrice<=Number(t.stop):pos.markPrice>=Number(t.stop));
      const take=Number(t.take)>0&&(t.side==='Buy'?pos.markPrice>=Number(t.take):pos.markPrice<=Number(t.take));
-     if(cfg.closeRequestedAt||full||stop||take){await close(t,api,pos,cfg.closeRequestedAt?'manual-close-'+cfg.closeRequestedAt:full?'author-'+full.id:stop?'stop':'take');continue;}
+     if(cfg.closeRequestedAt||full||stop||take){
+      await close(t,api,pos,cfg.closeRequestedAt?'manual-close-'+cfg.closeRequestedAt:full?'author-'+full.id:stop?'stop':'take',1,
+        full?Number(full.exitPrice)||null:null);continue;
+     }
      const partial=events.find(e=>e.type==='partial-close'&&Number(e.closeFraction)>0&&Number(e.closeFraction)<1&&!(t.exits||[]).some(x=>x.trigger==='author-'+e.id));
      if(partial){await close(t,api,pos,'author-'+partial.id,Number(partial.closeFraction));continue;}
      if(p==='okx'&&!t.protected){
@@ -224,7 +246,7 @@ function createLiveService(deps={}){
     const current=await config(p);
     if(!current.enabled||!current.settings)continue;
     if(blocked||unknownLoss||rows.some(t=>t.provider===p&&t.feesKnown===false&&day(t.createdAt)===today)){status.message=status.message||'live-review-required';continue;}
-    if(feed.sourceError||!feed.updatedAt||now()-Date.parse(feed.updatedAt)>20*60000){status.message='live-source-stale';continue;}
+    if(feed.sourceError||!feed.updatedAt||now()-Date.parse(feed.updatedAt)>20*60000){status.message='live-source-stale';failures.push('live-source-stale');continue;}
     const limits=current.settings;
     if(open.length>=limits.maxOpen||open.reduce((a,t)=>a+t.marginUsd,0)+limits.marginUsd>limits.marginCapUsd){status.message='live-position-limit';continue;}
     const candidates=(feed.signals||[]).slice().sort((a,b)=>a.at.localeCompare(b.at));
@@ -252,9 +274,11 @@ function createLiveService(deps={}){
        (stopLevel!==null&&price>=stopLevel)||(takeLevel!==null&&price<=takeLevel)){
       status.message='live-levels-passed';continue;
     }
-    const limit=authorEntry===null?null:Number(stepValue(
-      authorEntry*(1+(s.direction==='long'?1:-1)*limits.slippagePct/100),
-      rule.priceStep,s.direction==='short'));
+    // Marketable IOC executes immediately near the quote, but cannot
+    // slip beyond the configured deviation as an unbounded MARKET_QTY can.
+    const reference=authorEntry===null?price:authorEntry;
+    const limit=Number(stepValue(reference*(1+(s.direction==='long'?1:-1)*limits.slippagePct/100),
+      rule.priceStep,s.direction==='long'));
     // Sizing is computed against a conservative quote; the fill can vary.
     const sizingPrice=Math.max(price*(1+limits.slippagePct/100),limit||0,
       authorEntry?authorEntry*(1+limits.slippagePct/100):0);
@@ -273,7 +297,7 @@ function createLiveService(deps={}){
     // Re-read both activation and credentials revision immediately before claim.
     const fresh=await config(p);if(!fresh.enabled||fresh.revision!==cfg.revision||fresh.secret!==cfg.secret)continue;
     const key=p+'-'+s.id,clientId=cid(p,s.id),t={key,provider:p,signalId:s.id,symbol,side:s.direction==='long'?'Buy':'Sell',clientId,
-     state:'submitted',createdAt:new Date(now()).toISOString(),entryQty:0,remainingQty:0,marginUsd:margin,marginLimitUsd:limits.marginUsd,leverage:limits.leverage,qtyStep:rule.qtyStep,contractValue:Number(rule.contractValue),take,stop,exits:[]};
+     state:'submitted',createdAt:new Date(now()).toISOString(),entryQty:0,remainingQty:0,marginUsd:margin,marginLimitUsd:limits.marginUsd,leverage:limits.leverage,qtyStep:rule.qtyStep,priceStep:rule.priceStep,contractValue:Number(rule.contractValue),take,stop,exits:[]};
     if(!await client.setIfAbsent(ORDERS,key,t))continue;
     let accepted=false;
     try{const result=await api.place({symbol,side:t.side,qty,...(limit===null?{}:{price:String(limit)}),clientId,take,stop});accepted=true;t.orderId=result.orderId;await saveTrade(t);await reconcile(t,api);}
@@ -289,10 +313,12 @@ function createLiveService(deps={}){
      try{await api.protect(t);t.protected=true;await saveTrade(t);}catch(e){status.error=safeError(e);if(newPosition)await close(t,api,newPosition,'protection-failed');}
     }
     status.message='live-order-sent';
-   }catch(e){status.error=safeError(e);}
+   }catch(e){status.error=safeError(e);status.verified=false;failures.push(p+':'+status.error);}
    finally{await put(META,'status-'+p,status);if(Date.now()-leaseStarted<50000)await client.remove(META,'lease-'+p).catch(()=>{});}
   }
-  return {ok:true,checkedAt:at};
+  const ok=failures.length===0;
+  if(ok&&options.scheduled)await put(META,'heartbeat',{at});
+  return {ok,checkedAt:at,...(ok?{}:{error:'live-runtime-degraded',failures})};
  }
  async function requestClose(actor,p){owner(actor);providerOf(p);await pause(actor,p);return locked(p,async()=>{const c=await config(p);if(!c.secret)throw Error('live-not-connected');await put(CONFIG,p,{...c,enabled:false,closeRequestedAt:new Date(now()).toISOString()});return true;});}
  return {report,archivePaper,connect,configure,pause,disconnect,requestClose,run};
