@@ -11923,6 +11923,7 @@
             status.textContent='Face ID недоступен в этом браузере. Войди по резервному PIN Руди; для подключения Face ID открой Руди в Safari на iPhone.';
           }else prepare();
         });
+      }
       // Offline iPhone access never accepts an identity without local PIN verification.
       function showIphoneOfflinePinUnlock(){
         return new Promise(resolve=>{
@@ -11967,14 +11968,13 @@
           pin?.focus();
         });
       }
-      }
       async function ensureIphoneFaceIdAccess(){
         if(!isProtectedIphoneAccount()||iphoneFaceIdDeadline())return true;
+        while(!iphoneFaceIdDeadline()){
           if(window.rudiOfflinePin?.isOffline()){
             await showIphoneOfflinePinUnlock();
             continue;
           }
-        while(!iphoneFaceIdDeadline()){
           if(!passkeySupported()){
             // No WebAuthn on this iPhone browser: require a verified Rustam PIN
             // instead of trapping the owner on an impossible Face ID setup.
