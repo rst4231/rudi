@@ -36,7 +36,7 @@ function classifyUpdate(message){
     measured:closeFraction!==null,source:'author-message',
     excerpt:text.slice(0,230)};
 }
-function linkUpdates(signals,messages){
+function linkUpdates(signals,messages,options={}){
   const byId=new Map(signals.map(s=>[s.id,s]));
   const sorted=[...(Array.isArray(messages)?messages:[])].sort((a,b)=>Date.parse(a.at)-Date.parse(b.at));
   for(const m of sorted){
@@ -54,6 +54,17 @@ function linkUpdates(signals,messages){
       const referenced=sorted.filter(row=>(m.references||[]).includes(row.id));
       const ancestors=new Set(referenced.flatMap(row=>row.references||[]));
       candidates=signals.filter(sig=>ancestors.has(sig.id)&&Date.parse(sig.at)<Date.parse(m.at));
+    }
+    // Unlabelled author closes may be linked only when there is exactly one
+    // RUDI-owned live entry AND exactly one recent author trade candidate.
+    // Never guess between two positions or two recent ideas.
+    if(!candidates.length&&!((m.references||[]).length)&&u.type==='full-close'&&
+       !/\\$[A-Z0-9]{2,14}\\b/i.test(m.text||'')){
+      const active=Array.isArray(options.activeSignalIds)?options.activeSignalIds.map(String):[];
+      const recent=signals.filter(s=>Date.parse(s.at)<Date.parse(m.at)&&
+        Date.parse(m.at)-Date.parse(s.at)<=8*3600000);
+      if(active.length===1&&recent.length===1&&
+         String(recent[0].id)===active[0])candidates=recent;
     }
     if(candidates.length!==1)continue;
     if(u.type==='full-close'&&candidates[0].events?.some(e=>e.type==='full-close'&&Date.parse(e.at)<Date.parse(u.at)))continue;
