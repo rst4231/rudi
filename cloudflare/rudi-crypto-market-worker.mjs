@@ -241,10 +241,16 @@ async function scheduledRun(env){
   let prev=null;try{prev=JSON.parse(previous?.body||'null')}catch{}
   if(prev?.ok&&now-Date.parse(prev.at)<12*60000)return prev;
   const status={at:new Date(now).toISOString(),ok:false,source:'Bybit',scanRequested:false};
+  if(!env.VERCEL_AUTOMATION_BYPASS_SECRET){
+    status.error='rudi-vercel-protection-secret-missing';
+    await writeStatus(env,status);
+    return status;
+  }
   // Launch the real scanner before cache warming: the prefetch must never block it.
   try{
     const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-monitor-cron',{
-      headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json'},
+      headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json',
+        'x-vercel-protection-bypass':env.VERCEL_AUTOMATION_BYPASS_SECRET},
       signal:AbortSignal.timeout(110000)});
     status.scanRequested=true;
     status.httpStatus=response.status;
@@ -272,11 +278,19 @@ async function scheduledLiveRun(env){
   ).first();
   if(!connected)return;
   const status={at:new Date().toISOString(),ok:false};
+  // Avoid 401s and unnecessary request billing while Vercel deployment
+  // protection blocks external cron calls. This is a Worker secret binding.
+  if(!env.VERCEL_AUTOMATION_BYPASS_SECRET){
+    status.error='rudi-vercel-protection-secret-missing';
+    await persist(env,'__live_cron_status',JSON.stringify(status));
+    return status;
+  }
   try{
     // Hit the dedicated lightweight Vercel function directly to avoid
     // redirects through the older /api/finances rewrite.
     const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-live-runner',{
-      headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json'},
+      headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json',
+        'x-vercel-protection-bypass':env.VERCEL_AUTOMATION_BYPASS_SECRET},
       redirect:'manual',signal:AbortSignal.timeout(55000)});
     const payload=response.ok?await response.json().catch(()=>null):null;
     status.httpStatus=response.status;
