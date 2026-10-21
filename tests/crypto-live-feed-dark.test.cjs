@@ -2,8 +2,8 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {readLiveSignals}=require('../api/crypto-signals.cjs');
-const at='2026-10-21T10:05:00Z',now=Date.parse(at);
-const post=(id,body,ref='')=>'<div data-post="ne_investor/'+id+'"><time datetime="'+at+'"></time>'+
+const at='2026-10-21T10:05:00Z',now=Date.parse('2026-10-21T10:07:00Z');
+const post=(id,body,ref='',postedAt=at)=>'<div data-post="ne_investor/'+id+'"><time datetime="'+postedAt+'"></time>'+
  (ref?'<a href="https://t.me/ne_investor/'+ref+'">reply</a>':'')+
  '<div class="tgme_widget_message_text">'+body+'</div></div>';
 test('live copy polls one author channel page without crawling 40 crypto markets or writing D1',async()=>{
@@ -21,7 +21,7 @@ test('live copy polls one author channel page without crawling 40 crypto markets
 test("live author's linked close is detectable immediately without waiting for 15-minute scans",async()=>{
  const client={getRecord:async()=>({value:{messages:[],results:{}}})};
  const result=await readLiveSignals({client,now,fetchImpl:async()=>({
-  ok:true,text:async()=>post(101,'$BTC беру в лонг')+post(102,'Закрыл всю позицию',101)
+  ok:true,text:async()=>post(101,'$BTC беру в лонг')+post(102,'Закрыл всю позицию',101,'2026-10-21T10:06:00Z')
  })});
  assert.equal(result.signals.length,1);
  assert.ok(result.signals[0].events?.some(e=>e.type==='full-close'));
