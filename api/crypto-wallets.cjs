@@ -6,6 +6,7 @@ const { readFinanceState, syncLinkedWalletBalance } = require('./finance-store.c
 const { readMarketTicker } = require('./market-ticker.cjs');
 const { readLpPositions } = require('./uniswap-lp.cjs');
 const bybitHoldings=require('./bybit-holdings.cjs');
+const pionexBalance=require('./pionex-balance.cjs');
 const balanceHistory=require('./crypto-balance-history.cjs');
 const cryptoOperations=require('./crypto-operations.cjs');
 const trustChains=require('./crypto-trust-chains.cjs');
@@ -170,6 +171,9 @@ async function marketRates(options = {}) {
 async function bybitSnapshot(keys,options={}) {
   return bybitHoldings.snapshot(keys,{bybitGet,marketRates,options});
 }
+async function pionexSnapshot(keys,options={}) {
+  return pionexBalance.snapshot(keys,{marketRates,options});
+}
 
 function paddedAddress(address) { return address.slice(2).toLowerCase().padStart(64, '0'); }
 async function rpc(method, params, options = {}) {
@@ -278,7 +282,7 @@ async function connect(actor, input = {}, options = {}) {
   owner(actor);
   const walletId = String(input.walletId || '').trim();
   const provider = String(input.provider || '').toLowerCase();
-  if (!walletId || walletId.length > 100 || !['bybit', 'uniswap', 'trust'].includes(provider)) throw new Error('crypto-input-invalid');
+  if (!walletId || walletId.length > 100 || !['bybit', 'pionex', 'uniswap', 'trust'].includes(provider)) throw new Error('crypto-input-invalid');
   await assertWallet(walletId, options);
   let secret = '', address = '', chain = 'ethereum';
   if (provider === 'bybit') {
@@ -289,6 +293,15 @@ async function connect(actor, input = {}, options = {}) {
     // Validate wallet read access before persisting anything.
     await bybitSnapshot({ apiKey, apiSecret }, options);
     secret = encryptSecret(apiKey, apiSecret);
+  } else if (provider === 'pionex') {
+    if (input.scopeConfirm !== 'pionex-readonly') throw Error('crypto-pionex-readonly-confirm-required');
+    const apiKey=String(input.apiKey||'').trim(),apiSecret=String(input.apiSecret||'').trim();
+    if(!/^[A-Za-z0-9_\-]{8,200}$/.test(apiKey)||!/^[^\s\u0000-\u001f]{8,256}$/.test(apiSecret))
+      throw Error('crypto-credentials-invalid');
+    // Pionex does not offer a documented API call to attest that trading permission is disabled.
+    // Require explicit read-only confirmation and use GET-only requests exclusively.
+    await pionexSnapshot({apiKey,apiSecret},options);
+    secret=encryptSecret(apiKey,apiSecret);
   } else {
     if(provider==='trust'){
       if(!['evm-spot-readonly','public-address-readonly'].includes(input.scopeConfirm))
@@ -393,6 +406,8 @@ async function refresh(actor, options = {}) {
         const wallet = await assertWallet(id, limited);
         const snapshot = connection.provider === 'bybit'
           ? await bybitSnapshot(decryptSecret(connection.secret),limited)
+          : connection.provider === 'pionex'
+            ? await pionexSnapshot(decryptSecret(connection.secret),limited)
           : connection.provider==='trust'
             ? await trustChains.snapshot(connection.address,connection.chain||'ethereum',limited,
                 {rpc,networkOf,unitAmount})
@@ -409,6 +424,7 @@ async function refresh(actor, options = {}) {
             lastSyncAt: '',
             partialSyncAt: new Date().toISOString(),
             lastError: connection.provider==='bybit'?'crypto-bybit-coverage-incomplete'
+              :connection.provider==='pionex'?'crypto-pionex-coverage-incomplete'
               :connection.provider==='trust'?'crypto-trust-coverage-incomplete':'crypto-lp-discovery-unavailable',
           });
         } else {
@@ -468,7 +484,7 @@ async function operations(actor,walletId,options={}) {
   const peers=[];
   entries.forEach(([key,row],index)=>{
     if(key!==id&&reports[index].status==='fulfilled')
-      peers.push({walletId:key,name:row.provider==='bybit'?'Bybit':row.provider==='trust'?'Trust Wallet':'Uniswap',
+      peers.push({walletId:key,name:row.provider==='bybit'?'Bybit':row.provider==='pionex'?'Pionex':row.provider==='trust'?'Trust Wallet':'Uniswap',
         items:reports[index].value.items});
   });
   return cryptoOperations.linkTransfers({...report.value,walletId:id},peers);
@@ -497,4 +513,4 @@ async function checkBybitTradeHistory(actor,walletId,options={}){
   };
 }
 module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, setChain, refresh, history, operations, checkBybitTradeHistory,
-  encryptSecret, decryptSecret, bybitGet, bybitSnapshot, uniswapSnapshot, marketRates, usdToWalletCurrency };
+  encryptSecret, decryptSecret, bybitGet, bybitSnapshot, pionexSnapshot, uniswapSnapshot, marketRates, usdToWalletCurrency };

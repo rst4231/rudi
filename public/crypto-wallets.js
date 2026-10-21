@@ -11,11 +11,23 @@
     if(!res.ok||!data.ok){const err=new Error(String(data.error||'crypto-sync-unavailable'));err.status=res.status;throw err;}
     return data;
   };
-  const providerName=name=>name==='bybit'?'Bybit':name==='trust'?'Trust Wallet':'Uniswap';
+  const providerName=name=>name==='bybit'?'Bybit':name==='pionex'?'Pionex':name==='trust'?'Trust Wallet':'Uniswap';
   const errorLabel=err=>{
     const code=String(err?.message||err||'');
     const messages={
       'crypto-bybit-readonly-required':'Ключ Bybit должен быть только для чтения. Создай Read-only API Key.',
+      'crypto-pionex-readonly-confirm-required':'Подтверди, что ключ Pionex выдан только для чтения.',
+      'crypto-pionex-key-invalid':'Pionex отклонил API Key. Проверь ключ и срок действия.',
+      'crypto-pionex-sign-invalid':'Pionex отклонил подпись. Проверь API Key и API Secret.',
+      'crypto-pionex-permission-denied':'Pionex не разрешил чтение общего баланса. Включи Trade reading в настройках API.',
+      'crypto-pionex-ip-mismatch':'IP сервера RUDI не входит в разрешённый список Pionex.',
+      'crypto-pionex-time-invalid':'Pionex отклонил время запроса. Повтори позже.',
+      'crypto-pionex-access-blocked':'Pionex ограничил доступ к API с сервера RUDI.',
+      'crypto-pionex-rate-limited':'Pionex временно ограничил запросы. Повтори через минуту.',
+      'crypto-pionex-network-unavailable':'Сервер Pionex недоступен. Предыдущий баланс сохранён.',
+      'crypto-pionex-balance-invalid':'Pionex не вернул корректный общий баланс. Предыдущий баланс сохранён.',
+      'crypto-pionex-response-invalid':'Pionex вернул некорректный ответ.',
+      'crypto-pionex-api-rejected':'Pionex отклонил запрос сводного баланса. Проверь разрешение Trade reading.',
       'crypto-bybit-api-rejected':'Bybit отклонил API-запрос. Проверь ключ, разрешения и IP-ограничения.',
       'crypto-bybit-access-blocked':'Bybit отклонил запрос (HTTP 403). Возможны ограничения страны, IP или доступа к Bybit.com. RUDI использует сервер в Европе.',
       'crypto-bybit-region-blocked':'Bybit ограничивает доступ для региона аккаунта или сервера. Проверь правила Bybit для своей страны.',
@@ -64,6 +76,7 @@
     if(!p)return 'проверяю историю';
     const issue={
       'crypto-bybit-coverage-incomplete':'не все счета Bybit учтены',
+      'crypto-pionex-coverage-incomplete':'не все счета Pionex учтены',
       'crypto-trust-coverage-incomplete':'не все активы Trust Wallet учтены',
       'crypto-lp-discovery-unavailable':'не все LP-позиции Uniswap учтены',
       'crypto-refresh-deferred':'обновление отложено'
@@ -138,7 +151,7 @@
       const card=document.createElement('article');card.className='finance-crypto-source-card';card.dataset.walletId=link.walletId;
       const head=document.createElement('div');head.className='finance-crypto-source-head';
       const title=document.createElement('strong');title.textContent=providerName(link.provider);
-      const note=document.createElement('span');note.textContent=link.provider==='bybit'&&wallet.name.trim().toLowerCase()==='bybit'?'':wallet.name+(link.provider==='bybit'?'':' · '+(link.chain||'ethereum'));
+      const note=document.createElement('span');note.textContent=['bybit','pionex'].includes(link.provider)&&wallet.name.trim().toLowerCase()===link.provider?'':wallet.name+(['bybit','pionex'].includes(link.provider)?'':' · '+(link.chain||'ethereum'));
       const actions=document.createElement('div');actions.className='finance-crypto-source-actions';
       const sourceRefresh=document.createElement('button');
       sourceRefresh.type='button';sourceRefresh.className='finance-crypto-source-refresh';
@@ -229,7 +242,7 @@
       }
       // Scope detail available from server only.
       if(link.lastError&&!link.incomplete){const err=document.createElement('p');err.className='finance-crypto-error';err.textContent=errorLabel({message:link.lastError});card.append(err);}
-      if(link.provider==='bybit'&&Array.isArray(link.sections)){
+      if(['bybit','pionex'].includes(link.provider)&&Array.isArray(link.sections)){
         const groups=document.createElement('div');groups.className='finance-crypto-sections';
         const hideEmptyBybitSections=new Set([
           'earn-advanced-smart','earn-advanced-discount','earn-advanced-double',
@@ -258,9 +271,12 @@
           row.append(name,value);items.append(row);
         }card.append(items);
       }
-      const operationButton=document.createElement('button');operationButton.type='button';operationButton.className='finance-crypto-operations-button';operationButton.textContent='История операций';
-      operationButton.addEventListener('click',()=>void showOperations(link.walletId,card));
-      card.append(operationButton);
+      if(link.provider==='pionex'&&link.warning){const warning=document.createElement('small');warning.className='finance-crypto-warning';warning.textContent=link.warning;card.append(warning);}
+      if(link.provider!=='pionex'){
+        const operationButton=document.createElement('button');operationButton.type='button';operationButton.className='finance-crypto-operations-button';operationButton.textContent='История операций';
+        operationButton.addEventListener('click',()=>void showOperations(link.walletId,card));
+        card.append(operationButton);
+      }
       if(link.provider==='bybit'){
         const checkButton=document.createElement('button');
         checkButton.type='button';checkButton.className='finance-crypto-operations-button finance-crypto-history-check';
@@ -386,18 +402,23 @@
   }
   function switchProvider(){
     const provider=$('financeCryptoProvider')?.value;
-    if($('financeCryptoBybitFields'))$('financeCryptoBybitFields').hidden=provider!=='bybit';
-    if($('financeCryptoUniswapFields'))$('financeCryptoUniswapFields').hidden=provider==='bybit';
+    const isApi=provider==='bybit'||provider==='pionex';
+    if($('financeCryptoBybitFields'))$('financeCryptoBybitFields').hidden=!isApi;
+    if($('financeCryptoUniswapFields'))$('financeCryptoUniswapFields').hidden=isApi;
+    if($('financeCryptoPionexConsentWrap'))$('financeCryptoPionexConsentWrap').hidden=provider!=='pionex';
+    if($('financeCryptoExchangeHelp'))$('financeCryptoExchangeHelp').textContent=provider==='pionex'
+      ?'Создай API Key Pionex с правом Trade reading. Не включай торговлю или вывод. RUDI использует только чтение баланса; проверить запрет торговли по API нельзя. Данные ключа шифруются.'
+      :'Создай системный HMAC API-ключ Bybit.com с правами Read-only. Подключение выполняется через европейский сервер RUDI. Ключи с правами торговли или вывода отклоняются.';
     for(const chain of $('financeCryptoChain')?.options||[])chain.hidden=provider==='uniswap'&&!['ethereum','arbitrum'].includes(chain.value);
     if(provider==='uniswap'&&!['ethereum','arbitrum'].includes($('financeCryptoChain').value))$('financeCryptoChain').value='ethereum';
-    if(provider!=='bybit')switchChain();
+    if(!isApi)switchChain();
   }
   function onOpenWallet(ev){
     editingWalletId=String(ev.detail?.walletId||'');
     if($('financeCryptoConnectFields'))$('financeCryptoConnectFields').hidden=true;
-    clearKeys();if($('financeCryptoSpotConsent'))$('financeCryptoSpotConsent').checked=false;setStatus('financeCryptoWalletStatus','');
+    clearKeys();if($('financeCryptoSpotConsent'))$('financeCryptoSpotConsent').checked=false;if($('financeCryptoPionexConsent'))$('financeCryptoPionexConsent').checked=false;setStatus('financeCryptoWalletStatus','');
     const wallet=wallets.find(w=>w.id===editingWalletId);
-    const provider=/trust/i.test(wallet?.name||'')?'trust':/uniswap/i.test(wallet?.name||'')?'uniswap':'bybit';
+    const provider=/trust/i.test(wallet?.name||'')?'trust':/uniswap/i.test(wallet?.name||'')?'uniswap':/pionex|пионекс|пионэкс/i.test(wallet?.name||'')?'pionex':'bybit';
     const existing=connections.find(c=>c.walletId===editingWalletId);
     if($('financeCryptoProvider'))$('financeCryptoProvider').value=existing?.provider||provider;
     if($('financeCryptoChain'))$('financeCryptoChain').value=existing?.chain||'ethereum';
@@ -679,8 +700,9 @@
       const button=$('financeCryptoConnectButton');if(button)button.disabled=true;
       setStatus('financeCryptoWalletStatus','Проверяю подключение…');
       try{
-        const payload=provider==='bybit'
-          ?{apiKey:$('financeCryptoApiKey')?.value,apiSecret:$('financeCryptoApiSecret')?.value}
+        const payload=provider==='bybit'||provider==='pionex'
+          ?{apiKey:$('financeCryptoApiKey')?.value,apiSecret:$('financeCryptoApiSecret')?.value,
+              scopeConfirm:provider==='pionex'&&$('financeCryptoPionexConsent')?.checked?'pionex-readonly':''}
           :{address:$('financeCryptoAddress')?.value,
              chain:$('financeCryptoChain')?.value||'ethereum',
              scopeConfirm:$('financeCryptoSpotConsent')?.checked

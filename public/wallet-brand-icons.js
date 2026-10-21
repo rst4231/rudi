@@ -40,6 +40,7 @@
   const CRYPTO=[
     ['binance','Binance','binance.com','binance,бинанс,бинансе,бинанс биржа'],
     ['bybit','Bybit','bybit.com','bybit,байбит,бай бай бит'],
+    ['pionex','Pionex','pionex.com','pionex,пионекс,пионэкс,пионекс биржа'],
     ['okx','OKX','okx.com','okx,окекс,окх'],
     ['coinbase','Coinbase','coinbase.com','coinbase,коинбейз,коинбейс'],
     ['kraken','Kraken','kraken.com','kraken,кракен'],

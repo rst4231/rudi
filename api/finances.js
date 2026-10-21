@@ -69,6 +69,8 @@ function statusFor(code, error) {
   if (['crypto-bybit-readonly-required','crypto-bybit-key-invalid',
     'crypto-bybit-sign-invalid','crypto-bybit-ip-mismatch','crypto-bybit-permission-denied',
     'crypto-bybit-time-invalid'].includes(code)) return 400;
+  if (['crypto-pionex-key-invalid','crypto-pionex-sign-invalid','crypto-pionex-permission-denied','crypto-pionex-ip-mismatch','crypto-pionex-time-invalid','crypto-pionex-readonly-confirm-required'].includes(code)) return 400;
+  if (code.startsWith('crypto-pionex-') && !['crypto-pionex-balance-invalid'].includes(code)) return 503;
   if (code.startsWith('crypto-provider-') || code.startsWith('crypto-bybit-') || code.startsWith('crypto-rpc-') || code.startsWith('crypto-price-')) return 503;
   if (code.startsWith('crypto-')) return 400;
   if (code.startsWith('market-ticker-unavailable')) return 503;
