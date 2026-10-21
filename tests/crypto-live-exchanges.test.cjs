@@ -124,3 +124,24 @@ test('Pionex rejects wrong position mode instead of saving it as a usable connec
  }});
  await assert.rejects(()=>api.inspect(),{message:'live-oneway-required'});
 });
+
+test('Pionex limit and market orders enforce their distinct documented quantities',()=>{
+ const {orderSize}=require('../api/crypto-live-exchanges.cjs');
+ const rule={qtyStep:'0.01',minQty:'0.01',maxQty:'10',marketMinQty:'0.5',marketMaxQty:'2',minNotional:1,contractValue:1};
+ assert.equal(orderSize(40,100,rule,'limit'),'0.40');
+ assert.throws(()=>orderSize(40,100,rule,'market'),/live-minimum-order/);
+ assert.equal(orderSize(100,100,rule,'market'),'1.00');
+ assert.throws(()=>orderSize(300,100,rule,'market'),/live-size-invalid/);
+});
+test('Pionex instruments require real documented market limits rather than invented values',async()=>{
+ const {createExchange}=require('../api/crypto-live-exchanges.cjs');
+ const valid={symbol:'BTC_USDT_PERP',status:'TRADING',baseStep:'0.001',
+   minSizeLimit:'0.001',maxSizeLimit:'100',minSizeMarket:'0.01',
+   maxSizeMarket:'50',minNotional:'5',quoteStep:'0.1'};
+ const api=createExchange('pionex',keys,{fetchImpl:async()=>ok('pionex',{symbols:[valid]})});
+ const rule=await api.instrument('BTCUSDT');
+ assert.equal(rule.marketMinQty,'0.01');
+ assert.equal(rule.marketMaxQty,'50');
+ const invalid=createExchange('pionex',keys,{fetchImpl:async()=>ok('pionex',{symbols:[{...valid,minSizeMarket:undefined}]})});
+ await assert.rejects(()=>invalid.instrument('BTCUSDT'),/live-response-invalid/);
+});
