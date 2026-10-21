@@ -155,6 +155,10 @@ function createLiveService(deps={}){
   const at=new Date(now()).toISOString();
   if(options.scheduled)await put(META,'heartbeat',{at});
   const configs=await Promise.all(PROVIDERS.map(config)),rows=await trades();
+  // Idle ticks must still report a genuine scheduler heartbeat without
+  // spending request time loading signals for disabled accounts.
+  const hasWork=configs.some(c=>c.secret&&(c.enabled||rows.some(t=>t.provider===c.provider&&ACTIVE.includes(t.state))));
+  if(!hasWork)return {ok:true,checkedAt:at,idle:true};
   let feed;try{feed=await readSignals();}catch(_){feed={sourceError:true,signals:[]};}
   for(const initial of configs){
    let cfg=initial;
