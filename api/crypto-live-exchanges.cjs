@@ -72,7 +72,15 @@ function createExchange(provider,keys,options={}){
  }
  async function positions(){
   const data=await request('GET',okx?'/api/v5/account/positions':'/uapi/v1/account/positions',okx?{instType:'SWAP'}:{});
-  const rows=okx?data:data.positions;if(!Array.isArray(rows)||rows.length>=1000)throw Error('live-position-incomplete');
+  let rows=okx?data:data.positions;
+  if(!okx&&(rows===undefined||rows===null)){
+   // Pionex may omit the optional list on an empty account. Confirm via a
+   // second, independently authenticated account endpoint before saying "no positions".
+   const detail=await request('GET','/uapi/v1/account/detail');
+   rows=detail.positions;
+  }
+  if(!Array.isArray(rows))throw Error(okx?'live-position-incomplete':'live-positions-response-invalid');
+  if(rows.length>=1000)throw Error('live-position-incomplete');
   return rows.map(p=>{
    const signedQty=number(okx?p.pos:p.netSize),qty=Math.abs(signedQty);
    if(qty===0)return null;
@@ -87,23 +95,67 @@ function createExchange(provider,keys,options={}){
   }).filter(Boolean);
  }
  async function balance(){
-  const data=await request('GET',okx?'/api/v5/account/balance':'/uapi/v1/account/detail',okx?{ccy:'USDT'}:{});
-  if(okx){const row=data[0],usdt=row?.details?.find(d=>d.ccy==='USDT');if(!row||!usdt)throw Error('live-response-invalid');return {equity:number(usdt.eq),available:number(usdt.availBal)};}
-  if(!Array.isArray(data.balances)||!Array.isArray(data.positions))throw Error('live-response-invalid');
-  const row=data.balances.find(r=>r.coin==='USDT');
-  let equity=row?number(row.assets)-number(row.debts||0):0;
-  for(const pos of data.positions){
-   if(!String(pos.symbol).endsWith('_USDT_PERP'))continue;
-   equity+=number(pos.unrealizedPnL);
-   if(pos.isolatedMode!=='CROSS')for(const b of pos.balances||[])if(b.coin==='USDT')equity+=number(b.free)+number(b.frozen)-number(b.debts||0);
+  if(okx){
+   const data=await request('GET','/api/v5/account/balance',{ccy:'USDT'});
+   const row=data[0],usdt=row?.details?.find(d=>d.ccy==='USDT');
+   if(!row||!usdt)throw Error('live-response-invalid');
+   return {equity:number(usdt.eq),available:number(usdt.availBal)};
   }
-  return {equity,available:row?Math.max(0,number(row.available)):0};
+  const detail=await request('GET','/uapi/v1/account/detail');
+  let balances=detail.balances,positions=detail.positions,isolates=[];
+  const missingBalances=balances==null,missingPositions=positions==null;
+  if(!missingBalances&&!Array.isArray(balances))throw Error('live-balance-response-invalid');
+  if(!missingPositions&&!Array.isArray(positions))throw Error('live-positions-response-invalid');
+  // Empty futures accounts may omit lists from /detail. Use explicit lists
+  // from documented read endpoints, never infer an unknown position list is empty.
+  if(missingBalances||missingPositions){
+   const [funds,open]=await Promise.all([
+    missingBalances?request('GET','/uapi/v1/account/balances'):Promise.resolve(null),
+    missingPositions?request('GET','/uapi/v1/account/positions'):Promise.resolve(null)
+   ]);
+   if(missingBalances){
+    if(!Array.isArray(funds?.balances))throw Error('live-balance-response-invalid');
+    if(funds.isolates!=null&&!Array.isArray(funds.isolates))throw Error('live-balance-response-invalid');
+    balances=funds.balances;isolates=funds.isolates||[];
+   }
+   if(missingPositions){
+    if(!Array.isArray(open?.positions))throw Error('live-positions-response-invalid');
+    positions=open.positions;
+   }
+  }
+  const row=balances.find(r=>r?.coin==='USDT');
+  let equity=0,available=0;
+  if(row){
+   const assets=row.assets==null?number(row.free||0)+number(row.frozen||0):number(row.assets);
+   equity=assets-number(row.debts||0);
+   available=Math.max(0,number(row.available==null?row.free||0:row.available));
+  }
+  for(const pos of positions){
+   if(!pos||typeof pos!=='object')throw Error('live-positions-response-invalid');
+   if(!String(pos.symbol).endsWith('_USDT_PERP'))continue;
+   equity+=number(pos.unrealizedPnL||0);
+   if(pos.isolatedMode!=='CROSS'){
+    const detailFunds=pos.balances;
+    const isolated=detailFunds==null?isolates.find(r=>r?.symbol===pos.symbol)?.balances:detailFunds;
+    if(isolated!=null&&!Array.isArray(isolated))throw Error('live-balance-response-invalid');
+    if(isolated)for(const b of isolated)if(b.coin==='USDT')equity+=number(b.free)+number(b.frozen)-number(b.debts||0);
+   }
+  }
+  return {equity,available};
  }
  async function inspect(){
   const mode=await request('GET',okx?'/api/v5/account/config':'/uapi/v1/account/positionMode');
   if(okx){const perms=String(mode[0]?.perm||'').split(',');if(!perms.includes('trade'))throw Error('live-key-permission');if(perms.includes('withdraw'))throw Error('live-withdrawal-key');}
   if(okx?mode[0]?.posMode!=='net_mode':mode.positionMode!=='BUYSELL')throw Error('live-oneway-required');
-  const [account,open]=await Promise.all([balance(),positions()]);return {...account,positions:open};
+  const [account,open]=await Promise.allSettled([balance(),positions()]);
+  const failure=[account,open].find(item=>item.status==='rejected');
+  if(failure){
+   const cause=String(failure.reason?.message||'');
+   if(!okx&&['live-response-invalid','live-balance-response-invalid','live-positions-response-invalid'].includes(cause))
+    return {equity:null,available:null,positions:[],verified:false,error:'live-account-unverified'};
+   throw failure.reason;
+  }
+  return {...account.value,positions:open.value,verified:true};
  }
  async function instrument(symbol){
   validSymbol(symbol);
