@@ -6,7 +6,13 @@ function createHandler({authorized=req=>isCronRequestAuthorized(req)||isCronRequ
   if(!authorized(req))return res.status(401).json({ok:false,error:'not-authorized'});
   if(req.method!=='GET')return res.status(405).json({ok:false,error:'method-not-allowed'});
   try{return res.status(200).json(await run({scheduled:true}));}
-  catch(_){return res.status(503).json({ok:false,error:'live-service-unavailable'});}
+  catch(error){
+   // Log only stable internal error codes: never leak exchange keys or response bodies.
+   const code=String(error?.message||'');
+   const safe=/^(?:live|rudi-d1)-[a-z0-9-]{1,80}$/.test(code)?code:'internal-error';
+   console.warn('RUDI_CRYPTO_LIVE_CRON_FAIL',safe);
+   return res.status(503).json({ok:false,error:'live-service-unavailable'});
+  }
  };
 }
 module.exports=createHandler();module.exports.createHandler=createHandler;
