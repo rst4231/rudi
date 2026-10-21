@@ -88,7 +88,7 @@ test('Pionex resolves omitted empty-account detail arrays through documented rea
   assert.ok(Object.hasOwn(answers,path),'only documented account reads allowed');
   return ok('pionex',answers[path]);
  }});
- assert.deepEqual(await api.inspect(),{equity:0,available:0,positions:[],verified:true});
+ assert.deepEqual(await api.inspect(),{equity:0,available:0,positions:[],verified:true,tradingPermissionVerified:false});
  assert.ok(paths.includes('/uapi/v1/account/balances'));
  assert.ok(paths.includes('/uapi/v1/account/positions'));
 });
