@@ -6,7 +6,10 @@ const errors={
  'live-busy':'Сервер завершает проверку этой биржи. Повтори действие через минуту.',
  'live-key-invalid':'Проверь формат API Key и API Secret. Для OKX также нужен Passphrase.',
  'live-exchange-rejected':'Биржа отклонила проверку. Проверь права ключа, фьючерсный счёт и режим позиций.',
- 'live-response-invalid':'Не удалось разобрать ответ биржи. Подключение не завершено.',
+ 'live-response-invalid':'Биржа вернула неожиданный формат ответа. Торговля не включена.',
+ 'live-balance-response-invalid':'Pionex не подтвердил данные фьючерсного баланса. Торговля заблокирована.',
+ 'live-positions-response-invalid':'Pionex не подтвердил список открытых позиций. Торговля заблокирована.',
+ 'live-account-unverified':'API-ключ сохранён, но Pionex не подтвердил баланс или позиции. Торговля заблокирована. Попробуй «Обновить» позже.',
  'live-request-timeout':'Биржа не ответила за 30 секунд. Попробуй ещё раз.',
  'live-deadline':'Сервер превысил время ожидания биржи. Повтори подключение.',
  'live-network-unavailable':'Нет соединения с сервером. Проверь интернет и попробуй ещё раз.',
@@ -77,19 +80,20 @@ function render(data){
  if(!data)return;current=data;const p=selected(),a=account(),s=a?.status;
  if($('cryptoLivePassphraseField'))$('cryptoLivePassphraseField').hidden=p!=='okx';
  if($('cryptoLiveProgrammaticField'))$('cryptoLiveProgrammaticField').hidden=p!=='pionex';
- $('cryptoLiveConnection').textContent=a?.connected?'API подключён · '+(a.enabled?'торговля включена':'новые входы выключены'):'Биржа не подключена';
+ $('cryptoLiveConnection').textContent=a?.connected?(s?.verified===false?'API подключён · данные счёта не подтверждены':('API подключён · '+(a.enabled?'торговля включена':'новые входы выключены'))):'Биржа не подключена';
  $('cryptoLiveMode').textContent=a?.enabled?'Включена':'Выключена';
  $('cryptoLiveEquity').textContent=money(s?.equity);$('cryptoLiveAvailable').textContent=money(s?.available);
  const positions=s?.positions||[];
  $('cryptoLiveUnrealized').textContent=s?money(positions.reduce((n,r)=>n+Number(r.unrealizedPnl||0),0)):'—';
- $('cryptoLivePositionCount').textContent=s?String(positions.length):'—';
+ $('cryptoLivePositionCount').textContent=s?.verified===false?'—':s?String(positions.length):'—';
  $('cryptoLiveUpdated').textContent=s?.at?'Данные '+new Date(s.at).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Подключи биржу';
  if(!dirty){for(const [key,id] of Object.entries(fields))$(id).value=String(a?.settings?.[key]??({leverage:1,maxOpen:1,slippagePct:0.5}[key]??''));$('cryptoLiveProgrammatic').checked=a?.programmaticStops===true;}
  const status=$('cryptoLiveStatus');status.textContent=s?.error?label(s.error):s?.message?label(s.message):'';
  if(a?.connected&&!data.scheduler?.healthy)status.textContent+=(status.textContent?' ':'')+'Планировщик ещё не подтверждён. Включение новых входов недоступно.';
  const root=$('cryptoLivePositions');root.replaceChildren();
  for(const pos of positions)root.append(row(pos.symbol+' · '+(pos.side==='Buy'?'Лонг':'Шорт'),'Объём '+pos.qty+' · вход '+pos.avgPrice+' · цена '+pos.markPrice,money(pos.unrealizedPnl)+' USDT'));
- if(!positions.length)root.textContent=a?.connected?'Открытых позиций на бирже нет':'Подключи биржу для загрузки позиций';
+ if(s?.verified===false)root.textContent='Позиции не подтверждены биржей. Новые сделки заблокированы.';
+ else if(!positions.length)root.textContent=a?.connected?'Открытых позиций на бирже нет':'Подключи биржу для загрузки позиций';
  const journal=$('cryptoLiveTrades');journal.replaceChildren();
  const names={submitted:'Проверяется исполнение',unknown:'Ответ уточняется',open:'Открыта',attention:'Проверь позицию',closed:'Закрыта','closed-external':'Закрыта на бирже','not-filled':'Не исполнена',failed:'Отклонена'};
  for(const t of (data.trades||[]).filter(t=>t.provider===p)){
@@ -114,7 +118,9 @@ async function action(operation,values={},success='Сохранено'){
  try{
   await request(operation,{provider:selected(),...values});accepted=true;dirty=false;
   if(connect){clearKeys();showStatus('API подключён. Загружаю баланс…',true);}
-  const data=await request('crypto-live-report');render(data);showStatus(success,connect);
+  const data=await request('crypto-live-report');render(data);
+  const connected=data.accounts?.find(a=>a.provider===selected());
+  showStatus(connect&&connected?.status?.verified===false?label('live-account-unverified'):success,connect);
   return true;
  }catch(e){
   showStatus(accepted&&connect?'API подключён, но обновить баланс не удалось. Нажми «Обновить».':label(e?.message),connect);
