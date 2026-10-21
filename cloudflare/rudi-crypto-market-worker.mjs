@@ -273,14 +273,20 @@ async function scheduledLiveRun(env){
   if(!connected)return;
   const status={at:new Date().toISOString(),ok:false};
   try{
-    const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-live-cron',{
+    // Hit the dedicated lightweight Vercel function directly to avoid
+    // redirects through the older /api/finances rewrite.
+    const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-live-runner',{
       headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json'},
-      redirect:'error',signal:AbortSignal.timeout(55000)});
-    const payload=await response.json().catch(()=>null);
+      redirect:'manual',signal:AbortSignal.timeout(55000)});
+    const payload=response.ok?await response.json().catch(()=>null):null;
     status.httpStatus=response.status;
     status.ok=Boolean(response.ok&&payload?.ok);
-    if(!status.ok)status.error='rudi-live-http-'+response.status;
-  }catch(_){status.error='rudi-live-unavailable';}
+    if(!status.ok)status.error=response.status>=300&&response.status<400?
+      'rudi-live-redirect-'+response.status:'rudi-live-http-'+response.status;
+  }catch(error){
+    const category=String(error?.name||'fetch-error').slice(0,45).replace(/[^a-z0-9-]/gi,'');
+    status.error='rudi-live-unavailable-'+category;
+  }
   await persist(env,'__live_cron_status',JSON.stringify(status));
   if(!status.ok)console.warn('RUDI_CRYPTO_LIVE_WARN',status.error);
   return status;
@@ -306,7 +312,12 @@ export default {
   },
   async scheduled(event,env,ctx){
     if(!env.CRON_SECRET||!env.MARKET_DB){console.error('RUDI_CRYPTO_BINDINGS_MISSING');return;}
-    const outcomes=await Promise.allSettled([scheduledRun(env),scheduledLiveRun(env)]);
+    // Separate triggers: 1-minute safety heartbeat vs 15-minute paper market scan.
+    // No 40-coin market scan, candle fetching or warm-up on the minute trigger.
+    const jobs=event?.cron==='* * * * *'?[scheduledLiveRun(env)]:
+      event?.cron==='*/15 * * * *'?[scheduledRun(env)]:
+      [scheduledRun(env),scheduledLiveRun(env)];
+    const outcomes=await Promise.allSettled(jobs);
     for(const outcome of outcomes)if(outcome.status==='rejected')
       console.error('RUDI_CRYPTO_SCHEDULE_ERROR',String(outcome.reason?.message||outcome.reason));
   }
