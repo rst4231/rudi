@@ -49,7 +49,7 @@ function dailyLoss(rows,provider,at){
 }
 function createLiveService(deps={}){
  const client=deps.client||createRudiStateClient(),now=deps.now||Date.now,exchangeFactory=deps.exchangeFactory||createExchange;
- const readSignals=deps.readSignals||require('./crypto-signals.cjs').readSignals;
+ const readSignals=deps.readSignals||require('./crypto-signals.cjs').readLiveSignals;
  const encrypt=deps.encrypt||((key,secret,passphrase)=>walletKeys.encryptSecret(key,JSON.stringify({apiSecret:secret,passphrase})));
  const decrypt=deps.decrypt||(value=>{const raw=walletKeys.decryptSecret(value);return {apiKey:raw.apiKey,...JSON.parse(raw.apiSecret)};});
  const get=async(ns,key)=>(await client.getRecord(ns,key))?.value||null;
