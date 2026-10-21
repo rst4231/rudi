@@ -81,3 +81,13 @@
 .crypto-live-archive>summary,.crypto-live-controls summary,.crypto-live-extra summary{cursor:pointer;font-size:13px;color:var(--muted,#bcb4d0)}
 .crypto-live-controls details{margin:12px 0}.crypto-live-extra{margin:12px 0}
 @media(max-width:359px){.crypto-live-grid{grid-template-columns:minmax(0,1fr)}}
+
+/* Single Pionex connection and live status — scoped to the Artemyev scanner. */
+.crypto-live-provider-label{display:flex;align-items:center;justify-content:space-between;gap:10px;max-width:100%;margin:10px 0 4px;font-size:12px;color:var(--muted,#aeb0bb)}
+.crypto-live-provider-label strong{font-size:14px;color:var(--text,#ececf5);font-weight:600}
+.crypto-live-mode-group{display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:0;max-width:66%;text-align:right;margin-left:auto}
+#cryptoLiveMode{display:inline-flex;align-items:center;justify-content:flex-end;gap:8px;font-size:13px;color:var(--muted,#aeb0bb)}
+#cryptoLiveMode.is-enabled{color:var(--text,#ececf5)}
+#cryptoLiveMode.is-enabled::before{content:"";display:inline-block;width:9px;height:9px;flex:0 0 9px;background:#22c55e;border-radius:50%;box-shadow:0 0 0 3px rgba(34,197,94,.12)}
+#cryptoLiveActivatedAt{font-size:11px;line-height:1.4;color:var(--muted,#aeb0bb);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#cryptoLiveActivatedAt[hidden]{display:none}
