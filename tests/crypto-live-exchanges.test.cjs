@@ -72,3 +72,55 @@ test('malformed order fills and position prices are rejected before they can cha
  const api=createExchange('okx',keys,{fetchImpl:async()=>({ok:true,status:200,json:async()=>({code:'0',data:[{instId:'BTC-USDT-SWAP',pos:'1',posSide:'net',posId:'123',cTime:Date.now(),avgPx:'100',markPx:'-1',upl:'0',lever:'1'}]})})});
  await assert.rejects(()=>api.positions(),/live-response-invalid/);
 });
+
+test('Pionex resolves omitted empty-account detail arrays through documented read-only endpoints',async()=>{
+ const {createExchange}=require('../api/crypto-live-exchanges.cjs');
+ const paths=[];
+ const api=createExchange('pionex',keys,{fetchImpl:async(url,opts)=>{
+  const path=new URL(url).pathname;paths.push(path);
+  assert.equal(opts.method,'GET');
+  const answers={
+   '/uapi/v1/account/positionMode':{positionMode:'BUYSELL'},
+   '/uapi/v1/account/detail':{quoteRisks:[]},
+   '/uapi/v1/account/balances':{balances:[],isolates:[]},
+   '/uapi/v1/account/positions':{positions:[]}
+  };
+  assert.ok(Object.hasOwn(answers,path),'only documented account reads allowed');
+  return ok('pionex',answers[path]);
+ }});
+ assert.deepEqual(await api.inspect(),{equity:0,available:0,positions:[],verified:true});
+ assert.ok(paths.includes('/uapi/v1/account/balances'));
+ assert.ok(paths.includes('/uapi/v1/account/positions'));
+});
+test('Pionex sums balance from documented free and frozen fields when detail assets field is missing',async()=>{
+ const {createExchange}=require('../api/crypto-live-exchanges.cjs');
+ const api=createExchange('pionex',keys,{fetchImpl:async(url)=>{
+  assert.ok(url.includes('/uapi/v1/account/detail'));
+  return ok('pionex',{balances:[{coin:'USDT',free:'4',frozen:'6',debts:'1'}],positions:[]});
+ }});
+ assert.deepEqual(await api.balance(),{equity:9,available:4});
+});
+test('Pionex never treats malformed or unconfirmed position list as verified empty exposure',async()=>{
+ const {createExchange}=require('../api/crypto-live-exchanges.cjs');
+ const api=createExchange('pionex',keys,{fetchImpl:async(url,opts)=>{
+  assert.equal(opts.method,'GET');
+  const path=new URL(url).pathname;
+  return ok('pionex',path.endsWith('/positionMode')?{positionMode:'BUYSELL'}:
+    path.endsWith('/balances')?{balances:[]}:
+    path.endsWith('/positions')?{}:{balances:[]});
+ }});
+ const result=await api.inspect();
+ assert.equal(result.verified,false);
+ assert.equal(result.error,'live-account-unverified');
+ assert.equal(result.equity,null);
+ assert.equal(result.available,null);
+});
+test('Pionex rejects wrong position mode instead of saving it as a usable connection',async()=>{
+ const {createExchange}=require('../api/crypto-live-exchanges.cjs');
+ const api=createExchange('pionex',keys,{fetchImpl:async(url,opts)=>{
+  assert.equal(opts.method,'GET');
+  assert.equal(new URL(url).pathname,'/uapi/v1/account/positionMode');
+  return ok('pionex',{positionMode:'OPENCLOSE'});
+ }});
+ await assert.rejects(()=>api.inspect(),{message:'live-oneway-required'});
+});
