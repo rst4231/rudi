@@ -49,6 +49,11 @@ test('Pionex API auth errors do not leak provider text and malformed totals fail
   await assert.rejects(()=>pionex.snapshot(keys,{
     pionexGet:async()=>({totalInUsdt:'not-a-number'}),marketRates:async()=>({USDT:1})
   }),/crypto-pionex-balance-invalid/);
+  assert.throws(()=>pionex.parseAmount(''),/crypto-pionex-balance-invalid/);
+  assert.throws(()=>pionex.parseAmount('0xFF'),/crypto-pionex-balance-invalid/);
+  await assert.rejects(()=>pionex.get(pionex.BALANCES_FULL,keys,{
+    fetchImpl:async()=>({ok:false,status:403,json:async()=>({result:false,code:'IP_NOT_WHITELISTED'})})
+  }),/crypto-pionex-ip-mismatch/);
 });
 test('Pionex is wired into existing backend and form without affecting Bybit',()=>{
   const backend=read('api/crypto-wallets.cjs'),frontend=read('public/crypto-wallets.js');
@@ -58,4 +63,5 @@ test('Pionex is wired into existing backend and form without affecting Bybit',()
   assert.match(html,/<option value="pionex">Pionex<\/option>/);
   assert.match(html,/financeCryptoPionexConsent/);
   assert.match(frontend,/financeCryptoPionexConsent/);
+  assert.match(read('public/crypto-wallets.css'),/#financeCryptoPionexConsentWrap\[hidden\]/);
 });

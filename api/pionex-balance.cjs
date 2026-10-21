@@ -3,6 +3,12 @@ const crypto=require('node:crypto');
 const ORIGIN='https://api.pionex.com';
 const BALANCES_FULL='/api/v1/wallet/balancesFull';
 const round=value=>Math.round(value*1e8)/1e8;
+function parseAmount(value){
+  if(!/^[0-9]+(?:\.[0-9]+)?$/.test(String(value)))throw Error('crypto-pionex-balance-invalid');
+  const amount=Number(value);
+  if(!Number.isFinite(amount)||amount<0||amount>1e12)throw Error('crypto-pionex-balance-invalid');
+  return amount;
+}
 function errorCode(code){
   const errors={
     APIKEY_LOST:'crypto-pionex-key-invalid',
@@ -31,15 +37,17 @@ async function get(path,keys,options={}){
       cache:'no-store',signal:AbortSignal.timeout(timeout)
     });
   }catch(_){throw Error('crypto-pionex-network-unavailable');}
+  let parsed;
+  try{parsed=await response.json();}catch(_){}
   if(!response.ok){
+    if(parsed?.result===false&&parsed?.code&&errorCode(parsed.code)!=='crypto-pionex-api-rejected')
+      throw Error(errorCode(parsed.code));
     if(response.status===401)throw Error('crypto-pionex-key-invalid');
     if(response.status===403)throw Error('crypto-pionex-access-blocked');
     if(response.status===429)throw Error('crypto-pionex-rate-limited');
     if(response.status>=500)throw Error('crypto-pionex-network-unavailable');
     throw Error('crypto-pionex-api-rejected');
   }
-  let parsed;
-  try{parsed=await response.json();}catch(_){throw Error('crypto-pionex-response-invalid');}
   if(!parsed||typeof parsed!=='object')throw Error('crypto-pionex-response-invalid');
   if(parsed.result!==true)throw Error(errorCode(parsed.code));
   if(!parsed.data||typeof parsed.data!=='object')throw Error('crypto-pionex-response-invalid');
@@ -47,17 +55,14 @@ async function get(path,keys,options={}){
 }
 async function snapshot(keys,{pionexGet=get,marketRates,options={}}={}){
   const data=await pionexGet(BALANCES_FULL,keys,options);
-  const total=Number(data.totalInUsdt);
-  if(data.totalInUsdt==null||!Number.isFinite(total)||total<0||total>1e12)
-    throw Error('crypto-pionex-balance-invalid');
+  const total=parseAmount(data.totalInUsdt);
   if(typeof marketRates!=='function')throw Error('crypto-price-unavailable');
   const rates=await marketRates(options);
   const usdtUsd=Number(rates.USDT);
   if(!Number.isFinite(usdtUsd)||usdtUsd<=0)throw Error('crypto-price-unavailable');
   const account=(id,name,value)=>{
     if(value?.totalInUsdt==null)return null;
-    const amount=Number(value.totalInUsdt);
-    if(!Number.isFinite(amount)||amount<0||amount>1e12)throw Error('crypto-pionex-balance-invalid');
+    const amount=parseAmount(value.totalInUsdt);
     return {id,name,usd:round(amount*usdtUsd),verified:true,assets:[]};
   };
   const sections=[
@@ -74,4 +79,4 @@ async function snapshot(keys,{pionexGet=get,marketRates,options={}}={}){
     warning:'Сводный баланс Pionex по Spot, ботам и фьючерсам. Отдельные продукты Earn могут не входить в сумму.'
   };
 }
-module.exports={ORIGIN,BALANCES_FULL,errorCode,get,snapshot};
+module.exports={ORIGIN,BALANCES_FULL,errorCode,parseAmount,get,snapshot};
