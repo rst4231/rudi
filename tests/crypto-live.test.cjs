@@ -228,3 +228,24 @@ test('author explicit exit price goes into IOC close rather than unbounded marke
  assert.equal(exits.length,1);
  assert.ok(Number(exits[0].price)>0);
 });
+
+test('Pionex opens recent one-character $M author short within configured IOC slippage',async()=>{
+ const f=fixture(),signal=await start(f,'pionex');
+ signal.symbol='M';signal.direction='short';signal.entry=null;signal.authorEntry=null;
+ signal.stop=null;signal.take=null;
+ f.setSignals([signal]);f.advance(90000);
+ const result=await f.service.run({scheduled:true});
+ assert.equal(result.ok,true);
+ const orders=f.orders.filter(o=>!o.reduceOnly);
+ assert.equal(orders.length,1);assert.equal(orders[0].symbol,'MUSDT');
+ assert.equal(orders[0].side,'Sell');
+ assert.ok(Number(orders[0].price)>0);
+});
+test('One-character $M author short is not placed after the 20-minute freshness limit',async()=>{
+ const f=fixture(),signal=await start(f,'pionex');
+ signal.symbol='M';signal.direction='short';signal.entry=null;signal.authorEntry=null;
+ signal.stop=null;signal.take=null;
+ f.setSignals([signal]);f.advance(21*60000);
+ await f.service.run({scheduled:true});
+ assert.equal(f.orders.length,0);
+});
