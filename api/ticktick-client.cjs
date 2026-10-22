@@ -269,6 +269,7 @@ function checklistUpdateBody(task, itemId, completed, now = new Date()) {
 async function updateTaskChecklistItem(accessToken, projectId, taskId, itemId, completed, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const task = await fetchTask(accessToken, projectId, taskId, options);
+  if(completed)require('../public/task-completion-policy.js').assertTaskCompletionAllowed(task,options.now??Date.now());
   const body = checklistUpdateBody(task, itemId, completed, options.now || new Date());
   const response = await fetchImpl(API_BASE_URL + '/task/' + encodeURIComponent(taskId), {
     method: 'POST',

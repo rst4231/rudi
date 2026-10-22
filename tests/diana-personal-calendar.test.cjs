@@ -152,7 +152,7 @@ test('both actors tap timeline task text to open their editor, while checkbox ta
  for(const actor of ['Рустам','Диана']){
   const listeners={},opened=[],completed=[],checkbox={setAttribute(){},addEventListener(name,fn){this[name]=fn},contains:target=>target==='checkbox-child'},row={classList:{add(){},contains:()=>false},style:{},setAttribute(){},prepend(){},addEventListener:(name,fn)=>listeners[name]=fn};
   const task={id:'task-a',personal:true,privateLocal:actor==='Диана',projectId:actor==='Рустам'?'rustam-list':'',title:'Дело'};
-  const ctx={currentActor:actor,calendarScope:'personal',sharedWritable:true,document:{createElement:()=>checkbox},calendarTickTickTaskWebUrl:()=>actor==='Рустам'?'https://ticktick.com/task-a':'',calendarPersonalTaskEditorContext:()=>({actor}),window:{RUDIPersonalTaskEditor:{open:(...args)=>opened.push(args),bind(){}}},completeCalendarTickTickTask:(...args)=>completed.push(args)};
+  const ctx={taskCompletionIsFuture:()=>false,dateKey:'2026-10-22',currentActor:actor,calendarScope:'personal',sharedWritable:true,document:{createElement:()=>checkbox},calendarTickTickTaskWebUrl:()=>actor==='Рустам'?'https://ticktick.com/task-a':'',calendarPersonalTaskEditorContext:()=>({actor}),window:{RUDIPersonalTaskEditor:{open:(...args)=>opened.push(args),bind(){}}},completeCalendarTickTickTask:(...args)=>completed.push(args)};
   const attach=vm.runInNewContext(src.slice(start,end)+';attachCompletion',ctx);attach(row,task);
   listeners.click({target:{}});assert.equal(opened.length,1);assert.equal(opened[0][0].id,'task-a');
   listeners.click({target:checkbox});assert.equal(opened.length,1);

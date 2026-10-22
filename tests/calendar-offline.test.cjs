@@ -112,7 +112,7 @@ test('offline shell is versioned and pre-caches critical calendar assets before 
 test('calendar detects unreachable network before mutations even if navigator says online',async()=>{
   const app=fs.readFileSync('public/app.js','utf8');
   const from=app.indexOf('let calendarReachabilityAt=0');
-  const to=app.indexOf('async function requestTickTickTaskCompletion(taskId)',from);
+  const to=app.indexOf('async function requestTickTickTaskCompletion(',from);
   assert.ok(from>0&&to>from,'need isolated reachability and queue helper');
   const source=app.slice(from,to);
   const instantiate=(online,offlineHint,fetch)=>{

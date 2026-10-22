@@ -9,6 +9,7 @@ const monthKey=()=>calendarDateKey(new Date()).slice(0,7);
 function errorCode(error){return String(error?.message||error)}
 function status(error){
  const c=errorCode(error);
+ if(c==='task-completion-future-forbidden')return 409;
  return /forbidden/.test(c)?403:/not-found/.test(c)?404:/invalid|required|without-start/.test(c)?400:503;
 }
 const nativeActions=new Set(['next','today','calendar','overdue','task-create','task-update','task-delete','task-restore','task-complete','task-completion-undo','task-move','checklist-toggle']);

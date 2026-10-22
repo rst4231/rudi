@@ -1,6 +1,7 @@
 'use strict';
 // Shared task storage is independent of Rustam's private TickTick lists.
 const {randomUUID}=require('node:crypto');
+const {assertTaskCompletionAllowed}=require('../public/task-completion-policy.js');
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const {fetchProjectData,loadTickTickConfig,resolveAssigneeName,buildTickTickCalendar,calendarDateKey,calendarTime}=require('./ticktick-client.cjs');
 const {readToken}=require('./ticktick-store.cjs');
@@ -215,12 +216,14 @@ async function modify(action,body,actor,options={}){
  const date=parsed.date||task.date;
  if(action==='complete'){
   if(!dateMatches(task,date))throw Error('shared-task-occurrence-invalid');
+  assertTaskCompletionAllowed({date},options.now??Date.now());
   const id=parseRule(task.repeatFlag).FREQ?task.id+'__'+date:task.id;
   const inserted=await client.setIfAbsent(DONE_NS+date.slice(0,7),id,{at:new Date().toISOString(),actor});
   if(!parseRule(task.repeatFlag).FREQ&&inserted)await client.set(TASK_NS,task.id,{...task,deleted:true,completed:true});
   return {ok:true,taskId:id,title:task.title,completed:true,wasOpen:inserted,scoreDate:date,responsible:responsibility(task)};
  }
  if(action==='checklist-toggle'){
+  if(body.completed===true)assertTaskCompletionAllowed({date},options.now??Date.now());
   const item=task.items?.find(item=>String(item.id)===String(body.itemId));
   if(!item||typeof body.completed!=='boolean')throw Error('shared-checklist-invalid');
   const already=Number(item.status||0)===Number(body.completed);

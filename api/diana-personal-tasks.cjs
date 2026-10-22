@@ -2,6 +2,7 @@
 // Live series, idempotency markers and expiring history have separate namespaces:
 // long-lived completion markers never crowd live tasks out of D1's list limit.
 const {randomUUID}=require('node:crypto');
+const {assertTaskCompletionAllowed}=require('../public/task-completion-policy.js');
 const {decorateSharedTaskTitle}=require('./shared-task-emoji.cjs');
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const {dateTime}=require('./personal-task-editor.cjs');
@@ -68,6 +69,7 @@ async function personalTasks(input,options={}){
  if(op==='complete'){
   const date=occurrenceDate||existing.date;
   if(!date||!matches(existing,date))throw Error('calendar-occurrence-invalid');
+  assertTaskCompletionAllowed({date},now);
   const item=event(existing,date),ns=doneNamespace(date.slice(0,7));
   if((await client.getRecord(ns,item.id))?.value)return {ok:true,taskId:item.id,completed:true};
   const completedAt=new Date(now).toISOString(),expiresAt=expiresAfterTwoMonths(completedAt);

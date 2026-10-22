@@ -90,6 +90,8 @@
     if (kind.startsWith('diana-') && who !== 'Диана')throw Error('calendar-offline-owner-forbidden');
     if (!who || !['create', 'update', 'delete', 'complete', 'personal-complete', 'personal-update', 'personal-delete', 'move', 'personal-move', 'diana-create', 'diana-update', 'diana-delete', 'diana-complete'].includes(kind))
       throw Error('calendar-offline-invalid-action');
+    if(['complete','personal-complete','diana-complete'].includes(kind))
+      root.RUDITaskCompletionPolicy?.assertTaskCompletionAllowed(details?.task||{id:details?.taskId,date:details?.date});
     const row = {
       id: id(), actor: who, kind, details: clone(details || {}),
       createdAt: Date.now(), state: 'queued'
@@ -433,6 +435,13 @@
       for(const row of rows){
         if(offlineNow())break;
         const details=row.details||{};
+        if(['complete','personal-complete','diana-complete'].includes(row.kind)&&
+          root.RUDITaskCompletionPolicy?.isFutureTask(details.task||{id:details.taskId,date:details.date})){
+          row.state='blocked';row.retryAt=Date.parse(root.RUDITaskCompletionPolicy.taskDateKey(details.task||{id:details.taskId,date:details.date})+'T00:00:00+03:00');
+          row.error=root.RUDITaskCompletionPolicy.MESSAGE;
+          await change('outbox',table=>table.put(row));
+          continue;
+        }
         const taskKey=details.taskId
           ?(row.kind.startsWith('personal-')?'personal':row.kind.startsWith('diana-')?'diana':'shared')+'|'+string(details.taskId).split('__')[0]
           :row.id;

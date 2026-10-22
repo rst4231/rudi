@@ -2349,7 +2349,7 @@ async function handleTickTick(req, res, action, options = {}) {
         return res.status(200).json(await personalTasks({...body,actor,operation},options));
       }catch(error){
         const code=String(error?.message||error);
-        const status=code.includes('forbidden')?403:code.includes('not-found')?404:
+        const status=code==='task-completion-future-forbidden'?409:code.includes('forbidden')?403:code.includes('not-found')?404:
           /invalid|required/.test(code)?400:503;
         return res.status(status).json({ok:false,error:status===503?'calendar-save-unavailable':code});
       }
@@ -2465,6 +2465,7 @@ async function handleTickTick(req, res, action, options = {}) {
       return res.status(200).json({...publicResult,undoToken});
     } catch (error) {
       const code = String(error?.message || error);
+      if(code==='task-completion-future-forbidden')return res.status(409).json({ok:false,error:code});
       if (code === 'ticktick-token-invalid') {
         await clearPersonalToken('Рустам',options).catch(()=>{});
         return res.status(401).json({ ok:false,error:'ticktick-personal-reconnect-required' });
@@ -2617,6 +2618,7 @@ async function handleTickTick(req, res, action, options = {}) {
         });
       }
 
+      require('../public/task-completion-policy.js').assertTaskCompletionAllowed(task,options.now??Date.now());
       await completeTickTickTask(token.accessToken, config.projectId, taskId, options);
       if (wasOpen) {
         await sendTaskCompletedNotificationToPartner(actor,task?.title,options);
@@ -2665,6 +2667,7 @@ async function handleTickTick(req, res, action, options = {}) {
       });
     } catch (error) {
       const code = String(error?.message || error);
+      if(code==='task-completion-future-forbidden')return res.status(409).json({ok:false,error:code});
       if (code === 'ticktick-token-invalid') {
         await clearToken(options);
         return res.status(401).json({ ok: false, connected: false, reconnectRequired: true, error: 'ticktick-reconnect-required' });
@@ -3029,6 +3032,7 @@ async function handleTickTick(req, res, action, options = {}) {
       });
     } catch (error) {
       const code = String(error?.message || error);
+      if(code==='task-completion-future-forbidden')return res.status(409).json({ok:false,error:code});
       if (code === 'ticktick-token-invalid') {
         await clearToken(options);
         return res.status(401).json({

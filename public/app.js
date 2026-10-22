@@ -7246,6 +7246,18 @@
         }
       }
 
+      let completionPolicyDay='';
+      function taskCompletionIsFuture(task,date=''){
+        const candidate=task?.date||!date?task:{...task,date};
+        return window.RUDITaskCompletionPolicy?.isFutureTask(candidate)===true;
+      }
+      function blockFutureTaskCompletion(task,statusId){
+        if(!taskCompletionIsFuture(task))return false;
+        const status=document.getElementById(statusId);
+        if(status){status.hidden=false;status.textContent=window.RUDITaskCompletionPolicy.MESSAGE;}
+        try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+        return true;
+      }
       function tickTickTaskCanComplete(task){
         if(!task||task.completed) return false;
         if(!task.assigned) return true;
@@ -13153,6 +13165,12 @@
 
       function updateClock(){
         const now=new Date();
+        const completionDay=todayState().key;
+        if(completionPolicyDay&&completionPolicyDay!==completionDay&&currentActor){
+          if(currentAppTab==='schedule')void loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true});
+          if(currentAppTab==='home'||currentAppTab==='schedule')void loadTickTickNext({preserveExpanded:true,force:true});
+        }
+        completionPolicyDay=completionDay;
         const weekdayRaw=new Intl.DateTimeFormat('ru-RU',{weekday:'long',timeZone:TZ}).format(now);
         const weekday=weekdayRaw.charAt(0).toLocaleUpperCase('ru-RU')+weekdayRaw.slice(1);
         const date=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:TZ}).format(now);
@@ -13811,6 +13829,7 @@
 
       async function toggleTickTickChecklistItem(task,item,row,writable){
         if(!task?.id||!item?.id||row?.dataset?.busy==='1') return;
+        if(!item.completed&&blockFutureTaskCompletion(task,'ticktickBadge'))return;
         if(writable===false){
           showTickTickWritePermission();
           try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
@@ -13896,7 +13915,8 @@
           const row=document.createElement('button');
           row.type='button';
           row.className='ticktick-check-item'+(item.completed?' done':'');
-          row.disabled=!item?.id||!task?.id;
+          row.disabled=!item?.id||!task?.id||(!item.completed&&taskCompletionIsFuture(task));
+          if(!item.completed&&taskCompletionIsFuture(task))row.title=window.RUDITaskCompletionPolicy.MESSAGE;
           row.setAttribute('aria-pressed',item.completed?'true':'false');
           row.setAttribute('aria-label',(item.completed?'Снять отметку: ':'Отметить: ')+item.title);
 
@@ -14182,10 +14202,11 @@
         if(!window.rudiCalendarOffline)throw new Error('calendar-offline-unavailable');
         return window.rudiCalendarOffline.enqueue(currentActor,kind,details);
       }
-      async function requestTickTickTaskCompletion(taskId){
+      async function requestTickTickTaskCompletion(taskId,task={id:taskId}){
         const id=String(taskId||'').trim();
         if(!id) throw new Error('ticktick-task-complete-invalid');
-        const queued=await queueCalendarWhenOffline('complete',{taskId:id});
+        window.RUDITaskCompletionPolicy?.assertTaskCompletionAllowed(task);
+        const queued=await queueCalendarWhenOffline('complete',{taskId:id,task});
         if(queued)return queued;
         return managedJsonRequest('ticktick-task-complete:'+id,'/api/ticktick/task-complete',{
           body:{initData:tg?.initData||'',backupToken:currentStateBackupToken,taskId:id},
@@ -14195,6 +14216,7 @@
       }
 
       async function requestPersonalTickTickTaskCompletion(task){
+        window.RUDITaskCompletionPolicy?.assertTaskCompletionAllowed(task);
         const taskId=String(task?.id||'').trim();
         const projectId=String(task?.projectId||'').trim();
         if(task?.privateLocal===true&&currentActor==='Диана'){
@@ -14415,6 +14437,7 @@
 
       async function completeCalendarTickTickTask(task,row,button,writable){
         if(!task?.id||task.completed||task.externalCalendar||row?.dataset?.busy==='1') return;
+        if(blockFutureTaskCompletion(task,'workCalendarStatus'))return;
         if(!tickTickTaskCanComplete(task)||(task?.personal===true&&currentActor!=='Рустам'&&!(task.privateLocal===true&&currentActor==='Диана'))){
           const status=document.getElementById('workCalendarStatus');
           status.hidden=false;
@@ -14435,7 +14458,7 @@
         try{
           const payload=task?.personal===true
             ?await requestPersonalTickTickTaskCompletion(task)
-            :await requestTickTickTaskCompletion(task.id);
+            :await requestTickTickTaskCompletion(task.id,task);
           if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
           if(payload?.score){
             acceptScoreState(payload.score);
@@ -14454,7 +14477,7 @@
         }catch(error){
           const status=document.getElementById('workCalendarStatus');
           status.hidden=false;
-          status.textContent=(Number(error?.status)===401||Number(error?.status)===403)?'Нужно разрешение TickTick':'Ошибка TickTick';
+          status.textContent=String(error?.message||'').includes('task-completion-future-forbidden')?window.RUDITaskCompletionPolicy.MESSAGE:(Number(error?.status)===401||Number(error?.status)===403)?'Нужно разрешение TickTick':'Ошибка TickTick';
           try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
         }finally{
           row.dataset.busy='0';
@@ -14475,6 +14498,7 @@
         }
         if(task?.personal===true)return completeCalendarTickTickTask(task,row,button,writable);
         if(!task?.id||row?.dataset?.busy==='1') return;
+        if(blockFutureTaskCompletion(task,'ticktickBadge'))return;
         if(!tickTickTaskCanComplete(task)){
           const badge=document.getElementById('ticktickBadge');
           badge.hidden=false;
@@ -14491,7 +14515,7 @@
         row.classList.add('syncing');
         button.disabled=true;
         try{
-          const payload=await requestTickTickTaskCompletion(task.id);
+          const payload=await requestTickTickTaskCompletion(task.id,task);
           if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
           if(payload?.score){
             acceptScoreState(payload.score);
@@ -14739,7 +14763,9 @@
           complete.setAttribute('aria-label',canComplete
             ?(task.financeObligation?'Отметить оплаченным: ':'Отметить выполненным: ')+String(task?.title||'Дело')
             :'Эта задача назначена другому участнику');
-          complete.disabled=!canComplete||(!task.financeObligation&&payload?.writable===false);
+          const futureCompletion=!task.financeObligation&&taskCompletionIsFuture(task);
+          complete.disabled=futureCompletion||!canComplete||(!task.financeObligation&&payload?.writable===false);
+          if(futureCompletion)complete.setAttribute('aria-label',window.RUDITaskCompletionPolicy.MESSAGE);
           const agendaAvatars=ownerLabel==='Диана'?['Д']:ownerLabel==='Рустам'?['Р']:['Р','Д'];
           complete.classList.toggle('is-shared-avatar',agendaAvatars.length>1);
           complete.replaceChildren(...agendaAvatars.map(name=>{
@@ -14756,6 +14782,7 @@
             return avatar;
           }));
           complete.title=canComplete?(task.financeObligation?'Отметить оплаченным':'Отметить выполненным'):ownerLabel;
+          if(futureCompletion)complete.title=window.RUDITaskCompletionPolicy.MESSAGE;
           complete.addEventListener('click',event=>{
             event.stopPropagation();
             completeTickTickTodayTask(task,row,complete,(task.financeObligation===true||payload?.writable!==false)&&task.agendaWritable!==false);
@@ -16059,7 +16086,9 @@
           checkbox.setAttribute('aria-checked',task.completed?'true':'false');
           if(task.completed){row.classList.add('is-completed');checkbox.textContent='✓'}
           checkbox.setAttribute('aria-label','Отметить выполненным: '+String(task.title||'Дело'));
-          checkbox.disabled=Boolean(task.completed)||!task.id||!writable||!allowed;
+          const futureCompletion=taskCompletionIsFuture(task,dateKey);
+          checkbox.disabled=futureCompletion||Boolean(task.completed)||!task.id||!writable||!allowed;
+          if(futureCompletion){checkbox.title=window.RUDITaskCompletionPolicy.MESSAGE;checkbox.setAttribute('aria-label',checkbox.title);}
           checkbox.addEventListener('click',event=>{
             event.stopPropagation();
             completeCalendarTickTickTask(task,row,checkbox,writable);
@@ -16456,7 +16485,9 @@
                   ?'Отметить выполненным: '+String(event.title||'Дело')
                   :isPersonalTask?'Недостаточно прав для выполнения личной задачи':'Эта задача назначена другому участнику');
                 const taskWritable=isPersonalTask?event?.canComplete!==false:payload?.ticktickWritable!==false;
-                complete.disabled=Boolean(event.completed)||!event?.id||!taskWritable||!canComplete;
+                const futureCompletion=taskCompletionIsFuture(event,day.date);
+                complete.disabled=futureCompletion||Boolean(event.completed)||!event?.id||!taskWritable||!canComplete;
+                if(futureCompletion){complete.title=window.RUDITaskCompletionPolicy.MESSAGE;complete.setAttribute('aria-label',complete.title);}
 
                 const taskCopy=document.createElement('button');
                 taskCopy.type='button';
