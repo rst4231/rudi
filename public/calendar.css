@@ -1079,8 +1079,10 @@ body[data-calendar-scope="shared"] .work-page #workCalendarDays[data-calendar-mo
 body[data-calendar-scope="personal"] .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-task-count{
   background:#21a5ed!important
 }
-.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell .calendar-period-dot{
-  bottom:5px!important;left:calc(50% - 3px)!important;width:6px!important;height:6px!important
+.work-page #workCalendarDays .calendar-day-cell .calendar-day-indicators .calendar-period-dot{
+  position:static!important;inset:auto!important;display:block!important;flex:none!important;
+  width:6px!important;height:6px!important;min-width:6px!important;max-width:6px!important;
+  margin:0!important;padding:0!important;border:0!important;transform:none!important;order:1!important
 }
 .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell .calendar-work-dot,
 .work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell .calendar-check,
@@ -1197,10 +1199,6 @@ html[data-theme="dark"] body[data-app-tab="schedule"]{
   position:static!important;inset:auto!important;flex:none!important;display:block!important;
   min-width:6px!important;max-width:6px!important;width:6px!important;height:6px!important;
   padding:0!important;border:0!important;border-radius:50%!important
-}
-.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell.has-tasks .calendar-period-dot,
-.work-page #workCalendarDays[data-calendar-mode="month"] .calendar-day-cell.has-obligations .calendar-period-dot{
-  left:calc(50% + 10px)!important
 }
 body[data-calendar-scope="shared"] .work-page #workCalendarDays[data-calendar-mode="week"] .calendar-task-count{
   background:#21a5ed!important

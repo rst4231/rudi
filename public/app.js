@@ -13361,19 +13361,21 @@
 
       function dianaPeriodDateKeys(cfg){
         const source=cfg&&typeof cfg==='object'?cfg:{};
+        if(source.enabled===false) return new Set();
         const length=Math.max(1,Math.min(10,Math.round(Number(source.periodLengthDays)||5)));
-        const starts=(Array.isArray(source.historyStarts)?source.historyStarts:[])
-          .map(parseCycleDate).filter(Number.isFinite).sort((a,b)=>a-b);
-        const latest=starts.length?starts[starts.length-1]:null;
-        const explicitEnd=parseCycleDate(source.lastPeriodEnd);
         const todayUtc=todayState().utc;
+        const starts=(Array.isArray(source.historyStarts)?source.historyStarts:[])
+          .map(parseCycleDate).filter(value=>Number.isFinite(value)&&value<=todayUtc).sort((a,b)=>a-b);
+        const latest=starts.length?starts[starts.length-1]:null;
+        const model=dianaCycleModel(source);
         const keys=new Set();
         for(const start of starts){
-          // Only recorded cycles, never predicted dates. A recorded end shortens the latest one.
-          const last=Number.isFinite(explicitEnd)&&start===latest&&explicitEnd>=start
-            ?Math.min(start+(length-1)*DAY,explicitEnd)
+          // A recorded start marks its full range, including remaining days of the current period.
+          // Match the cycle model's end; never mark the next unconfirmed cycle.
+          const last=start===latest&&Number.isFinite(model.periodEnd)
+            ?model.periodEnd
             :start+(length-1)*DAY;
-          for(let date=start;date<=last&&date<=todayUtc;date+=DAY){
+          for(let date=start;date<=last;date+=DAY){
             keys.add(new Date(date).toISOString().slice(0,10));
           }
         }
@@ -13386,11 +13388,19 @@
         document.querySelectorAll('#workCalendarDays .calendar-day-cell[data-date]').forEach(cell=>{
           const active=keys.has(String(cell.dataset.date||''));
           const existing=cell.querySelector('.calendar-period-dot');
+          let indicators=cell.querySelector('.calendar-day-indicators');
+          if(active&&!indicators){
+            indicators=document.createElement('span');
+            indicators.className='calendar-day-indicators';
+            cell.appendChild(indicators);
+          }
           if(active&&!existing){
             const dot=document.createElement('span');
             dot.className='calendar-period-dot';
             dot.setAttribute('aria-hidden','true');
-            cell.appendChild(dot);
+            indicators.appendChild(dot);
+          }else if(active&&existing&&existing.parentElement!==indicators){
+            indicators.appendChild(existing);
           }else if(!active&&existing){
             existing.remove();
           }
