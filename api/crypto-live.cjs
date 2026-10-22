@@ -10,6 +10,34 @@ const providerOf=value=>{if(!PROVIDERS.includes(value))throw Error('live-provide
 const cid=(...parts)=>'rudi'+createHash('sha256').update(parts.join(':')).digest('hex').slice(0,24);
 const day=at=>new Date(at).toLocaleDateString('en-CA',{timeZone:'Europe/Moscow'});
 const safeError=e=>/^live-[a-z-]+$/.test(String(e?.message||''))?e.message:'live-service-unavailable';
+// Diagnostics share one bounded record per account and the existing trade writes.
+// They never fetch Telegram/prices or submit an order of their own.
+function addStage(trace,stage,at,reason=''){
+ const stages=trace.stages||(trace.stages=[]),last=stages.at(-1);
+ if(last?.stage===stage&&(last.reason||'')===reason)return;
+ stages.push({stage,at,...(reason?{reason}:{})});trace.updatedAt=at;
+ // Keep the original receipt/parse times even after repeated blocked attempts.
+ if(stages.length>16)trace.stages=[...stages.slice(0,2),...stages.slice(-14)];
+}
+function signalTrace(signal,at){
+ const trace={signalId:Number(signal.id),symbol:signal.symbol,direction:signal.direction,signalAt:signal.at,stages:[]};
+ addStage(trace,'received',at);addStage(trace,'parsed',at);return trace;
+}
+function mergeDiagnostics(diagnostics,status,rows,balanceCheck){
+ const d={channel:{...(diagnostics?.channel||{})},exchange:{...(diagnostics?.exchange||{})}};
+ // Minute ticks and manual refreshes have separate health records, so a late
+ // response from an older tick cannot erase a newer successful manual check.
+ for(const check of [status,balanceCheck]){
+  if(check?.at&&(!d.exchange.lastAttemptAt||Date.parse(check.at)>=Date.parse(d.exchange.lastAttemptAt))){
+   d.exchange={...d.exchange,lastAttemptAt:check.at,error:check.verified===false?check.error||'live-account-unverified':''};
+  }
+  if(check?.lastSuccessAt&&(!d.exchange.lastSuccessAt||Date.parse(check.lastSuccessAt)>Date.parse(d.exchange.lastSuccessAt)))d.exchange.lastSuccessAt=check.lastSuccessAt;
+ }
+ const traces=new Map((diagnostics?.signals||[]).map(s=>[String(s.signalId),s]));
+ for(const t of rows)if(t.stages?.length)traces.set(String(t.signalId),{signalId:Number(t.signalId),symbol:t.symbol.replace(/USDT$/,''),direction:t.side==='Buy'?'long':'short',signalAt:t.signalAt,updatedAt:t.updatedAt,stages:t.stages});
+ d.signals=[...traces.values()].sort((a,b)=>(b.signalAt||b.updatedAt||'').localeCompare(a.signalAt||a.updatedAt||'')).slice(0,60);
+ return d;
+}
 function riskSettings(input){
  const out={};
  for(const [name,min,max] of [['marginUsd',1,100000],['marginCapUsd',1,100000],['dailyLossUsd',1,100000],['leverage',1,5],['maxOpen',1,5],['slippagePct',0.05,2]]){
@@ -78,13 +106,17 @@ function createLiveService(deps={}){
   await client.setIfAbsent(META,'archive',{at:new Date(now()).toISOString()});
   const [rows,schedule,archive]=await Promise.all([trades(),scheduler(),get(META,'archive')]);
   const accounts=await Promise.all(PROVIDERS.map(async p=>{
-   const c=await config(p);let status=await get(META,'status-'+p);
+   const c=await config(p);let status=await get(META,'status-'+p),balanceCheck=await get(META,'balance-check-'+p).catch(()=>null);
    if(options.refreshBalances&&c.secret&&(!status?.at||now()-Date.parse(status.at)>30000)&&await client.setIfAbsent(META,'balance-lease-'+p,{at:now()},{expiresAt:new Date(now()+15000).toISOString()})){
-    try{const api=apiFor(p,c,Date.now()+14000),[balance,positions]=await Promise.all([api.balance(),api.positions()]);status={...status,...balance,positions,verified:true,at:new Date(now()).toISOString(),error:''};}
+    try{const api=apiFor(p,c,Date.now()+14000),[balance,positions]=await Promise.all([api.balance(),api.positions()]);status={...status,...balance,positions,verified:true,at:new Date(now()).toISOString(),lastSuccessAt:new Date(now()).toISOString(),error:''};}
     catch(e){status={...status,verified:false,error:safeError(e),at:new Date(now()).toISOString()};}
+    const lastSuccessAt=[status.lastSuccessAt,balanceCheck?.lastSuccessAt].filter(v=>Number.isFinite(Date.parse(v))).sort().at(-1)||'';
+    balanceCheck={at:status.at,lastSuccessAt,verified:status.verified,error:status.error||''};
+    await put(META,'balance-check-'+p,balanceCheck).catch(()=>{});
     await put(META,'status-'+p,status);
    }
-   return publicConfig(c,status);
+   const diagnostics=mergeDiagnostics(await get(META,'diagnostics-'+p).catch(()=>null),status,rows.filter(t=>t.provider===p),balanceCheck);
+   return {...publicConfig(c,status),diagnostics};
   }));
   const safeRows=rows.map(t=>{const copy={...t};delete copy.secret;return copy;}).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
   return {accounts,trades:safeRows.slice(0,200),scheduler:schedule,archiveAt:archive?.at||new Date(now()).toISOString()};
@@ -96,7 +128,7 @@ function createLiveService(deps={}){
   if(!/^[\w-]{8,150}$/.test(apiKey)||!/^\S{8,200}$/.test(apiSecret)||(p==='okx'&&(!passphrase||passphrase.length>100||/[\r\n\x00]/.test(passphrase))))throw Error('live-key-invalid');
   const account=await exchangeFactory(p,{apiKey,apiSecret,passphrase},{deadlineAt:Date.now()+20000}).inspect();
   const c={...old,provider:p,secret:encrypt(apiKey,apiSecret,passphrase),enabled:false,connectedAt:new Date(now()).toISOString()};
-  await put(CONFIG,p,c);await put(META,'status-'+p,{...account,at:new Date(now()).toISOString(),error:account.verified===false?'live-account-unverified':'',message:account.verified===false?'':'live-connected'});
+  await put(CONFIG,p,c);await put(META,'status-'+p,{...account,at:new Date(now()).toISOString(),lastSuccessAt:account.verified===true?new Date(now()).toISOString():'',error:account.verified===false?'live-account-unverified':'',message:account.verified===false?'':'live-connected'});
   return publicConfig(c);});
  }
  async function configure(actor,input){
@@ -106,7 +138,7 @@ function createLiveService(deps={}){
    // Never enable real entries if account balances or open exposure could not be verified.
    const checked=await apiFor(p,c,Date.now()+18000).inspect();
    if(checked.verified!==true)throw Error('live-account-unverified');
-   await put(META,'status-'+p,{...checked,at:new Date(now()).toISOString(),error:''});
+   await put(META,'status-'+p,{...checked,at:new Date(now()).toISOString(),lastSuccessAt:new Date(now()).toISOString(),error:''});
    if(!(await scheduler()).healthy)throw Error('live-scheduler-stale');
    if(p==='pionex'&&input.programmaticStops!==true)throw Error('live-programmatic-consent');
    if((await trades()).some(t=>t.provider===p&&['unknown','submitted','attention'].includes(t.state)))throw Error('live-review-required');
@@ -124,11 +156,14 @@ function createLiveService(deps={}){
  async function saveTrade(t){t.updatedAt=new Date(now()).toISOString();await put(ORDERS,t.key,t);}
  async function reconcile(t,api){
   if(['submitted','unknown'].includes(t.state)){
-   const o=await api.findOrder(t.symbol,t.clientId,t.orderId);if(!o){t.state='unknown';await saveTrade(t);return;}
+   const o=await api.findOrder(t.symbol,t.clientId,t.orderId);if(!o){t.state='unknown';if(t.stages?.length)addStage(t,'waiting',new Date(now()).toISOString(),'live-order-unknown');await saveTrade(t);return;}
+   if(t.stages?.length&&!t.stages.some(e=>e.stage==='submitted'))addStage(t,'submitted',new Date(now()).toISOString());
    if(!o.closed){t.state='submitted';await saveTrade(t);return;}
    t.orderId=o.orderId;t.entryFee=o.fee;t.feesKnown=o.feesKnown!==false;t.entryQty=o.filledQty;t.remainingQty=o.filledQty;t.entryPrice=o.avgPrice;
    if(o.filledQty>0)t.marginUsd=o.filledQty*o.avgPrice*t.contractValue/t.leverage;
-   t.state=o.filledQty>0?'open':'not-filled';t.openedAt=t.openedAt||new Date(now()).toISOString();await saveTrade(t);
+   t.state=o.filledQty>0?'open':'not-filled';t.openedAt=t.openedAt||new Date(now()).toISOString();
+   if(t.stages?.length)addStage(t,o.filledQty>0?'executed':'rejected',new Date(now()).toISOString(),o.filledQty>0?'':'live-order-not-filled');
+   await saveTrade(t);
   }
   for(const e of t.exits||[]){
    if(e.closed)continue;const o=await api.findOrder(t.symbol,e.clientId,e.orderId);if(!o)continue;
@@ -196,10 +231,22 @@ function createLiveService(deps={}){
    cfg=await config(p);
    if(!cfg.secret||(!cfg.enabled&&!owned.length)){await client.remove(META,'lease-'+p).catch(()=>{});continue;}
    const leaseStarted=Date.now(),deadlineAt=Date.now()+24000,api=apiFor(p,cfg,deadlineAt);
-   let status={at,error:'',message:''};
+   const [previousStatus,previousDiagnostics]=await Promise.all([get(META,'status-'+p).catch(()=>null),get(META,'diagnostics-'+p).catch(()=>null)]);
+   const lastSuccessAt=[previousStatus?.lastSuccessAt,previousDiagnostics?.exchange?.lastSuccessAt].filter(v=>Number.isFinite(Date.parse(v))).sort().at(-1)||'';
+   let status={at,error:'',message:'',lastSuccessAt};
+   const diagnostics=mergeDiagnostics(previousDiagnostics,null,rows.filter(t=>t.provider===p));
+   const freshFeed=!feed.sourceError&&Number.isFinite(Date.parse(feed.updatedAt))&&now()-Date.parse(feed.updatedAt)<=20*60000;
+   diagnostics.channel={...diagnostics.channel,lastAttemptAt:at,error:freshFeed?'':feed.sourceError?'live-author-feed-unavailable':'live-source-stale',...(freshFeed?{lastSuccessAt:feed.updatedAt}:{})};
+   const journal=new Map(diagnostics.signals.map(s=>[String(s.signalId),s]));
+   if(freshFeed)for(const s of feed.signals||[]){
+    if(Number.isInteger(Number(s.id))&&Number(s.id)>0&&Date.parse(s.at)>Date.parse(cfg.activatedAt)&&Date.parse(s.at)<=now()&&!journal.has(String(s.id))&&!rows.some(t=>t.provider===p&&String(t.signalId)===String(s.id)))journal.set(String(s.id),signalTrace(s,at));
+   }
+   const decision=(s,stage,reason)=>{const trace=journal.get(String(s.id));if(trace&&!rows.some(t=>t.provider===p&&String(t.signalId)===String(s.id)))addStage(trace,stage,new Date(now()).toISOString(),reason);};
+   const waitPending=reason=>{for(const s of feed.signals||[]){const invalid=eligibleSignal(s,cfg,now());decision(s,invalid?'rejected':'waiting',invalid||reason);}};
+   let processingSignal=null;
    try{
     const [account,positions]=await Promise.all([api.balance(),api.positions()]);
-    status={...status,...account,positions,verified:true};
+    status={...status,...account,positions,verified:true,lastSuccessAt:new Date(now()).toISOString()};
     let blocked=false;
     for(const t of owned){
      if(Date.now()>=deadlineAt-1000)throw Error('live-deadline');
@@ -265,26 +312,28 @@ function createLiveService(deps={}){
      blocked=true;
     }
     const current=await config(p);
-    if(!current.enabled||!current.settings)continue;
-    if(blocked||unknownLoss||rows.some(t=>t.provider===p&&t.feesKnown===false&&day(t.createdAt)===today)){status.message=status.message||'live-review-required';continue;}
-    if(feed.sourceError||!feed.updatedAt||now()-Date.parse(feed.updatedAt)>20*60000){status.message='live-source-stale';failures.push('live-source-stale');continue;}
+    if(!current.enabled||!current.settings){waitPending('live-trading-paused');continue;}
+    if(blocked||unknownLoss||rows.some(t=>t.provider===p&&t.feesKnown===false&&day(t.createdAt)===today)){status.message=status.message||'live-review-required';waitPending(status.message);continue;}
+    if(feed.sourceError||!feed.updatedAt||now()-Date.parse(feed.updatedAt)>20*60000){status.message='live-source-stale';failures.push('live-source-stale');waitPending('live-author-feed-unavailable');continue;}
     const limits=current.settings;
-    if(open.length>=limits.maxOpen||open.reduce((a,t)=>a+t.marginUsd,0)+limits.marginUsd>limits.marginCapUsd){status.message='live-position-limit';continue;}
+    if(open.length>=limits.maxOpen||open.reduce((a,t)=>a+t.marginUsd,0)+limits.marginUsd>limits.marginCapUsd){status.message='live-position-limit';waitPending(status.message);continue;}
     const candidates=(feed.signals||[]).slice().sort((a,b)=>a.at.localeCompare(b.at));
     let candidate=null,rule=null,price=null;
     for(const s of candidates){
      const reason=eligibleSignal(s,current,now());
-     if(reason){if(Date.parse(s.at)>Date.parse(current.activatedAt))status.message=reason;continue;}
+     if(reason){if(Date.parse(s.at)>Date.parse(current.activatedAt))status.message=reason;decision(s,'rejected',reason);continue;}
      const key=p+'-'+s.id;
      if(rows.some(t=>t.key===key)||await get(ORDERS,key))continue;
-     if(positions.some(t=>t.symbol===s.symbol+'USDT')){status.message='live-existing-position';continue;}
+     if(positions.some(t=>t.symbol===s.symbol+'USDT')){status.message='live-existing-position';decision(s,'waiting',status.message);continue;}
      if(Date.now()>=deadlineAt-1000)throw Error('live-deadline');
+     processingSignal=s;
      try{rule=await api.instrument(s.symbol+'USDT');}
      catch(e){
       // An unavailable contract is specific to this author signal. Network,
       // authentication and rate-limit failures still stop the account tick.
       if(safeError(e)!=='live-symbol-unavailable')throw e;
       status.message='live-symbol-unavailable';
+      decision(s,'rejected',status.message);processingSignal=null;
       status.skippedSignals=[...(status.skippedSignals||[]),{signalId:s.id,symbol:s.symbol,reason:'live-symbol-unavailable'}].slice(-8);
       continue;
      }
@@ -298,13 +347,13 @@ function createLiveService(deps={}){
     // entry, the current exchange quote is the reference for the limit.
     const sourceEntry=Object.hasOwn(s,'authorEntry')?s.authorEntry:s.entry;
     const authorEntry=Number(sourceEntry)>0?Number(sourceEntry):null;
-    if(authorEntry&&Math.abs(price/authorEntry-1)*100>limits.slippagePct){status.message='live-price-moved';continue;}
+    if(authorEntry&&Math.abs(price/authorEntry-1)*100>limits.slippagePct){status.message='live-price-moved';decision(s,'waiting',status.message);continue;}
     const takeLevel=Number(s.take)>0?Number(s.take):null;
     const stopLevel=Number(s.stop)>0?Number(s.stop):null;
     if(s.direction==='long'?
        (stopLevel!==null&&price<=stopLevel)||(takeLevel!==null&&price>=takeLevel):
        (stopLevel!==null&&price>=stopLevel)||(takeLevel!==null&&price<=takeLevel)){
-      status.message='live-levels-passed';continue;
+      status.message='live-levels-passed';decision(s,'rejected',status.message);continue;
     }
     // Marketable IOC executes immediately near the quote, but cannot
     // slip beyond the configured deviation as an unbounded MARKET_QTY can.
@@ -316,24 +365,27 @@ function createLiveService(deps={}){
       authorEntry?authorEntry*(1+limits.slippagePct/100):0);
     const qty=orderSize(limits.marginUsd*limits.leverage,sizingPrice,rule);
     const margin=Number(qty)*sizingPrice*Number(rule.contractValue)/limits.leverage;
-    if(account.available<margin*1.01){status.message='live-insufficient-balance';continue;}
+    if(account.available<margin*1.01){status.message='live-insufficient-balance';decision(s,'waiting',status.message);continue;}
     const take=takeLevel===null?null:stepValue(takeLevel,rule.priceStep,s.direction==='short');
     const stop=stopLevel===null?null:stepValue(stopLevel,rule.priceStep,s.direction==='long');
     const target=limit||price;
     if(s.direction==='long'?
        (stop!==null&&!(Number(stop)<target))||(take!==null&&!(target<Number(take))):
        (take!==null&&!(Number(take)<target))||(stop!==null&&!(target<Number(stop)))){
-      status.message='live-levels-passed';continue;
+      status.message='live-levels-passed';decision(s,'rejected',status.message);continue;
     }
     await api.leverage(symbol,limits.leverage);
     // Re-read both activation and credentials revision immediately before claim.
-    const fresh=await config(p);if(!fresh.enabled||fresh.revision!==cfg.revision||fresh.secret!==cfg.secret)continue;
+    const fresh=await config(p);if(!fresh.enabled||fresh.revision!==cfg.revision||fresh.secret!==cfg.secret){decision(s,'waiting','live-settings-changed');continue;}
+    decision(s,'checked','');
+    const stages=structuredClone(journal.get(String(s.id))?.stages||[]);
     const key=p+'-'+s.id,clientId=cid(p,s.id),t={key,provider:p,signalId:s.id,symbol,side:s.direction==='long'?'Buy':'Sell',clientId,
-     state:'submitted',createdAt:new Date(now()).toISOString(),entryQty:0,remainingQty:0,marginUsd:margin,marginLimitUsd:limits.marginUsd,leverage:limits.leverage,qtyStep:rule.qtyStep,priceStep:rule.priceStep,marketMaxQty:rule.marketMaxQty,contractValue:Number(rule.contractValue),take,stop,exits:[]};
+     state:'submitted',signalAt:s.at,stages,createdAt:new Date(now()).toISOString(),entryQty:0,remainingQty:0,marginUsd:margin,marginLimitUsd:limits.marginUsd,leverage:limits.leverage,qtyStep:rule.qtyStep,priceStep:rule.priceStep,marketMaxQty:rule.marketMaxQty,contractValue:Number(rule.contractValue),take,stop,exits:[]};
+    addStage(t,'submitting',new Date(now()).toISOString());
     if(!await client.setIfAbsent(ORDERS,key,t))continue;
     let accepted=false;
-    try{const result=await api.place({symbol,side:t.side,qty,...(limit===null?{}:{price:String(limit)}),clientId,take,stop});accepted=true;t.orderId=result.orderId;await saveTrade(t);await reconcile(t,api);}
-    catch(e){t.state=!accepted&&['live-exchange-rejected','live-key-permission','live-rate-limited','live-access-blocked'].includes(safeError(e))?'failed':'unknown';t.error=safeError(e);await saveTrade(t);throw e;}
+    try{const result=await api.place({symbol,side:t.side,qty,...(limit===null?{}:{price:String(limit)}),clientId,take,stop});accepted=true;t.orderId=result.orderId;addStage(t,'submitted',new Date(now()).toISOString());await saveTrade(t);await reconcile(t,api);}
+    catch(e){t.state=!accepted&&['live-exchange-rejected','live-key-permission','live-rate-limited','live-access-blocked'].includes(safeError(e))?'failed':'unknown';t.error=safeError(e);addStage(t,t.state==='failed'?'rejected':'waiting',new Date(now()).toISOString(),t.error);await saveTrade(t);throw e;}
     let newPosition=null;
     if(t.state==='open'){
      const actual=(await api.positions()).find(pos=>pos.symbol===t.symbol&&pos.side===t.side&&Math.abs(pos.qty-t.remainingQty)<Number(t.qtyStep)/2);
@@ -345,8 +397,17 @@ function createLiveService(deps={}){
      try{await api.protect(t);t.protected=true;await saveTrade(t);}catch(e){status.error=safeError(e);if(newPosition)await close(t,api,newPosition,'protection-failed');}
     }
     status.message='live-order-sent';
-   }catch(e){status.error=safeError(e);status.verified=false;failures.push(p+':'+status.error);}
-   finally{await put(META,'status-'+p,status);if(Date.now()-leaseStarted<50000)await client.remove(META,'lease-'+p).catch(()=>{});}
+   }catch(e){status.error=safeError(e);status.verified=false;failures.push(p+':'+status.error);
+    if(processingSignal)decision(processingSignal,'waiting',status.error);else waitPending(status.error);
+   }
+   finally{
+    diagnostics.exchange={lastAttemptAt:at,lastSuccessAt:status.lastSuccessAt,error:status.error||''};
+    for(const trace of journal.values())if(trace.stages.at(-1)?.stage==='parsed')addStage(trace,'waiting',new Date(now()).toISOString(),'live-signal-queued');
+    diagnostics.signals=[...journal.values()].sort((a,b)=>(b.signalAt||'').localeCompare(a.signalAt||'')).slice(0,60);
+    // Saving diagnostics cannot turn a successful trade tick into a retry.
+    await put(META,'diagnostics-'+p,diagnostics).catch(()=>{});
+    await put(META,'status-'+p,status);if(Date.now()-leaseStarted<50000)await client.remove(META,'lease-'+p).catch(()=>{});
+   }
   }
   const ok=failures.length===0;
   if(ok&&options.scheduled)await put(META,'heartbeat',{at});

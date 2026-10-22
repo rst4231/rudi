@@ -136,3 +136,28 @@ test('Activation time is not invented if server has no saved timestamp',()=>{
  b.window.RudiCryptoLive.render(b.data);
  assert.equal(b.nodes.get('cryptoLiveActivatedAt').textContent,'Время включения не сохранено');
 });
+
+function allText(node){return [node.textContent,...node.children.map(allText)].join(' ');}
+test('signal diagnostics render confirmed stages, a readable rejection and successful check times',()=>{
+ const b=browser(),at='2026-10-22T10:15:00.000Z';
+ b.data.accounts[0].diagnostics={channel:{lastAttemptAt:at,lastSuccessAt:at,error:''},exchange:{lastAttemptAt:at,lastSuccessAt:at,error:''},signals:[
+  {signalId:55,symbol:'BTC',direction:'long',signalAt:at,stages:[{stage:'received',at},{stage:'parsed',at},{stage:'checked',at},{stage:'submitted',at},{stage:'executed',at}]},
+  {signalId:56,symbol:'M',direction:'short',signalAt:at,stages:[{stage:'received',at},{stage:'parsed',at},{stage:'rejected',at,reason:'live-symbol-unavailable'}]}
+ ]};
+ b.window.RudiCryptoLive.render(b.data);
+ assert.ok(b.nodes.get('cryptoLiveSignalJournal'),'scanner has a journal container');
+ const text=allText(b.nodes.get('cryptoLiveSignalJournal'));
+ assert.match(text,/Получен/);assert.match(text,/Распознан/);assert.match(text,/Проверен/);assert.match(text,/Заявка отправлена/);assert.match(text,/Исполнена/);
+ assert.match(text,/монета недоступна/);assert.match(text,/#55/);assert.match(text,/BTC/);
+ assert.match(b.nodes.get('cryptoLiveChannelCheck').textContent,/Канал.*22\.10/);
+ assert.match(b.nodes.get('cryptoLiveExchangeCheck').textContent,/Pionex.*22\.10/);
+});
+test('missing telemetry shows no invented successful check and unknown order remains awaiting confirmation',()=>{
+ const b=browser();b.window.RudiCryptoLive.render(b.data);
+ assert.ok(b.nodes.get('cryptoLiveChannelCheck'));
+ assert.match(b.nodes.get('cryptoLiveChannelCheck').textContent,/нет данных/i);
+ b.data.accounts[0].diagnostics={signals:[{signalId:1,symbol:'BTC',direction:'long',stages:[{stage:'submitting',at:'2026-10-22T10:00:00Z'},{stage:'waiting',at:'2026-10-22T10:00:01Z',reason:'live-order-unknown'}]}]};
+ b.window.RudiCryptoLive.render(b.data);
+ const text=allText(b.nodes.get('cryptoLiveSignalJournal'));
+ assert.match(text,/Ответ на ордер не получен/);assert.doesNotMatch(text,/Исполнена|Заявка отправлена/);
+});

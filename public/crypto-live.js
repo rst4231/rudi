@@ -39,6 +39,10 @@ const errors={
  'live-margin-limit':'Фактическая маржа превысила заданную сумму. Запрошено закрытие позиции сканера.',
  'live-source-stale':'Нет свежих сигналов автора. Новые входы пропускаются.',
  'live-order-unknown':'Ответ на ордер не получен. Сканер проверяет биржу и не отправляет вход повторно.',
+ 'live-order-not-filled':'Биржа подтвердила: заявка завершена без исполнения.',
+ 'live-trading-paused':'Новые входы выключены. Сигнал не исполняется.',
+ 'live-settings-changed':'Настройки изменились во время проверки. Сигнал ждёт следующего запуска.',
+ 'live-signal-queued':'Сигнал ждёт очереди проверки в следующем запуске сканера.',
  'live-protection-required':'Сигнал без точного входа, стопа или тейка пропущен.',
  'live-signal-ambiguous':'Неоднозначный сигнал или неподдерживаемый рынок пропущен.',
  'live-signal-old':'Старые сигналы не исполняются.',
@@ -79,6 +83,44 @@ function row(title,detail,value){
  const left=document.createElement('main'),head=document.createElement('strong'),note=document.createElement('p'),right=document.createElement('aside');
  head.textContent=title;note.textContent=detail;right.textContent=value;left.append(head,note);box.append(left,right);return box;
 }
+const diagnosticTime=value=>Number.isFinite(Date.parse(value||''))?new Date(value).toLocaleString('ru-RU',{timeZone:'Europe/Moscow',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit'}):'';
+function renderDiagnostics(d){
+ const formatCheck=(id,title,check)=>{
+  const node=$(id);if(!node)return;
+  const success=diagnosticTime(check?.lastSuccessAt),attempt=diagnosticTime(check?.lastAttemptAt);
+  node.textContent=title+' · '+(success?'успешно '+success:'нет данных об успешной проверке');
+  if(check?.error)node.textContent+=' · '+label(check.error)+(attempt?' Проверка: '+attempt+'.':'');
+  else if(success&&Date.now()-Date.parse(check.lastSuccessAt)>3*60000)node.textContent+=' · данные устарели';
+  node.classList.toggle('is-warning',Boolean(check?.error||(success&&Date.now()-Date.parse(check.lastSuccessAt)>3*60000)));
+ };
+ formatCheck('cryptoLiveChannelCheck','Канал',d?.channel);formatCheck('cryptoLiveExchangeCheck','Pionex',d?.exchange);
+ const root=$('cryptoLiveSignalJournal');if(!root)return;root.replaceChildren();
+ const names={received:'Получен',parsed:'Распознан',checked:'Проверен',submitting:'Отправка заявки',submitted:'Заявка отправлена',executed:'Исполнена',rejected:'Пропущен / отклонён',waiting:'Ожидание'};
+ for(const trace of (d?.signals||[]).slice(0,60)){
+  const stages=trace.stages||[],last=stages.at(-1),details=document.createElement('details'),summary=document.createElement('summary');
+  details.className='crypto-live-signal';
+  const heading=document.createElement('strong'),state=document.createElement('span');
+  heading.textContent=trace.symbol+' · '+(trace.direction==='long'?'Лонг':'Шорт')+' · #'+trace.signalId;
+  state.textContent=(names[last?.stage]||'Ожидает проверки')+(diagnosticTime(last?.at)?' · '+diagnosticTime(last.at):'');
+  state.className='crypto-live-signal-state';state.dataset.stage=last?.stage||'';
+  summary.append(heading,state);details.append(summary);
+  if(last?.reason){const reason=document.createElement('p');reason.className='crypto-live-signal-reason';reason.textContent=label(last.reason);details.append(reason);}
+  const list=document.createElement('ol');list.className='crypto-live-stage-list';
+  for(const step of stages){
+   const item=document.createElement('li'),title=document.createElement('strong'),time=document.createElement('span');
+   item.dataset.stage=step.stage;title.textContent=names[step.stage]||'Проверка';time.textContent=diagnosticTime(step.at)||'Время не записано';
+   item.append(title,time);
+   if(step.reason){const reason=document.createElement('p');reason.textContent=label(step.reason);item.append(reason);}
+   list.append(item);
+  }
+  details.append(list);
+  if(Number.isInteger(Number(trace.signalId))&&Number(trace.signalId)>0){
+   const link=document.createElement('a');link.textContent='Открыть сигнал в канале';link.href='https://t.me/ne_investor/'+Number(trace.signalId);link.target='_blank';link.rel='noopener noreferrer';details.append(link);
+  }
+  root.append(details);
+ }
+ if(!root.children.length)root.textContent='Новые сигналы пока не зафиксированы. История появится после проверки канала активным сканером.';
+}
 function render(data){
  if(!data)return;current=data;const p=selected(),a=account(),s=a?.status;
  if($('cryptoLivePassphraseField'))$('cryptoLivePassphraseField').hidden=true;
@@ -105,6 +147,7 @@ function render(data){
  $('cryptoLiveUpdated').textContent=s?.at?'Данные '+new Date(s.at).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Подключи биржу';
  if(!dirty){for(const [key,id] of Object.entries(fields))$(id).value=String(a?.settings?.[key]??({leverage:1,maxOpen:1,slippagePct:0.5}[key]??''));$('cryptoLiveProgrammatic').checked=a?.programmaticStops===true;}
  const status=$('cryptoLiveStatus');status.textContent=s?.error?label(s.error):s?.message?label(s.message):'';
+ renderDiagnostics(a?.diagnostics);
  const preflight=$('cryptoLivePreflight');
  if(preflight){
   const blockers=[];
