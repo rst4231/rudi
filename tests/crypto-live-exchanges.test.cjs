@@ -145,3 +145,18 @@ test('Pionex instruments require real documented market limits rather than inven
  const invalid=createExchange('pionex',keys,{fetchImpl:async()=>ok('pionex',{symbols:[{...valid,minSizeMarket:undefined}]})});
  await assert.rejects(()=>invalid.instrument('BTCUSDT'),/live-response-invalid/);
 });
+
+test('Pionex adapter permits a one-letter base asset only if the perpetual contract is TRADING',async()=>{
+ const {createExchange}=require('../api/crypto-live-exchanges.cjs');
+ const rule={symbol:'M_USDT_PERP',status:'TRADING',baseStep:'0.01',minSizeLimit:'0.01',
+   maxSizeLimit:'100',minSizeMarket:'0.01',maxSizeMarket:'100',quoteStep:'0.0001',minNotional:'5'};
+ let lookedUp=false;
+ const api=createExchange('pionex',keys,{fetchImpl:async url=>{
+  lookedUp=true;assert.match(String(url),/M_USDT_PERP/);
+  return ok('pionex',{symbols:[rule]});
+ }});
+ const info=await api.instrument('MUSDT');
+ assert.equal(info.minQty,'0.01');assert.equal(lookedUp,true);
+ const unavailable=createExchange('pionex',keys,{fetchImpl:async()=>ok('pionex',{symbols:[]})});
+ await assert.rejects(()=>unavailable.instrument('MUSDT'),/live-symbol-unavailable/);
+});
