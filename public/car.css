@@ -394,6 +394,7 @@
   line-height:1.35;
 }
 .car-status[hidden]{display:none!important}
+.car-status:empty{display:none}
 .car-status.is-success{
   color:#74c996;
   background:rgba(54,181,109,.09);
@@ -2613,3 +2614,8 @@ html[data-theme="light"] .car-smart-card[data-car-card="tasks"] .car-body-add{co
 html[data-theme="dark"] .car-page .car-note-cancel{background:#323a46;color:#f2f5f9;border-color:#616c7b}
 html[data-theme="dark"] .car-page .car-note-remove{background:rgba(206,57,75,.18);border-color:rgba(231,93,106,.42);color:#ff9ba6}
 @media(prefers-reduced-motion:reduce){.car-page :is(.car-note-cancel,.car-note-save,.car-note-remove){transition:none!important}}
+
+.car-expense-totals{display:flex;flex-wrap:wrap;gap:5px;padding-bottom:8px;border-bottom:1px solid var(--line);min-width:0}
+.car-expense-total{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 7px;max-width:100%;padding:6px 8px;border-radius:9px;background:var(--soft);font-size:10px;line-height:1.4}
+.car-expense-total>span{color:var(--muted)}
+.car-expense-total>b{color:var(--text);font-weight:800;white-space:nowrap}

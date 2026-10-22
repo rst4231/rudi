@@ -66,12 +66,14 @@
       const month=/^\d{4}-\d{2}$/.test(String(row?.month||''))?String(row.month):String(row?.occurredAt||'').slice(0,7);
       if(!/^\d{4}-\d{2}$/.test(month))continue;
       const amount=Number(row?.rubAmount??row?.amount??0);if(!Number.isFinite(amount)||amount<=0)continue;
-      if(!groups.has(month))groups.set(month,{month,total:0,operations:[]});
+      if(!groups.has(month))groups.set(month,{month,total:0,operations:[],categoryTotals:new Map()});
       const group=groups.get(month);group.total+=amount;
+      group.categoryTotals.set(label,(group.categoryTotals.get(label)||0)+amount);
       group.operations.push({label,amount,occurredAt:String(row?.occurredAt||row?.createdAt||'')});
     }
     return [...groups.values()].sort((a,b)=>b.month.localeCompare(a.month)).map(group=>({
       ...group,total:Math.round(group.total*100)/100,
+      categoryTotals:CAR_EXPENSE_LABELS.filter(label=>group.categoryTotals.has(label)).map(label=>({label,total:Math.round(group.categoryTotals.get(label)*100)/100})),
       operations:group.operations.sort((a,b)=>(Date.parse(b.occurredAt)||0)-(Date.parse(a.occurredAt)||0))
     }));
   }
@@ -88,6 +90,12 @@
     for(const group of groups){
       const section=document.createElement('section');section.className='car-expense-month';const head=document.createElement('div');head.className='car-expense-month-head';
       const title=document.createElement('strong');title.textContent=carExpenseMonthLabel(group.month);const total=document.createElement('b');total.textContent=carExpenseMoney(group.total);head.append(title,total);
+      const summary=document.createElement('div');summary.className='car-expense-totals';summary.setAttribute('aria-label','Итого по категориям за месяц');
+      for(const entry of group.categoryTotals){
+        const item=document.createElement('div');item.className='car-expense-total';
+        const label=document.createElement('span'),amount=document.createElement('b');
+        label.textContent=entry.label;amount.textContent=carExpenseMoney(entry.total);item.append(label,amount);summary.append(item);
+      }
       const rows=document.createElement('div');rows.className='car-expense-labels';
       for(const entry of group.operations){
         const row=document.createElement('div');row.className='car-expense-label-row';
@@ -95,7 +103,7 @@
         name.textContent=entry.label;when.textContent=carExpenseDateTime(entry.occurredAt);
         amount.textContent=carExpenseMoney(entry.amount);copy.append(name,when);row.append(copy,amount);rows.append(row);
       }
-      section.append(head,rows);list.append(section);
+      section.append(head,summary,rows);list.append(section);
     }
   }
   async function loadCarExpenses({force=false}={}){
@@ -1266,13 +1274,13 @@
   }
 
   function tyreForecastAdvice(weather) {
-    const min=Number(weather?.minForecast);
-    const avg=Number(weather?.avgMean);
+    const min=weather?.minForecast;
+    const avg=weather?.avgMean;
     const hasMin=Number.isFinite(min);
     const hasAvg=Number.isFinite(avg);
 
     if(hasAvg&&avg<=7) {
-      return {season:'winter',kind:'change',text:'Средняя температура недели ниже +7 °C'};
+      return {season:'winter',kind:'change',text:'Средняя температура ближайших 7 дней не выше +7 °C'};
     }
     if(hasAvg&&avg>=10&&hasMin&&min>5) {
       return {season:'summer',kind:'keep',text:'Прогноз устойчиво тёплый'};
@@ -2056,8 +2064,8 @@
   async function loadWeather() {
     try {
       const data=await window.RUDI_WEATHER.get();
-      const mins=(data.daily?.temperature_2m_min||[]).map(Number).filter(Number.isFinite);
-      const maxs=(data.daily?.temperature_2m_max||[]).map(Number).filter(Number.isFinite);
+      const mins=(data.daily?.temperature_2m_min||[]).slice(0,7).map(Number).filter(Number.isFinite);
+      const maxs=(data.daily?.temperature_2m_max||[]).slice(0,7).map(Number).filter(Number.isFinite);
       const means=mins.map((min,index)=>(min+Number(maxs[index]))/2).filter(Number.isFinite);
       const precipitation=(data.daily?.precipitation_sum||[]).map(Number).filter(Number.isFinite);
       const value={
