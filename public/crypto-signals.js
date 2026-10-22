@@ -6,7 +6,7 @@ const signed=(v,pct=false)=>v===null||v===undefined?'—':(v>0?'+':'')+(pct?perc
 const marginName=mode=>mode==='cross'?'Кросс':mode==='isolated'?'Изолированная':'Не указана';
 const marketName=m=>m==='spot'?'Bybit Spot':m==='linear'?'Bybit Perpetual':'Bybit · рынок не указан';
 const statuses={won:'TP · плюс',lost:'SL · минус',open:'Открыта',unpriced:'Открыта, нет цены',
-  'not-entered':'Не вошла','insufficient-levels':'Недостаточно уровней',
+  'not-entered':'Не вошла','insufficient-levels':'Уровни заданы частично',
   conditional:'Условная идея',ambiguous:'Неясный результат',
   'awaiting-market':'Ожидает проверки','market-unavailable':'Нет котировок',
   'size-unknown':'Неизвестна доля выхода','author-closed-size-unknown':'Автор закрыл · объём части неизвестен',
@@ -143,11 +143,14 @@ function render(data){
   const signals=$('cryptoSignalsList');if(signals){signals.replaceChildren();
     for(const x of s.signals||[]){
       const title=x.symbol+' '+(x.direction==='short'?'SHORT':'LONG');
-      const entry=x.entry?((x.execution==='market-at-sync'?'Вход по рынку ':'Вход ')+x.entry):'Точная цена входа отсутствует';
+      const entry=x.entry?((x.execution==='market-at-sync'?'Котировка при синхронизации ':'Вход автора ')+x.entry):
+        'Цена входа автором не задана'+(x.paperEligible&&x.market==='linear'?
+          ' · вход по текущей котировке с ограничением отклонения':'');
       const info=entry+' · '+marketName(x.market)+' · '+new Date(x.at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+
         ' · Маржа автора: '+marginName(x.marginModeReported)+
         (x.adjustmentCount?' · Сообщений о пополнении/доборе: '+x.adjustmentCount:'');
-      const status=statuses[x.status]||x.status||'Не подтверждён';
+      const status=x.status==='insufficient-levels'&&!x.entry&&!x.take&&!x.stop?
+        'Без заданных уровней':statuses[x.status]||x.status||'Не подтверждён';
       signals.append(line(title,status,{meta:info,link:x.url,
         color:x.status==='won'?'is-positive':x.status==='lost'?'is-negative':''}));
     }

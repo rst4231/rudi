@@ -249,3 +249,99 @@ test('One-character $M author short is not placed after the 20-minute freshness 
  await f.service.run({scheduled:true});
  assert.equal(f.orders.length,0);
 });
+
+// Keep position identity intact while emulating capped/partially filled reduce-only orders.
+async function exitFixture({cap,filledFraction=1}={}){
+ const f=fixture(),signal=await start(f,'pionex'),instrument=f.exchange.instrument;
+ if(cap)f.exchange.instrument=async(...args)=>({...await instrument(...args),marketMaxQty:cap});
+ f.advance(90000);await f.service.run({scheduled:true});
+ const trade=(await f.service.report('Рустам')).trades[0];
+ let remaining=trade.remainingQty,mark=100;
+ f.exchange.positions=async()=>remaining>0?[{symbol:trade.symbol,qty:remaining,side:trade.side,avgPrice:100,markPrice:mark,
+  unrealizedPnl:(mark-100)*remaining,positionId:trade.positionId,positionOpenedAt:trade.positionOpenedAt}]:[];
+ const place=f.exchange.place,find=f.exchange.findOrder;
+ f.exchange.place=async o=>{const r=await place(o);if(o.reduceOnly)remaining-=Number(o.qty)*filledFraction;return r;};
+ f.exchange.findOrder=async(...args)=>{const o=f.orders.find(x=>x.clientId===args[1]);
+  return o?.reduceOnly?{orderId:'exit-'+args[1],closed:true,filledQty:Number(o.qty)*filledFraction,avgPrice:100,fee:0}:find(...args);};
+ const event=(id,type,extra={})=>({id,type,at:new Date(Date.parse(trade.openedAt)+60000).toISOString(),...extra});
+ return {f,signal,trade,event,setMark:p=>mark=p};
+}
+test('an unavailable oldest contract cannot starve a later supported author signal',async()=>{
+ const f=fixture(),s=await start(f,'pionex'),instrument=f.exchange.instrument;
+ f.exchange.instrument=async symbol=>{if(symbol==='NOPEUSDT')throw Error('live-symbol-unavailable');return instrument(symbol);};
+ const price=f.exchange.price,priceSymbols=[];
+ f.exchange.price=async symbol=>{priceSymbols.push(symbol);return price(symbol);};
+ f.setSignals([{...s,symbol:'NOPE'},{...s,id:124,at:new Date(Date.parse(s.at)+1000).toISOString()}]);
+ f.advance(90000);const result=await f.service.run({scheduled:true});
+ assert.equal(result.ok,true);assert.equal(f.orders.length,1);assert.equal(f.orders[0].symbol,'BTCUSDT');
+ assert.deepEqual(priceSymbols,['BTCUSDT']);
+ const account=(await f.service.report('Рустам')).accounts.find(x=>x.provider==='pionex');
+ assert.equal(account.status.skippedSignals[0].reason,'live-symbol-unavailable');
+});
+test('a network failure stops candidate processing without sending the next order',async()=>{
+ const f=fixture(),s=await start(f,'pionex');let checked=0;
+ f.exchange.instrument=async()=>{checked++;throw Error('live-exchange-unavailable');};
+ f.setSignals([s,{...s,id:124}]);f.advance(90000);
+ assert.equal((await f.service.run({scheduled:true})).ok,false);
+ assert.equal(checked,1);assert.equal(f.orders.length,0);
+});
+test('a triggered stop overrides an author limit exit even after three unfilled attempts',async()=>{
+ const {f,signal,trade,event,setMark}=await exitFixture({filledFraction:0});
+ signal.events=[event(901,'full-close',{exitPrice:110})];f.setSignals([signal]);
+ for(let i=0;i<3;i++){f.advance(65000);await f.service.run({scheduled:true});}
+ assert.equal(f.orders.filter(o=>o.reduceOnly).length,3);
+ setMark(85);f.advance(65000);await f.service.run({scheduled:true});
+ const exits=f.orders.filter(o=>o.reduceOnly);assert.equal(exits.length,4);
+ assert.equal(exits[3].price,undefined);assert.equal(Number(exits[3].qty),trade.remainingQty);
+});
+test('a manual close overrides the author exit price',async()=>{
+ const {f,signal,event}=await exitFixture();
+ signal.events=[event(902,'full-close',{exitPrice:110})];f.setSignals([signal]);
+ await f.service.requestClose('Рустам','pionex');f.advance(65000);await f.service.run({scheduled:true});
+ assert.equal(f.orders.filter(o=>o.reduceOnly)[0].price,undefined);
+});
+test('capped partial closes finish the requested half and never replay it',async()=>{
+ const {f,signal,trade,event}=await exitFixture({cap:0.05});
+ signal.events=[event(903,'partial-close',{closeFraction:0.5})];f.setSignals([signal]);
+ for(let i=0;i<7;i++){f.advance(65000);await f.service.run({scheduled:true});}
+ const exits=f.orders.filter(o=>o.reduceOnly),total=exits.reduce((n,o)=>n+Number(o.qty),0);
+ assert.equal(exits.length,4);assert.ok(Math.abs(total-0.199)<1e-9);
+ assert.ok(exits.every(o=>Number(o.qty)<=0.05));
+ assert.ok(Math.abs((await f.service.report('Рустам')).trades[0].remainingQty-trade.entryQty/2)<1e-9);
+});
+test('a zero-filled partial close retries its fixed target rather than losing the author event',async()=>{
+ const {f,signal,event}=await exitFixture({filledFraction:0});
+ signal.events=[event(904,'partial-close',{closeFraction:0.5})];f.setSignals([signal]);
+ for(let i=0;i<2;i++){f.advance(65000);await f.service.run({scheduled:true});}
+ const exits=f.orders.filter(o=>o.reduceOnly);assert.equal(exits.length,2);
+ assert.equal(exits[0].qty,exits[1].qty);
+});
+test('stop during an unfinished capped partial closes the remaining entire position',async()=>{
+ const {f,signal,trade,event,setMark}=await exitFixture({cap:0.05});
+ signal.events=[event(905,'partial-close',{closeFraction:0.5})];f.setSignals([signal]);
+ f.advance(65000);await f.service.run({scheduled:true});setMark(85);
+ for(let i=0;i<8;i++){f.advance(65000);await f.service.run({scheduled:true});}
+ const exits=f.orders.filter(o=>o.reduceOnly);
+ assert.ok(Math.abs(exits.reduce((n,o)=>n+Number(o.qty),0)-trade.entryQty)<1e-9);
+ assert.equal((await f.service.report('Рустам')).trades[0].state,'closed');
+});
+
+test('an unconfirmed partial exit never permits another reduce-only order',async()=>{
+ const {f,signal,event}=await exitFixture();
+ signal.events=[event(906,'partial-close',{closeFraction:0.5})];f.setSignals([signal]);
+ const find=f.exchange.findOrder;f.exchange.findOrder=async(...args)=>{
+  const o=f.orders.find(x=>x.clientId===args[1]);return o?.reduceOnly?{orderId:'pending',closed:false,filledQty:0,avgPrice:0,fee:0}:find(...args);
+ };
+ const place=f.exchange.place;f.exchange.place=async o=>o.reduceOnly?(f.orders.push(o),{orderId:'pending'}):place(o);
+ for(let i=0;i<3;i++){f.advance(65000);await f.service.run({scheduled:true});}
+ assert.equal(f.orders.filter(o=>o.reduceOnly).length,1);
+});
+test('legacy partial exits without targets are not replayed after an upgrade',async()=>{
+ const {f,signal,event}=await exitFixture();
+ signal.events=[event(907,'partial-close',{closeFraction:0.5})];f.setSignals([signal]);
+ f.advance(65000);await f.service.run({scheduled:true});
+ const key='rudi-crypto-live-orders-v1:pionex-123',record=f.records.get(key);
+ delete record.value.exits[0].targetQty;
+ f.advance(65000);await f.service.run({scheduled:true});
+ assert.equal(f.orders.filter(o=>o.reduceOnly).length,1);
+});

@@ -11,9 +11,9 @@ test('live cron rejects unauthenticated requests before running any trading code
 test('live cron is Frankfurt based and checks each minute; finance auth gates all live operations',()=>{
  const v=JSON.parse(fs.readFileSync('vercel.json'));
  assert.deepEqual(v.functions['api/finances.js'].regions,['fra1']);
- assert.deepEqual(v.rewrites.find(c=>c.source==='/api/crypto-live-cron'),{source:'/api/crypto-live-cron',destination:'/api/finances?liveCron=1'});
+ assert.deepEqual(v.rewrites.find(c=>c.source==='/api/crypto-live-cron'),{source:'/api/crypto-live-cron',destination:'/api/crypto-live-runner'});
  assert.ok(!v.crons.some(c=>c.path==='/api/crypto-live-cron'));
- assert.ok(fs.readFileSync('cloudflare/rudi-crypto-market-worker.mjs','utf8').includes('/api/crypto-live-cron'));
+ assert.ok(fs.readFileSync('cloudflare/rudi-crypto-market-worker.mjs','utf8').includes('/api/crypto-live-runner'));
  const finance=fs.readFileSync('api/finances.js','utf8');assert.ok(finance.indexOf("if (actor !== 'Рустам')")<finance.indexOf("operation === 'crypto-live-connect'"));
  assert.match(finance,/crypto-live-report/);assert.match(finance,/crypto-live-configure/);
 });

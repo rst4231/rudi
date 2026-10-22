@@ -149,9 +149,18 @@ function createLiveService(deps={}){
  async function close(t,api,position,trigger,fraction=1,authorExitPrice=null){
   if((t.exits||[]).some(e=>!e.closed))return;
   const existing=(t.exits||[]).filter(e=>e.trigger===trigger);
-  if(fraction<1&&existing.length)return;
+  // Freeze the total requested fraction before the first capped order. Later
+  // ticks subtract confirmed fills, rather than taking the fraction again.
+  // Legacy partial exits have no target: retain their old completed semantics.
+  if(fraction<1&&existing.length&&!Number(existing[0].targetQty))return;
+  const targetQty=fraction<1?Number(existing[0]?.targetQty??
+    stepValue(Math.min(position.qty,t.remainingQty)*fraction,t.qtyStep)):null;
+  const filled=existing.reduce((n,e)=>n+Number(e.filledQty||0),0);
   if(authorExitPrice&&existing.length>=3){t.state='attention';t.error='live-author-exit-unfilled';await saveTrade(t);return;}
-  const desired=Math.min(position.qty,t.remainingQty)*fraction;
+  const unit=Number(t.qtyStep);
+  const outstanding=targetQty===null?Infinity:Number((Math.max(0,
+    Math.round(targetQty/unit)-Math.round(filled/unit))*unit).toPrecision(15));
+  const desired=Math.min(position.qty,t.remainingQty,outstanding);
   // Market exits honour the separate Pionex market-order cap. Large exits are
   // completed across successive confirmed minute ticks, never over-sized.
   const marketCap=!authorExitPrice&&Number(t.marketMaxQty)>0?Number(t.marketMaxQty):Infinity;
@@ -159,7 +168,8 @@ function createLiveService(deps={}){
   if(!(Number(qty)>0))return;
   const priceStep=authorExitPrice?(t.priceStep||(await api.instrument(t.symbol)).priceStep):null;
   const price=authorExitPrice?stepValue(Number(authorExitPrice),priceStep,t.side==='Sell'):null;
-  const clientId=cid(t.clientId,trigger,existing.length),exit={clientId,trigger,qty,filledQty:0,closed:false,...(price?{limitPrice:price}:{})};
+  const clientId=cid(t.clientId,trigger,existing.length),exit={clientId,trigger,qty,filledQty:0,closed:false,
+    ...(targetQty===null?{}:{targetQty}),...(price?{limitPrice:price}:{})};
   const inserted=await client.setIfAbsent(CLAIMS,clientId,{tradeKey:t.key,at:new Date(now()).toISOString()});
   t.exits=t.exits||[];t.exits.push(exit);await saveTrade(t);
   if(!inserted){await reconcile(t,api);return;}
@@ -227,10 +237,17 @@ function createLiveService(deps={}){
      const stop=Number(t.stop)>0&&(t.side==='Buy'?pos.markPrice<=Number(t.stop):pos.markPrice>=Number(t.stop));
      const take=Number(t.take)>0&&(t.side==='Buy'?pos.markPrice>=Number(t.take):pos.markPrice<=Number(t.take));
      if(cfg.closeRequestedAt||full||stop||take){
-      await close(t,api,pos,cfg.closeRequestedAt?'manual-close-'+cfg.closeRequestedAt:full?'author-'+full.id:stop?'stop':'take',1,
-        full?Number(full.exitPrice)||null:null);continue;
+      const urgent=Boolean(cfg.closeRequestedAt||stop||take);
+      const trigger=cfg.closeRequestedAt?'manual-close-'+cfg.closeRequestedAt:stop?'stop':take?'take':'author-'+full.id;
+      await close(t,api,pos,trigger,1,!urgent&&full?Number(full.exitPrice)||null:null);continue;
      }
-     const partial=events.find(e=>e.type==='partial-close'&&Number(e.closeFraction)>0&&Number(e.closeFraction)<1&&!(t.exits||[]).some(x=>x.trigger==='author-'+e.id));
+     const partial=events.find(e=>{
+      if(e.type!=='partial-close'||!(Number(e.closeFraction)>0&&Number(e.closeFraction)<1))return false;
+      const exits=(t.exits||[]).filter(x=>x.trigger==='author-'+e.id);
+      if(!exits.length)return true;
+      const target=Number(exits[0].targetQty);
+      return target>0&&target-exits.reduce((n,x)=>n+Number(x.filledQty||0),0)>Number(t.qtyStep)/2;
+     });
      if(partial){await close(t,api,pos,'author-'+partial.id,Number(partial.closeFraction));continue;}
      if(p==='okx'&&!t.protected){
       try{await api.protect(t);t.protected=true;}catch(e){await close(t,api,pos,'protection-failed');throw e;}
@@ -254,20 +271,31 @@ function createLiveService(deps={}){
     const limits=current.settings;
     if(open.length>=limits.maxOpen||open.reduce((a,t)=>a+t.marginUsd,0)+limits.marginUsd>limits.marginCapUsd){status.message='live-position-limit';continue;}
     const candidates=(feed.signals||[]).slice().sort((a,b)=>a.at.localeCompare(b.at));
-    let candidate=null;
+    let candidate=null,rule=null,price=null;
     for(const s of candidates){
      const reason=eligibleSignal(s,current,now());
      if(reason){if(Date.parse(s.at)>Date.parse(current.activatedAt))status.message=reason;continue;}
      const key=p+'-'+s.id;
      if(rows.some(t=>t.key===key)||await get(ORDERS,key))continue;
      if(positions.some(t=>t.symbol===s.symbol+'USDT')){status.message='live-existing-position';continue;}
+     if(Date.now()>=deadlineAt-1000)throw Error('live-deadline');
+     try{rule=await api.instrument(s.symbol+'USDT');}
+     catch(e){
+      // An unavailable contract is specific to this author signal. Network,
+      // authentication and rate-limit failures still stop the account tick.
+      if(safeError(e)!=='live-symbol-unavailable')throw e;
+      status.message='live-symbol-unavailable';
+      status.skippedSignals=[...(status.skippedSignals||[]),{signalId:s.id,symbol:s.symbol,reason:'live-symbol-unavailable'}].slice(-8);
+      continue;
+     }
+     price=await api.price(s.symbol+'USDT');
      candidate=s;break;
     }
     if(!candidate)continue;
     const s=candidate,symbol=s.symbol+'USDT';
-    const [rule,price]=await Promise.all([api.instrument(symbol),api.price(symbol)]);
     if(limits.leverage>Number(rule.maxLeverage))throw Error('live-leverage-invalid');
-    // Explicit author price: bounded IOC. Missing author price: market order.
+    // Both priced and unpriced entries use bounded IOC. Without an author
+    // entry, the current exchange quote is the reference for the limit.
     const sourceEntry=Object.hasOwn(s,'authorEntry')?s.authorEntry:s.entry;
     const authorEntry=Number(sourceEntry)>0?Number(sourceEntry):null;
     if(authorEntry&&Math.abs(price/authorEntry-1)*100>limits.slippagePct){status.message='live-price-moved';continue;}
