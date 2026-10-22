@@ -7422,7 +7422,7 @@
         if(clock.minutes<rise.minutes) return '🌅 Восход в '+rise.label;
         if(clock.minutes<set.minutes) return '🌇 Закат в '+set.label;
         const nextRise=sunTimeParts(sunrise[todayIndex+1]);
-        return nextRise?'🌅 Восход завтра в '+nextRise.label:'🌅 Восход в '+rise.label;
+        return nextRise?'🌅 Восход в '+nextRise.label:'🌅 Восход в '+rise.label;
       }
 
       function renderHomeSunEvent(){
