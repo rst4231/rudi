@@ -1,6 +1,6 @@
 'use strict';
 const crypto=require('node:crypto');
-const SYMBOL=/^[A-Z0-9]{2,24}USDT$/;
+const SYMBOL=/^[A-Z0-9]{1,24}USDT$/;
 function validSymbol(symbol){if(!SYMBOL.test(String(symbol)))throw Error('live-symbol-invalid');return symbol;}
 const pionexSymbol=s=>validSymbol(s).replace(/USDT$/,'_USDT_PERP');
 function number(value){if(!['string','number'].includes(typeof value)||String(value).trim()===''||!Number.isFinite(Number(value)))throw Error('live-response-invalid');return Number(value);}
