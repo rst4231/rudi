@@ -45,7 +45,7 @@ function linkUpdates(signals,messages,options={}){
       .filter(s=>Date.parse(s.at)<Date.parse(m.at));
     let candidates=direct;
     if(!candidates.length){
-      const ticker=String(m.text||'').match(/\$([A-Z0-9]{2,14})\b/i)?.[1]?.toUpperCase();
+      const ticker=String(m.text||'').match(/\$([A-Z0-9]{1,14})\b/i)?.[1]?.toUpperCase();
       if(ticker)candidates=signals.filter(s=>s.symbol===ticker&&Date.parse(s.at)<Date.parse(m.at)
         &&Date.parse(m.at)-Date.parse(s.at)<7*86400000);
     }
@@ -59,7 +59,7 @@ function linkUpdates(signals,messages,options={}){
     // RUDI-owned live entry AND exactly one recent author trade candidate.
     // Never guess between two positions or two recent ideas.
     if(!candidates.length&&!((m.references||[]).length)&&u.type==='full-close'&&
-       !/\\$[A-Z0-9]{2,14}\\b/i.test(m.text||'')){
+       !/\$[A-Z0-9]{1,14}\b/i.test(m.text||'')){
       const active=Array.isArray(options.activeSignalIds)?options.activeSignalIds.map(String):[];
       const recent=signals.filter(s=>Date.parse(s.at)<Date.parse(m.at)&&
         Date.parse(m.at)-Date.parse(s.at)<=8*3600000);
