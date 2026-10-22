@@ -4,7 +4,7 @@
  * Does not authenticate to Bybit, place orders, or fabricate price candles.
  */
 const HOSTS=['https://api.bybit.com','https://api.bytick.com'];
-const SYMBOL=/^[A-Z0-9]{2,25}USDT$/;
+const SYMBOL=/^[A-Z0-9]{1,25}USDT$/;
 const DIGITS=/^\d{10,16}$/;
 const CACHE_TTL={tickers:90*1000,candle5:6*60000,candle60:19*60000,funding:2*3600000};
 const BASE='/v5/market/';
@@ -159,7 +159,7 @@ async function primeMarket(env){
 // public Telegram feed: no private keys, positions or orders are read.
 function authorSignalCandidate(row,now){
   const content=String(row?.text||'');
-  const m=content.match(/\$([a-z0-9]{2,14})\b/i);
+  const m=content.match(/\$([a-z0-9]{1,14})\b/i);
   if(!m||!/(?:^|[^а-яёa-z])(шорт|short|лонг|long)(?=$|[^а-яёa-z])/i.test(content))
     return null;
   const actionable=/(?:^|[^а-яёa-z])(?:беру|заш[её]л|вхожу|открыл|открываю|набираю|набираюсь|докупаю|лонгую|шорчу)(?=$|[^а-яёa-z])|можно\s+(?:брать|открывать)/i.test(content);
