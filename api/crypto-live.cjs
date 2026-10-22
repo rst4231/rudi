@@ -20,7 +20,7 @@ function riskSettings(input){
 function eligibleSignal(s,cfg,now){
  const at=Date.parse(s?.at),activation=Date.parse(cfg.activatedAt);
  if(!Number.isInteger(Number(s?.id))||Number(s.id)<=0||!Number.isFinite(at)||at<=activation||at>now||now-at>20*60000)return 'live-signal-old';
- if(!/^[A-Z0-9]{2,24}$/.test(s.symbol)||s.market!=='linear'||s.conditional||!['long','short'].includes(s.direction))return 'live-signal-ambiguous';
+ if(!/^[A-Z0-9]{1,24}$/.test(s.symbol)||s.market!=='linear'||s.conditional||!['long','short'].includes(s.direction))return 'live-signal-ambiguous';
  // Preserve the older OKX native-stop requirement, while Pionex may
  // copy a clearly actionable author signal without quoted prices or protection.
  // authorEntry is null when the Telegram post provided no entry price.
