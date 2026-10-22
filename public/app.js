@@ -20095,6 +20095,10 @@
           if(!byCategory.has(category)) byCategory.set(category,[]);
           byCategory.get(category).push(item);
         }
+        const productNameOrder=new Intl.Collator('ru-RU',{sensitivity:'base',numeric:true,ignorePunctuation:true});
+        for(const categoryItems of byCategory.values()){
+          categoryItems.sort((a,b)=>productNameOrder.compare(String(a.text||'').trim(),String(b.text||'').trim()));
+        }
         const ordered=[
           ...PRODUCT_CATEGORY_ORDER.filter(category=>byCategory.has(category)),
           ...[...byCategory.keys()].filter(category=>!PRODUCT_CATEGORY_ORDER.includes(category))
@@ -20169,16 +20173,20 @@
               if(!Number.isFinite(day)||Date.now()-day>14*86400000)return false;
               return String(previous?.text||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('ru-RU')===normalizedName;
             });
-            amount.textContent=quantityLabel?'Купить: '+quantityLabel
+            amount.textContent=weeklyAmount?'На неделю для двоих: ≈ '+weeklyAmount:'';
+            amount.hidden=!amount.textContent;
+            const purchase=document.createElement('small');
+            purchase.className='product-added-by';
+            purchase.textContent=quantityLabel?'Купить: '+quantityLabel
               :recentlyBought?'Покупали недавно · возможно, запас ещё есть'
               :'';
-            amount.hidden=!amount.textContent;
+            purchase.hidden=!purchase.textContent;
             const meta=document.createElement('small');
             meta.className='product-added-by';
             meta.textContent=productAddedByLabel(item.addedBy);
             const noteText=String(item.note||'').trim();
-            if(noteText){ const note=document.createElement('small'); note.className='product-added-by'; note.textContent=noteText; main.append(text,amount,note,meta); }
-            else main.append(text,amount,meta);
+            if(noteText){ const note=document.createElement('small'); note.className='product-added-by'; note.textContent=noteText; main.append(text,amount,purchase,note,meta); }
+            else main.append(text,amount,purchase,meta);
 
             const actions=document.createElement('div');
             actions.className='product-actions';
