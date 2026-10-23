@@ -38,6 +38,12 @@ function createHandler(deps={}){
   try{
    const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
    const {actor}=authorize(req,body.initData);
+   // Private notes about the partner are stored under distinct viewer-owned keys.
+   const partner=body.scope==='partner';
+   const NOTE_KEY=partner?'partner-home-note-v1':'home-note-v1';
+   const NOTES_INDEX_KEY=partner?'partner-home-notes-index-v1':'home-notes-index-v1';
+   const NOTE_EXPANDED_KEY=partner?'partner-home-note-expanded-v1':'home-note-expanded-v1';
+   const noteKey=id=>partner?(id==='home'?NOTE_KEY:'partner-home-note-v2:'+id):(id==='home'?NOTE_KEY:'home-note-v2:'+id);
    const operation=String(body.operation||'get');
    if(operation==='proofread'){
     if(typeof body.text!=='string'||!body.text.trim()||body.text.length>MAX_LENGTH)

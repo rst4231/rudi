@@ -1,9 +1,12 @@
 /* RUDI v4.205: private home note, backed by the authenticated state store. */
 (function(){
 'use strict';
-const root=document.getElementById('homeNoteTile');
-if(!root)return;
-const $=id=>document.getElementById(id);
+function mount(root,partner=false){
+if(!root)return null;
+const noteKind=partner?'partner-note':'note';
+const viewKind=partner?'partner-note-view':'note-view';
+const scope=partner?'partner':'personal';
+const $=id=>root.querySelector('#'+(partner?id.replace(/^homeNote/,'partnerNote'):id));
 const heading=$('homeNoteToggle'),edit=$('homeNoteEdit'),content=$('homeNoteContent'),preview=$('homeNotePreview');
 const editor=$('homeNoteEditor'),textarea=$('homeNoteText'),save=$('homeNoteSave'),cancel=$('homeNoteCancel'),status=$('homeNoteStatus');
 const resolve=$('homeNoteResolve');
@@ -64,9 +67,9 @@ function rememberExpanded(value){
   if(generation!==epoch)return;
   const offline=window.rudiOfflineContent;
   if(!who)return request('set-expanded',{expanded:next});
-  await offline.enqueue('note-view','expanded',{expanded:next},who);
-  const existing=await offline.cached('note',who)||{};
-  await offline.capture('note',{...existing,text:snapshotNotes.find(n=>n.id==='home')?.text||'',notes:snapshotNotes,expanded:next},who);
+  await offline.enqueue(viewKind,'expanded',{expanded:next},who);
+  const existing=await offline.cached(noteKind,who)||{};
+  await offline.capture(noteKind,{...existing,text:snapshotNotes.find(n=>n.id==='home')?.text||'',notes:snapshotNotes,expanded:next},who);
   if(!offline.isOffline())void offline.flush();
  }).catch(()=>showStatus('Не удалось сохранить состояние заметки'));
 
@@ -77,7 +80,7 @@ async function request(operation,extra={}){
  const response=await fetch('/api/home-note',{
   method:'POST',credentials:'same-origin',cache:'no-store',
   headers:{'content-type':'application/json'},
-  body:JSON.stringify({operation,initData:String(window.Telegram?.WebApp?.initData||''),...extra})
+  body:JSON.stringify({operation,scope,initData:String(window.Telegram?.WebApp?.initData||''),...extra})
  });
  const result=await response.json().catch(()=>null);
  if(!response.ok||!result?.ok){
@@ -128,8 +131,8 @@ async function load(){
   let queued=[];
   if(who){
    try{
-    const local=await offline.cached('note',who);
-    queued=await offline.pending('note','',who);
+    const local=await offline.cached(noteKind,who);
+    queued=await offline.pending(noteKind,'',who);
     if(generation!==epoch||editing||busy||selectionRevision!==localSelection||activeId!==localId)return;
     // An interrupted local save may have reached outbox before snapshot commit.
     const queuedNote=queued.filter(x=>x.scope==='home').slice(-1)[0]?.data;
@@ -155,7 +158,7 @@ async function load(){
    const selected=activeId,selection=selectionRevision;
    const result=await request('get');
    if(generation!==epoch||editing||busy||activeId!==selected||selectionRevision!==selection)return;
-   const latest=await offline?.pending?.('note')||[];
+   const latest=await offline?.pending?.(noteKind)||[];
    if(generation!==epoch||editing||busy||activeId!==selected||selectionRevision!==selection)return;
    if(latest.length){
     showStatus('Ожидает синхронизации');
@@ -167,7 +170,7 @@ async function load(){
    preferredExpanded=typeof result.note?.expanded==='boolean'?result.note.expanded:Boolean(text.trim());
    expanded=Boolean(text.trim())&&preferredExpanded;
    editing=false;lastFetched=Date.now();
-   await offline?.capture?.('note',{text:notes.find(n=>n.id==='home')?.text||'',updatedAt:notes.find(n=>n.id==='home')?.updatedAt||'',notes,expanded:preferredExpanded},who).catch(()=>{});
+   await offline?.capture?.(noteKind,{text:notes.find(n=>n.id==='home')?.text||'',updatedAt:notes.find(n=>n.id==='home')?.updatedAt||'',notes,expanded:preferredExpanded},who).catch(()=>{});
    showStatus('');render();
   }catch(error){
    if(generation!==epoch)return;
@@ -247,10 +250,10 @@ async function persist(options={}){
   const history=[...(previous.history||[]),{...version(previous),updatedAt:new Date().toISOString()},...(options.previousVersion?[{...options.previousVersion,updatedAt:new Date().toISOString()}]:[])].slice(-20);
   const next={id,text:value,title,pinned,history,historyCount:Math.max(previous.historyCount||0,history.length),historyLoaded:previous.historyLoaded,updatedAt:baseUpdatedAt};
   if(who){
-   await offline.enqueue('note',id,{id,text:value,title,pinned,localHistory:history,expectedUpdatedAt:baseUpdatedAt},who);
+   await offline.enqueue(noteKind,id,{id,text:value,title,pinned,localHistory:history,expectedUpdatedAt:baseUpdatedAt},who);
    if(generation!==epoch)return;
    put(next);
-   await offline.capture('note',{text:notes.find(n=>n.id==='home')?.text||'',notes,expanded:true},who);
+   await offline.capture(noteKind,{text:notes.find(n=>n.id==='home')?.text||'',notes,expanded:true},who);
    if(generation!==epoch)return;
    text=value;lastFetched=Date.now();editing=false;expanded=Boolean(value);
    void rememberExpanded(expanded);
@@ -303,7 +306,7 @@ async function updateConflictStatus(){
  const offline=window.rudiOfflineContent;
  if(!offline?.actor?.())return;
  const id=activeId,generation=epoch;
- const pending=await offline.pending('note').catch(()=>[]);
+ const pending=await offline.pending(noteKind).catch(()=>[]);
  if(id!==activeId||generation!==epoch)return;
  const collision=pending.find(row=>row.scope===id&&row.error==='note-conflict')||pending.find(row=>row.data?.deleted&&row.error==='note-conflict');
  conflictId=collision?.scope||id;
@@ -318,10 +321,10 @@ resolve?.addEventListener('click',async()=>{
   const cloud=await request('get');
   if(generation!==epoch)return;
   const revision=String((cloud.notes||[{id:'home',...cloud.note}]).find(n=>n.id===id)?.updatedAt||'');
-  const deletion=(await offline.pending('note',id)).some(row=>row.data?.deleted);
+  const deletion=(await offline.pending(noteKind,id)).some(row=>row.data?.deleted);
   const answer=window.confirm(deletion?'Заметка была изменена на другом устройстве. Всё равно удалить её?':'Заметка была изменена на другом устройстве. Заменить облачную версию твоей локальной заметкой?');
   if(!answer)return;
-  await offline.rebaseNote(revision,who,id);
+  await offline.rebaseNote(revision,who,id,noteKind);
   resolve.hidden=true;
   showStatus('Повторная синхронизация…');
   await offline.flush();
@@ -338,12 +341,12 @@ window.addEventListener('rudi-content-sync',event=>{
  if(event.detail?.actor===window.rudiOfflineContent?.actor?.())void updateConflictStatus();
 });
 window.addEventListener('rudi-content-operation-synced',event=>{
- if(event.detail?.kind==='note'&&event.detail.actor===window.rudiOfflineContent?.actor?.()){
+ if(event.detail?.kind===noteKind&&event.detail.actor===window.rudiOfflineContent?.actor?.()){
   const synced=event.detail.result?.note;
   const id=event.detail.scope||'home';
   const local=notes.find(n=>n.id===id);
   if(local&&synced){local.updatedAt=synced.updatedAt;if(activeId===id)baseUpdatedAt=synced.updatedAt;}
-  void window.rudiOfflineContent.pending('note',activeId).then(rows=>{
+  void window.rudiOfflineContent.pending(noteKind,activeId).then(rows=>{
    if(!rows.length)showStatus('Синхронизировано');
   });
  }
@@ -355,12 +358,12 @@ remove?.addEventListener('click',async()=>{
  if(!window.confirm('Удалить заметку «'+(note.title||'Без названия')+'»? Это действие нельзя отменить.'))return;
  busy=true;selectionRevision++;render();
  try{
-  if(who)await offline.enqueue('note',id,{id,deleted:true,expectedUpdatedAt:baseUpdatedAt},who);
+  if(who)await offline.enqueue(noteKind,id,{id,deleted:true,expectedUpdatedAt:baseUpdatedAt},who);
   else await request('delete',{id,expectedUpdatedAt:baseUpdatedAt});
   if(generation!==epoch)return;
   notes=notes.filter(n=>n.id!==id);adopt([...notes].sort((a,b)=>Number(b.pinned)-Number(a.pinned))[0]);
   textarea.value='';expanded=true;
-  if(who){await offline.capture('note',{text:notes.find(n=>n.id==='home')?.text||'',notes,expanded:true},who);if(!offline.isOffline())void offline.flush();}
+  if(who){await offline.capture(noteKind,{text:notes.find(n=>n.id==='home')?.text||'',notes,expanded:true},who);if(!offline.isOffline())void offline.flush();}
   showStatus(who?'Заметка удалена на устройстве · ожидает синхронизации':'Заметка удалена');
  }catch(error){if(generation===epoch)showStatus(error.message||'Не удалось удалить заметку')}
  finally{if(generation===epoch){busy=false;render();void updateConflictStatus()}}
@@ -381,7 +384,7 @@ historyButton?.addEventListener('click',async()=>{
   const note=notes.find(n=>n.id===id);if(!note)return;
   const combined=[...(result.note.history||[]),...(note.history||[])];
   note.history=combined.filter((item,index)=>combined.findIndex(v=>v.text===item.text&&v.title===item.title&&v.pinned===item.pinned)===index).slice(-20);note.historyLoaded=true;
-  renderNotes();const offline=window.rudiOfflineContent;if(offline?.actor?.())await offline.capture('note',{text:notes.find(n=>n.id==='home')?.text||'',notes,expanded:preferredExpanded});
+  renderNotes();const offline=window.rudiOfflineContent;if(offline?.actor?.())await offline.capture(noteKind,{text:notes.find(n=>n.id==='home')?.text||'',notes,expanded:preferredExpanded});
  }catch(_){showStatus('Не удалось загрузить историю. Локальные версии доступны.')}
 });
 undoButton?.addEventListener('click',()=>{if(undo?.id===activeId)void saveVersion(undo)});
@@ -392,4 +395,39 @@ checklist?.addEventListener('click',()=>{
 render();
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',onReady,{once:true});
 else onReady();
+return root;
+}
+mount(document.getElementById('homeNoteTile'));
+let partnerRoot=null;
+window.RudiHomeNote={
+ mountPartner(){
+  if(!partnerRoot){
+   const personal=document.getElementById('homeNoteTile');
+   if(!personal)return null;
+   const clone=personal.cloneNode(true);
+   clone.id='partnerNoteTile';clone.className='home-note partner-note-tile';
+   clone.removeAttribute('data-app-tab-section');clone.removeAttribute('data-home-tile');
+   clone.setAttribute('aria-label','Заметка о партнёре');
+   for(const el of clone.querySelectorAll('[id]'))
+    if(el.id.startsWith('homeNote'))el.id='partnerNote'+el.id.slice(8);
+   for(const el of clone.querySelectorAll('[for],[aria-controls]')){
+    if(el.hasAttribute('for'))el.setAttribute('for',el.getAttribute('for').replace(/^homeNote/,'partnerNote'));
+    if(el.hasAttribute('aria-controls'))el.setAttribute('aria-controls',el.getAttribute('aria-controls').replace(/^homeNote/,'partnerNote'));
+   }
+   const label=clone.querySelector('.home-note-toggle > span:last-child');
+   if(label)label.textContent='Заметка о партнёре';
+   for(const id of ['partnerNotePreview','partnerNoteList','partnerNoteVersions','partnerNoteStatus'])
+    clone.querySelector('#'+id)?.replaceChildren();
+   for(const id of ['partnerNoteEditor','partnerNoteContent','partnerNotePreview']){
+    const el=clone.querySelector('#'+id);if(el)el.hidden=true;
+   }
+   const value=clone.querySelector('#partnerNoteText'),name=clone.querySelector('#partnerNoteTitle');
+   if(value)value.value='';if(name)name.value='';
+   partnerRoot=clone;
+   mount(partnerRoot,true);
+  }
+  return partnerRoot;
+ },
+ detachPartner(){partnerRoot?.remove();}
+};
 })();

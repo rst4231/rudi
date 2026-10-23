@@ -101,7 +101,7 @@ function isOffline(){
  return root.navigator?.onLine===false||root.document?.body?.dataset?.offlineMode==='1';
 }
 async function enqueue(kind,scope,data,who=actor){
- if(!actors.has(who)||!['note','note-view','question','feed-reaction','wellness','lulu'].includes(kind))throw Error('offline-operation-invalid');
+ if(!actors.has(who)||!['note','note-view','partner-note','partner-note-view','question','feed-reaction','wellness','lulu'].includes(kind))throw Error('offline-operation-invalid');
  const rows=await entries(who);
  const match=rows.find(row=>row.kind===kind&&row.scope===scope);
  // Coalesce only idempotent SETs, keeping the original server revision.
@@ -110,7 +110,7 @@ async function enqueue(kind,scope,data,who=actor){
   id:kind==='lulu'&&/^[a-z0-9_-]{8,96}$/i.test(String(data?.offlineOperationId||''))?String(data.offlineOperationId):makeId(),
   actor:who,kind,scope,data:safe(data),createdAt:Date.now(),stamp:makeId(),error:''
  };
- if(match&&kind==='note')row.data.expectedUpdatedAt=match.data.expectedUpdatedAt;
+ if(match&&['note','partner-note'].includes(kind))row.data.expectedUpdatedAt=match.data.expectedUpdatedAt;
  await tx('outbox','readwrite',store=>store.put(row));
  if(kind==='lulu'&&isOffline()){
   if(root.document?.body)root.document.body.dataset.offlineMode='1';
@@ -167,15 +167,15 @@ async function advanceNoteRevision(id,expectedUpdatedAt){
  const db=await open();
  await new Promise((resolve,reject)=>{
   const tr=db.transaction('outbox','readwrite'),store=tr.objectStore('outbox'),get=store.get(id);
-  get.onsuccess=()=>{const row=get.result;if(row?.kind==='note')store.put({...row,data:{...row.data,expectedUpdatedAt}})};
+  get.onsuccess=()=>{const row=get.result;if(['note','partner-note'].includes(row?.kind))store.put({...row,data:{...row.data,expectedUpdatedAt}})};
   tr.oncomplete=()=>{db.close();resolve()};
   tr.onerror=()=>{db.close();reject(tr.error||Error('offline-note-revision-failed'))};
   tr.onabort=()=>{db.close();reject(tr.error||Error('offline-note-revision-aborted'))};
  });
 }
-async function rebaseNote(expectedUpdatedAt,who=actor,scope='home'){
+async function rebaseNote(expectedUpdatedAt,who=actor,scope='home',kind='note'){
  if(!actors.has(who)||typeof expectedUpdatedAt!=='string')throw Error('offline-rebase-invalid');
- const row=(await pending('note',scope,who))[0];
+ const row=(await pending(kind,scope,who))[0];
  if(!row)throw Error('offline-note-missing');
  const revised={...row,data:{...row.data,expectedUpdatedAt},error:'',stamp:makeId()};
  await tx('outbox','readwrite',store=>store.put(revised));
@@ -205,9 +205,9 @@ async function probe(force=false){
 }
 async function send(row){
  let url,body;
- if(row.kind==='note'||row.kind==='note-view'){
+ if(['note','note-view','partner-note','partner-note-view'].includes(row.kind)){
   url='/api/home-note';
-  body={operation:row.kind==='note'?(row.data?.deleted?'delete':'save'):'set-expanded',...(row.kind==='note'?{id:row.scope||'home'}:{}),...row.data};
+  body={operation:['note','partner-note'].includes(row.kind)?(row.data?.deleted?'delete':'save'):'set-expanded',...(['note','partner-note'].includes(row.kind)?{id:row.scope||'home'}:{}),...row.data,...(row.kind.startsWith('partner-')?{scope:'partner'}:{})};
  }else if(row.kind==='question'){
   url='/api/partner-message?rudiAction=daily-question';
   body={operation:'answer',...row.data};
@@ -254,7 +254,7 @@ async function flush(){
   try{
    const blockedGroups=new Set();
    const group=row=>row.kind==='wellness'?'wellness:'+row.data?.area:
-      row.kind==='note'?'note:'+row.scope:row.kind==='note-view'?'note-view':
+      ['note','partner-note'].includes(row.kind)?row.kind+':'+row.scope:['note-view','partner-note-view'].includes(row.kind)?row.kind:
       row.kind+':'+row.scope;
    for(const row of await entries(who)){
     if(actor!==who)break;
@@ -266,15 +266,15 @@ async function flush(){
      const acked=await acknowledge(row.id,row.stamp);
      const stored=acked?null:await tx('outbox','readonly',store=>store.get(row.id));
      if(acked)sent++;
-     else if(stored&&row.kind==='note'&&result.note?.updatedAt){
+     else if(stored&&['note','partner-note'].includes(row.kind)&&result.note?.updatedAt){
       await advanceNoteRevision(row.id,result.note.updatedAt);
      }
-     if(row.kind==='note'&&result.note?.updatedAt){
-      const prior=await cached('note',who);
+     if(['note','partner-note'].includes(row.kind)&&result.note?.updatedAt){
+      const prior=await cached(row.kind,who);
       if(prior){
        const id=row.data.id||row.scope||'home';
        const notes=Array.isArray(prior.notes)?prior.notes.filter(note=>!(result.note.deleted&&note.id===id)).map(note=>note.id===id&&note.text===row.data.text&&(!('title' in row.data)||note.title===row.data.title)&&(!('pinned' in row.data)||note.pinned===row.data.pinned)?{...note,updatedAt:result.note.updatedAt,history:result.note.history||note.history}:note):prior.notes;
-       await capture('note',{...prior,...(id==='home'&&(result.note.deleted||prior.text===row.data.text)?{updatedAt:result.note.updatedAt,...(result.note.deleted?{text:'',deleted:true}:{})}:{}),...(notes?{notes}:{})},who);
+       await capture(row.kind,{...prior,...(id==='home'&&(result.note.deleted||prior.text===row.data.text)?{updatedAt:result.note.updatedAt,...(result.note.deleted?{text:'',deleted:true}:{})}:{}),...(notes?{notes}:{})},who);
       }
      }
      root.dispatchEvent(new CustomEvent('rudi-content-operation-synced',{detail:{actor:who,kind:row.kind,scope:row.scope,area:row.data?.area,operation:row.data?.operation,result}}));
