@@ -84,7 +84,7 @@
    if(!row.isConnected)return;
    if(data?.partner!==actor||typeof data.active!=='boolean')throw Error('status-unavailable');
    row.classList.toggle('is-active',data.active);
-   text.textContent=data.active?'Сейчас проходит когнитивно-поведенческую терапию':'Сейчас не проходит когнитивно-поведенческую терапию';
+   text.textContent=data.active?'Проходит когнитивно-поведенческую терапию':'Не проходит когнитивно-поведенческую терапию';
   }).catch(()=>{if(row.isConnected)text.textContent='Статус КПТ пока недоступен'});
  }
  function addWishes(page,actor,loadWishes,openWish){

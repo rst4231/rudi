@@ -12627,8 +12627,7 @@
         const amount=Number(row?.amount||0),category=String(row?.category||'').trim(),occurredAt=String(row?.occurredAt||'');
         if(!row||amount<=0||!occurredAt){node.hidden=true;node.textContent='';return}
         const meta=financeDateTimeLabel(occurredAt);
-        const shortDate=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'long'}).format(new Date(occurredAt));
-        node.textContent='💸 '+financeMoney(amount,row.currency||'RUB')+' · '+(category||'Расход')+' · '+shortDate+' · '+meta.time;
+        node.textContent='💸 '+financeMoney(amount,row.currency||'RUB')+' · '+(category||'Расход')+' · '+meta.time;
         node.hidden=false;
       }
 
@@ -12639,7 +12638,7 @@
         if(!summary||summary.date!==currentDate){node.hidden=true;node.textContent='';return}
         const done=Math.max(0,Math.round(Number(summary.done)||0));
         const total=Math.max(done,Math.round(Number(summary.total)||0));
-        node.textContent='🌱 Привычки сегодня: '+done+' из '+total;
+        node.textContent='🌱 Привычки: '+done+' из '+total;
         node.hidden=false;
       }
 
