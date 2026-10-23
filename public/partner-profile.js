@@ -25,7 +25,8 @@
   function open(trigger){
    if(active)return;
    const head=tile.querySelector('.profile-person-head');
-   const slots=[energy,head,details].filter(Boolean).map(node=>{const marker=document.createComment('partner-content');node.before(marker);const style=node.getAttribute('style');node.removeAttribute('style');return {node,marker,style}});
+   const advice=details.querySelector('.rhythm-advice');
+   const slots=[energy,advice,head,details].filter(Boolean).map(node=>{const marker=document.createComment('partner-content');node.before(marker);const style=node.getAttribute('style');node.removeAttribute('style');return {node,marker,style}});
    const page=document.createElement('section');page.className='rudi-meditation-page partner-profile-page';
    page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';
    page.setAttribute('aria-label','Профиль: '+actor);

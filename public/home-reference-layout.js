@@ -93,7 +93,7 @@
  }
  // The profile is assembled by the runtime after page load. Layout must be
  // enforced on those live DOM nodes, not only through the cascading stylesheets.
- let selfAxisObserver=null,selfAxisObserved=null,axisFrame=0;
+ const profileAxisFrames=new WeakMap(),profileAxisObservers=new WeakMap();
  function setImportant(node,styles){
    if(!node)return;
    for(const [key,value] of Object.entries(styles)){
@@ -102,9 +102,10 @@
    }
  }
  function alignLiveProfileAxis(profileHead,energy){
-   if(axisFrame)cancelAnimationFrame(axisFrame);
-   axisFrame=requestAnimationFrame(()=>{
-     axisFrame=0;
+   const pendingFrame=profileAxisFrames.get(profileHead);
+   if(pendingFrame)cancelAnimationFrame(pendingFrame);
+   profileAxisFrames.set(profileHead,requestAnimationFrame(()=>{
+     profileAxisFrames.delete(profileHead);
      if(!profileHead.isConnected||!energy.isConnected)return;
      const avatar=profileHead.querySelector('.score-avatar-wrap');
      const row=profileHead.closest('.rudi-home-self-line');
@@ -118,7 +119,7 @@
      const adjustment=Math.max(-24,Math.min(24,distance));
      if(Math.abs(adjustment)>0.75)
        profileHead.style.setProperty('transform','translateY('+adjustment.toFixed(2)+'px)','important');
-   });
+   }));
  }
 
  function layoutLiveSelf(self,main,profileHead,energy){
@@ -147,13 +148,12 @@
    const person=identity?.querySelector('.person');
    setImportant(person,{'display':'flex','flex-direction':'column','justify-content':'center',
      'align-self':'center','margin':'0','padding':'0'});
-   if(selfAxisObserved!==main&&typeof ResizeObserver==='function'){
-     selfAxisObserver?.disconnect();
-     selfAxisObserved=main;
-     selfAxisObserver=new ResizeObserver(()=>alignLiveProfileAxis(profileHead,energy));
-     selfAxisObserver.observe(main);
-     if(identity)selfAxisObserver.observe(identity);
-     selfAxisObserver.observe(energy);
+   if(!profileAxisObservers.has(main)&&typeof ResizeObserver==='function'){
+     const observer=new ResizeObserver(()=>alignLiveProfileAxis(profileHead,energy));
+     profileAxisObservers.set(main,observer);
+     observer.observe(main);
+     if(identity)observer.observe(identity);
+     observer.observe(energy);
    }
    alignLiveProfileAxis(profileHead,energy);
  }

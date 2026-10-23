@@ -735,3 +735,34 @@ test('partner, CBT and weather cover the same viewport as Games without fixing b
  await expect(page.locator('#settingsTelegramUsername')).toHaveCount(0);await expect(page.locator('#settingsContactPhone')).toHaveCount(0);
  await expect(page.locator('#settingsCurrentPin')).toBeVisible();
 });
+
+test('home identities keep their centre and partner time axis stays below the curve',async({page})=>{
+ await mockRudi(page);await page.goto('/');await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ await expect.poll(()=>page.locator('#homeRustamTile').evaluate(tile=>{
+  const a=tile.querySelector('.score-avatar-wrap').getBoundingClientRect(),r=tile.querySelector('.rudi-home-self-line').getBoundingClientRect();return Math.abs(a.top+a.height/2-r.top-r.height/2);
+ })).toBeLessThan(1.5);
+ const partner=page.locator('#homeDianaTile');
+ const gap=await partner.evaluate(tile=>tile.querySelector('.profile-energy-times').getBoundingClientRect().top-tile.querySelector('.profile-energy-plot').getBoundingClientRect().bottom);
+ expect(gap).toBeGreaterThanOrEqual(-1);
+ await page.screenshot({path:test.info().outputPath('home-alignment.png')});
+});
+
+test('partner page keeps fasting outline on avatar and advice immediately below graph',async({page})=>{
+ await mockRudi(page);
+ await page.route('**/api/partner-message?rudiAction=fasting',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,fastingOverview:{'Диана':{active:{startedAt:'2026-09-21T07:00:00.000Z',goalHours:16}}}})}));
+ await page.goto('/');await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ await expect(page.locator('#homeDianaTile .rudi-partner-fasting-hours')).toHaveText('2 ч');
+ await page.locator('#partnerHeaderName').click();
+ const profile=page.locator('.partner-profile-page');
+ await page.evaluate(()=>document.documentElement.dataset.theme='light');
+ await expect(profile.locator('.rudi-online-dot')).toBeHidden();
+ const style=await profile.locator('#partnerMoodValue').evaluate(el=>{const s=getComputedStyle(el);return {background:s.backgroundImage,shadow:s.boxShadow}});
+ expect(style).toEqual({background:'none',shadow:'none'});
+ const shape=await profile.evaluate(el=>{
+  const wrap=el.querySelector('.score-avatar-wrap').getBoundingClientRect(),avatar=el.querySelector('.score-avatar-wrap>.avatar').getBoundingClientRect(),hours=el.querySelector('.rudi-partner-fasting-hours').getBoundingClientRect(),outline=el.querySelector('.rudi-partner-fasting-outline').getBoundingClientRect();
+  const layout=el.querySelector('.partner-profile-layout');
+  return {avatarOffset:Math.abs(wrap.top-avatar.top)+Math.abs(wrap.left-avatar.left)+Math.abs(wrap.width-avatar.width)+Math.abs(wrap.height-avatar.height),hoursTop:hours.top,avatarTop:wrap.top,outlineWidth:outline.width,avatarWidth:wrap.width,afterGraph:layout.querySelector('.profile-energy-strip').nextElementSibling.classList.contains('rhythm-advice'),fill:getComputedStyle(el.querySelector('.rudi-partner-fasting-outline path')).fill};
+ });
+ expect(shape.avatarOffset).toBeLessThan(1);expect(shape.hoursTop).toBeLessThan(shape.avatarTop);expect(Math.abs(shape.outlineWidth-shape.avatarWidth-8)).toBeLessThan(1);expect(shape.fill).toBe('none');expect(shape.afterGraph).toBe(true);
+ await page.screenshot({path:test.info().outputPath('partner-fasting.png')});
+});
