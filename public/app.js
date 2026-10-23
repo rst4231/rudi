@@ -17448,7 +17448,19 @@
           return Number.isFinite(time)&&Number.isFinite(todayMs)&&todayMs-time>=7*DAY;
         });
         if(!candidates.length) return null;
-        return candidates[sharedAlbumHash(todayKey)%candidates.length]||null;
+        // Walk a stable shuffled deck one slot per Moscow calendar day.
+        // Hashing each date independently can pick the same photo repeatedly
+        // before other memories ever receive a turn.
+        const byId=new Map();
+        for(const photo of candidates){
+          const key=String(photo.id||photo.originalUrl||photo.fullUrl||photo.url||'').trim().split(/[?#]/)[0];
+          if(key&&!byId.has(key))byId.set(key,photo);
+        }
+        const deck=[...byId.entries()].sort(([a],[b])=>
+          sharedAlbumHash('memory:'+a)-sharedAlbumHash('memory:'+b)||(a<b?-1:a>b?1:0));
+        if(!deck.length)return null;
+        const dayNumber=Math.floor(todayMs/DAY);
+        return deck[((dayNumber%deck.length)+deck.length)%deck.length]?.[1]||null;
       }
 
       function sharedAlbumPeriodWord(value,one,few,many){
