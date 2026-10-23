@@ -29,3 +29,16 @@ body.cbt-page-open{position:fixed!important;left:0;right:0;width:100%;overflow:h
 .cbt-day-dot:disabled{cursor:default;pointer-events:none}
 .cbt-day-dot:disabled>span{opacity:.48}
 .cbt-day-nav button:disabled{opacity:.5;cursor:default}
+
+/* RUDI CBT cycle editing + multi-step diary */
+.cbt-page .cbt-add-entry{width:100%;margin:14px 0 12px;min-height:48px;font-size:14px}.cbt-page .cbt-expand-entry{width:100%;margin:0 0 12px;font-size:12px}
+.cbt-life-example{margin:11px 0 0;padding:10px 13px;border-left:3px solid #a28adf;border-radius:0 9px 9px 0;background:rgba(148,119,218,.075);color:var(--cbt-ink);font-size:12px;line-height:1.55;font-style:italic;white-space:pre-wrap}
+.cbt-page .cbt-explanation{margin-bottom:10px}.cbt-entry-picker{margin-top:16px}.cbt-entry-top{margin-bottom:11px}
+.cbt-entry-item{display:flex;align-items:stretch;min-width:0;gap:7px}.cbt-entry-item .cbt-entry-card{flex:1;min-width:0}
+.cbt-page .cbt-entry-remove{flex:0 0 38px;min-width:38px;border:1px solid rgba(213,71,92,.25);border-radius:12px;color:#c62c47;background:rgba(223,56,78,.065);font-size:27px;font-weight:500;line-height:1;display:grid;place-items:center;padding:0;touch-action:manipulation}
+.cbt-page .cbt-entry-remove:active{background:rgba(223,56,78,.16)}
+.cbt-cycle-download{display:flex;align-items:center;justify-content:space-between;gap:12px}.cbt-cycle-download>div{min-width:0;flex:1}.cbt-cycle-download h2{font-size:14px;margin:0 0 3px}.cbt-cycle-download .cbt-meta{margin:0}.cbt-cycle-download>.cbt-primary{flex:0 0 auto;min-height:42px;padding:10px 13px;font-size:12px}.cbt-cycle-list{margin-top:15px}
+.cbt-emotions button span[aria-hidden]{font-size:15px;vertical-align:-1px;margin-right:2px}
+.cbt-page .cbt-step[hidden],.cbt-page #cbtOptionalFields[hidden]{display:none!important}
+html[data-theme="dark"] .cbt-life-example{background:rgba(177,143,244,.09);border-left-color:#a98bea}html[data-theme="dark"] .cbt-page .cbt-entry-remove{color:#ff8495;background:rgba(215,58,82,.12);border-color:rgba(215,58,82,.38)}
+@media(max-width:370px){.cbt-cycle-download{align-items:stretch;flex-direction:column}.cbt-cycle-download>.cbt-primary{width:100%}}

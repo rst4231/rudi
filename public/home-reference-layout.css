@@ -1360,3 +1360,8 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-st
 body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-strip > .rudi-energy-point-caption[hidden]{
   display:none!important;
 }
+
+/* CBT halo shows elapsed day percentage, like fasting progress. */
+body[data-app-tab="home"] #rudiHomeCbtButton{isolation:isolate;overflow:visible!important}
+body[data-app-tab="home"] #rudiHomeCbtButton>.rudi-cbt-progress-halo{position:absolute;inset:-3px;border-radius:17px;pointer-events:none;z-index:1;padding:2.5px;background:conic-gradient(from -90deg,#b299ff var(--rudi-cbt-percent,0%),rgba(171,154,215,.20) 0);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+body[data-app-tab="home"] #rudiHomeCbtButton>svg{position:relative;z-index:2}

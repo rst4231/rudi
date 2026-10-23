@@ -83,7 +83,7 @@ function apply(state,op,now=new Date().toISOString(),local=false){
   if(!target)error('cbt-entry-missing');
   if(['edit','format','complete'].includes(op.type)&&!target.startedAt&&!target.deletedAt)target.startedAt=now;
   if(op.type==='delete-entry'){
-   if(!target.deletedAt){if(!local&&(target.savedAt||!same(target.answers,op.base||{})))error('cbt-conflict-delete',Object.keys(target.answers));target.deletedAt=now}
+   if(!target.deletedAt){if(!local&&!same(target.answers,op.base||{}))error('cbt-conflict-delete',Object.keys(target.answers));target.deletedAt=now}
   }else if(target.deletedAt&&op.type!=='archive'&&!local)error('cbt-conflict-deleted',Object.keys(op.patch||{}));
   else if(op.type==='format'){target.format=op.format;if(target.savedAt&&missing(op.day,target.answers,target.format).length)target.savedAt=null}
   else if(op.type==='archive')target.versions=[...(target.versions||[]),{id:op.id,at:now,answers:{...target.answers,...op.patch}}];

@@ -14,6 +14,7 @@
      ' V '+(inset+r)+' A '+r+' '+r+' 0 0 1 '+(inset+r)+' '+inset+
      ' H '+width/2;
  }
+ function updateCbtProgress(){const button=$('rudiHomeCbtButton');if(!button)return;const percent=Math.max(0,Math.min(100,Number(window.RudiCbt?.progress?.())||0));button.style.setProperty('--rudi-cbt-percent',percent+'%');button.setAttribute('aria-label','КПТ · пройдено '+Math.round(percent)+'%');button.title='КПТ · '+Math.round(percent)+'%';}
  function restoreTrackerOutlines(rail){
    for(const id of ['fastingProfileButton','supplementProfileButton']){
      const button=rail.querySelector('#'+id);
@@ -292,7 +293,7 @@
      const cbt=document.createElement('button');cbt.id='rudiHomeCbtButton';
      cbt.className='rudi-home-games cbt-home-shortcut';cbt.type='button';
      cbt.setAttribute('aria-label','КПТ');cbt.title='Когнитивно-поведенческая терапия';
-     cbt.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6c-2-5-7-3-6 1-4 0-4 6-1 7-2 4 3 7 5 4V6m2 0c2-5 7-3 6 1 4 0 4 6 1 7 2 4-3 7-5 4V6M5 10l3 1m11-1-3 1"/></svg>';
+     cbt.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6c-2-5-7-3-6 1-4 0-4 6-1 7-2 4 3 7 5 4V6m2 0c2-5 7-3 6 1 4 0 4 6 1 7 2 4-3 7-5 4V6M5 10l3 1m11-1-3 1"/></svg><span class="rudi-cbt-progress-halo" aria-hidden="true"></span>';
      cbt.addEventListener('click',()=>window.RudiCbt?.open());inner.append(cbt);
      window.RudiGameExtras?.renderBadges?.();
    }
@@ -301,6 +302,7 @@
    const inner=rail.querySelector('.rudi-home-shortcuts-inner');
    if(buttons&&buttons.parentElement!==inner)inner.insertBefore(buttons,$('rudiHomeGamesButton'));
    restoreTrackerOutlines(rail);
+   updateCbtProgress();
    if(!outlineObserver&&typeof MutationObserver==='function'){
      outlineObserver=new MutationObserver(()=>restoreTrackerOutlines(rail));
      outlineObserver.observe(rail,{childList:true,subtree:true});
@@ -378,6 +380,9 @@
    event.stopImmediatePropagation();
    feed.click();
  },true);
+ window.addEventListener('rudi-cbt-progress',updateCbtProgress);
+ window.addEventListener('storage',e=>{if(e.key?.startsWith('rudi:cbt:v1:'))updateCbtProgress()});
+ window.addEventListener('focus',updateCbtProgress);setInterval(updateCbtProgress,60000);
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});
  else schedule();
 })();
