@@ -45,7 +45,8 @@ function validate(op){
  if(op.type==='coach'){
  const fields=['pattern','trap','reason','check','alternative','step','question'];
  if(!op.coach||typeof op.coach!=='object'||Array.isArray(op.coach)||!op.base||typeof op.base!=='object'||Array.isArray(op.base)||JSON.stringify(op.base).length>55000)error('cbt-invalid-coach');
- for(const key of fields)if(typeof op.coach[key]!=='string'||!op.coach[key].trim()||op.coach[key].length>900)error('cbt-invalid-coach');
+ for(const key of fields)if(typeof op.coach[key]!=='string'||(key==='pattern'&&!op.coach[key].trim())||op.coach[key].length>900)error('cbt-invalid-coach');
+ if(op.coach.version!==undefined&&op.coach.version!==2)error('cbt-invalid-coach');
  return;
 }
 if(op.type==='coach-check'){if(!['done','partial','not-done'].includes(op.outcome))error('cbt-invalid-coach-check');return}
@@ -94,6 +95,7 @@ function apply(state,op,now=new Date().toISOString(),local=false){
   }else if(target.deletedAt&&op.type!=='archive'&&!local)error('cbt-conflict-deleted',Object.keys(op.patch||{}));
   else if(op.type==='coach'){
      if(!local&&(!target.savedAt||!same(target.answers,op.base)))error('cbt-conflict-coach');
+     if(target.coach){target.coachHistory=[...(target.coachHistory||[]),{...clone(target.coach),check:clone(target.coachCheck||null)}].slice(-3)}
      target.coach={source:clone(op.base),result:clone(op.coach),createdAt:now};
      target.coachCheck=null;
     }

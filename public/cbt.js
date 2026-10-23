@@ -83,7 +83,28 @@ page.addEventListener('focusin',()=>updateViewport());page.addEventListener('cli
 function lockScroll(){if(scrollLock)return;scrollLock={x:window.scrollX,y:window.scrollY,top:document.body.style.top};document.body.style.top=-scrollLock.y+'px';document.documentElement.classList.add('cbt-page-open');document.body.classList.add('cbt-page-open')}
 function unlockScroll(){if(!scrollLock)return;const saved=scrollLock;scrollLock=null;document.documentElement.classList.remove('cbt-page-open');document.body.classList.remove('cbt-page-open');document.body.style.top=saved.top;window.scrollTo({left:saved.x,top:saved.y,behavior:'instant'})}
 function revealFocusedField(){if(page?.hidden)return;const input=document.activeElement,scroll=scroller();if(!scroll||!page.contains(input)||!input.matches('textarea,input,select'))return;const a=input.getBoundingClientRect(),b=scroll.getBoundingClientRect();if(a.bottom>b.bottom-12)scroll.scrollTop+=a.bottom-b.bottom+12;else if(a.top<b.top+12)scroll.scrollTop+=a.top-b.top-12}
-function updateViewport(){cancelAnimationFrame(viewportFrame);viewportFrame=requestAnimationFrame(()=>{if(!page||page.hidden)return;const view=window.visualViewport,keyboard=Boolean(page.contains(document.activeElement)&&document.activeElement?.matches('textarea,input,select')),height=Math.round(keyboard?(view?.height||window.innerHeight):window.innerHeight);page.style.setProperty('--cbt-viewport-height',height+'px');page.style.setProperty('--cbt-viewport-top',keyboard?Math.max(0,Math.round(view?.offsetTop||0))+'px':'0px');clearTimeout(revealTimer);revealTimer=setTimeout(revealFocusedField,100)})}
+function updateViewport(){
+ cancelAnimationFrame(viewportFrame);
+ viewportFrame=requestAnimationFrame(()=>{
+  if(!page||page.hidden)return;
+  const view=window.visualViewport;
+  const focused=page.contains(document.activeElement)&&document.activeElement?.matches('textarea,input,select');
+  const layoutHeight=Math.round(window.innerHeight||document.documentElement.clientHeight);
+  const keyboardGap=view?layoutHeight-Math.round(view.height+(view.offsetTop||0)):0;
+  const keyboardOpen=Boolean(focused&&view&&keyboardGap>130);
+  if(keyboardOpen){
+   page.style.setProperty('--cbt-viewport-height',Math.round(view.height)+'px');
+   page.style.setProperty('--cbt-viewport-top',Math.max(0,Math.round(view.offsetTop||0))+'px');
+   page.classList.add('cbt-keyboard-open');
+  }else{
+   page.style.removeProperty('--cbt-viewport-height');
+   page.style.removeProperty('--cbt-viewport-top');
+   page.classList.remove('cbt-keyboard-open');
+  }
+  clearTimeout(revealTimer);
+  revealTimer=setTimeout(revealFocusedField,100);
+ })
+}
 window.visualViewport?.addEventListener('resize',updateViewport);window.visualViewport?.addEventListener('scroll',updateViewport);window.addEventListener('resize',updateViewport);
 function navTo(s){screen=s;notice='';render();if(scroller())scroller().scrollTop=0;$('#cbtView h1')?.focus({preventScroll:true})}
 function upgradeCalendar(){const r=C.active(snapshot());if(r&&!r.calendar)enqueue({type:'schedule',cycleId:r.id,timeZone:localZone()})}

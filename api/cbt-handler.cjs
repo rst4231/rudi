@@ -31,15 +31,15 @@ function createHandler(deps={}){
     if(!/^[a-zA-Z0-9_-]{1,90}$/.test(cycleId)||!Number.isInteger(day)||day<1||day>21||!/^[a-zA-Z0-9_-]{1,90}$/.test(entryId))return res.status(400).json({ok:false,error:'cbt-invalid-coach'});
     const state=core.refresh(await read(actor,KEY)||core.empty()),run=state.runs.find(r=>r.id===cycleId),record=core.entry(run,day,entryId);
     if(!record||!record.savedAt||!core.hasAnswers(record.answers))return res.status(409).json({ok:false,error:'cbt-coach-needs-save'});
-    if(record.coach&&core.same(record.coach.source,record.answers))return res.status(200).json({ok:true,result:record.coach.result,state,actor,cached:true});
+    if(record.coach?.result?.version===coach.COACH_VERSION&&core.same(record.coach.source,record.answers))return res.status(200).json({ok:true,result:record.coach.result,state,actor,cached:true});
     const source=JSON.parse(JSON.stringify(record.answers));
     const recent=Object.entries(run.days||{}).filter(([n])=>Number(n)<day).sort((a,b)=>Number(a[0])-Number(b[0]))
-     .flatMap(([,row])=>core.entries(row).filter(e=>e.coach&&core.same(e.coach.source,e.answers)).map(e=>({step:e.coach.result.step,outcome:e.coachCheck?.outcome||''}))).slice(-3);
-    const result=await generateCoach({day,answers:source,recent});
+     .flatMap(([,row])=>core.entries(row).filter(e=>e.coach?.result?.step?.trim()&&core.same(e.coach.source,e.answers)).map(e=>({step:e.coach.result.step,outcome:e.coachCheck?.outcome||''}))).slice(-3);
+    const result=coach.validateResult(await generateCoach({day,answers:source,recent}));
     return await withLock(actor,async()=>{
      const latest=await read(actor,KEY)||core.empty(),r=latest.runs.find(x=>x.id===cycleId),e=core.entry(r,day,entryId);
      if(!e||!e.savedAt||!core.same(e.answers,source))return res.status(409).json({ok:false,error:'cbt-conflict-coach'});
-     if(e.coach&&core.same(e.coach.source,source))return res.status(200).json({ok:true,result:e.coach.result,state:latest,actor,cached:true});
+     if(e.coach?.result?.version===coach.COACH_VERSION&&core.same(e.coach.source,source))return res.status(200).json({ok:true,result:e.coach.result,state:latest,actor,cached:true});
      const next=core.apply(latest,{id:crypto.randomUUID(),type:'coach',cycleId,day,entryId,base:source,coach:result},new Date().toISOString());
      await write(actor,KEY,next);
      return res.status(200).json({ok:true,result,state:next,actor});

@@ -125,3 +125,7 @@ html[data-theme="dark"] .cbt-thought-brain{box-shadow:0 12px 36px #2c184f82}
 .cbt-coach-action strong{display:block;margin-bottom:8px;font-size:13px}
 .cbt-coach-action p,.cbt-coach-tomorrow{font-size:14px;line-height:1.6;white-space:pre-wrap;margin:0}
 .cbt-coach-tomorrow{font-style:italic;color:var(--cbt-ink)}
+
+/* iPhone: cover the whole available screen unless the software keyboard is truly open. */
+.cbt-page:not(.cbt-keyboard-open){inset:0!important;bottom:0!important;height:100dvh!important;min-height:100dvh!important}
+.cbt-page.cbt-keyboard-open{bottom:auto!important;min-height:0!important}

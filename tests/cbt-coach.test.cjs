@@ -52,7 +52,39 @@ test('AI response is rejected if saved answers changed while the model was runni
 });
 test('model JSON validates all seven fields and rejects untrusted malformed output',()=>{
  const {validateResult,safeAnswers}=require('../api/cbt-coach.cjs');
- assert.deepEqual(validateResult(makeResult()),makeResult());
+ assert.deepEqual(validateResult(makeResult()),{...makeResult(),version:2});
  assert.throws(()=>validateResult({pattern:'Недостаточно данных'}),/cbt-coach-invalid/);
  assert.deepEqual(safeAnswers({thought:'Пример',password:{key:'secret'},emotions:['Радость'],count:2}),{thought:'Пример',emotions:['Радость'],count:2});
+});
+
+test('ordinary positive events need no invented trap or action',()=>{
+ const {validateResult}=require('../api/cbt-coach.cjs');
+ const result=validateResult({pattern:'Поели то, что вам понравилось, и смогли расслабиться. Иногда этого объяснения вполне достаточно.',trap:'',reason:'',check:'',alternative:'',step:'',question:''});
+ assert.equal(result.version,2);
+ for(const key of ['trap','reason','check','alternative','step','question'])assert.equal(result[key],'');
+});
+test('previously cached robotic report is replaced and archived without losing answers',async()=>{
+ const {state,answers}=fixture();let old=C.apply(state,{
+  id:'old-coach',type:'coach',cycleId:'cycle',day:1,entryId:'initial',base:answers,coach:makeResult()
+ },new Date().toISOString());
+ const previousStep=C.entry(old.runs[0],1).coach.result.step;
+ const h=harness(old);
+ const first=await request(h.handler,{operation:'analyze',cycleId:'cycle',day:1,entryId:'initial'});
+ assert.equal(first.status,200);assert.equal(first.payload.cached,undefined);
+ assert.equal(first.payload.result.version,2);
+ assert.equal(h.calls(),1);
+ const record=C.entry(h.get().runs[0],1);
+ assert.equal(record.coachHistory.length,1);
+ assert.equal(record.coachHistory[0].result.step,previousStep);
+ assert.deepEqual(record.answers,answers);
+ const second=await request(h.handler,{operation:'analyze',cycleId:'cycle',day:1,entryId:'initial'});
+ assert.equal(second.payload.cached,true);
+ assert.equal(h.calls(),1);
+});
+test('sample window observation may omit distortion and keeps a practical choice',()=>{
+ const {validateResult}=require('../api/cbt-coach.cjs');
+ const result=validateResult({pattern:'Похоже, вас задело, что открыли окно, не спросив остальных.',trap:'',reason:'',check:'',alternative:'Вы промолчали, хотя были недовольны.',step:'Если повторится, можно спокойно сказать, что вам некомфортно.',question:'Получилось ли сказать об этом?'});
+ assert.ok(result.pattern.includes('окно'));
+ assert.equal(result.trap,'');
+ assert.ok(result.step.includes('сказать'));
 });

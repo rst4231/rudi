@@ -105,3 +105,17 @@ test('thought outlines use emotions without painting the background',async({page
  await page.getByRole('button',{name:'Радость',exact:true}).click();
  await expect(page.locator('.cbt-thought-bubble').first()).toHaveClass(/cbt-thought-negative/);
 });
+
+test('CBT fills the iPhone viewport without the blank bottom strip',async({page})=>{
+ await setup(page);
+ await page.getByRole('button',{name:'Начать программу',exact:true}).click();
+ await page.evaluate(()=>{
+  if(document.activeElement instanceof HTMLElement)document.activeElement.blur();
+  window.dispatchEvent(new Event('resize'));
+ });
+ await expect.poll(()=>page.evaluate(()=>{
+  const pageEl=document.querySelector('#rudiCbtPage'),bounds=pageEl.getBoundingClientRect();
+  return Math.abs(Math.round(bounds.bottom-window.innerHeight));
+ })).toBeLessThan(3);
+ await expect(page.locator('#rudiCbtPage')).not.toHaveClass(/cbt-keyboard-open/);
+});
