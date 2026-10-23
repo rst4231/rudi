@@ -19,7 +19,7 @@ function createHandler(deps={}){
    if(!body.operation||body.operation==='state'){
     // Optional copy overrides use existing storage and a bundled offline fallback.
     const [stored,copy]=await Promise.all([read(actor,KEY),read(actor,'cbt-content-copy-v1').catch(()=>null)]);
-    const state=stored||core.empty();
+    const state=core.refresh(stored||core.empty());
     return res.status(200).json({ok:true,actor,state,copy:copy?.version===content.version?copy:null});
    }
    if(body.operation!=='mutate')return res.status(400).json({ok:false,error:'cbt-invalid-operation'});
@@ -38,14 +38,14 @@ function createHandler(deps={}){
       const safeAt=Number.isFinite(at)&&at>=Date.UTC(2020,0,1)&&at<=Date.now()+300000?new Date(at).toISOString():new Date().toISOString();
       next=core.apply(next,op,safeAt);acked.push(op.id);
      }catch(e){
-      if(e.message.startsWith('cbt-conflict')||['cbt-read-only','cbt-run-missing','cbt-incomplete'].includes(e.message)){
+      if(e.message.startsWith('cbt-conflict')||['cbt-read-only','cbt-run-missing','cbt-entry-missing','cbt-incomplete'].includes(e.message)){
        if(acked.length)await write(actor,KEY,next);
        return res.status(409).json({ok:false,error:e.message,fields:e.fields,opId:op.id,state:next,acked,actor});
       }
       throw e;
      }
     }
-    await write(actor,KEY,next);
+    next=core.refresh(next);await write(actor,KEY,next);
     return res.status(200).json({ok:true,actor,state:next,acked});
    }finally{await client.remove('cbt-write-lock-v1',lockKey)}
   }catch(e){

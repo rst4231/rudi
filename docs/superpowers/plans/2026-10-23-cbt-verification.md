@@ -66,3 +66,15 @@ The user explicitly authorized source publication to the existing public rst4231
 - 14 mobile browser scenarios passed, including the four new stability, boundary, unchanged-sync and keyboard/scroll-restoration checks.
 - JavaScript syntax, local build and diff whitespace checks passed. Light/dark mobile screenshots inspected.
 - Changes are based on production v4.304; CBT answers, history and backend logic were not changed.
+
+## v4.306 observations and midnight follow-up
+- Added independent timestamped entries per day; the original answer object remains compatible with existing records and queued operations.
+- Added entry selection, drafts, saved-entry confirmation and editing. Weekly history shows every entry, including optional mood ratings. Charts use labelled daily averages; entry counts are separate from calendar progress.
+- Calendar cycles store their initial local date and IANA timezone. Days close at real midnight, including offline, with DST-aware boundaries. Saving a record does not close a day. Blank elapsed days have no fabricated observations.
+- Active legacy cycles migrate using their actual starting date. Previously saved answers remain saved observations; filling an exercise earlier today no longer counts today as finished.
+- Interrupted cycles stop progressing. The final midnight closes the program; pre-midnight queued writes still sync afterward. A focused final-day form becomes read-only without losing its prior draft.
+- Independent review identified the final-midnight focused-form case; fixed and covered by a browser test.
+- 75 focused unit/regression tests passed; 28 CBT core/API tests are included in that count and in npm run test:cbt.
+- 17 mobile browser scenarios passed (16 in the full run; the final-midnight fixture was corrected and that scenario then passed independently). Tests cover all 21 lessons, multiple records, reload, offline recovery, conflicts, history, last-day completion, scroll/keyboard stability and 320px layout.
+- Local build, JavaScript syntax and git diff whitespace checks passed. Mobile light-theme entry picker screenshot inspected; checks use Chromium emulation rather than a physical iPhone. No private production diary was accessed.
+- Changed implementation files: public/cbt-core.js, public/cbt.js, public/cbt.css, api/cbt-handler.cjs. Test files: tests/cbt-entries.test.cjs, tests/cbt-handler.test.cjs, tests/ui/cbt.spec.cjs, package.json. Release/cache files: VERSION, rudi-version.json, public/index.html, public/sw.js, public/version.json. Plan and this verification document updated.
