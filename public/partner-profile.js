@@ -2,6 +2,36 @@
 (()=>{'use strict';
  let active=null;
  const bindings=new WeakMap();
+ function addWishes(page,actor,loadWishes,openWish){
+  const section=document.createElement('section');section.className='partner-profile-wishes';section.setAttribute('aria-label','Желания '+actor);
+  section.innerHTML='<div class="partner-wishes-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg><h2>Желания</h2><span class="partner-wishes-count" hidden></span></div><div class="partner-wishes-list" aria-live="polite"></div>';
+  page.querySelector('.partner-profile-layout').append(section);
+  const list=section.querySelector('.partner-wishes-list'),count=section.querySelector('.partner-wishes-count');
+  async function refresh(){
+   list.textContent='Загружаю желания…';list.classList.add('is-message');
+   try{
+    const all=await (loadWishes?.()??[]);
+    if(!section.isConnected)return;
+    const items=(Array.isArray(all)?all:[]).filter(item=>item?.owner===actor);
+    list.replaceChildren();list.classList.toggle('is-message',!items.length);count.hidden=!items.length;count.textContent=String(items.length);
+    if(!items.length){list.textContent='Пока нет желаний';return}
+    for(const item of items){
+     let url='';try{const parsed=new URL(String(item.url||''),location.origin);if(item.url&&['https:','http:'].includes(parsed.protocol))url=parsed.href}catch(_){}
+     const row=document.createElement(url?'a':'div');row.className='partner-wish-row'+(url?' partner-wish-link':'')+(item.done?' is-done':'');
+     const text=document.createElement('span');text.className='partner-wish-text';text.textContent=String(item.text||'Желание');row.append(text);
+     if(item.done){const status=document.createElement('span');status.className='partner-wish-done';status.textContent='Исполнено';row.append(status)}
+     if(url){row.href=url;row.target='_blank';row.rel='noopener noreferrer';const arrow=document.createElement('span');arrow.className='partner-wish-arrow';arrow.textContent='↗';arrow.setAttribute('aria-hidden','true');row.append(arrow);if(openWish)row.addEventListener('click',event=>{event.preventDefault();openWish(url)})}
+     list.append(row);
+    }
+   }catch(_){
+    if(!section.isConnected)return;
+    list.textContent='Не удалось загрузить желания. ';list.classList.add('is-message');
+    const retry=document.createElement('button');retry.type='button';retry.className='partner-wishes-retry';retry.textContent='Повторить';retry.onclick=refresh;list.append(retry);
+   }
+  }
+  void refresh();
+ }
+
  function close(fromHistory=false){
   if(!active)return;
   const saved=active;active=null;
@@ -15,7 +45,7 @@
   if(!fromHistory&&history.state?.rudiPartnerProfile)history.back();
   saved.trigger?.focus?.({preventScroll:true});
  }
- function bind(tile,actor,{openStars,balance,refreshBalance}){
+ function bind(tile,actor,{openStars,balance,refreshBalance,loadWishes,openWish}){
   if(bindings.has(tile))return;
   const details=tile.querySelector('.profile-person-details');
   if(!details)return;
@@ -46,6 +76,7 @@
    if(energy)energy.hidden=false;
    page.querySelector('.partner-profile-layout').append(...slots.map(slot=>slot.node));
    document.body.append(page);
+   addWishes(page,actor,loadWishes,openWish);
    document.body.classList.add('partner-profile-open');
    window.RudiViewport?.sync();
    history.pushState({...history.state,rudiPartnerProfile:actor},'','#partner-'+(actor==='Диана'?'diana':'rustam'));

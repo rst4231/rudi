@@ -115,3 +115,21 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{
 .partner-profile-page .home-cycle-summary .home-cycle-status{font-size:15px;font-weight:750}
 .partner-profile-page .home-cycle-summary :is(.home-cycle-advice,.home-cycle-insight){line-height:1.6!important;font-weight:450}
 .partner-profile-page .home-cycle-summary .home-cycle-insight{border-top-color:color-mix(in srgb,var(--pp-rose) 16%,transparent);padding-top:10px}
+
+/* Partner wishes keep their existing list ownership and link behavior. */
+.partner-profile-page .partner-profile-layout>.partner-profile-wishes{border:1px solid color-mix(in srgb,var(--pp-rose) 22%,transparent);border-radius:22px;background:linear-gradient(140deg,var(--pp-rose-soft),var(--pp-panel));padding:16px;box-sizing:border-box;width:100%;min-width:0}
+.partner-wishes-head{display:flex;align-items:center;gap:9px;color:var(--pp-rose);margin-bottom:12px}
+.partner-wishes-head>svg{width:20px;height:20px;flex:none}
+.partner-wishes-head>h2{margin:0;flex:1;font-size:15px;line-height:1.3;font-weight:750;letter-spacing:-.02em;color:var(--text)}
+.partner-wishes-count{font-size:11px;font-weight:750;padding:4px 8px;border-radius:20px;background:color-mix(in srgb,var(--pp-rose) 12%,transparent)}
+.partner-wishes-count[hidden]{display:none}
+.partner-wishes-list{display:flex;flex-direction:column;gap:8px;min-width:0}
+.partner-wishes-list.is-message{color:var(--pp-muted);font-size:13px;line-height:1.5;display:block}
+.partner-wish-row{display:flex;align-items:center;gap:8px;min-width:0;padding:12px;border-radius:13px;border:1px solid var(--pp-edge);background:var(--pp-panel);color:var(--text);text-decoration:none;font-size:14px;line-height:1.45;font-weight:550;box-sizing:border-box}
+.partner-wish-text{flex:1;min-width:0;overflow-wrap:anywhere}
+.partner-wish-arrow{color:var(--pp-rose);font-size:19px;flex:none}
+.partner-wish-done{color:var(--pp-muted);font-size:10px;font-weight:600;flex:none}
+.partner-wish-row.is-done .partner-wish-text{color:var(--pp-muted)}
+.partner-wish-link:active{background:var(--pp-rose-soft)}
+.partner-wish-link:focus-visible,.partner-wishes-retry:focus-visible{outline:2px solid var(--pp-rose);outline-offset:2px}
+.partner-wishes-retry{border:0;padding:0;background:none;color:var(--pp-rose);font:inherit;text-decoration:underline;cursor:pointer}

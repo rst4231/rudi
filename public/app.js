@@ -10578,6 +10578,8 @@
           const actor=key==='profile-diana'?'Диана':'Рустам';
           window.RudiPartnerProfile.bind(section,actor,{
             openStars:openScoreModal,
+            loadWishes:()=>wishlistRequest('list').then(data=>data.items||[]),
+            openWish:openWishlistUrl,
             refreshBalance:()=>scoreRequest('state').then(data=>renderScoreStickers(data.score)).catch(()=>{}),
             balance:()=>currentScoreState?Number(currentScoreState.balances?.[actor]||0):null
           });
