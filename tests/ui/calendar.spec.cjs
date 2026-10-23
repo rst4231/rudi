@@ -158,7 +158,7 @@ async function mockRudi(page,options={}){
       return ok({
         ok:true,connected:true,enabled:true,writable:true,view:next?'next-month':'month',
         days:next?monthDays(2026,10).map(day=>({date:day.date,events:[]})):
-          monthDays(2026,9).map(day=>({date:day.date,events:day.date==='2026-09-23'?task:[]}))
+          monthDays(2026,9).map(day=>({date:day.date,events:day.date==='2026-09-23'?[...task,{id:'together',title:'Вместе в театр',allDay:false,startTime:'19:00',assigned:false}]:[]}))
       });
     }
     if(path==='/api/ticktick/today'){
@@ -700,6 +700,9 @@ test('partner avatar opens the dedicated live profile and its stars history',asy
  await expect(profile.locator('h1')).toHaveText('Диана');
  await expect(profile.locator('.rhythm-advice')).toHaveText(/^Диане сейчас лучше /);
  await expect(profile.locator('.partner-birthday-copy>span')).toHaveText('30 июня');
+ await expect(profile.locator('.partner-next-event')).toHaveText('Вместе в театр');
+ await expect(profile.locator('.partner-day-off')).not.toHaveText(/недоступен|Обновляю/);
+ await expect(profile.locator('.partner-energy-card .rhythm-advice')).toBeVisible();
  await expect(profile.locator('.partner-wish-text')).toHaveText(['Поездка к морю']);
  await expect(profile.locator('.partner-cbt-status')).toHaveText('Сейчас проходит когнитивно-поведенческую терапию');
  const profileBack=await profile.locator('.partner-profile-back').boundingBox();

@@ -9,12 +9,12 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{background:#0
 .partner-profile-stars{border:1px solid var(--line);border-radius:14px;min-height:44px;padding:8px 12px;background:var(--surface-strong);color:var(--text);font-family:inherit;font-size:15px;font-weight:700;white-space:nowrap;cursor:pointer}
 .partner-profile-content{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:12px 0 max(16px,env(safe-area-inset-bottom))}
 .partner-profile-content>.partner-profile-layout{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:16px!important;width:100%;max-width:760px;margin:0 auto;padding:0!important;background:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;box-sizing:border-box;min-width:0}
-.partner-profile-layout>.profile-energy-strip{position:relative!important;inset:auto!important;transform:none!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:20px 72px 16px!important;order:-1;width:100%!important;height:124px!important;min-height:124px!important;max-height:124px!important;box-sizing:border-box;padding:8px 12px!important;margin:0!important;border:1px solid var(--line);border-radius:20px;background:var(--surface-strong)}
-.partner-profile-layout>.profile-energy-strip .profile-energy-label{grid-row:1!important;display:flex!important;justify-content:space-between!important;font-size:12px!important}
-.partner-profile-layout>.profile-energy-strip .profile-energy-label>span:first-child{display:inline!important}
-.partner-profile-layout>.profile-energy-strip .profile-energy-plot{grid-column:1!important;grid-row:2!important;height:72px!important;width:100%!important}
-.partner-profile-layout>.profile-energy-strip .profile-energy-times{grid-column:1!important;grid-row:3!important;display:flex!important;justify-content:space-between;font-size:10px!important}
-.partner-profile-layout>.profile-energy-strip>.rudi-energy-point-caption{display:none!important}
+.partner-profile-layout .profile-energy-strip{position:relative!important;inset:auto!important;transform:none!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:20px 72px 16px!important;order:-1;width:100%!important;height:124px!important;min-height:124px!important;max-height:124px!important;box-sizing:border-box;padding:8px 12px!important;margin:0!important;border:1px solid var(--line);border-radius:20px;background:var(--surface-strong)}
+.partner-profile-layout .profile-energy-strip .profile-energy-label{grid-row:1!important;display:flex!important;justify-content:space-between!important;font-size:12px!important}
+.partner-profile-layout .profile-energy-strip .profile-energy-label>span:first-child{display:inline!important}
+.partner-profile-layout .profile-energy-strip .profile-energy-plot{grid-column:1!important;grid-row:2!important;height:72px!important;width:100%!important}
+.partner-profile-layout .profile-energy-strip .profile-energy-times{grid-column:1!important;grid-row:3!important;display:flex!important;justify-content:space-between;font-size:10px!important}
+.partner-profile-layout .profile-energy-strip>.rudi-energy-point-caption{display:none!important}
 .partner-profile-layout>.profile-person-head{display:flex!important;flex-wrap:wrap;align-items:center!important;justify-content:space-between;gap:12px!important;width:100%!important;min-width:0;box-sizing:border-box;position:relative!important;inset:auto!important;margin:0!important;padding:14px!important;border:1px solid var(--line);border-radius:20px;background:var(--surface-strong)}
 .partner-profile-layout>.profile-person-head>.identity{flex:1;min-width:0;grid-template-columns:52px minmax(0,1fr)!important;align-self:center!important}
 .partner-profile-layout>.profile-person-head .avatar{width:52px!important;height:52px!important;min-width:52px!important;min-height:52px!important}
@@ -33,14 +33,14 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{background:#0
 .partner-profile-layout .home-cycle-summary :is(.home-cycle-advice,.home-cycle-insight){color:var(--muted)!important;font-size:13px!important;line-height:1.5!important}
 @media(max-width:350px){.partner-profile-stars{font-size:13px;padding-inline:9px}.partner-profile-layout .profile-supplement-intakes-list{grid-template-columns:1fr}}
 
-.partner-profile-page .partner-profile-layout>.profile-energy-strip :is(.profile-energy-label,.profile-energy-phase,.profile-energy-times){color:var(--muted)!important;-webkit-text-fill-color:var(--muted)!important}
+.partner-profile-page .partner-profile-layout .profile-energy-strip :is(.profile-energy-label,.profile-energy-phase,.profile-energy-times){color:var(--muted)!important;-webkit-text-fill-color:var(--muted)!important}
 
 /* The fasting outline follows the avatar on this page, with room for its timer. */
 .partner-profile-page .partner-profile-layout>.profile-person-head{padding-top:24px!important}
 .partner-profile-page .partner-profile-layout .score-avatar-wrap{position:relative!important;width:52px!important;min-width:52px!important;height:52px!important;min-height:52px!important;overflow:visible!important;flex:0 0 52px!important;align-self:center!important}
 .partner-profile-page .score-avatar-wrap>.rudi-online-dot{display:none!important}
 .partner-profile-page .partner-profile-layout.profile-person-card .profile-person-head .profile-name-row>#partnerMoodValue.avatar-mood-badge{background:none!important;background-color:transparent!important;border:0!important;box-shadow:none!important;filter:none!important}
-.partner-profile-page .partner-profile-layout>.rhythm-advice{width:100%;box-sizing:border-box;padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--surface-strong);color:var(--text)!important;-webkit-text-fill-color:var(--text)!important;font-size:14px!important;line-height:1.5!important}
+.partner-profile-page .partner-profile-layout .rhythm-advice{width:100%;box-sizing:border-box;padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--surface-strong);color:var(--text)!important;-webkit-text-fill-color:var(--text)!important;font-size:14px!important;line-height:1.5!important}
 
 /* Partner palette: distinct sections, with the same hierarchy in either theme. */
 .rudi-meditation-page.partner-profile-page{
@@ -61,22 +61,22 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{
  background:var(--pp-gold-soft);border-color:color-mix(in srgb,var(--pp-gold) 20%,transparent);color:var(--pp-gold);
  box-shadow:none;letter-spacing:-.02em;
 }
-.partner-profile-page .partner-profile-layout>.profile-energy-strip{
+.partner-profile-page .partner-profile-layout .profile-energy-strip{
  background:radial-gradient(ellipse at 90% 0,color-mix(in srgb,var(--pp-mint) 12%,transparent),transparent 70%),var(--pp-mint-soft);
  border-color:var(--pp-mint-edge);border-radius:24px;
 }
-.partner-profile-page .partner-profile-layout>.profile-energy-strip .profile-energy-plot{
+.partner-profile-page .partner-profile-layout .profile-energy-strip .profile-energy-plot{
  background-image:linear-gradient(to bottom,color-mix(in srgb,var(--pp-mint) 11%,transparent) 1px,transparent 1px);
  background-size:100% 24px;background-position:0 18px;
 }
-.partner-profile-page .partner-profile-layout>.profile-energy-strip :is(.profile-energy-label,.profile-energy-phase){color:var(--pp-mint)!important;-webkit-text-fill-color:var(--pp-mint)!important}
-.partner-profile-page .partner-profile-layout>.profile-energy-strip .profile-energy-label{letter-spacing:.025em}
-.partner-profile-page .partner-profile-layout>.profile-energy-strip .profile-energy-phase{
+.partner-profile-page .partner-profile-layout .profile-energy-strip :is(.profile-energy-label,.profile-energy-phase){color:var(--pp-mint)!important;-webkit-text-fill-color:var(--pp-mint)!important}
+.partner-profile-page .partner-profile-layout .profile-energy-strip .profile-energy-label{letter-spacing:.025em}
+.partner-profile-page .partner-profile-layout .profile-energy-strip .profile-energy-phase{
  flex:0 0 auto!important;width:max-content;max-width:55%;margin-left:auto;padding:4px 9px;border-radius:20px;background:color-mix(in srgb,var(--pp-mint) 10%,transparent);align-self:start;font-weight:700;font-size:10px!important;
 }
-.partner-profile-page .partner-profile-layout>.profile-energy-strip .profile-energy-phase::before{content:none}
-.partner-profile-page .partner-profile-layout>.profile-energy-strip .profile-energy-times{color:var(--pp-mint)!important;-webkit-text-fill-color:var(--pp-mint)!important;opacity:.8;font-weight:600}
-.partner-profile-page .partner-profile-layout>.rhythm-advice{
+.partner-profile-page .partner-profile-layout .profile-energy-strip .profile-energy-phase::before{content:none}
+.partner-profile-page .partner-profile-layout .profile-energy-strip .profile-energy-times{color:var(--pp-mint)!important;-webkit-text-fill-color:var(--pp-mint)!important;opacity:.8;font-weight:600}
+.partner-profile-page .partner-profile-layout .rhythm-advice{
  border:0;border-left:3px solid var(--pp-mint);border-radius:0 14px 14px 0;
  background:color-mix(in srgb,var(--pp-mint-soft) 60%,transparent);padding:11px 14px;
  font-weight:550!important;font-size:13px!important;line-height:1.55!important;
@@ -117,7 +117,7 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{
 .partner-profile-page .home-cycle-summary .home-cycle-insight{border-top-color:color-mix(in srgb,var(--pp-rose) 16%,transparent);padding-top:10px}
 
 /* Partner wishes keep their existing list ownership and link behavior. */
-.partner-profile-page .partner-profile-layout>.partner-profile-wishes{border:1px solid color-mix(in srgb,var(--pp-rose) 22%,transparent);border-radius:22px;background:linear-gradient(140deg,var(--pp-rose-soft),var(--pp-panel));padding:16px;box-sizing:border-box;width:100%;min-width:0}
+.partner-profile-page .partner-profile-layout .partner-profile-wishes{border:1px solid color-mix(in srgb,var(--pp-rose) 22%,transparent);border-radius:22px;background:linear-gradient(140deg,var(--pp-rose-soft),var(--pp-panel));padding:16px;box-sizing:border-box;width:100%;min-width:0}
 .partner-wishes-head{display:flex;align-items:center;gap:9px;color:var(--pp-rose);margin-bottom:12px}
 .partner-wishes-head>svg{width:20px;height:20px;flex:none}
 .partner-wishes-head>h2{margin:0;flex:1;font-size:15px;line-height:1.3;font-weight:750;letter-spacing:-.02em;color:var(--text)}
@@ -139,7 +139,7 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{
 .partner-cbt-status>svg{width:22px;height:22px;flex:none;color:var(--pp-muted)}
 .partner-cbt-status.is-active>svg{color:var(--pp-blue)}
 
-.partner-profile-page .partner-profile-layout>.partner-birthday{display:flex;align-items:center;gap:12px;width:100%;min-width:0;box-sizing:border-box;padding:16px;border:1px solid color-mix(in srgb,var(--pp-gold) 20%,transparent);border-radius:20px;background:linear-gradient(130deg,var(--pp-gold-soft),var(--pp-panel));color:var(--text)}
+.partner-profile-page .partner-profile-layout .partner-birthday{display:flex;align-items:center;gap:12px;width:100%;min-width:0;box-sizing:border-box;padding:16px;border:1px solid color-mix(in srgb,var(--pp-gold) 20%,transparent);border-radius:20px;background:linear-gradient(130deg,var(--pp-gold-soft),var(--pp-panel));color:var(--text)}
 .partner-birthday>svg{width:26px;height:26px;flex:none;color:var(--pp-gold)}
 .partner-birthday-copy{flex:1;min-width:0;display:grid;gap:4px}
 .partner-birthday-copy>h2{margin:0;font-size:14px;line-height:1.4;font-weight:650}
@@ -148,3 +148,31 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{
 .partner-birthday-count>strong{font-size:26px;line-height:1.1;font-weight:800;letter-spacing:-.04em}
 .partner-birthday-count>small{font-size:11px;font-weight:600}
 .partner-birthday.is-today .partner-birthday-count>strong{font-size:14px;letter-spacing:0}
+
+/* Compact sections preserve the live controls and their place on Home. */
+.partner-energy-card{width:100%;min-width:0;border:1px solid var(--pp-mint-edge);border-radius:24px;background:var(--pp-mint-soft);overflow:hidden;box-sizing:border-box}
+.partner-profile-page .partner-energy-card>.profile-energy-strip{border:0!important;border-radius:0!important}
+.partner-profile-page .partner-energy-card>.rhythm-advice{margin:0!important;border:0!important;border-top:1px solid var(--pp-mint-edge)!important;border-radius:0!important;background:none!important;padding:12px 14px!important}
+.partner-profile-page .partner-profile-layout>.profile-person-details>.partner-today{padding:4px 16px!important;border:1px solid var(--pp-edge);background:var(--pp-panel);border-radius:20px}
+.partner-today>h2{margin:11px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:750;color:var(--pp-muted)}
+.partner-profile-page .partner-today>:not(h2){padding:12px 0!important;margin:0!important;border:0!important;border-top:1px solid var(--pp-edge)!important;border-radius:0!important;background:none!important;box-shadow:none!important;font-size:13px!important;line-height:1.5!important;font-weight:500!important;width:100%!important;box-sizing:border-box}
+.partner-profile-page .partner-today>h2+:not(h2){border-top:0!important}
+.partner-today>.partner-cbt-status{display:flex;align-items:center;gap:9px}
+.partner-cycle-more{border-top:1px solid color-mix(in srgb,var(--pp-rose) 18%,transparent);padding-top:10px}
+.partner-cycle-more>summary{font-size:12px;color:var(--pp-rose);font-weight:650;cursor:pointer;padding:4px 0;min-height:28px;line-height:1.7}
+.partner-cycle-more>.home-cycle-insight{margin-top:10px;border-top:0;padding:0}
+.partner-profile-page .partner-cycle-more:not([open])>.home-cycle-insight{display:none!important}
+.partner-plans{box-sizing:border-box;padding:15px 16px;width:100%;min-width:0;background:var(--pp-panel);border:1px solid var(--pp-edge);border-radius:20px}
+.partner-plans>h2{margin:0 0 12px;font-size:15px;font-weight:750;letter-spacing:-.02em}
+.partner-plan-row{display:flex;gap:11px;align-items:flex-start;padding:10px 0}
+.partner-plan-row+.partner-plan-row{border-top:1px solid var(--pp-edge)}
+.partner-plan-row>div{min-width:0;flex:1}
+.partner-plan-icon{display:grid;place-items:center;flex:none;width:32px;height:32px;background:var(--pp-blue-soft);color:var(--pp-blue);border-radius:10px;font-size:22px}
+.partner-plan-row h3{font-size:10px;line-height:1.4;margin:0 0 3px;font-weight:700;letter-spacing:.025em;color:var(--pp-muted)}
+.partner-plan-row p{font-size:13px;font-weight:600;line-height:1.5;margin:0;overflow-wrap:anywhere}
+.partner-event-time{display:block;margin-top:3px;font-size:11px;color:var(--pp-muted)}
+.partner-gifts{width:100%;min-width:0;box-sizing:border-box;padding:14px;border:1px solid color-mix(in srgb,var(--pp-gold) 18%,transparent);border-radius:24px;background:var(--pp-panel);display:grid;gap:10px}
+.partner-gifts>h2{font-size:16px;font-weight:750;letter-spacing:-.02em;margin:0 2px 2px;color:var(--text)}
+.partner-profile-page .partner-gifts>.partner-birthday{padding:12px;border-radius:16px}
+.partner-profile-page .partner-gifts>.partner-profile-wishes{padding:12px;border-radius:16px}
+.partner-gifts .partner-wishes-head>h2{font-size:13px}

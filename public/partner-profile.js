@@ -2,6 +2,54 @@
 (()=>{'use strict';
  let active=null;
  const bindings=new WeakMap();
+ function selectPartnerPlans(actor,data={},now=new Date()){
+  const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now).map(p=>[p.type,p.value]));
+  const today=p.year+'-'+p.month+'-'+p.day,clock=Number(p.hour)*60+Number(p.minute),valid=d=>/^\d{4}-\d{2}-\d{2}$/.test(String(d||''))&&!Number.isNaN(Date.parse(d+'T12:00:00Z'));
+  let dayOff=null;
+  if(actor==='Рустам')for(let i=0;i<8;i++){const date=new Date(today+'T12:00:00Z');date.setUTCDate(date.getUTCDate()+i);if([0,6].includes(date.getUTCDay())){dayOff=date.toISOString().slice(0,10);break}}
+  else if(data.work?.configured)dayOff=(data.work.days||[]).filter(d=>valid(d.date)&&d.date>=today&&d.working===false).sort((a,b)=>a.date.localeCompare(b.date))[0]?.date||null;
+  const events=[];
+  for(const day of data.shared?.days||[]){
+   if(!valid(day.date)||day.date<today)continue;
+   for(const event of day.events||[]){
+    const assigned=String(event.assignee||'').trim();
+    if(event.completed||event.personal||event.privateLocal||event.assigned!==false&&assigned&&!['Вместе','вместе'].includes(assigned))continue;
+    const time=String(event.startTime||''),end=String(event.endTime||time),m=end.match(/^(\d{1,2}):(\d{2})$/);
+    if(day.date===today&&!event.allDay&&m&&Number(m[1])*60+Number(m[2])<clock)continue;
+    events.push({title:String(event.title||'Совместное дело'),date:day.date,time:event.allDay?'':time});
+   }
+  }
+  events.sort((a,b)=>(a.date+' '+(a.time||'00:00')).localeCompare(b.date+' '+(b.time||'00:00')));
+  return {dayOff,event:events[0]||null};
+ }
+ function addPlans(page,actor,loadPlans){
+  const card=document.createElement('section');card.className='partner-plans';
+  card.innerHTML='<h2>Ближайшее</h2><div class="partner-plan-row"><span class="partner-plan-icon" aria-hidden="true">☀</span><div><h3>Ближайший выходной</h3><p class="partner-day-off">Обновляю график…</p></div></div><div class="partner-plan-row"><span class="partner-plan-icon" aria-hidden="true">♡</span><div><h3>Совместное событие</h3><p class="partner-next-event">Обновляю календарь…</p><small class="partner-event-time"></small></div></div>';
+  page.querySelector('.profile-person-head').after(card);
+  const off=card.querySelector('.partner-day-off'),event=card.querySelector('.partner-next-event'),time=card.querySelector('.partner-event-time');
+  const dateLabel=date=>new Intl.DateTimeFormat('ru-RU',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(date+'T12:00:00Z'));
+  Promise.resolve().then(()=>loadPlans?.()).then(data=>{
+   if(!card.isConnected)return;
+   const next=selectPartnerPlans(actor,data||{});
+   off.textContent=next.dayOff?dateLabel(next.dayOff)+(actor==='Рустам'?' · По графику 5/2':''):data?.work?.configured?'В календаре пока нет выходных':'График пока недоступен';
+   event.textContent=next.event?.title||(data?.shared?.connected===false?'Совместный календарь не подключён':data?.shared?.unavailable?'Не удалось обновить календарь':'Пока нет совместных событий');
+   time.textContent=next.event?[dateLabel(next.event.date),next.event.time].filter(Boolean).join(' · '):'';
+  }).catch(()=>{if(card.isConnected){off.textContent='Не удалось обновить график';event.textContent='Не удалось обновить календарь'}});
+ }
+ function composePage(page,energy,advice,details){
+  const parts=[],groups=[],layout=page.querySelector('.partner-profile-layout');
+  const move=(node,target)=>{if(!node)return;const marker=document.createComment('partner-group');node.before(marker);parts.push({node,marker});target.append(node)};
+  if(energy){const group=document.createElement('section');group.className='partner-energy-card';energy.before(group);group.append(energy);if(advice)group.append(advice)}
+  const meditation=details.querySelector('.meditation-partner-summary:not(.home-partner-last-expense)'),habits=details.querySelector('.profile-partner-habits-summary'),cbt=details.querySelector('.partner-cbt-status');
+  const today=document.createElement('section');today.className='partner-today';today.innerHTML='<h2>Сегодня</h2>';
+  const first=meditation||habits||cbt;if(first)first.before(today);else details.append(today);groups.push(today);
+  for(const node of [meditation,habits])move(node,today);if(cbt)today.append(cbt);
+  const cycle=details.querySelector('.home-cycle-summary');
+  if(cycle){const more=document.createElement('details');more.className='partner-cycle-more';more.innerHTML='<summary>Подробнее о самочувствии</summary>';cycle.append(more);groups.push(more);for(const node of [...cycle.querySelectorAll('.home-cycle-insight')])move(node,more)}
+  const birthday=page.querySelector('.partner-birthday'),wishes=page.querySelector('.partner-profile-wishes');
+  const gifts=document.createElement('section');gifts.className='partner-gifts';gifts.innerHTML='<h2>Подарки</h2>';birthday.before(gifts);gifts.append(birthday,wishes);
+  return {parts,groups};
+ }
  function birthdayInfo(actor,now=new Date()){
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(now).map(p=>[p.type,p.value]));
   const month=actor==='Диана'?5:2,day=actor==='Диана'?30:3,year=Number(parts.year);
@@ -71,6 +119,8 @@
   if(!active)return;
   const saved=active;active=null;
   saved.page.querySelector('.partner-cbt-status')?.remove();
+  for(const {node,marker} of saved.parts||[])marker.replaceWith(node);
+  for(const group of saved.groups||[])group.remove();
   clearInterval(saved.birthdayTimer);
   for(const {node,marker,style} of saved.slots){marker.replaceWith(node);if(style===null)node.removeAttribute('style');else node.setAttribute('style',style)}
   for(const {node,style} of saved.paints){if(style===null)node.removeAttribute('style');else node.setAttribute('style',style)}
@@ -82,7 +132,7 @@
   if(!fromHistory&&history.state?.rudiPartnerProfile)history.back();
   saved.trigger?.focus?.({preventScroll:true});
  }
- function bind(tile,actor,{openStars,balance,refreshBalance,loadWishes,openWish,loadCbtStatus}){
+ function bind(tile,actor,{openStars,balance,refreshBalance,loadWishes,openWish,loadCbtStatus,loadPlans}){
   if(bindings.has(tile))return;
   const details=tile.querySelector('.profile-person-details');
   if(!details)return;
@@ -117,6 +167,8 @@
    active.updateBirthday=addBirthday(page,actor);
    active.birthdayTimer=setInterval(active.updateBirthday,60000);
    addCbtStatus(page,actor,loadCbtStatus);
+   Object.assign(active,composePage(page,energy,advice,details));
+   addPlans(page,actor,loadPlans);
    document.body.classList.add('partner-profile-open');
    window.RudiViewport?.sync();
    history.pushState({...history.state,rudiPartnerProfile:actor},'','#partner-'+(actor==='Диана'?'diana':'rustam'));

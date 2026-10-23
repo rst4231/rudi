@@ -1,8 +1,10 @@
 const {test,expect}=require('@playwright/test');
 for(const actor of ['Диана','Рустам'])test('partner profile, avatar, balance, stars history and back: '+actor,async({page})=>{
- await page.route('http://127.0.0.1:4173/',route=>route.fulfill({contentType:'text/html',body:`<!doctype html><html data-theme="dark"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/rudi-design-system.css"><link rel="stylesheet" href="/meditation.css"><link rel="stylesheet" href="/partner-profile.css"><body data-app-tab="home" data-rudi-actor="${actor==='Диана'?'Рустам':'Диана'}"><section id="tile" class="profile-person-card" aria-label="${actor}" data-app-tab-section="home"><div class="profile-energy-strip"><span class="profile-energy-now">Точка</span></div><div class="profile-person-head"><span class="partner-header-avatar">Фото</span><span id="partnerHeaderName">${actor}</span></div><div class="profile-person-details"><div class="profile-partner-habits-summary">Привычки ${actor}</div></div></section><div id="history" hidden><button id="back" onclick="history.back()">Назад к профилю</button></div><script src="/viewport.js"></script><script src="/partner-profile.js"></script><script>let balance=125;RudiPartnerProfile.bind(document.querySelector('#tile'),'${actor}',{balance:()=>balance,loadCbtStatus:async()=>({partner:'${actor}',active:${actor==='Диана'}}),loadWishes:async()=>[{id:'gift',owner:'${actor}',text:'Поездка к морю',url:'https://example.com/gift',done:false},{id:'done',owner:'${actor}',text:'Книга',done:true},{id:'other',owner:'${actor==='Диана'?'Рустам':'Диана'}',text:'Чужое желание',done:false}],openStars:actor=>{document.body.dataset.appTab='score';window.dispatchEvent(new Event('rudi:app-tab-change'));history.pushState({...history.state,rudiTab:'score'},'','?tab=score');document.querySelector('#history').hidden=false;}});window.addEventListener('popstate',()=>{if(!location.search){document.body.dataset.appTab='home';document.querySelector('#history').hidden=true;window.dispatchEvent(new Event('rudi:app-tab-change'))}});</script></body></html>`}));
+ await page.route('http://127.0.0.1:4173/',route=>route.fulfill({contentType:'text/html',body:`<!doctype html><html data-theme="dark"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/rudi-design-system.css"><link rel="stylesheet" href="/meditation.css"><link rel="stylesheet" href="/partner-profile.css"><body data-app-tab="home" data-rudi-actor="${actor==='Диана'?'Рустам':'Диана'}"><section id="tile" class="profile-person-card" aria-label="${actor}" data-app-tab-section="home"><div class="profile-energy-strip"><span class="profile-energy-now">Точка</span></div><div class="profile-person-head"><span class="partner-header-avatar">Фото</span><span id="partnerHeaderName">${actor}</span></div><div class="profile-person-details"><div class="profile-partner-habits-summary">Привычки ${actor}</div><div class="home-cycle-summary"><div class="home-cycle-status">Цикл</div><div class="home-cycle-advice">Как поддержать</div><div class="home-cycle-insight">Подробности</div></div></div></section><div id="history" hidden><button id="back" onclick="history.back()">Назад к профилю</button></div><script src="/viewport.js"></script><script src="/partner-profile.js"></script><script>let balance=125;RudiPartnerProfile.bind(document.querySelector('#tile'),'${actor}',{balance:()=>balance,loadCbtStatus:async()=>({partner:'${actor}',active:${actor==='Диана'}}),loadWishes:async()=>[{id:'gift',owner:'${actor}',text:'Поездка к морю',url:'https://example.com/gift',done:false},{id:'done',owner:'${actor}',text:'Книга',done:true},{id:'other',owner:'${actor==='Диана'?'Рустам':'Диана'}',text:'Чужое желание',done:false}],openStars:actor=>{document.body.dataset.appTab='score';window.dispatchEvent(new Event('rudi:app-tab-change'));history.pushState({...history.state,rudiTab:'score'},'','?tab=score');document.querySelector('#history').hidden=false;}});window.addEventListener('popstate',()=>{if(!location.search){document.body.dataset.appTab='home';document.querySelector('#history').hidden=true;window.dispatchEvent(new Event('rudi:app-tab-change'))}});</script></body></html>`}));
  await page.goto('/');
  await expect(page.locator('.profile-person-details')).toBeHidden();
+ await expect(page.locator('#tile .home-cycle-summary>.home-cycle-insight')).toHaveCount(1);
+ await expect(page.locator('#tile .partner-today,#tile .partner-cycle-more')).toHaveCount(0);
  await expect(page.locator('.profile-energy-strip')).toBeVisible();
  await page.locator('.profile-energy-now').dispatchEvent('click');
  await expect(page.locator('.partner-profile-page')).toHaveCount(0);
@@ -10,6 +12,11 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  const profile=page.locator('.partner-profile-page');
  await expect(profile).toBeVisible();await expect(profile.locator('h1')).toHaveText(actor);
  await expect(profile.locator('.profile-person-details')).toBeVisible();
+ await expect(profile.locator('.partner-today>h2')).toHaveText('Сегодня');
+ await expect(profile.locator('.partner-gifts>h2')).toHaveText('Подарки');
+ await expect(profile.locator('.partner-cycle-more .home-cycle-insight')).toBeHidden();
+ await profile.locator('.partner-cycle-more>summary').click();
+ await expect(profile.locator('.partner-cycle-more .home-cycle-insight')).toBeVisible();
  await expect(profile.locator('.partner-profile-stars')).toHaveText('⭐ 125');
  await expect(profile.locator('.partner-profile-wishes h2')).toHaveText('Желания');
  await expect(profile.locator('.partner-birthday-copy>span')).toHaveText(actor==='Диана'?'30 июня':'3 марта');
@@ -19,7 +26,7 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await expect(profile.locator('.partner-wish-text')).toHaveText(['Поездка к морю','Книга']);
  await expect(profile.locator('.partner-wish-link')).toHaveAttribute('href','https://example.com/gift');
  await expect(profile.locator('.partner-wish-row.is-done')).toHaveCount(1);
- expect(await profile.locator('.partner-profile-layout').evaluate(el=>el.lastElementChild.classList.contains('partner-profile-wishes'))).toBe(true);
+ expect(await profile.locator('.partner-profile-layout').evaluate(el=>el.lastElementChild.classList.contains('partner-gifts'))).toBe(true);
  await page.evaluate(()=>{balance=150;RudiPartnerProfile.refresh()});
  await expect(profile.locator('.partner-profile-stars')).toHaveText('⭐ 150');
  await profile.locator('.partner-profile-stars').click();
@@ -27,6 +34,8 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await page.locator('#back').click();await expect(profile).toBeVisible();
  await profile.locator('.partner-profile-back').click();await expect(profile).toHaveCount(0);
  await expect(page.locator('.profile-person-details')).toBeHidden();
+ await expect(page.locator('#tile .home-cycle-summary>.home-cycle-insight')).toHaveCount(1);
+ await expect(page.locator('#tile .partner-today,#tile .partner-cycle-more')).toHaveCount(0);
  await expect(page.locator('.profile-energy-strip')).toBeVisible();
  await page.locator('#partnerHeaderName').click();await expect(profile).toBeVisible();
  await expect(profile.locator('.partner-cbt-status')).toHaveCount(1);

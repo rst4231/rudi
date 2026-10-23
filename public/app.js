@@ -10594,6 +10594,20 @@
         host.appendChild(button);
       }
 
+      async function loadPartnerProfilePlans(actor){
+        const viewer=currentActor,today=todayState().key,months=[today.slice(0,7),calendarMonthShift(today,1).slice(0,7)];
+        const results=await Promise.all(months.map(async month=>{
+          const base={initData:telegramInitData(),backupToken:currentStateBackupToken,view:'month',month};
+          const [work,shared]=await Promise.allSettled([
+            actor==='Диана'?fetchCalendarJson('work-calendar:'+month,'/api/work-calendar',base,60000):Promise.resolve(null),
+            fetchCalendarJson('ticktick-calendar:'+month+':shared','/api/ticktick/calendar',{...base,scope:'shared'},60000)
+          ]);
+          return {work:work.status==='fulfilled'?work.value:null,shared:shared.status==='fulfilled'?shared.value:null};
+        }));
+        if(currentActor!==viewer)throw Error('actor-changed');
+        return {work:{configured:results.some(r=>r.work?.configured),days:results.flatMap(r=>r.work?.days||[])},shared:{connected:results.some(r=>r.shared?.connected!==false&&r.shared?.days),unavailable:results.some(r=>!r.shared||r.shared?.ok===false),days:results.flatMap(r=>r.shared?.days||[])}};
+      }
+
       function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,resetCollapsedOnInit=false,persist=true}){
         const section=document.querySelector(selector);
         if(!section||section.dataset.collapseReady==='1') return;
@@ -10601,6 +10615,7 @@
           const actor=key==='profile-diana'?'Диана':'Рустам';
           window.RudiPartnerProfile.bind(section,actor,{
             openStars:openScoreModal,
+            loadPlans:()=>loadPartnerProfilePlans(actor),
             loadWishes:()=>wishlistRequest('list').then(data=>data.items||[]),
             openWish:openWishlistUrl,
             loadCbtStatus:async()=>{
