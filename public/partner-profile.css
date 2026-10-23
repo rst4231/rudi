@@ -133,3 +133,8 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{
 .partner-wish-link:active{background:var(--pp-rose-soft)}
 .partner-wish-link:focus-visible,.partner-wishes-retry:focus-visible{outline:2px solid var(--pp-rose);outline-offset:2px}
 .partner-wishes-retry{border:0;padding:0;background:none;color:var(--pp-rose);font:inherit;text-decoration:underline;cursor:pointer}
+
+.partner-profile-page .partner-profile-layout>.profile-person-details>.partner-cbt-status{display:flex;align-items:center;gap:10px;background:var(--pp-panel);border-left:3px solid var(--pp-muted);border-radius:5px 16px 16px 5px;font-size:13px;font-weight:500;line-height:1.5}
+.partner-profile-page .partner-profile-layout>.profile-person-details>.partner-cbt-status.is-active{background:var(--pp-blue-soft);border-left-color:var(--pp-blue)}
+.partner-cbt-status>svg{width:22px;height:22px;flex:none;color:var(--pp-muted)}
+.partner-cbt-status.is-active>svg{color:var(--pp-blue)}

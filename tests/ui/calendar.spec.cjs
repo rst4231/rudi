@@ -683,6 +683,7 @@ test('partner avatar opens the dedicated live profile and its stars history',asy
  await mockRudi(page);
  await page.route('**/api/partner-message?rudiAction=score',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,score:{balances:{'Диана':125,'Рустам':200},version:1,history:[],rewards:[]}})}));
  await page.route('**/api/wishlist',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,items:[{id:'diana-gift',owner:'Диана',text:'Поездка к морю',url:'https://example.com/trip',done:false},{id:'rustam-gift',owner:'Рустам',text:'Наушники',done:false}]})}));
+ await page.route('**/api/cbt',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,actor:'Рустам',partner:'Диана',active:true})}));
  await page.goto('/');await expect(page.locator('body')).toHaveClass(/auth-ok/);
  const tile=page.locator('#homeDianaTile');await expect(tile).toBeVisible();
  await expect(tile.locator('.profile-person-details')).toBeHidden();
@@ -698,6 +699,7 @@ test('partner avatar opens the dedicated live profile and its stars history',asy
  const profile=page.locator('.partner-profile-page');await expect(profile).toBeVisible();
  await expect(profile.locator('h1')).toHaveText('Диана');
  await expect(profile.locator('.partner-wish-text')).toHaveText(['Поездка к морю']);
+ await expect(profile.locator('.partner-cbt-status')).toHaveText('Сейчас проходит когнитивно-поведенческую терапию');
  const profileBack=await profile.locator('.partner-profile-back').boundingBox();
  for(const key of ['x','y','width','height'])expect(Math.abs(profileBack[key]-meditationBack[key])).toBeLessThan(1);
  await expect(profile.locator('#homeDianaDetails')).toBeVisible();

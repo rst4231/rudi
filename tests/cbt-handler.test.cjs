@@ -7,3 +7,16 @@ test('completion racing a remote cleared field returns recoverable latest state'
 test('batched immutable edits are acknowledged together and retry cannot lose later text',async()=>{const r=setup();await r('Рустам',{operation:'mutate',op:{id:'batch-start',type:'start',cycleId:'batch',expectedActive:null}});const a={id:'immutable-a',type:'edit',cycleId:'batch',day:1,base:{thought:''},patch:{thought:'A'}},b={id:'immutable-b',type:'edit',cycleId:'batch',day:1,base:{thought:'A'},patch:{thought:'AB'}};await r('Рустам',{operation:'mutate',ops:[a]});const result=await r('Рустам',{operation:'mutate',ops:[a,b]});assert.equal(result.status,200);assert.equal(result.data.state.runs[0].days[1].answers.thought,'AB');assert.deepEqual(result.data.acked,['immutable-a','immutable-b'])});
 test('switched session cookie cannot upload another actors offline answers',async()=>{const r=setup();const out=await r('Диана',{expectedActor:'Рустам',operation:'mutate',op:{id:'private-start',type:'start',cycleId:'private-run',expectedActive:null}});assert.equal(out.status,409);assert.equal(out.data.error,'cbt-actor-changed');assert.equal((await r('Диана')).data.state.runs.length,0)});
 test('multiple observations persist independently through the authenticated API and do not finish today',async()=>{const r=setup();const cycleId='many';const ops=[{id:'many-start',type:'start',cycleId,timeZone:'Europe/Moscow'}, {id:'many-first',type:'edit',cycleId,day:1,patch:{thought:'Первая запись'},base:{}},{id:'many-new',type:'new-entry',cycleId,day:1,entryId:'second'},{id:'many-second',type:'edit',cycleId,day:1,entryId:'second',patch:{thought:'Вторая запись'},base:{}}];let response=await r('Рустам',{operation:'mutate',ops});assert.equal(response.status,200);response=await r('Рустам',{operation:'mutate',ops});assert.equal(response.status,200);const state=(await r('Рустам')).data.state;assert.equal(state.runs[0].days[1].answers.thought,'Первая запись');assert.equal(state.runs[0].days[1].entries.length,1);assert.equal(state.runs[0].days[1].entries[0].answers.thought,'Вторая запись');assert.equal(state.runs[0].days[1].completedAt,null);assert.equal((await r('Диана')).data.state.runs.length,0)});
+test('partner CBT status exposes only active-cycle flag for the authenticated counterpart',async()=>{
+ const r=setup();
+ assert.equal((await r(null,{operation:'partner-status'})).status,401);
+ let out=await r('Рустам',{operation:'partner-status',partner:'Рустам'});
+ assert.equal(out.status,200);assert.deepEqual(out.data,{ok:true,actor:'Рустам',partner:'Диана',active:false});
+ await r('Диана',{operation:'mutate',op:{id:'partner-start',type:'start',cycleId:'partner-cycle',expectedActive:null}});
+ await r('Диана',{operation:'mutate',op:{id:'partner-private',type:'edit',cycleId:'partner-cycle',day:1,base:{},patch:{thought:'Личная запись'}}});
+ out=await r('Рустам',{operation:'partner-status'});
+ assert.deepEqual(out.data,{ok:true,actor:'Рустам',partner:'Диана',active:true});
+ assert.equal(JSON.stringify(out.data).includes('Личная запись'),false);
+ assert.deepEqual((await r('Диана',{operation:'partner-status'})).data,{ok:true,actor:'Диана',partner:'Рустам',active:false});
+ assert.equal((await r('Диана',{operation:'partner-status',expectedActor:'Рустам'})).status,409);
+});

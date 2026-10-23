@@ -20,6 +20,11 @@ function createHandler(deps={}){
    const {actor}=authorize(req,body.initData);
    if(body.expectedActor&&body.expectedActor!==actor)return res.status(409).json({ok:false,error:'cbt-actor-changed'});
    if(!['Рустам','Диана'].includes(actor))return res.status(403).json({ok:false,error:'rudi-access-denied'});
+   if(body.operation==='partner-status'){
+    const partner=actor==='Рустам'?'Диана':'Рустам';
+    const state=core.refresh(await read(partner,KEY)||core.empty());
+    return res.status(200).json({ok:true,actor,partner,active:!!core.active(state)});
+   }
    if(!body.operation||body.operation==='state'){
     // Optional copy overrides use existing storage and a bundled offline fallback.
     const [stored,copy]=await Promise.all([read(actor,KEY),read(actor,'cbt-content-copy-v1').catch(()=>null)]);

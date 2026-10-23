@@ -10580,6 +10580,15 @@
             openStars:openScoreModal,
             loadWishes:()=>wishlistRequest('list').then(data=>data.items||[]),
             openWish:openWishlistUrl,
+            loadCbtStatus:async()=>{
+              const expectedActor=currentActor,controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
+              try{
+                const response=await fetch('/api/cbt',{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'partner-status',expectedActor,initData:tg?.initData||''})});
+                const data=await response.json();
+                if(!response.ok||!data.ok||data.actor!==expectedActor)throw Error('partner-cbt-unavailable');
+                return data;
+              }finally{clearTimeout(timeout)}
+            },
             refreshBalance:()=>scoreRequest('state').then(data=>renderScoreStickers(data.score)).catch(()=>{}),
             balance:()=>currentScoreState?Number(currentScoreState.balances?.[actor]||0):null
           });

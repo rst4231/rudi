@@ -2,6 +2,19 @@
 (()=>{'use strict';
  let active=null;
  const bindings=new WeakMap();
+ function addCbtStatus(page,actor,loadCbtStatus){
+  const row=document.createElement('div');row.className='partner-cbt-status';row.setAttribute('aria-live','polite');
+  row.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 6c-2-5-7-3-6 1-4 0-4 6-1 7-2 4 3 7 5 4V6m2 0c2-5 7-3 6 1 4 0 4 6 1 7 2 4-3 7-5 4V6M5 10l3 1m-3 4 3-1m11-4-3 1m3 4-3-1"/></svg><span>Обновляю статус КПТ…</span>';
+  const habits=page.querySelector('.profile-partner-habits-summary'),details=page.querySelector('.profile-person-details');
+  if(habits)habits.after(row);else details.append(row);
+  const text=row.querySelector('span');
+  Promise.resolve().then(()=>loadCbtStatus?.()).then(data=>{
+   if(!row.isConnected)return;
+   if(data?.partner!==actor||typeof data.active!=='boolean')throw Error('status-unavailable');
+   row.classList.toggle('is-active',data.active);
+   text.textContent=data.active?'Сейчас проходит когнитивно-поведенческую терапию':'Сейчас не проходит когнитивно-поведенческую терапию';
+  }).catch(()=>{if(row.isConnected)text.textContent='Статус КПТ пока недоступен'});
+ }
  function addWishes(page,actor,loadWishes,openWish){
   const section=document.createElement('section');section.className='partner-profile-wishes';section.setAttribute('aria-label','Желания '+actor);
   section.innerHTML='<div class="partner-wishes-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg><h2>Желания</h2><span class="partner-wishes-count" hidden></span></div><div class="partner-wishes-list" aria-live="polite"></div>';
@@ -35,6 +48,7 @@
  function close(fromHistory=false){
   if(!active)return;
   const saved=active;active=null;
+  saved.page.querySelector('.partner-cbt-status')?.remove();
   for(const {node,marker,style} of saved.slots){marker.replaceWith(node);if(style===null)node.removeAttribute('style');else node.setAttribute('style',style)}
   for(const {node,style} of saved.paints){if(style===null)node.removeAttribute('style');else node.setAttribute('style',style)}
   saved.tile.hidden=saved.hidden;
@@ -45,7 +59,7 @@
   if(!fromHistory&&history.state?.rudiPartnerProfile)history.back();
   saved.trigger?.focus?.({preventScroll:true});
  }
- function bind(tile,actor,{openStars,balance,refreshBalance,loadWishes,openWish}){
+ function bind(tile,actor,{openStars,balance,refreshBalance,loadWishes,openWish,loadCbtStatus}){
   if(bindings.has(tile))return;
   const details=tile.querySelector('.profile-person-details');
   if(!details)return;
@@ -77,6 +91,7 @@
    page.querySelector('.partner-profile-layout').append(...slots.map(slot=>slot.node));
    document.body.append(page);
    addWishes(page,actor,loadWishes,openWish);
+   addCbtStatus(page,actor,loadCbtStatus);
    document.body.classList.add('partner-profile-open');
    window.RudiViewport?.sync();
    history.pushState({...history.state,rudiPartnerProfile:actor},'','#partner-'+(actor==='Диана'?'diana':'rustam'));
