@@ -37,7 +37,9 @@
       "maxDuration": 60
     },
     "api/crypto-live-runner.js": {
-      "regions": ["fra1"],
+      "regions": [
+        "fra1"
+      ],
       "maxDuration": 60
     }
   },
@@ -167,6 +169,10 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/cbt",
+      "destination": "/api/index?route=cbt"
+    },
     {
       "source": "/api/crypto-live-cron",
       "destination": "/api/crypto-live-runner"

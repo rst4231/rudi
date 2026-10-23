@@ -289,6 +289,11 @@
      games.innerHTML='<span aria-hidden="true">🎮</span>';
      games.addEventListener('click',()=>window.RudiGames?.open?.());
      inner.append(games);
+     const cbt=document.createElement('button');cbt.id='rudiHomeCbtButton';
+     cbt.className='rudi-home-games cbt-home-shortcut';cbt.type='button';
+     cbt.setAttribute('aria-label','КПТ');cbt.title='Когнитивно-поведенческая терапия';
+     cbt.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6c-2-5-7-3-6 1-4 0-4 6-1 7-2 4 3 7 5 4V6m2 0c2-5 7-3 6 1 4 0 4 6 1 7 2 4-3 7-5 4V6M5 10l3 1m11-1-3 1"/></svg><small>КПТ</small>';
+     cbt.addEventListener('click',()=>window.RudiCbt?.open());inner.append(cbt);
      window.RudiGameExtras?.renderBadges?.();
    }
    const buttons=self.querySelector('.mood-self-buttons')||$('fastingProfileButton')?.closest('.mood-self-buttons')

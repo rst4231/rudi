@@ -152,6 +152,7 @@ async function publishDailyLaborArticle(options = {}) {
 
 async function handler(req, res) {
   try {
+    if (req.query?.route === 'cbt') return require('./cbt-handler.cjs')(req,res);
     if (req.query?.route === 'home-note') return handleHomeNote(req, res);
     if (req.query?.route === 'duel-game') return require('./duel-game.cjs')(req,res);
     if (req.query?.route === 'battleship-game') return require('./battleship-game.cjs')(req,res);
