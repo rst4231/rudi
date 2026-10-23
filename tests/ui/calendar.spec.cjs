@@ -675,3 +675,25 @@ test('personal TickTick fields stay single and reset native node state across 10
     await expect(row).toBeHidden();
   }
 });
+
+test('partner avatar opens the dedicated live profile and its stars history',async({page})=>{
+ await mockRudi(page);
+ await page.route('**/api/partner-message?rudiAction=score',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,score:{balances:{'Диана':125,'Рустам':200},version:1,history:[],rewards:[]}})}));
+ await page.goto('/');await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ const tile=page.locator('#homeDianaTile');await expect(tile).toBeVisible();
+ await expect(tile.locator('.profile-person-details')).toBeHidden();
+ await expect(tile.locator('.profile-energy-strip')).toBeVisible();
+ await tile.locator('.partner-header-avatar').click();
+ const profile=page.locator('.partner-profile-page');await expect(profile).toBeVisible();
+ await expect(profile.locator('h1')).toHaveText('Диана');
+ await expect(profile.locator('#homeDianaDetails')).toBeVisible();
+ await expect(profile.locator('.profile-energy-strip')).toBeVisible();
+ await expect(page.locator('#partnerHeaderName')).toHaveCount(1);
+ await profile.locator('.partner-profile-stars').click();
+ await expect(profile).toBeHidden();await expect(page.locator('#scoreModal')).toBeVisible();
+ await expect(page.locator('#scoreModalTitle')).toHaveText('Диана');
+ await page.locator('#scoreModalBack').click();await expect(profile).toBeVisible();
+ await profile.locator('.partner-profile-back').click();await expect(profile).toHaveCount(0);
+ await expect(tile).toBeVisible();await expect(tile.locator('.profile-person-details')).toBeHidden();
+ await page.screenshot({path:test.info().outputPath('partner-home.png')});
+});

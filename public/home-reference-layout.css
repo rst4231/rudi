@@ -1365,3 +1365,11 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-st
 body[data-app-tab="home"] #rudiHomeCbtButton{isolation:isolate;overflow:visible!important}
 body[data-app-tab="home"] #rudiHomeCbtButton>.rudi-cbt-progress-halo{position:absolute;inset:-3px;border-radius:17px;pointer-events:none;z-index:1;padding:2.5px;background:conic-gradient(from -90deg,#b299ff var(--rudi-cbt-percent,0%),rgba(171,154,215,.20) 0);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
 body[data-app-tab="home"] #rudiHomeCbtButton>svg{position:relative;z-index:2}
+/* Current-time markers are visual; tapping them no longer expands either card. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-plot .profile-energy-now{pointer-events:none!important;cursor:default!important}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-plot .profile-energy-now::before{pointer-events:none!important}
+/* Detail page uses a full-width graph above the live partner identity. */
+body.partner-profile-open .partner-profile-page :is(#homeRustamTile,#homeDianaTile){display:flex!important;flex-direction:column!important;gap:18px!important;max-width:600px!important;margin-inline:auto!important}
+body.partner-profile-open .partner-profile-page :is(#homeRustamTile,#homeDianaTile) .profile-energy-strip{order:-1;display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:14px 58px 14px!important;width:100%!important;height:90px!important;min-height:90px!important;max-height:90px!important;position:relative!important;inset:auto!important;align-self:stretch!important;transform:none!important}
+body.partner-profile-open .partner-profile-page :is(#homeRustamTile,#homeDianaTile) .profile-energy-plot{height:58px!important;grid-row:2!important}
+body.partner-profile-open .partner-profile-page :is(#homeRustamTile,#homeDianaTile) .profile-person-head{width:100%!important;display:flex!important;flex-wrap:wrap;justify-content:space-between;position:relative!important;inset:auto!important}

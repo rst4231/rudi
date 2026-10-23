@@ -7624,6 +7624,7 @@
         if(score) acceptScoreState(score);
         if(!currentScoreState) return;
         renderFinanceStarsWallet();
+        window.RudiPartnerProfile?.refresh();
         if(scoreModalActor) renderScoreModal(scoreModalActor,currentScoreState);
       }
 
@@ -10588,6 +10589,16 @@
       function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,resetCollapsedOnInit=false,persist=true}){
         const section=document.querySelector(selector);
         if(!section||section.dataset.collapseReady==='1') return;
+        if(key.startsWith('profile-')&&section.querySelector('#partnerHeaderName')&&window.RudiPartnerProfile){
+          const actor=key==='profile-diana'?'Диана':'Рустам';
+          window.RudiPartnerProfile.bind(section,actor,{
+            openStars:openScoreModal,
+            refreshBalance:()=>scoreRequest('state').then(data=>renderScoreStickers(data.score)).catch(()=>{}),
+            balance:()=>currentScoreState?Number(currentScoreState.balances?.[actor]||0):null
+          });
+          section.dataset.collapseReady='1';
+          return;
+        }
         const body=wrapCollapseBody(section,bodySelectors);
         const host=section.querySelector(hostSelector);
         if(!body||!host) return;

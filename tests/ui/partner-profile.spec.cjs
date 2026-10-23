@@ -1,0 +1,25 @@
+const {test,expect}=require('@playwright/test');
+for(const actor of ['Диана','Рустам'])test('partner profile, avatar, balance, stars history and back: '+actor,async({page})=>{
+ await page.route('http://127.0.0.1:4173/',route=>route.fulfill({contentType:'text/html',body:`<!doctype html><html data-theme="dark"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="/app.css"><body data-app-tab="home" data-rudi-actor="${actor==='Диана'?'Рустам':'Диана'}"><section id="tile" class="profile-person-card" aria-label="${actor}" data-app-tab-section="home"><div class="profile-energy-strip"><span class="profile-energy-now">Точка</span></div><div class="profile-person-head"><span class="partner-header-avatar">Фото</span><span id="partnerHeaderName">${actor}</span></div><div class="profile-person-details">Привычки и добавки ${actor}</div></section><div id="history" hidden><button id="back" onclick="history.back()">Назад к профилю</button></div><script src="/viewport.js"></script><script src="/partner-profile.js"></script><script>let balance=125;RudiPartnerProfile.bind(document.querySelector('#tile'),'${actor}',{balance:()=>balance,openStars:actor=>{document.body.dataset.appTab='score';window.dispatchEvent(new Event('rudi:app-tab-change'));history.pushState({...history.state,rudiTab:'score'},'','?tab=score');document.querySelector('#history').hidden=false;}});window.addEventListener('popstate',()=>{if(!location.search){document.body.dataset.appTab='home';document.querySelector('#history').hidden=true;window.dispatchEvent(new Event('rudi:app-tab-change'))}});</script></body></html>`}));
+ await page.goto('/');
+ await expect(page.locator('.profile-person-details')).toBeHidden();
+ await expect(page.locator('.profile-energy-strip')).toBeVisible();
+ await page.locator('.profile-energy-now').dispatchEvent('click');
+ await expect(page.locator('.partner-profile-page')).toHaveCount(0);
+ await page.locator('.partner-header-avatar').click();
+ const profile=page.locator('.partner-profile-page');
+ await expect(profile).toBeVisible();await expect(profile.locator('h1')).toHaveText(actor);
+ await expect(profile.locator('.profile-person-details')).toBeVisible();
+ await expect(profile.locator('.partner-profile-stars')).toHaveText('⭐ 125');
+ await page.evaluate(()=>{balance=150;RudiPartnerProfile.refresh()});
+ await expect(profile.locator('.partner-profile-stars')).toHaveText('⭐ 150');
+ await profile.locator('.partner-profile-stars').click();
+ await expect(profile).toBeHidden();await expect(page.locator('#history')).toBeVisible();
+ await page.locator('#back').click();await expect(profile).toBeVisible();
+ await profile.locator('.partner-profile-back').click();await expect(profile).toHaveCount(0);
+ await expect(page.locator('.profile-person-details')).toBeHidden();
+ await expect(page.locator('.profile-energy-strip')).toBeVisible();
+ await page.locator('#partnerHeaderName').click();await expect(profile).toBeVisible();
+ await expect(page.locator('#partnerHeaderName')).toHaveCount(1);
+ await page.screenshot({path:test.info().outputPath('partner-profile.png')});
+});

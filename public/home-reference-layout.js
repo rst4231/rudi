@@ -121,33 +121,6 @@
    });
  }
 
- // Current-time biorhythm point uses the native collapse toggle, on both cards.
- function bindEnergyDotExpander(energy){
-   const tile=energy?.closest('#homeRustamTile,#homeDianaTile');
-   const dot=energy?.querySelector('.profile-energy-plot .profile-energy-now');
-   if(!tile||!dot||dot.dataset.rudiDotExpandBound==='1')return;
-   dot.dataset.rudiDotExpandBound='1';
-   dot.removeAttribute('aria-hidden');
-   dot.setAttribute('role','button');
-   dot.setAttribute('tabindex','0');
-   dot.setAttribute('aria-label','Раскрыть карточку '+(tile.id==='homeDianaTile'?'Дианы':'Рустама'));
-   energy.setAttribute('role','group');
-   const sync=()=>dot.setAttribute('aria-expanded',String(!tile.classList.contains('is-collapsed')));
-   const expand=event=>{
-     if(document.body.dataset.appTab&&document.body.dataset.appTab!=='home')return;
-     event.preventDefault();
-     event.stopPropagation();
-     if(tile.classList.contains('is-collapsed'))tile.querySelector('.block-collapse-button')?.click();
-     sync();
-   };
-   dot.addEventListener('click',expand);
-   dot.addEventListener('keydown',event=>{
-     if(event.key==='Enter'||event.key===' ')expand(event);
-   });
-   if(typeof MutationObserver==='function')new MutationObserver(sync)
-     .observe(tile,{attributes:true,attributeFilter:['class']});
-   sync();
- }
  function layoutLiveSelf(self,main,profileHead,energy){
    // Both account roles must share exactly one profile layout. The former
    // Diana-only two-row layout shifted her avatar into the energy timeline.
@@ -343,7 +316,7 @@
      const strip=$(id)?.querySelector('.profile-energy-strip');
      if(!strip)continue;
      watchEnergyPointCaption(strip);
-     bindEnergyDotExpander(strip);
+
    }
    // Both cards need the same name-side sticker geometry.
    placeMoodBadgesByName();
