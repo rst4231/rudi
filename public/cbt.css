@@ -107,3 +107,21 @@ html[data-theme="dark"] .cbt-thought-brain{box-shadow:0 12px 36px #2c184f82}
 @keyframes cbtBrainBreathe{0%,100%{transform:translate(-50%,-50%) scale(.97)}50%{transform:translate(-50%,-50%) scale(1.05)}}
 @media(min-width:600px){.cbt-thought-scene{min-height:470px}.cbt-page .cbt-thought-bubble{width:39%;min-height:120px}.cbt-thought-position-0,.cbt-thought-position-2,.cbt-thought-position-4{left:3%}.cbt-thought-position-1,.cbt-thought-position-3,.cbt-thought-position-5{right:3%}.cbt-thought-brain{width:175px;height:175px;font-size:86px}}
 @media(max-width:360px){.cbt-thought-scene{min-height:400px}.cbt-page .cbt-thought-bubble{padding:11px 9px;min-height:96px}.cbt-page .cbt-thought-bubble strong{font-size:12px}.cbt-thought-brain{width:116px;height:116px;font-size:54px}.cbt-thought-many .cbt-thought-bubble{min-height:118px}}
+
+/* Header remains visually balanced without the redundant history button. */
+.cbt-nav-spacer{display:block;flex:0 0 40px;width:40px;height:40px;pointer-events:none}
+/* Emotional tone changes the outline only; white thought backgrounds remain untouched. */
+.cbt-page .cbt-thought-bubble.cbt-thought-positive,
+.cbt-page .cbt-thought-bubble.cbt-thought-positive[aria-pressed=true]{border-color:#36a66d;box-shadow:0 12px 27px #36a66d22,0 0 0 1px #36a66d60,inset 0 2px 9px #fff}
+.cbt-page .cbt-thought-bubble.cbt-thought-negative,
+.cbt-page .cbt-thought-bubble.cbt-thought-negative[aria-pressed=true]{border-color:#d85b6c;box-shadow:0 12px 27px #d85b6c22,0 0 0 1px #d85b6c60,inset 0 2px 9px #fff}
+.cbt-page .cbt-thought-bubble.cbt-thought-positive::after{border-color:#36a66d}
+.cbt-page .cbt-thought-bubble.cbt-thought-negative::after{border-color:#d85b6c}
+/* Reduce the extra CBT scroll tail on iOS while retaining home indicator clearance. */
+.cbt-page .cbt-scroll{padding-bottom:max(10px,env(safe-area-inset-bottom,0px))}
+.cbt-coach-conversation{display:grid;gap:10px}
+.cbt-coach-conversation>p{margin:0;font-size:14px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.cbt-coach-action{border-radius:14px;background:var(--cbt-field);padding:13px;margin:16px 0 10px}
+.cbt-coach-action strong{display:block;margin-bottom:8px;font-size:13px}
+.cbt-coach-action p,.cbt-coach-tomorrow{font-size:14px;line-height:1.6;white-space:pre-wrap;margin:0}
+.cbt-coach-tomorrow{font-style:italic;color:var(--cbt-ink)}

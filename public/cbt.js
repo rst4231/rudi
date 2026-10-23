@@ -65,7 +65,7 @@ async function sync(){
 function editing(){return page?.contains(document.activeElement)&&/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)}
 function status(){const el=$('#cbtSyncStatus');if(!el||!ctx)return;el.textContent=ctx.failed?ctx.error:ctx.conflict?'Есть разные версии ответов. Выбери, какую оставить.':ctx.error||notice||'';el.hidden=!el.textContent;el.classList.toggle('is-error',!!ctx.error||!!ctx.conflict||ctx.failed);const btn=page?.querySelector('[data-do="sync"]');if(btn)btn.hidden=!(ctx.error||ctx.failed)}
 function lesson(n){const base=D.days[n-1],copy=ctx?.copy?.days?.find(x=>x.day===n);if(!copy)return base;const safe={...base};for(const k of ['title','explanation','example','prompt','takeaway'])if(typeof copy[k]==='string'&&copy[k].length<8000)safe[k]=copy[k];return safe}
-function ensure(){if(page)return;page=document.createElement('section');page.id='rudiCbtPage';page.className='cbt-page';page.hidden=true;page.setAttribute('aria-label','Программа КПТ');page.innerHTML='<div class="cbt-wrap"><header class="cbt-nav"><button type="button" data-do="back" class="cbt-back" aria-label="Назад">'+icon('back')+'</button><span class="cbt-nav-label">Время для себя</span><button type="button" data-do="history" class="cbt-back" aria-label="История прохождений">'+icon('history')+'</button></header><div id="cbtView"></div><p id="cbtSyncStatus" class="cbt-sync" role="status" aria-live="polite"></p><button type="button" data-do="sync" class="cbt-link" hidden>Повторить</button><p class="cbt-disclaimer">Тренажёр самопомощи на основе КПТ. Записывай наблюдения в течение дня. Он не заменяет психотерапию или помощь специалиста.</p></div>';page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';
+function ensure(){if(page)return;page=document.createElement('section');page.id='rudiCbtPage';page.className='cbt-page';page.hidden=true;page.setAttribute('aria-label','Программа КПТ');page.innerHTML='<div class="cbt-wrap"><header class="cbt-nav"><button type="button" data-do="back" class="cbt-back" aria-label="Назад">'+icon('back')+'</button><span class="cbt-nav-label">Время для себя</span><span class="cbt-nav-spacer" aria-hidden="true"></span></header><div id="cbtView"></div><p id="cbtSyncStatus" class="cbt-sync" role="status" aria-live="polite"></p><button type="button" data-do="sync" class="cbt-link" hidden>Повторить</button><p class="cbt-disclaimer">Тренажёр самопомощи на основе КПТ. Записывай наблюдения в течение дня. Он не заменяет психотерапию или помощь специалиста.</p></div>';page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';
 const wrap=page.firstElementChild,nav=wrap.querySelector('.cbt-nav'),scroll=document.createElement('div');
 scroll.id='cbtScroll';scroll.className='cbt-scroll';scroll.append(wrap);page.replaceChildren(nav,scroll);document.body.append(page);
 let touch=null;
@@ -83,7 +83,7 @@ page.addEventListener('focusin',()=>updateViewport());page.addEventListener('cli
 function lockScroll(){if(scrollLock)return;scrollLock={x:window.scrollX,y:window.scrollY,top:document.body.style.top};document.body.style.top=-scrollLock.y+'px';document.documentElement.classList.add('cbt-page-open');document.body.classList.add('cbt-page-open')}
 function unlockScroll(){if(!scrollLock)return;const saved=scrollLock;scrollLock=null;document.documentElement.classList.remove('cbt-page-open');document.body.classList.remove('cbt-page-open');document.body.style.top=saved.top;window.scrollTo({left:saved.x,top:saved.y,behavior:'instant'})}
 function revealFocusedField(){if(page?.hidden)return;const input=document.activeElement,scroll=scroller();if(!scroll||!page.contains(input)||!input.matches('textarea,input,select'))return;const a=input.getBoundingClientRect(),b=scroll.getBoundingClientRect();if(a.bottom>b.bottom-12)scroll.scrollTop+=a.bottom-b.bottom+12;else if(a.top<b.top+12)scroll.scrollTop+=a.top-b.top-12}
-function updateViewport(){cancelAnimationFrame(viewportFrame);viewportFrame=requestAnimationFrame(()=>{if(!page||page.hidden)return;const view=window.visualViewport,height=Math.round(view?.height||window.innerHeight),keyboard=Boolean(page.contains(document.activeElement)&&document.activeElement?.matches('textarea,input,select'));page.style.setProperty('--cbt-viewport-height',height+'px');page.style.setProperty('--cbt-viewport-top',keyboard?Math.max(0,Math.round(view?.offsetTop||0))+'px':'0px');clearTimeout(revealTimer);revealTimer=setTimeout(revealFocusedField,100)})}
+function updateViewport(){cancelAnimationFrame(viewportFrame);viewportFrame=requestAnimationFrame(()=>{if(!page||page.hidden)return;const view=window.visualViewport,keyboard=Boolean(page.contains(document.activeElement)&&document.activeElement?.matches('textarea,input,select')),height=Math.round(keyboard?(view?.height||window.innerHeight):window.innerHeight);page.style.setProperty('--cbt-viewport-height',height+'px');page.style.setProperty('--cbt-viewport-top',keyboard?Math.max(0,Math.round(view?.offsetTop||0))+'px':'0px');clearTimeout(revealTimer);revealTimer=setTimeout(revealFocusedField,100)})}
 window.visualViewport?.addEventListener('resize',updateViewport);window.visualViewport?.addEventListener('scroll',updateViewport);window.addEventListener('resize',updateViewport);
 function navTo(s){screen=s;notice='';render();if(scroller())scroller().scrollTop=0;$('#cbtView h1')?.focus({preventScroll:true})}
 function upgradeCalendar(){const r=C.active(snapshot());if(r&&!r.calendar)enqueue({type:'schedule',cycleId:r.id,timeZone:localZone()})}
@@ -98,13 +98,19 @@ function allFields(n){const fields=[...lesson(n).fields];for(const f of [...quic
 function previewRecord(e){const a=e.answers||{};return String(a.situation||a.thought||a.action||a.alternative||a.conclusion||(a.emotions||[]).join(', ')||'Пустой черновик').replace(/\s+/g,' ').slice(0,100)}
 function coachCard(record){
  const saved=!!record?.savedAt,current=saved&&record.coach&&C.same(record.coach.source,record.answers)?record.coach:null,result=current?.result;
- return '<section class="cbt-card cbt-coach-card" id="cbtCoachCard"><h2>🧠 Разбор твоих ответов</h2>'+
- (result?'<div class="cbt-coach-grid">'+[
- ['Что заметили',result.pattern],['Возможная мыслительная ловушка',result.trap],['Почему это возможно',result.reason],
- ['Что стоит проверить',result.check],['Альтернативный взгляд',result.alternative],['🎯 Действие на завтра',result.step],['Вопрос на завтра',result.question]
- ].map(([heading,body])=>'<div><strong>'+esc(heading)+'</strong><p>'+esc(body)+'</p></div>').join('')+'</div><p class="cbt-meta">Это гипотеза ИИ для размышления, а не диагноз. Выбирай только подходящие и безопасные действия.</p>':
- '<p class="cbt-meta">'+(saved?'Можно получить персональный разбор записи: возможную мыслительную ловушку, проверку фактов и одно небольшое действие на завтра. Для анализа ответы будут отправлены в Groq.':'После заполнения вопросов здесь можно получить персональный разбор.')+'</p>'+
- '<button type="button" data-do="coach" class="cbt-primary cbt-coach-button" '+(!saved||analysisBusy?'disabled':'')+'>'+(analysisBusy?'Анализирую ответы…':'Разобрать мои ответы')+'</button>')+
+ const cleanCoach=value=>esc(String(value||'').replace(/пользовательница/gi,'вы').replace(/у пользователя/gi,'у вас').replace(/пользователя/gi,'вас').replace(/пользователю/gi,'вам').replace(/пользователь/gi,'вы'));
+ const heading='<section class="cbt-card cbt-coach-card" id="cbtCoachCard"><h2>🧠 Разбор вашей записи</h2>';
+ if(result)return heading+
+ '<div class="cbt-coach-conversation"><p>'+cleanCoach(result.pattern)+'</p>'+
+ '<p>'+cleanCoach(result.trap)+' '+cleanCoach(result.reason)+'</p>'+
+ '<p>'+cleanCoach(result.check)+'</p>'+
+ '<p>'+cleanCoach(result.alternative)+'</p></div>'+
+ '<div class="cbt-coach-action"><strong>🎯 Что можно попробовать завтра</strong><p>'+cleanCoach(result.step)+'</p></div>'+
+ '<p class="cbt-coach-tomorrow">'+cleanCoach(result.question)+'</p>'+
+ '<p class="cbt-meta">Это возможный взгляд на ситуацию, а не диагноз. Если что-то не откликается, не нужно с этим соглашаться.</p></section>';
+ return heading+
+ '<p class="cbt-meta">'+(saved?'Если хотите, разберём вашу запись вместе: что могло повлиять на реакцию и какой небольшой шаг попробовать завтра. Для разбора ответы отправляются в Groq.':'Когда закончите запись, здесь можно будет её обсудить.')+'</p>'+
+ '<button type="button" data-do="coach" class="cbt-primary cbt-coach-button" '+(!saved||analysisBusy?'disabled':'')+'>'+(analysisBusy?'Разбираю вашу запись…':'Разобрать мои ответы')+'</button>'+
  (analysisMessage?'<p class="cbt-meta" role="status">'+esc(analysisMessage)+'</p>':'')+'</section>';
 }
 function coachFollowUp(r,today){
@@ -158,10 +164,18 @@ function dayView(){
  (!quick?'<details class="cbt-card cbt-optional" id="cbtOptionalFields"><summary>Дополнительные оценки состояния</summary>'+optional.map(f=>field(f,a,readonly)).join('')+'</details>':'')+'</form>'+versionsView(record)+
  coachCard(record)+entryPicker(r,row,readonly)+'<div class="cbt-day-nav"><button type="button" data-day="'+Math.max(1,day-1)+'" '+(day===1?'disabled':'')+'>Предыдущий день</button><button type="button" data-day="'+Math.min(21,day+1)+'" '+(day===21||day>=C.nextDay(r)?'disabled':'')+'>Следующий день</button></div>';
 }
+function thoughtSentiment(entry){
+ const emotions=Array.isArray(entry?.answers?.emotions)?entry.answers.emotions:[];
+ const positive=new Set(['Радость','Спокойствие','Интерес','Облегчение']);
+ const negative=new Set(['Тревога','Грусть','Злость','Обида','Страх','Стыд','Вина','Разочарование']);
+ const hasPositive=emotions.some(value=>positive.has(value));
+ const hasNegative=emotions.some(value=>negative.has(value));
+ return hasPositive&&!hasNegative?' cbt-thought-positive':hasNegative&&!hasPositive?' cbt-thought-negative':'';
+}
 function entryPicker(r,row,readonly){
  const list=C.entries(row).filter(e=>C.hasAnswers(e.answers)||e.savedAt);
  return '<section class="cbt-card cbt-entry-picker cbt-thought-picker"><div class="cbt-entry-top"><h2>Записи дня'+(list.length?' · '+list.length:'')+'</h2></div>'+
- (list.length?'<div class="cbt-thought-scene'+(list.length>6?' cbt-thought-many':'')+'" data-count="'+list.length+'"><div class="cbt-thought-orbit cbt-thought-orbit-a" aria-hidden="true"></div><div class="cbt-thought-orbit cbt-thought-orbit-b" aria-hidden="true"></div><div class="cbt-thought-brain" aria-hidden="true">🧠</div><div class="cbt-thought-list" role="group" aria-label="Мысли и записи дня">'+list.map((e,i)=>'<button type="button" class="cbt-thought-bubble cbt-thought-position-'+i%6+'" data-entry="'+esc(e.id)+'" aria-label="Открыть запись '+(i+1)+': '+esc(previewRecord(e).slice(0,90))+'" aria-pressed="'+(e.id===C.canonicalEntryId(row,entryId))+'"><strong>'+esc(previewRecord(e))+'</strong><small>'+esc(entryTime(e.startedAt))+'</small></button>').join('')+'</div></div>':
+ (list.length?'<div class="cbt-thought-scene'+(list.length>6?' cbt-thought-many':'')+'" data-count="'+list.length+'"><div class="cbt-thought-orbit cbt-thought-orbit-a" aria-hidden="true"></div><div class="cbt-thought-orbit cbt-thought-orbit-b" aria-hidden="true"></div><div class="cbt-thought-brain" aria-hidden="true">🧠</div><div class="cbt-thought-list" role="group" aria-label="Мысли и записи дня">'+list.map((e,i)=>'<button type="button" class="cbt-thought-bubble cbt-thought-position-'+i%6+thoughtSentiment(e)+'" data-entry="'+esc(e.id)+'" aria-label="Открыть запись '+(i+1)+': '+esc(previewRecord(e).slice(0,90))+'" aria-pressed="'+(e.id===C.canonicalEntryId(row,entryId))+'"><strong>'+esc(previewRecord(e))+'</strong><small>'+esc(entryTime(e.startedAt))+'</small></button>').join('')+'</div></div>':
  '<p class="cbt-meta cbt-entry-empty">Пока нет записей. Первая мысль появится здесь после ответа.</p>')+
  '<p class="cbt-thought-hint">Нажми на мысль, чтобы открыть всю запись.</p></section>'
 }
