@@ -390,3 +390,9 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-wish-row {
   html:not([data-theme="dark"]) .partner-profile-page .partner-plans,
   html:not([data-theme="dark"]) .partner-profile-page .partner-gifts {padding:12px!important}
 }
+
+/* Habit progress uses regular text in both partner themes. */
+.partner-profile-page .partner-today>#homePartnerHabitsSummary,
+.partner-profile-page .partner-today>.partner-habits-plain,
+.partner-profile-page .partner-today>#homePartnerHabitsSummary *,
+.partner-profile-page .partner-today>.partner-habits-plain *{font-weight:400!important}

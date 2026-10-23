@@ -78,7 +78,7 @@ test('home actions use the configured fractional star rewards', () => {
   const app = fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
 
   assert.match(api,/reward:\{stars:0,awarded:false\}/);
-  assert.match(api,/awardScoreSafe\(actor,1,\{\s*label:'Послание'/s);
+  assert.doesNotMatch(api,/label:'Послание'/);
   assert.match(api,/const walkRewardUnits=actor==='Рустам'\?20:10;/);
   assert.match(api,/awardScoreSafe\(actor,walkRewardUnits,\{label:'Прогулка с Лулу'/);
   assert.match(app,/Ответ сохранён/);

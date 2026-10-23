@@ -25,23 +25,9 @@ function cryptoAssignmentKey(walletId,row){
   }
   return cryptoOperationKey(walletId,row.id);
 }
-const { awardScore,readScoreState,reverseScoreByDedupeKey,scoreView,scoreDateKey,DAILY_EXPENSE_SCORE_UNITS } = require('./score-store.cjs');
+const { readScoreState,reverseScoreByDedupeKey,scoreView } = require('./score-store.cjs');
 
-function financeDailyScoreKey(actor, dateKey = scoreDateKey()) {
-  return 'score:finance-daily:'+actor+':'+dateKey;
-}
-async function awardFirstDailyExpense(actor, expenseId) {
-  const key=financeDailyScoreKey(actor);
-  try {
-    const award=await awardScore(actor,DAILY_EXPENSE_SCORE_UNITS,{
-      label:'Первый расход за день',icon:'💳',dedupeKey:key,expenseRef:expenseId
-    });
-    return scoreView(award.state);
-  } catch(error) {
-    console.warn('RUDI_FINANCE_SCORE_AWARD_WARN',String(error?.message||error));
-    return null;
-  }
-}
+// Retain reversal of bonuses awarded before expense rewards were disabled.
 async function reverseDeletedDailyExpense(actor, expenseId) {
   try {
     const current=await readScoreState();
@@ -541,7 +527,6 @@ async function handler(req, res) {
       const conversion = resolveExpenseConversion({ inputAmount, inputCurrency, sourceCurrency, targetCurrency, rates: rubRates });
       const { sourceAmount, amount, rubAmount, exchangeRate } = conversion;
 
-      const isNew=!String(body.id||'').trim();
       const requestId=String(body.requestId||'').trim();
       const stableId=requestId&&/^[a-z0-9_-]{8,96}$/i.test(requestId)?'offline-'+requestId:'';
       const state = await savePersonalExpense(actor, {
@@ -553,11 +538,7 @@ async function handler(req, res) {
         rubAmount,
         exchangeRate,
       },stableId?{id:stableId}:{});
-      const newExpense=isNew?(state.personalExpenses||[]).at(-1):null;
-      const score=newExpense?.actor===actor&&!newExpense.importKey
-        ?await awardFirstDailyExpense(actor,newExpense.id)
-        :null;
-      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', conversion, ...(score?{score}:{}), ...viewState(state, actor) });
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', conversion, ...viewState(state, actor) });
     }
     if (operation === 'import-expenses') {
       const imported = await importPersonalExpenses(actor, {

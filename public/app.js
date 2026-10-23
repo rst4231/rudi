@@ -7765,8 +7765,6 @@
                 <div class="score-rules-item"><span class="score-rules-emoji">🔥</span><span>21 день подряд выполнял привычку</span><strong>+5 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">⏱️</span><span>Закончил голодание<small>12 ч: +0,5 · 16 ч: +1,5 · 24 ч: +3 · 40 ч: +5</small></span><strong>до +5 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🧘</span><span>Медитация<small>5 мин: +0,1 · 10 мин: +0,2 · 20 мин: +0,3 · 30 мин: +0,4 · 60 мин: +0,5 ⭐</small><small>По фактическому времени. Только одна награда в день на человека.</small></span><strong>до +0,5 ⭐</strong></div>
-                <div class="score-rules-item"><span class="score-rules-emoji">💌</span><span>Написал послание<small>Один раз в день</small></span><strong>+0,1 ⭐</strong></div>
-                <div class="score-rules-item"><span class="score-rules-emoji">💳</span><span>Записал первый расход за день</span><strong>+0,2 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🎁</span><span>Исполнил желание партнёра из вишлиста</span><strong>+100 ⭐</strong></div>
               </section>
               <section class="score-rules-group score-rules-spend" aria-label="Когда звёзды уменьшаются">
@@ -7816,6 +7814,12 @@
           .replace(/Подарок от Рустам/g,'Подарок от Рустама')
           .replace(/Подарено Диана/g,'Подарено Диане')
           .replace(/Подарено Рустам/g,'Подарено Рустаму');
+      }
+
+      function scoreHistoryTitle(item){
+        const detail=String(item?.detail||''),label=String(item?.label||'');
+        const legacySession=/^Сеанс\s+\S+$/u.test(detail)&&/^Медитация(?:\s|$)/u.test(label);
+        return normalizeGiftGrammar(normalizeLegacyMoodText((legacySession?label:detail)||label||'Звезды'));
       }
 
       function renderScoreModal(actor,score=currentScoreState){
@@ -8006,7 +8010,7 @@
               const copy=document.createElement('div');
               copy.className='score-history-copy';
               const title=document.createElement('strong');
-              title.textContent=normalizeGiftGrammar(normalizeLegacyMoodText(item.detail||item.label||'Звезды'));
+              title.textContent=scoreHistoryTitle(item);
               const meta=document.createElement('span');
               meta.textContent=scoreHistoryTime(item.createdAt);
               copy.append(title,meta);

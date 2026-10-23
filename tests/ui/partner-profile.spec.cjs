@@ -21,8 +21,8 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await expect(profile.locator('.partner-profile-wishes h2')).toHaveText('Желания');
  await expect(profile.locator('.partner-birthday-copy>span')).toHaveText(actor==='Диана'?'30 июня':'3 марта');
  expect(await profile.locator('.partner-profile-wishes').evaluate(el=>el.previousElementSibling.classList.contains('partner-birthday'))).toBe(true);
- await expect(profile.locator('.partner-cbt-status')).toHaveText(actor==='Диана'?'Сейчас проходит когнитивно-поведенческую терапию':'Сейчас не проходит когнитивно-поведенческую терапию');
- expect(await profile.locator('.profile-partner-habits-summary').evaluate(el=>el.nextElementSibling.classList.contains('partner-cbt-status'))).toBe(true);
+ await expect(profile.locator('.partner-cbt-status')).toHaveText(actor==='Диана'?'Проходит когнитивно-поведенческую терапию':'Не проходит когнитивно-поведенческую терапию');
+ expect(await profile.locator('.partner-habits-plain').evaluate(el=>el.nextElementSibling.classList.contains('partner-cbt-status'))).toBe(true);
  await expect(profile.locator('.partner-wish-text')).toHaveText(['Поездка к морю','Книга']);
  await expect(profile.locator('.partner-wish-link')).toHaveAttribute('href','https://example.com/gift');
  await expect(profile.locator('.partner-wish-row.is-done')).toHaveCount(1);

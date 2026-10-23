@@ -20,7 +20,7 @@
    }
   }
   events.sort((a,b)=>(a.date+' '+(a.time||'00:00')).localeCompare(b.date+' '+(b.time||'00:00')));
-  return {dayOff,event:events[0]||null};
+  return {dayOff,dayOffTomorrow:!!dayOff&&Date.parse(dayOff+'T12:00:00Z')-Date.parse(today+'T12:00:00Z')===86400000,event:events[0]||null};
  }
  function addPlans(page,actor,loadPlans){
   const card=document.createElement('section');card.className='partner-plans';
@@ -31,7 +31,7 @@
   Promise.resolve().then(()=>loadPlans?.()).then(data=>{
    if(!card.isConnected)return;
    const next=selectPartnerPlans(actor,data||{});
-   off.textContent=next.dayOff?dateLabel(next.dayOff)+(actor==='Рустам'?' · По графику 5/2':''):data?.work?.configured?'В календаре пока нет выходных':'График пока недоступен';
+   off.textContent=next.dayOff?dateLabel(next.dayOff)+(next.dayOffTomorrow?' (завтра)':'')+(actor==='Рустам'?' · По графику 5/2':''):data?.work?.configured?'В календаре пока нет выходных':'График пока недоступен';
    event.textContent=next.event?.title||(data?.shared?.connected===false?'Совместный календарь не подключён':data?.shared?.unavailable?'Не удалось обновить календарь':'Пока нет совместных событий');
    time.textContent=next.event?[dateLabel(next.event.date),next.event.time].filter(Boolean).join(' · '):'';
   }).catch(()=>{if(card.isConnected){off.textContent='Не удалось обновить график';event.textContent='Не удалось обновить календарь'}});

@@ -246,7 +246,7 @@ async function persist(options={}){
  busy=true;showStatus('Сохраняю на устройстве…');render();
  try{
   const offline=window.rudiOfflineContent,who=offline?.actor?.(),id=activeId;
-  const previous=current(),title=(titleInput?.value||'').trim(),pinned=options.pinned??previous.pinned??false;
+  const previous=current(),title=(titleInput?.value??previous.title??'').trim(),pinned=options.pinned??previous.pinned??false;
   const history=[...(previous.history||[]),{...version(previous),updatedAt:new Date().toISOString()},...(options.previousVersion?[{...options.previousVersion,updatedAt:new Date().toISOString()}]:[])].slice(-20);
   const next={id,text:value,title,pinned,history,historyCount:Math.max(previous.historyCount||0,history.length),historyLoaded:previous.historyLoaded,updatedAt:baseUpdatedAt};
   if(who){
@@ -407,7 +407,7 @@ window.RudiHomeNote={
    const clone=personal.cloneNode(true);
    clone.id='partnerNoteTile';clone.className='home-note partner-note-tile';
    clone.removeAttribute('data-app-tab-section');clone.removeAttribute('data-home-tile');
-   clone.setAttribute('aria-label','Заметка о партнёре');
+   clone.setAttribute('aria-label','Заметка');
    for(const el of clone.querySelectorAll('[id]'))
     if(el.id.startsWith('homeNote'))el.id='partnerNote'+el.id.slice(8);
    for(const el of clone.querySelectorAll('[for],[aria-controls]')){
@@ -415,14 +415,18 @@ window.RudiHomeNote={
     if(el.hasAttribute('aria-controls'))el.setAttribute('aria-controls',el.getAttribute('aria-controls').replace(/^homeNote/,'partnerNote'));
    }
    const label=clone.querySelector('.home-note-toggle > span:last-child');
-   if(label)label.textContent='Заметка о партнёре';
+   if(label)label.textContent='Заметка';
+   clone.querySelector('#partnerNoteUndo')?.remove();
+   clone.querySelector('.home-note-secondary')?.remove();
    for(const id of ['partnerNotePreview','partnerNoteList','partnerNoteVersions','partnerNoteStatus'])
     clone.querySelector('#'+id)?.replaceChildren();
    for(const id of ['partnerNoteEditor','partnerNoteContent','partnerNotePreview']){
     const el=clone.querySelector('#'+id);if(el)el.hidden=true;
    }
-   const value=clone.querySelector('#partnerNoteText'),name=clone.querySelector('#partnerNoteTitle');
-   if(value)value.value='';if(name)name.value='';
+   const value=clone.querySelector('#partnerNoteText');
+   if(value)value.value='';
+   clone.querySelector('label[for="partnerNoteTitle"]')?.remove();
+   clone.querySelector('#partnerNoteTitle')?.remove();
    partnerRoot=clone;
    mount(partnerRoot,true);
   }

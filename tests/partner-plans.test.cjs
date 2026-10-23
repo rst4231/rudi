@@ -11,3 +11,11 @@ test('missing schedule is not treated as a day off; Rustam uses the existing wee
 test('nearest shared event can come from the following month',()=>{
  const out=ctx.selectPartnerPlans('Диана',{shared:{days:[{date:'2026-11-02',events:[{title:'Ноябрь',allDay:true}]},{date:'2026-10-20',events:[{title:'Прошлое',allDay:true}]}]}},new Date('2026-10-31T12:00:00Z'));assert.equal(out.event.title,'Ноябрь');
 });
+
+test('tomorrow uses the Moscow calendar across a month boundary',()=>{
+ const data={work:{configured:true,days:[{date:'2026-11-01',working:false}]}};
+ assert.equal(ctx.selectPartnerPlans('Диана',data,new Date('2026-10-31T20:59:00Z')).dayOffTomorrow,true);
+ assert.equal(ctx.selectPartnerPlans('Диана',data,new Date('2026-10-31T21:00:00Z')).dayOffTomorrow,false);
+ assert.equal(ctx.selectPartnerPlans('Диана',data,new Date('2026-10-30T12:00:00Z')).dayOffTomorrow,false);
+ assert.ok(s.includes("next.dayOffTomorrow?' (завтра)':''"));
+});
