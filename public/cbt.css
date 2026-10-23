@@ -42,3 +42,68 @@ body.cbt-page-open{position:fixed!important;left:0;right:0;width:100%;overflow:h
 .cbt-page .cbt-step[hidden],.cbt-page #cbtOptionalFields[hidden]{display:none!important}
 html[data-theme="dark"] .cbt-life-example{background:rgba(177,143,244,.09);border-left-color:#a98bea}html[data-theme="dark"] .cbt-page .cbt-entry-remove{color:#ff8495;background:rgba(215,58,82,.12);border-color:rgba(215,58,82,.38)}
 @media(max-width:370px){.cbt-cycle-download{align-items:stretch;flex-direction:column}.cbt-cycle-download>.cbt-primary{width:100%}}
+
+/* v4.311: floating thought bubbles, tappable records, delete only in the opened editor. */
+.cbt-thought-picker{overflow:hidden;position:relative;padding:17px 13px 14px!important;border-radius:23px!important;background:radial-gradient(ellipse 100% 65% at 51% 50%,rgba(197,175,255,.22),transparent 78%),var(--cbt-surface)!important}
+.cbt-thought-picker .cbt-entry-top{position:relative;z-index:5;margin:0 0 8px 5px}
+.cbt-thought-picker .cbt-entry-top h2{font-size:16px;font-weight:750}
+.cbt-thought-scene{position:relative;min-height:390px;isolation:isolate}
+.cbt-thought-scene::before{content:'';position:absolute;inset:15% 5% 14%;border-radius:50%;background:radial-gradient(ellipse at center,rgba(191,161,250,.21),rgba(194,177,250,.08) 39%,transparent 67%);filter:blur(13px);pointer-events:none}
+.cbt-thought-orbit{position:absolute;z-index:0;left:3%;right:3%;top:25%;height:48%;border:3px solid rgba(155,118,239,.32);border-radius:50%;box-shadow:0 0 18px rgba(192,163,255,.15);pointer-events:none}
+.cbt-thought-orbit-a{transform:rotate(-17deg);animation:cbtOrbitA 24s ease-in-out infinite alternate}
+.cbt-thought-orbit-b{top:33%;left:0;right:0;height:32%;border-color:rgba(166,136,246,.24);transform:rotate(22deg);animation:cbtOrbitB 31s ease-in-out infinite alternate}
+.cbt-thought-brain{position:absolute;z-index:1;left:50%;top:49%;width:150px;height:150px;display:grid;place-items:center;transform:translate(-50%,-50%);font-size:73px;border-radius:50%;background:radial-gradient(circle at 37% 28%,#f7e5ff,#c79cf4 54%,#8c6bd7 90%);box-shadow:0 20px 58px rgba(106,71,191,.26),inset 0 2px 20px rgba(255,255,255,.68);text-shadow:0 6px 12px #9d6ec9;animation:cbtBrainBreathe 7s ease-in-out infinite;pointer-events:none}
+.cbt-thought-list{position:absolute;inset:0;z-index:2}
+.cbt-page .cbt-thought-bubble{position:absolute;display:flex;flex-direction:column;justify-content:center;gap:9px;width:48%;min-height:106px;max-height:157px;overflow:visible;padding:19px 14px;border:2px solid #cbb7fc;border-radius:47% 53% 42% 58%/57% 46% 54% 43%;background:linear-gradient(152deg,rgba(255,255,255,.98),rgba(248,242,255,.98) 73%,rgba(237,228,255,.97));box-shadow:0 13px 24px rgba(130,102,208,.14),inset 0 2px 8px #fff;color:#292054;text-align:center;cursor:pointer;touch-action:manipulation;animation:cbtThoughtFloat 6.5s ease-in-out infinite;animation-delay:var(--thought-delay,0s);transition:border-color .2s,box-shadow .2s;outline-offset:3px;z-index:3}
+.cbt-page .cbt-thought-bubble::after{content:'';position:absolute;left:85%;bottom:-13px;width:16px;height:16px;border:2px solid #cbb7fc;background:#faf5ff;border-radius:50%;box-shadow:0 0 10px #ba9cf060;pointer-events:none}
+.cbt-page .cbt-thought-bubble strong{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;font-size:clamp(12px,3.4vw,16px);line-height:1.25;font-weight:700;letter-spacing:-.2px}
+.cbt-page .cbt-thought-bubble small{color:#7666a1;font-size:10px;line-height:1.25}
+.cbt-page .cbt-thought-bubble[aria-pressed=true]{border-color:#8564d5;box-shadow:0 12px 27px #a085d04a,0 0 0 2px #cab5ff8a,inset 0 2px 9px #fff}
+.cbt-page .cbt-thought-bubble:active{filter:brightness(.96)}
+.cbt-thought-position-0{top:4%;left:0;--thought-delay:-1.4s}
+.cbt-thought-position-1{top:9%;right:0;--thought-delay:-3s}
+.cbt-thought-position-2{bottom:10%;left:0;--thought-delay:-5s}
+.cbt-thought-position-3{bottom:4%;right:0;--thought-delay:-2s}
+.cbt-thought-position-4{top:39%;left:0;--thought-delay:-4s}
+.cbt-thought-position-5{top:40%;right:0;--thought-delay:-6s}
+.cbt-thought-scene[data-count="1"] .cbt-thought-position-0{left:25%;top:5%;width:50%}
+.cbt-thought-scene[data-count="2"] .cbt-thought-position-0{left:1%;top:12%}
+.cbt-thought-scene[data-count="2"] .cbt-thought-position-1{right:1%;top:auto;bottom:12%}
+.cbt-thought-scene[data-count="3"] .cbt-thought-position-0{top:2%}
+.cbt-thought-scene[data-count="3"] .cbt-thought-position-1{top:6%}
+.cbt-thought-scene[data-count="3"] .cbt-thought-position-2{bottom:6%;left:26%}
+.cbt-thought-scene[data-count="4"] .cbt-thought-position-0,.cbt-thought-scene[data-count="4"] .cbt-thought-position-1{top:2%}
+.cbt-thought-scene[data-count="4"] .cbt-thought-position-2,.cbt-thought-scene[data-count="4"] .cbt-thought-position-3{bottom:2%}
+.cbt-thought-many{height:auto;min-height:450px;padding:25px 0}
+.cbt-thought-many .cbt-thought-list{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 12px}
+.cbt-thought-many .cbt-thought-bubble{position:relative!important;inset:auto!important;width:100%!important;min-height:115px}
+.cbt-thought-many .cbt-thought-brain{opacity:.26;z-index:0}
+.cbt-thought-many .cbt-thought-orbit{opacity:.38}
+.cbt-thought-hint{font-size:12px;text-align:center;line-height:1.5;color:var(--cbt-muted);margin:7px 0 0}
+.cbt-entry-detail{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;margin:12px 0 4px;border:1px solid var(--cbt-border);background:var(--cbt-surface);border-radius:16px;min-width:0}
+.cbt-entry-detail>div{display:grid;gap:3px;min-width:0}
+.cbt-entry-detail strong{font-size:13px}
+.cbt-entry-detail small{font-size:11px;color:var(--cbt-muted)}
+.cbt-page .cbt-entry-detail .cbt-entry-remove{width:auto;min-width:90px;flex:0 0 auto;padding:7px 10px;font-size:19px;display:flex;gap:6px;align-items:center;justify-content:center}
+.cbt-entry-detail .cbt-entry-remove span{font-size:12px;font-weight:600}
+.cbt-coach-card,.cbt-coach-followup{padding:17px;margin:16px 0}
+.cbt-coach-card h2,.cbt-coach-followup h2{font-size:16px;margin:0 0 12px}
+.cbt-coach-card .cbt-primary{min-height:45px;width:100%;margin:11px 0 0}
+.cbt-coach-card .cbt-primary:disabled{opacity:.6}
+.cbt-coach-grid{display:grid;gap:12px}
+.cbt-coach-grid>div{border-radius:13px;background:var(--cbt-field);padding:12px}
+.cbt-coach-grid strong{display:block;font-size:12px;margin-bottom:6px}
+.cbt-coach-grid p,.cbt-coach-followup>p{font-size:13px;line-height:1.55;margin:0;overflow-wrap:anywhere;white-space:pre-wrap}
+.cbt-coach-card .cbt-meta{line-height:1.5;margin:11px 0 0}
+.cbt-coach-choices{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.cbt-coach-choices button{flex:1;min-width:100px;min-height:43px;padding:8px;font-size:12px}
+.cbt-coach-outcome{margin-top:11px!important;font-weight:600}
+html[data-theme="dark"] .cbt-page .cbt-thought-bubble{color:#31245a;background:linear-gradient(145deg,#faf6ff,#eaddff);border-color:#b393f3}
+html[data-theme="dark"] .cbt-thought-picker{background:radial-gradient(ellipse at center,#5b41804f,transparent 77%),var(--cbt-surface)!important}
+html[data-theme="dark"] .cbt-thought-brain{box-shadow:0 12px 36px #2c184f82}
+@keyframes cbtThoughtFloat{0%,100%{translate:0 0;rotate:-1.1deg}50%{translate:0 -10px;rotate:1.1deg}}
+@keyframes cbtOrbitA{from{transform:rotate(-17deg) scale(.98)}to{transform:rotate(2deg) scale(1.05)}}
+@keyframes cbtOrbitB{from{transform:rotate(22deg)}to{transform:rotate(5deg) scale(.98)}}
+@keyframes cbtBrainBreathe{0%,100%{transform:translate(-50%,-50%) scale(.97)}50%{transform:translate(-50%,-50%) scale(1.05)}}
+@media(min-width:600px){.cbt-thought-scene{min-height:470px}.cbt-page .cbt-thought-bubble{width:39%;min-height:120px}.cbt-thought-position-0,.cbt-thought-position-2,.cbt-thought-position-4{left:3%}.cbt-thought-position-1,.cbt-thought-position-3,.cbt-thought-position-5{right:3%}.cbt-thought-brain{width:175px;height:175px;font-size:86px}}
+@media(max-width:360px){.cbt-thought-scene{min-height:400px}.cbt-page .cbt-thought-bubble{padding:11px 9px;min-height:96px}.cbt-page .cbt-thought-bubble strong{font-size:12px}.cbt-thought-brain{width:116px;height:116px;font-size:54px}.cbt-thought-many .cbt-thought-bubble{min-height:118px}}

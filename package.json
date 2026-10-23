@@ -13,7 +13,7 @@
     "test:legacy": "node --test tests/*.test.cjs",
     "test:calendar-edit": "node --test tests/future-task-completion.test.cjs tests/calendar-time-save-latency.test.cjs tests/calendar-bill-amount.test.cjs tests/personal-task-editor.test.cjs tests/personal-task-editor-temporal.test.cjs tests/v4.205-ios-date-time.test.cjs tests/calendar-offline.test.cjs tests/personal-home-bills.test.cjs",
     "test:car": "node --test tests/car-tyre-forecast.test.cjs tests/car-finance-wash.test.cjs tests/car-enhancements.test.cjs tests/weather.test.cjs",
-    "test:cbt": "node --test tests/cbt.test.cjs tests/cbt-entries.test.cjs tests/cbt-handler.test.cjs tests/cbt-evening-reminder.test.cjs"
+    "test:cbt": "node --test tests/cbt.test.cjs tests/cbt-entries.test.cjs tests/cbt-coach.test.cjs tests/cbt-handler.test.cjs tests/cbt-evening-reminder.test.cjs"
   },
   "dependencies": {
     "@simplewebauthn/server": "14.0.2",

@@ -34,7 +34,7 @@ function error(code,fields){const e=Error(code);e.fields=fields||[];throw e}
 function filled(f,v){return f.type==='range'?Number.isFinite(v)&&v>=0&&v<=f.max:f.type==='check'?v===true:f.type==='emotions'?Array.isArray(v)&&v.length>0:typeof v==='string'&&!!v.trim()}
 function missing(day,answers,format='full'){if(format==='quick')return [answers?.situation,answers?.thought].some(v=>typeof v==='string'&&v.trim())||Array.isArray(answers?.emotions)&&answers.emotions.length?[]:['thought'];return content.days[day-1].fields.filter(f=>f.required&&!filled(f,answers?.[f.key])).map(f=>f.key)}
 function validate(op){
- if(!op||!validId(op.id)||!validId(op.cycleId)||!['start','schedule','new-entry','delete-entry','format','edit','complete','archive'].includes(op.type))error('cbt-invalid-operation');
+ if(!op||!validId(op.id)||!validId(op.cycleId)||!['start','schedule','new-entry','delete-entry','format','edit','complete','archive','coach','coach-check'].includes(op.type))error('cbt-invalid-operation');
  if(op.timeZone!==undefined&&!zone(op.timeZone))error('cbt-invalid-timezone');
  if(['start','schedule'].includes(op.type))return;
  if(op.entryId!==undefined&&!validId(op.entryId))error('cbt-invalid-entry');
@@ -42,7 +42,14 @@ function validate(op){
  if(op.reuseDraft!==undefined&&typeof op.reuseDraft!=='boolean')error('cbt-invalid-entry');
  if(op.type==='new-entry'){if(!op.entryId||op.entryId==='initial')error('cbt-invalid-entry');return}
  if(op.type==='format'){if(!['quick','full'].includes(op.format))error('cbt-invalid-format');return}
- if(op.type==='complete'||op.type==='delete-entry')return;
+ if(op.type==='coach'){
+ const fields=['pattern','trap','reason','check','alternative','step','question'];
+ if(!op.coach||typeof op.coach!=='object'||Array.isArray(op.coach)||!op.base||typeof op.base!=='object'||Array.isArray(op.base)||JSON.stringify(op.base).length>55000)error('cbt-invalid-coach');
+ for(const key of fields)if(typeof op.coach[key]!=='string'||!op.coach[key].trim()||op.coach[key].length>900)error('cbt-invalid-coach');
+ return;
+}
+if(op.type==='coach-check'){if(!['done','partial','not-done'].includes(op.outcome))error('cbt-invalid-coach-check');return}
+if(op.type==='complete'||op.type==='delete-entry')return;
  if(!op.patch||Array.isArray(op.patch)||typeof op.patch!=='object'||!Object.keys(op.patch).length||Object.keys(op.patch).length>15)error('cbt-invalid-fields');
  const fields=[...content.days[op.day-1].fields,{key:'situation',type:'text'},{key:'thought',type:'text'},{key:'moodBefore',type:'range',max:10},{key:'moodAfter',type:'range',max:10},{key:'emotionIntensity',type:'range',max:10},{key:'emotions',type:'emotions'}];
  for(const [k,v]of Object.entries(op.patch)){
@@ -64,7 +71,7 @@ function apply(state,op,now=new Date().toISOString(),local=false){
  }
  if(!run)error('cbt-run-missing');
  if(run.applied.includes(op.id))return s;
- if(run.status!=='active'&&op.type!=='archive'&&!local&&!(run.calendar&&run.status==='completed'&&now<run.completedAt))error('cbt-read-only');
+ if(run.status!=='active'&&!['archive','coach','coach-check'].includes(op.type)&&!local&&!(run.calendar&&run.status==='completed'&&now<run.completedAt))error('cbt-read-only');
  if(op.type==='schedule'){
   if(!run.calendar){for(const row of Object.values(run.days)){row.savedAt=row.completedAt||null;row.completedAt=null}run.calendar={timeZone:op.timeZone||'UTC',startDate:dayKey(run.startedAt||now,op.timeZone||'UTC')}}
   run.applied.push(op.id);return refresh(s,now);
@@ -85,7 +92,16 @@ function apply(state,op,now=new Date().toISOString(),local=false){
   if(op.type==='delete-entry'){
    if(!target.deletedAt){if(!local&&!same(target.answers,op.base||{}))error('cbt-conflict-delete',Object.keys(target.answers));target.deletedAt=now}
   }else if(target.deletedAt&&op.type!=='archive'&&!local)error('cbt-conflict-deleted',Object.keys(op.patch||{}));
-  else if(op.type==='format'){target.format=op.format;if(target.savedAt&&missing(op.day,target.answers,target.format).length)target.savedAt=null}
+  else if(op.type==='coach'){
+     if(!local&&(!target.savedAt||!same(target.answers,op.base)))error('cbt-conflict-coach');
+     target.coach={source:clone(op.base),result:clone(op.coach),createdAt:now};
+     target.coachCheck=null;
+    }
+    else if(op.type==='coach-check'){
+     if(!local&&(!target.coach||!same(target.coach.source,target.answers)||nextDay(run,now)<=op.day))error('cbt-conflict-coach-check');
+     if(target.coach&&same(target.coach.source,target.answers))target.coachCheck={outcome:op.outcome,at:now};
+    }
+    else if(op.type==='format'){target.format=op.format;if(target.savedAt&&missing(op.day,target.answers,target.format).length)target.savedAt=null}
   else if(op.type==='archive')target.versions=[...(target.versions||[]),{id:op.id,at:now,answers:{...target.answers,...op.patch}}];
   else if(op.type==='edit'){
    const conflicts=Object.keys(op.patch).filter(k=>!same(target.answers[k],op.base?.[k])&&!same(target.answers[k],op.patch[k]));

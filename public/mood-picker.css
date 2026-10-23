@@ -21,3 +21,6 @@
 .mood-picker-dialog>footer{padding:12px}
 .mood-picker-analyze{width:100%;text-align:center;background:transparent}
 @media(max-width:360px){.mood-picker-options{gap:6px}.mood-picker-options button{padding:10px 8px;font-size:13px}}
+
+/* Emotion, detailed feeling and reason selectors use emoji without changing labels or values. */
+.mood-picker-options .mood-picker-option-emoji{display:inline-block;margin-right:6px;font-size:1.12em;line-height:1;vertical-align:-.04em;pointer-events:none}

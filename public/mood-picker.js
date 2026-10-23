@@ -6,6 +6,14 @@
 })(typeof globalThis!=='undefined'?globalThis:this,function(catalog){
   'use strict';
   const reasons=[['work','Работа'],['relationship','Отношения'],['health','Здоровье'],['sleep','Сон'],['food','Еда'],['sport','Спорт'],['money','Деньги'],['other','Свой ответ']];
+  const reasonEmoji={work:'💼',relationship:'❤️',health:'🩺',sleep:'😴',food:'🍽️',sport:'🏃',money:'💰',other:'✍️'};
+  const subEmoji={
+   'Счастье':'😊','Восторг':'🤩','Ликование':'🥳','Умиротворение':'😌','Интерес':'🤔','Любопытство':'🧐','Надежда':'🌟',
+   'Бешенство':'🤬','Ярость':'😡','Злость':'😠','Раздражение':'😤','Обида':'😞','Ревность':'😒','Стыд':'😳',
+   'Тревога':'😰','Беспокойство':'😟','Ужас':'😱','Испуг':'😨','Страх':'😨','Сомнение':'🤨','Вина, стыд':'😔',
+   'Тоска':'🥺','Печаль':'😢','Горечь':'😞','Разочарование':'😕','Скука':'🥱','Безнадёжность':'😔',
+   'Нежность':'🥰','Теплота':'💗','Благодарность':'🙏','Доверие':'🤝','Спокойствие':'😌','Влюблённость':'😍','Уважение':'💜'
+  };
   function createFlow(options={}){
     const state={step:0,mood:'',submood:'',reason:'',reasonText:'',busy:false,closed:false,error:''};
     const editable=()=>!state.busy&&!state.closed;
@@ -40,7 +48,7 @@
       document.removeEventListener('keydown',keydown,true);overlay.remove();document.body.style.overflow=previousOverflow;active=null;
       previous?.focus?.({preventScroll:true});options.onClose?.();
     }
-    function button(label,callback){const item=document.createElement('button');item.type='button';item.textContent=label;item.addEventListener('click',callback);controls.append(item)}
+    function button(label,callback,emoji=''){const item=document.createElement('button');item.type='button';if(emoji){const span=document.createElement('span');span.className='mood-picker-option-emoji';span.textContent=emoji;span.setAttribute('aria-hidden','true');item.append(span,' ')}item.append(document.createTextNode(label));item.addEventListener('click',callback);controls.append(item)}
     function render(state){
       if(state.closed)return;
       const stepChanged=renderedStep!==state.step;renderedStep=state.step;
@@ -48,12 +56,12 @@
       query('.mood-picker-selection').textContent=[catalog.meta[state.mood]?.label,state.submood].filter(Boolean).join(' · ');
       question.textContent=['Какое настроение?','Что именно вы чувствуете?','Что повлияло?'][state.step];
       controls.replaceChildren();
-      if(state.step===0)catalog.groups.forEach(group=>button(group.label,()=>flow.chooseMood(group.key)));
-      if(state.step===1)catalog.groups.find(g=>g.key===state.mood).submoods.forEach(label=>button(label,()=>flow.chooseSubmood(label)));
+      if(state.step===0)catalog.groups.forEach(group=>button(group.label,()=>flow.chooseMood(group.key),group.emoji));
+      if(state.step===1)catalog.groups.find(g=>g.key===state.mood).submoods.forEach(label=>button(label,()=>flow.chooseSubmood(label),subEmoji[label]||catalog.meta[state.mood]?.emoji||'💭'));
       if(state.step===2)reasons.forEach(([key,label])=>button(label,()=>{
         flow.chooseReason(key);
         if(key==='other')input.focus({preventScroll:true});else flow.save();
-      }));
+      },reasonEmoji[key]));
       custom.hidden=state.step!==2||state.reason!=='other';
       query('.mood-picker-back').hidden=state.step===0;
       query('.mood-picker-skip').hidden=state.step!==2;
