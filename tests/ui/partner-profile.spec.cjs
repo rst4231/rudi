@@ -12,6 +12,8 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await expect(profile.locator('.profile-person-details')).toBeVisible();
  await expect(profile.locator('.partner-profile-stars')).toHaveText('⭐ 125');
  await expect(profile.locator('.partner-profile-wishes h2')).toHaveText('Желания');
+ await expect(profile.locator('.partner-birthday-copy>span')).toHaveText(actor==='Диана'?'30 июня':'3 марта');
+ expect(await profile.locator('.partner-profile-wishes').evaluate(el=>el.previousElementSibling.classList.contains('partner-birthday'))).toBe(true);
  await expect(profile.locator('.partner-cbt-status')).toHaveText(actor==='Диана'?'Сейчас проходит когнитивно-поведенческую терапию':'Сейчас не проходит когнитивно-поведенческую терапию');
  expect(await profile.locator('.profile-partner-habits-summary').evaluate(el=>el.nextElementSibling.classList.contains('partner-cbt-status'))).toBe(true);
  await expect(profile.locator('.partner-wish-text')).toHaveText(['Поездка к морю','Книга']);

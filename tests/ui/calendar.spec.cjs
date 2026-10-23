@@ -698,6 +698,8 @@ test('partner avatar opens the dedicated live profile and its stars history',asy
  await tile.locator('.partner-header-avatar').click();
  const profile=page.locator('.partner-profile-page');await expect(profile).toBeVisible();
  await expect(profile.locator('h1')).toHaveText('Диана');
+ await expect(profile.locator('.rhythm-advice')).toHaveText(/^Диане сейчас лучше /);
+ await expect(profile.locator('.partner-birthday-copy>span')).toHaveText('30 июня');
  await expect(profile.locator('.partner-wish-text')).toHaveText(['Поездка к морю']);
  await expect(profile.locator('.partner-cbt-status')).toHaveText('Сейчас проходит когнитивно-поведенческую терапию');
  const profileBack=await profile.locator('.partner-profile-back').boundingBox();

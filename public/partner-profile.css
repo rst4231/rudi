@@ -138,3 +138,13 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{
 .partner-profile-page .partner-profile-layout>.profile-person-details>.partner-cbt-status.is-active{background:var(--pp-blue-soft);border-left-color:var(--pp-blue)}
 .partner-cbt-status>svg{width:22px;height:22px;flex:none;color:var(--pp-muted)}
 .partner-cbt-status.is-active>svg{color:var(--pp-blue)}
+
+.partner-profile-page .partner-profile-layout>.partner-birthday{display:flex;align-items:center;gap:12px;width:100%;min-width:0;box-sizing:border-box;padding:16px;border:1px solid color-mix(in srgb,var(--pp-gold) 20%,transparent);border-radius:20px;background:linear-gradient(130deg,var(--pp-gold-soft),var(--pp-panel));color:var(--text)}
+.partner-birthday>svg{width:26px;height:26px;flex:none;color:var(--pp-gold)}
+.partner-birthday-copy{flex:1;min-width:0;display:grid;gap:4px}
+.partner-birthday-copy>h2{margin:0;font-size:14px;line-height:1.4;font-weight:650}
+.partner-birthday-copy>span{font-size:12px;color:var(--pp-muted)}
+.partner-birthday-count{display:grid;gap:2px;text-align:center;min-width:48px;color:var(--pp-gold);font-variant-numeric:tabular-nums}
+.partner-birthday-count>strong{font-size:26px;line-height:1.1;font-weight:800;letter-spacing:-.04em}
+.partner-birthday-count>small{font-size:11px;font-weight:600}
+.partner-birthday.is-today .partner-birthday-count>strong{font-size:14px;letter-spacing:0}

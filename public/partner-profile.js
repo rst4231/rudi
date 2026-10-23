@@ -2,6 +2,28 @@
 (()=>{'use strict';
  let active=null;
  const bindings=new WeakMap();
+ function birthdayInfo(actor,now=new Date()){
+  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(now).map(p=>[p.type,p.value]));
+  const month=actor==='Диана'?5:2,day=actor==='Диана'?30:3,year=Number(parts.year);
+  const today=Date.UTC(year,Number(parts.month)-1,Number(parts.day));
+  let target=Date.UTC(year,month,day);if(target<today)target=Date.UTC(year+1,month,day);
+  const days=Math.round((target-today)/86400000),n=days%100,last=days%10;
+  return {days,date:actor==='Диана'?'30 июня':'3 марта',name:actor==='Диана'?'Дианы':'Рустама',unit:n>=11&&n<=14?'дней':last===1?'день':last>=2&&last<=4?'дня':'дней'};
+ }
+ function addBirthday(page,actor){
+  const card=document.createElement('section');card.className='partner-birthday';
+  card.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V11h16v10H4Zm0-5c2 2 3-2 5 0s3-2 5 0 4-1 6 0M8 11V7m4 4V7m4 4V7M8 3v1m4-2v2m4-1v1"/></svg><div class="partner-birthday-copy"><h2></h2><span></span></div><div class="partner-birthday-count"><strong></strong><small></small></div>';
+  page.querySelector('.partner-profile-wishes').before(card);
+  function update(){
+   const info=birthdayInfo(actor),today=info.days===0;
+   card.classList.toggle('is-today',today);
+   card.querySelector('h2').textContent=today?'Сегодня день рождения '+info.name:'До дня рождения '+info.name;
+   card.querySelector('.partner-birthday-copy>span').textContent=info.date;
+   card.querySelector('strong').textContent=today?'Сегодня':String(info.days);
+   card.querySelector('small').textContent=today?'':info.unit;
+  }
+  update();return update;
+ }
  function addCbtStatus(page,actor,loadCbtStatus){
   const row=document.createElement('div');row.className='partner-cbt-status';row.setAttribute('aria-live','polite');
   row.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 6c-2-5-7-3-6 1-4 0-4 6-1 7-2 4 3 7 5 4V6m2 0c2-5 7-3 6 1 4 0 4 6 1 7 2 4-3 7-5 4V6M5 10l3 1m-3 4 3-1m11-4-3 1m3 4-3-1"/></svg><span>Обновляю статус КПТ…</span>';
@@ -49,6 +71,7 @@
   if(!active)return;
   const saved=active;active=null;
   saved.page.querySelector('.partner-cbt-status')?.remove();
+  clearInterval(saved.birthdayTimer);
   for(const {node,marker,style} of saved.slots){marker.replaceWith(node);if(style===null)node.removeAttribute('style');else node.setAttribute('style',style)}
   for(const {node,style} of saved.paints){if(style===null)node.removeAttribute('style');else node.setAttribute('style',style)}
   saved.tile.hidden=saved.hidden;
@@ -91,6 +114,8 @@
    page.querySelector('.partner-profile-layout').append(...slots.map(slot=>slot.node));
    document.body.append(page);
    addWishes(page,actor,loadWishes,openWish);
+   active.updateBirthday=addBirthday(page,actor);
+   active.birthdayTimer=setInterval(active.updateBirthday,60000);
    addCbtStatus(page,actor,loadCbtStatus);
    document.body.classList.add('partner-profile-open');
    window.RudiViewport?.sync();
@@ -131,6 +156,7 @@
   active.page.hidden=!visible;
   document.body.classList.toggle('partner-profile-open',visible);
  });
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden)active?.updateBirthday?.()});
  document.addEventListener('keydown',event=>{if(active&&!active.page.hidden&&event.key==='Escape')close()});
  new MutationObserver(()=>{if(active)close(true)}).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
  window.RudiPartnerProfile={bind,close,refresh:()=>active?.updateBalance()};
