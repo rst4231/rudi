@@ -40,10 +40,12 @@
   const parts=[],groups=[],layout=page.querySelector('.partner-profile-layout');
   const move=(node,target)=>{if(!node)return;const marker=document.createComment('partner-group');node.before(marker);parts.push({node,marker});target.append(node)};
   if(energy){const group=document.createElement('section');group.className='partner-energy-card';energy.before(group);group.append(energy);if(advice)group.append(advice)}
-  const meditation=details.querySelector('.meditation-partner-summary:not(.home-partner-last-expense)'),habits=details.querySelector('.profile-partner-habits-summary'),cbt=details.querySelector('.partner-cbt-status');
+  const meditation=details.querySelector('.meditation-partner-summary:not(.home-partner-last-expense)'),habits=details.querySelector('.profile-partner-habits-summary'),expense=details.querySelector('.home-partner-last-expense'),cbt=details.querySelector('.partner-cbt-status'),intakes=details.querySelector('.profile-supplement-intakes');
   const today=document.createElement('section');today.className='partner-today';today.innerHTML='<h2>Сегодня</h2>';
-  const first=meditation||habits||cbt;if(first)first.before(today);else details.append(today);groups.push(today);
-  for(const node of [meditation,habits])move(node,today);if(cbt)today.append(cbt);
+  const first=meditation||habits||expense||cbt||intakes;if(first)first.before(today);else details.append(today);groups.push(today);
+  for(const node of [meditation,habits,expense])move(node,today);
+  if(cbt)today.append(cbt);
+  move(intakes,today);
   const cycle=details.querySelector('.home-cycle-summary');
   if(cycle){const more=document.createElement('details');more.className='partner-cycle-more';more.innerHTML='<summary>Подробнее о самочувствии</summary>';cycle.append(more);groups.push(more);for(const node of [...cycle.querySelectorAll('.home-cycle-insight')])move(node,more)}
   const birthday=page.querySelector('.partner-birthday'),wishes=page.querySelector('.partner-profile-wishes');

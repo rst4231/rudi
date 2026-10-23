@@ -176,3 +176,15 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{
 .partner-profile-page .partner-gifts>.partner-birthday{padding:12px;border-radius:16px}
 .partner-profile-page .partner-gifts>.partner-profile-wishes{padding:12px;border-radius:16px}
 .partner-gifts .partner-wishes-head>h2{font-size:13px}
+/* v4.322: readable next plans in the light theme, including iOS text fill. */
+.partner-profile-page .partner-profile-layout .partner-plans{color:var(--text)!important;-webkit-text-fill-color:var(--text)!important}
+.partner-profile-page .partner-profile-layout .partner-plans :is(h2,.partner-plan-row p){color:var(--text)!important;-webkit-text-fill-color:var(--text)!important;opacity:1!important}
+.partner-profile-page .partner-profile-layout .partner-plans :is(.partner-plan-row h3,.partner-event-time){color:var(--pp-muted)!important;-webkit-text-fill-color:var(--pp-muted)!important;opacity:1!important}
+/* Today: remove the standalone colored finance/habit borders. */
+.partner-profile-page .partner-profile-layout .partner-today>:is(.profile-partner-habits-summary,.home-partner-last-expense){border:0!important;border-left:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important}
+/* Place the named supplement entries just below CBT without another card heading. */
+.partner-profile-page .partner-today>.profile-supplement-intakes{display:block!important;background:transparent!important;border:0!important;border-top:1px solid var(--pp-edge)!important;border-radius:0!important;box-shadow:none!important}
+.partner-profile-page .partner-today>.profile-supplement-intakes>.profile-supplement-intakes-head{display:none!important}
+.partner-profile-page .partner-today .profile-supplement-intakes-list{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.partner-profile-page .partner-today .profile-supplement-intake-row{background:var(--pp-panel)!important;color:var(--text)!important;border:1px solid var(--pp-edge)!important;box-shadow:none!important}
+@media(max-width:350px){.partner-profile-page .partner-today .profile-supplement-intakes-list{grid-template-columns:1fr}}
