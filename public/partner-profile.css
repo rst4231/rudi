@@ -220,3 +220,173 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{
 .partner-profile-page .partner-profile-layout>.profile-person-details>#partnerNoteTile{padding:0!important;margin:0!important;box-sizing:border-box;width:100%!important;border-radius:19px!important;border:1px solid rgba(160,130,75,.24)!important;background:linear-gradient(135deg,rgba(255,250,228,.98),rgba(255,244,208,.93))!important;color:#53442c!important;box-shadow:0 6px 20px rgba(92,75,29,.065)!important;font-size:inherit;font-weight:inherit;line-height:inherit}
 html[data-theme="dark"] .partner-profile-page .partner-profile-layout>.profile-person-details>#partnerNoteTile{background:linear-gradient(135deg,#3f392a,#393326)!important;color:#f4e7c9!important;border-color:rgba(228,200,133,.19)!important}
 .partner-profile-page #partnerNoteTile .home-note-content{min-width:0}
+/* v4.326: light partner profile editorial refresh and final habit unboxing.
+   Scoped to the partner overlay; never change Home or dark-mode component colors. */
+
+/* This is the actual live habit node. No line, border, outline, pseudo-frame
+   or tinted background, even when its original class changes while opening. */
+.partner-profile-page .partner-today>#homePartnerHabitsSummary,
+.partner-profile-page .partner-profile-layout .partner-today>.partner-habits-plain,
+.partner-profile-page .partner-profile-layout .partner-today>.profile-partner-habits-summary {
+  border:0!important;border-top:0!important;border-left:0!important;
+  border-width:0!important;outline:0!important;outline-offset:0!important;
+  box-shadow:none!important;border-radius:0!important;
+  background:none!important;background-color:transparent!important;background-image:none!important;
+  margin:0!important;padding:9px 0!important;
+}
+.partner-profile-page .partner-today>#homePartnerHabitsSummary::before,
+.partner-profile-page .partner-today>#homePartnerHabitsSummary::after {
+  content:none!important;display:none!important;border:0!important;box-shadow:none!important;
+}
+
+html:not([data-theme="dark"]) .rudi-meditation-page.partner-profile-page {
+  --pp-bg:#f4f5fb;--pp-panel:#ffffff;--pp-edge:rgba(53,65,99,.075);
+  --pp-muted:#68738a;--pp-mint:#136f63;--pp-blue:#545bc0;
+  --pp-rose:#a64278;--pp-gold:#8e651d;
+  background:
+    radial-gradient(ellipse 85% 36% at 108% 5%,rgba(190,190,250,.26),transparent 70%),
+    radial-gradient(ellipse 60% 28% at -15% 68%,rgba(253,218,230,.19),transparent 76%),
+    #f4f5fb;
+  color:#29354b;
+}
+html:not([data-theme="dark"]) .partner-profile-page>.partner-profile-bar {
+  background:rgba(252,252,255,.93)!important;
+  border-bottom:1px solid rgba(72,83,122,.075)!important;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-profile-content {
+  padding:12px 0 max(22px,env(safe-area-inset-bottom));
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-profile-content>.partner-profile-layout {
+  width:calc(100% - 24px)!important;max-width:720px!important;gap:11px!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-profile-layout>.profile-person-details {
+  gap:11px!important;
+}
+/* The profile is a distinctive soft hero, not one more plain white box. */
+html:not([data-theme="dark"]) .partner-profile-page .partner-profile-layout>.profile-person-head {
+  background:linear-gradient(115deg,#ebeafe 0%,#f5effd 56%,#fff2f0 100%)!important;
+  border:0!important;border-radius:22px!important;
+  box-shadow:0 8px 24px rgba(81,72,144,.075)!important;
+  padding:19px 17px 17px!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-profile-layout>.profile-person-head .name {
+  color:#2d315c!important;-webkit-text-fill-color:#2d315c!important;
+  letter-spacing:-.04em;font-weight:790;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-profile-layout>.profile-person-head .profile-work-status {
+  color:#676982!important;-webkit-text-fill-color:#676982!important;
+}
+/* Mint energy becomes a compact, soft-focus data strip. */
+html:not([data-theme="dark"]) .partner-profile-page .partner-energy-card {
+  border:0!important;border-radius:19px!important;
+  background:linear-gradient(130deg,#e2f5ee 0%,#e9f9f0 48%,#f4fbf5 100%)!important;
+  box-shadow:0 6px 18px rgba(34,125,92,.06)!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-energy-card>.profile-energy-strip {
+  background:transparent!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-energy-card>.rhythm-advice {
+  border-top:1px solid rgba(28,125,96,.11)!important;
+  color:#25584d!important;-webkit-text-fill-color:#25584d!important;
+}
+/* Today reads as a calm, uncluttered list: no rectangular habit row or dividers. */
+html:not([data-theme="dark"]) .partner-profile-page .partner-profile-layout>.profile-person-details>.partner-today {
+  border:0!important;border-radius:20px!important;
+  background:#fff!important;
+  box-shadow:0 9px 26px rgba(47,60,91,.055)!important;
+  padding:11px 16px 12px!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-today>h2 {
+  display:flex;align-items:center;gap:9px;margin:0 0 7px!important;
+  color:#35425b!important;-webkit-text-fill-color:#35425b!important;
+  text-transform:none;letter-spacing:-.015em;font-size:15px!important;font-weight:790;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-today>h2::before {
+  content:"";display:block;flex:none;width:6px;height:18px;border-radius:5px;
+  background:linear-gradient(#a3a7f0,#686bd5);
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-today>:not(h2) {
+  border:0!important;border-top:0!important;border-left:0!important;
+  border-radius:0!important;outline:0!important;box-shadow:none!important;
+  background:transparent!important;
+  padding:8px 0!important;margin:0!important;
+  color:#344159!important;-webkit-text-fill-color:#344159!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-today>#homePartnerHabitsSummary {
+  padding:8px 0!important;border:0!important;border-top:0!important;
+  box-shadow:none!important;outline:0!important;background:transparent!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-today .partner-cbt-status>svg {
+  color:#777bb8!important;
+}
+/* Data entries under CBT remain readable and distinguishable from the summary. */
+html:not([data-theme="dark"]) .partner-profile-page .partner-today .profile-supplement-intake-row {
+  background:#f5f5fc!important;border:0!important;border-radius:12px!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-today .profile-supplement-intake-row :is(.profile-supplement-intake-time,.profile-supplement-intakes-empty) {
+  color:#727d90!important;-webkit-text-fill-color:#727d90!important;
+}
+/* A lavender timetable breaks the repeated white-card appearance. */
+html:not([data-theme="dark"]) .partner-profile-page .partner-plans {
+  background:linear-gradient(145deg,#eaeefe,#f1f3ff 64%,#f7f5ff)!important;
+  border:0!important;border-radius:20px!important;
+  box-shadow:0 6px 18px rgba(80,91,159,.055)!important;
+  padding:15px!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-plans>h2 {
+  color:#40477d!important;-webkit-text-fill-color:#40477d!important;
+  margin-bottom:10px!important;font-weight:780;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-plan-row {
+  background:rgba(255,255,255,.78)!important;border:0!important;
+  border-radius:13px!important;padding:11px 12px!important;
+  margin-top:8px!important;gap:12px;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-plan-row+.partner-plan-row {
+  border-top:0!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-plan-icon {
+  background:#e7edfc!important;color:#5363ab!important;border-radius:11px!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-plan-row:nth-of-type(2) .partner-plan-icon {
+  background:#fbeaf2!important;color:#a44e7d!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-plans :is(.partner-day-off,.partner-next-event) {
+  color:#303c57!important;-webkit-text-fill-color:#303c57!important;
+}
+/* Wellbeing and gifts gain a different visual temperature from Today's list. */
+html:not([data-theme="dark"]) .partner-profile-page .partner-profile-layout>.profile-person-details>.home-cycle-summary {
+  background:linear-gradient(135deg,#fff1f6,#fff8f9 64%,#ffffff)!important;
+  border:0!important;border-radius:19px!important;
+  box-shadow:0 5px 18px rgba(157,70,112,.045)!important;
+  padding:15px 16px!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-gifts {
+  background:linear-gradient(145deg,#fff7e6,#fffaf1 72%,#ffffff)!important;
+  border:0!important;border-radius:20px!important;
+  box-shadow:0 6px 20px rgba(155,116,44,.055)!important;
+  padding:14px!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-gifts>h2 {
+  color:#7b5b2d!important;-webkit-text-fill-color:#7b5b2d!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-gifts>.partner-birthday {
+  background:#fffdf8!important;border:0!important;border-radius:15px!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-gifts>.partner-profile-wishes {
+  background:rgba(255,255,255,.78)!important;border:0!important;border-radius:15px!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-wish-row {
+  border:0!important;background:#fbf6fc!important;color:#3d3c56!important;
+}
+@media(max-width:375px){
+  html:not([data-theme="dark"]) .partner-profile-page .partner-profile-content>.partner-profile-layout {
+    width:calc(100% - 20px)!important;
+  }
+  html:not([data-theme="dark"]) .partner-profile-page .partner-profile-layout>.profile-person-head {
+    padding:17px 14px!important;
+  }
+  html:not([data-theme="dark"]) .partner-profile-page .partner-plans,
+  html:not([data-theme="dark"]) .partner-profile-page .partner-gifts {padding:12px!important}
+}
