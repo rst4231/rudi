@@ -1,0 +1,36 @@
+/* Meditation header geometry, with the partner content outside the Home grid. */
+body.partner-profile-open{overflow:hidden!important;overscroll-behavior:none}
+body.partner-profile-open #appTabBar{display:none!important}
+.partner-profile-card>.profile-person-details[hidden]{display:none!important}
+.rudi-meditation-page.partner-profile-page{inset:0;height:auto;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;padding-bottom:0;background:#f4f5f7;color:var(--text);isolation:isolate}
+html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{background:#0b0d12;color:var(--text)}
+.partner-profile-page[hidden]{display:none!important}
+.partner-profile-page>.partner-profile-bar{width:100%;max-width:760px;box-sizing:border-box;align-self:center;flex:none;grid-template-columns:var(--rudi-page-head-control,48px) minmax(0,1fr) auto!important}
+.partner-profile-stars{border:1px solid var(--line);border-radius:14px;min-height:44px;padding:8px 12px;background:var(--surface-strong);color:var(--text);font-family:inherit;font-size:15px;font-weight:700;white-space:nowrap;cursor:pointer}
+.partner-profile-content{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:12px 0 max(16px,env(safe-area-inset-bottom))}
+.partner-profile-content>.partner-profile-layout{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:16px!important;width:100%;max-width:760px;margin:0 auto;padding:0!important;background:none!important;border:0!important;border-radius:0!important;box-shadow:none!important;box-sizing:border-box;min-width:0}
+.partner-profile-layout>.profile-energy-strip{position:relative!important;inset:auto!important;transform:none!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:20px 72px 16px!important;order:-1;width:100%!important;height:124px!important;min-height:124px!important;max-height:124px!important;box-sizing:border-box;padding:8px 12px!important;margin:0!important;border:1px solid var(--line);border-radius:20px;background:var(--surface-strong)}
+.partner-profile-layout>.profile-energy-strip .profile-energy-label{grid-row:1!important;display:flex!important;justify-content:space-between!important;font-size:12px!important}
+.partner-profile-layout>.profile-energy-strip .profile-energy-label>span:first-child{display:inline!important}
+.partner-profile-layout>.profile-energy-strip .profile-energy-plot{grid-column:1!important;grid-row:2!important;height:72px!important;width:100%!important}
+.partner-profile-layout>.profile-energy-strip .profile-energy-times{grid-column:1!important;grid-row:3!important;display:flex!important;justify-content:space-between;font-size:10px!important}
+.partner-profile-layout>.profile-energy-strip>.rudi-energy-point-caption{display:none!important}
+.partner-profile-layout>.profile-person-head{display:flex!important;flex-wrap:wrap;align-items:center!important;justify-content:space-between;gap:12px!important;width:100%!important;min-width:0;box-sizing:border-box;position:relative!important;inset:auto!important;margin:0!important;padding:14px!important;border:1px solid var(--line);border-radius:20px;background:var(--surface-strong)}
+.partner-profile-layout>.profile-person-head>.identity{flex:1;min-width:0;grid-template-columns:52px minmax(0,1fr)!important;align-self:center!important}
+.partner-profile-layout>.profile-person-head .avatar{width:52px!important;height:52px!important;min-width:52px!important;min-height:52px!important}
+.partner-profile-layout>.profile-person-head .person{padding-top:0!important;align-self:center!important;color:var(--text)}
+.partner-profile-layout>.profile-person-head .name{font-size:20px!important;color:var(--text)!important}
+.partner-profile-layout>.profile-person-head .profile-work-status{color:var(--muted)!important;font-size:12px}
+.partner-profile-layout>.profile-person-details{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:12px!important;width:100%!important;max-width:none!important;min-width:0;grid-column:auto!important;grid-row:auto!important;box-sizing:border-box;margin:0!important}
+.partner-profile-layout>.profile-person-details>*{width:100%!important;max-width:none!important;min-width:0;box-sizing:border-box;margin:0!important;border-radius:18px;padding:14px!important;border:1px solid var(--line);background:var(--surface-strong);color:var(--text)}
+.partner-profile-layout>.profile-person-details>.rhythm-advice{color:var(--text)!important;-webkit-text-fill-color:var(--text)!important;font-size:14px!important;line-height:1.5!important}
+.partner-profile-layout .profile-supplement-intakes-title{font-size:11px}
+.partner-profile-layout .profile-supplement-intakes-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.partner-profile-layout .profile-supplement-intake{min-width:0;grid-template-columns:26px minmax(0,1fr) 18px;gap:6px;padding:9px 7px}
+.partner-profile-layout .profile-supplement-intake-name{font-size:12px;white-space:normal;overflow-wrap:anywhere;line-height:1.25}
+.partner-profile-layout .profile-supplement-intake-time{font-size:10px}
+.partner-profile-layout .home-cycle-summary{font-size:14px;line-height:1.5}
+.partner-profile-layout .home-cycle-summary :is(.home-cycle-advice,.home-cycle-insight){color:var(--muted)!important;font-size:13px!important;line-height:1.5!important}
+@media(max-width:350px){.partner-profile-stars{font-size:13px;padding-inline:9px}.partner-profile-layout .profile-supplement-intakes-list{grid-template-columns:1fr}}
+
+.partner-profile-page .partner-profile-layout>.profile-energy-strip :is(.profile-energy-label,.profile-energy-phase,.profile-energy-times){color:var(--muted)!important;-webkit-text-fill-color:var(--muted)!important}

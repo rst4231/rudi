@@ -24,7 +24,7 @@ function lockBackground(){
  const body=document.body,root=document.documentElement,x=window.scrollX||0,y=window.scrollY||0;
  const before=Object.fromEntries(['position','top','left','width','overflow'].map(key=>[key,body.style[key]]));
  const overflow=root.style.overflow,behavior=root.style.scrollBehavior;
- body.style.position='fixed';body.style.top=-y+'px';body.style.left=-x+'px';body.style.width='100%';body.style.overflow='hidden';root.style.overflow='hidden';
+ body.style.overflow='hidden';
  return ()=>{for(const [key,value] of Object.entries(before))body.style[key]=value;root.style.overflow=overflow;root.style.scrollBehavior='auto';window.scrollTo(x,y);root.style.scrollBehavior=behavior};
 }
 function close(){if(!modal)return;generation++;modal.remove();modal=null;restoreScroll?.();restoreScroll=null;const target=returnFocus?.isConnected?returnFocus:document.querySelector('[data-weather-forecast]');target?.focus?.({preventScroll:true});}

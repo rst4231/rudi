@@ -310,6 +310,22 @@
        main.append(profileHead,energy);
      layoutLiveSelf(self,main,profileHead,energy);
    }
+   // Give the partner the same identity/graph columns as the current account.
+   for(const card of [$('homeRustamTile'),$('homeDianaTile')]){
+     if(!card||card===self)continue;
+     const partnerHead=card.querySelector('.profile-person-head'),partnerEnergy=card.querySelector('.profile-energy-strip');
+     if(!partnerHead||!partnerEnergy)continue;
+     let row=card.querySelector('.rudi-home-self-line');
+     if(!row){row=document.createElement('div');row.className='rudi-home-self-line';card.insertBefore(row,card.firstChild)}
+     if(partnerHead.parentElement!==row||partnerEnergy.parentElement!==row)row.append(partnerHead,partnerEnergy);
+     layoutLiveSelf(card,row,partnerHead,partnerEnergy);
+   }
+   for(const card of [self,$('homeRustamTile'),$('homeDianaTile')]){
+     setImportant(card,{'padding-left':'12px','padding-right':'12px','width':'100%','max-width':'100%','box-sizing':'border-box'});
+     const graph=card?.querySelector('.profile-energy-strip');
+     setImportant(graph,{'width':'100%','box-sizing':'border-box','padding-left':'8px','padding-right':'0','margin':'0'});
+     setImportant(graph?.querySelector('.profile-energy-plot'),{'width':'100%','box-sizing':'border-box','margin':'0','padding':'0'});
+   }
    // Observe BOTH profiles in either account: Rustam is the partner on Diana's
    // phone and Diana is the partner on Rustam's phone.
    for(const id of ['homeRustamTile','homeDianaTile']){

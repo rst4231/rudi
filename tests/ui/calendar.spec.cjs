@@ -367,6 +367,9 @@ test('market ticker renders with readable themes, no overflow and persistent tog
   await expect(tile.locator('#marketTickerTrack')).toHaveCount(1);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+2)).toBe(true);
   await page.evaluate(()=>document.documentElement.dataset.theme='light');
+ const adviceColor=await profile.locator('.rhythm-advice').first().evaluate(el=>getComputedStyle(el).color);
+ expect(adviceColor).toBe('rgb(21, 23, 28)');
+ await expect(profile.locator('#partnerHeaderName')).toHaveCSS('color','rgb(21, 23, 28)');
   await expect(tile).toBeVisible();
   await page.evaluate(()=>document.documentElement.dataset.theme='dark');
   await expect(tile).toBeVisible();
@@ -683,11 +686,33 @@ test('partner avatar opens the dedicated live profile and its stars history',asy
  const tile=page.locator('#homeDianaTile');await expect(tile).toBeVisible();
  await expect(tile.locator('.profile-person-details')).toBeHidden();
  await expect(tile.locator('.profile-energy-strip')).toBeVisible();
+ await expect(page.locator('.profile-contact-button')).toHaveCount(0);
+ const widths=await page.locator('.rudi-home-self-line .profile-energy-plot').evaluateAll(nodes=>nodes.map(el=>el.getBoundingClientRect().width));
+ expect(widths).toHaveLength(2);expect(Math.abs(widths[0]-widths[1])).toBeLessThan(2);
+ await page.evaluate(()=>{void window.RudiMeditation.open()});
+ await expect(page.locator('#meditationBack')).toBeVisible();
+ const meditationBack=await page.locator('#meditationBack').boundingBox();
+ await page.evaluate(()=>window.RudiMeditation.close());
  await tile.locator('.partner-header-avatar').click();
  const profile=page.locator('.partner-profile-page');await expect(profile).toBeVisible();
  await expect(profile.locator('h1')).toHaveText('Диана');
+ const profileBack=await profile.locator('.partner-profile-back').boundingBox();
+ for(const key of ['x','y','width','height'])expect(Math.abs(profileBack[key]-meditationBack[key])).toBeLessThan(1);
  await expect(profile.locator('#homeDianaDetails')).toBeVisible();
  await expect(profile.locator('.profile-energy-strip')).toBeVisible();
+ const geometry=await profile.evaluate(el=>{
+  const content=el.querySelector('.partner-profile-content').getBoundingClientRect(),details=el.querySelector('.profile-person-details').getBoundingClientRect(),graph=el.querySelector('.profile-energy-strip').getBoundingClientRect(),head=el.querySelector('.profile-person-head').getBoundingClientRect();
+  return {width:details.width,available:content.width,graphBottom:graph.bottom,headTop:head.top,bodyPosition:getComputedStyle(document.body).position};
+ });
+ expect(geometry.width).toBeGreaterThan(geometry.available-40);
+ expect(geometry.graphBottom).toBeLessThanOrEqual(geometry.headTop);
+ expect(geometry.bodyPosition).not.toBe('fixed');
+ await page.screenshot({path:test.info().outputPath('partner-full-page.png'),fullPage:false});
+ await page.evaluate(()=>document.documentElement.dataset.theme='light');
+ const adviceColor=await profile.locator('.rhythm-advice').first().evaluate(el=>getComputedStyle(el).color);
+ expect(adviceColor).toBe('rgb(21, 23, 28)');
+ await expect(profile.locator('#partnerHeaderName')).toHaveCSS('color','rgb(21, 23, 28)');
+ await page.screenshot({path:test.info().outputPath('partner-light-page.png'),fullPage:false});
  await expect(page.locator('#partnerHeaderName')).toHaveCount(1);
  await profile.locator('.partner-profile-stars').click();
  await expect(profile).toBeHidden();await expect(page.locator('#scoreModal')).toBeVisible();
@@ -696,4 +721,17 @@ test('partner avatar opens the dedicated live profile and its stars history',asy
  await profile.locator('.partner-profile-back').click();await expect(profile).toHaveCount(0);
  await expect(tile).toBeVisible();await expect(tile.locator('.profile-person-details')).toBeHidden();
  await page.screenshot({path:test.info().outputPath('partner-home.png')});
+});
+
+test('partner, CBT and weather cover the same viewport as Games without fixing body',async({page})=>{
+ await mockRudi(page);await page.goto('/');await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ const surface=selector=>page.locator(selector).evaluate(el=>{const r=el.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,body:getComputedStyle(document.body).position}});
+ await page.evaluate(()=>window.RudiGames.open());const games=await surface('#rudiGamesPage');await page.evaluate(()=>window.RudiGames.close());
+ await page.locator('#partnerHeaderName').click();const partner=await surface('.partner-profile-page');await page.locator('.partner-profile-back').click();
+ await page.evaluate(()=>window.RudiCbt.open());const cbt=await surface('#rudiCbtPage');await page.evaluate(()=>window.RudiCbt.close(true));
+ await page.evaluate(()=>{void window.RUDI_WEATHER_FORECAST.open()});const weather=await surface('.weather-forecast-backdrop');await page.evaluate(()=>window.RUDI_WEATHER_FORECAST.close());
+ for(const view of [partner,cbt,weather]){for(const key of ['top','bottom','left','right'])expect(Math.abs(view[key]-games[key])).toBeLessThan(1);expect(view.body).not.toBe('fixed')}
+ await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('settings',{scroll:false}));
+ await expect(page.locator('#settingsTelegramUsername')).toHaveCount(0);await expect(page.locator('#settingsContactPhone')).toHaveCount(0);
+ await expect(page.locator('#settingsCurrentPin')).toBeVisible();
 });

@@ -5,12 +5,12 @@
  function close(fromHistory=false){
   if(!active)return;
   const saved=active;active=null;
-  saved.marker.replaceWith(saved.tile);
-  saved.tile.dataset.appTabSection='home';
+  for(const {node,marker,style} of saved.slots){marker.replaceWith(node);if(style===null)node.removeAttribute('style');else node.setAttribute('style',style)}
+  for(const {node,style} of saved.paints){if(style===null)node.removeAttribute('style');else node.setAttribute('style',style)}
+  saved.tile.hidden=saved.hidden;
   saved.details.hidden=true;
   saved.page.remove();
   document.body.classList.remove('partner-profile-open');
-  document.body.style.top=saved.top;
   window.scrollTo({top:saved.scroll,left:0,behavior:'instant'});
   if(!fromHistory&&history.state?.rudiPartnerProfile)history.back();
   saved.trigger?.focus?.({preventScroll:true});
@@ -24,12 +24,12 @@
   tile.classList.add('partner-profile-card');
   function open(trigger){
    if(active)return;
-   const marker=document.createComment('partner-card');
-   tile.before(marker);
-   const page=document.createElement('section');page.className='partner-profile-page';
+   const head=tile.querySelector('.profile-person-head');
+   const slots=[energy,head,details].filter(Boolean).map(node=>{const marker=document.createComment('partner-content');node.before(marker);const style=node.getAttribute('style');node.removeAttribute('style');return {node,marker,style}});
+   const page=document.createElement('section');page.className='rudi-meditation-page partner-profile-page';
    page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';
    page.setAttribute('aria-label','Профиль: '+actor);
-   page.innerHTML='<header class="partner-profile-bar"><button type="button" class="partner-profile-back" aria-label="Назад">←</button><h1></h1><button type="button" class="partner-profile-stars"></button></header><div class="partner-profile-content"></div>';
+   page.innerHTML='<header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head partner-profile-bar"><button type="button" class="fasting-back-button rudi-app-page-back partner-profile-back" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="fasting-page-title"><h1></h1></div><button type="button" class="partner-profile-stars"></button></header><div class="partner-profile-content"><div class="partner-profile-layout profile-person-card"></div></div>';
    page.querySelector('h1').textContent=actor;
    const stars=page.querySelector('.partner-profile-stars');
    const updateBalance=()=>{
@@ -37,13 +37,14 @@
     stars.textContent='⭐ '+(count==null?'…':Number(count).toLocaleString('ru-RU',{maximumFractionDigits:2}));
     stars.setAttribute('aria-label','Звёзды '+actor+': '+(count==null?'загружаются':stars.textContent.slice(3))+'. Открыть историю');
    };
-   active={tile,details,marker,page,trigger,actor,scroll:window.scrollY,top:document.body.style.top,updateBalance};
-   delete tile.dataset.appTabSection;
+   const paints=[...head.querySelectorAll('#partnerHeaderName,.profile-work-status'),...details.querySelectorAll('.rhythm-advice,.meditation-partner-summary,.profile-partner-habits-summary,.home-cycle-status,.home-cycle-advice,.home-cycle-insight')].map(node=>({node,style:node.getAttribute('style')}));
+   for(const {node} of paints){node.style.setProperty('color','var(--text)','important');node.style.setProperty('-webkit-text-fill-color','var(--text)','important')}
+   active={tile,details,slots,paints,page,trigger,actor,hidden:tile.hidden,scroll:window.scrollY,updateBalance};
+   tile.hidden=true;
    details.hidden=false;
    if(energy)energy.hidden=false;
-   page.querySelector('.partner-profile-content').append(tile);
+   page.querySelector('.partner-profile-layout').append(...slots.map(slot=>slot.node));
    document.body.append(page);
-   document.body.style.top=-active.scroll+'px';
    document.body.classList.add('partner-profile-open');
    window.RudiViewport?.sync();
    history.pushState({...history.state,rudiPartnerProfile:actor},'','#partner-'+(actor==='Диана'?'diana':'rustam'));
@@ -51,7 +52,6 @@
    stars.onclick=()=>{
     page.hidden=true;
     document.body.classList.remove('partner-profile-open');
-    document.body.style.top=active.top;
     openStars(actor);
    };
    updateBalance();page.querySelector('.partner-profile-back').focus({preventScroll:true});
@@ -75,7 +75,6 @@
   if(!active)return;
   if(history.state?.rudiPartnerProfile===active.actor){
    active.page.hidden=false;
-   document.body.style.top=-active.scroll+'px';
    document.body.classList.add('partner-profile-open');
   }else close(true);
  });
@@ -84,7 +83,6 @@
   const visible=document.body.dataset.appTab==='home';
   active.page.hidden=!visible;
   document.body.classList.toggle('partner-profile-open',visible);
-  document.body.style.top=visible?-active.scroll+'px':active.top;
  });
  document.addEventListener('keydown',event=>{if(active&&!active.page.hidden&&event.key==='Escape')close()});
  new MutationObserver(()=>{if(active)close(true)}).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});

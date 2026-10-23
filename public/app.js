@@ -10073,21 +10073,6 @@
             '</section>'+
 
             '<section class="settings-group settings-contact-group">'+
-              '<div class="settings-group-title">Контакты</div>'+
-              '<label class="settings-contact-field" for="settingsTelegramUsername">'+
-                '<span>Telegram</span>'+
-                '<div class="settings-contact-input"><b>@</b><input id="settingsTelegramUsername" type="text" maxlength="32" autocomplete="off" inputmode="text" placeholder="username"></div>'+
-              '</label>'+
-              '<label class="settings-contact-field" for="settingsContactPhone">'+
-                '<span>Телефон</span>'+
-                '<div class="settings-contact-input"><input id="settingsContactPhone" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="+7 900 000-00-00"></div>'+
-              '</label>'+
-              '<div class="settings-contact-footer">'+
-                '<small id="settingsContactStatus" aria-live="polite"></small>'+
-              '</div>'+
-            '</section>'+
-
-            '<section class="settings-group settings-contact-group">'+
               '<div class="settings-group-title">Безопасность</div>'+
               '<label class="settings-contact-field"><span>Текущий PIN</span><div class="settings-contact-input"><input id="settingsCurrentPin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="••••••"></div></label>'+
               '<label class="settings-contact-field"><span>Новый PIN</span><div class="settings-contact-input"><input id="settingsNewPin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
@@ -10310,7 +10295,7 @@
             const actions=document.createElement('div');
             actions.className='profile-person-actions';
             // Fasting now lives on the partner's avatar, not beside Telegram.
-            actions.append(makeProfileContactButton('telegram',actor),makeProfileContactButton('phone',actor));
+
             head.appendChild(actions);
           }
           const energy=document.createElement('div');
