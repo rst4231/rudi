@@ -53,5 +53,16 @@ Browser checks use mobile emulation, not a physical iPhone. Server storage/authe
 - `docs/superpowers/plans/2026-10-23-cbt-21-days.md`
 - `docs/superpowers/plans/2026-10-23-cbt-verification.md`
 
-## Release blocker
-Automatic approval review rejected Git push to the existing public rst4231/rudi repository. User authorization for deployment was not accepted as authorization to publish the source payload to GitHub. No deployment was created. Explicit user authorization for that destination is required before retrying the push and one Git-backed production deployment.
+## Release history
+The user explicitly authorized source publication to the existing public rst4231/rudi repository. v4.304 was deployed once from e2ebd2d39ad70aad34825b5ef60db6185e721e0e and confirmed READY on the original production domain. The public version, CBT JavaScript, service worker and API route were checked.
+
+## v4.305 interface stability follow-up
+- Removed the visible CBT caption below the home icon and centered its SVG; accessible name retained.
+- Fixed navigation outside the inner scrolling area; fixed-body lock restores the underlying app scroll exactly on close.
+- Opted the CBT page out of existing global pull-to-refresh and edge-swipe handlers through their supported data attributes.
+- Added boundary touch containment and visual-viewport sizing for the mobile keyboard.
+- Removed repeated card entrance transforms; unchanged sync responses retain the same DOM nodes. Details remain open during changed background refreshes.
+- 66 focused unit/regression checks passed.
+- 14 mobile browser scenarios passed, including the four new stability, boundary, unchanged-sync and keyboard/scroll-restoration checks.
+- JavaScript syntax, local build and diff whitespace checks passed. Light/dark mobile screenshots inspected.
+- Changes are based on production v4.304; CBT answers, history and backend logic were not changed.
