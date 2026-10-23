@@ -5,7 +5,8 @@ const META={
   boredom:{emoji:'🥱',label:'Скука'},
   neutral:{emoji:'😐',label:'Нейтрально'},
   fatigue:{emoji:'😩',label:'Усталость'},
-  anger:{emoji:'😡',label:'Злость'},
+  anger:{emoji:'😡',label:'Гнев'},
+  anxiety:{emoji:'😨',label:'Страх'},
   joy:{emoji:'😄',label:'Радость'},
   love:{emoji:'🥰',label:'Любовь'}
 };
@@ -252,7 +253,7 @@ function renderStats(history,today){
   }
   host.replaceChildren();
   const total=Math.max(1,rows.length);
-  for(const key of ['joy','love','neutral','fatigue','sadness','boredom','anger']){
+  for(const key of ['joy','love','neutral','fatigue','sadness','boredom','anger','anxiety']){
     if(!counts[key])continue;
     const el=document.createElement('div');el.className='mood-stat-chip';el.dataset.mood=key;
     el.innerHTML='<b>'+META[key].emoji+' '+Math.round(counts[key]/total*100)+'%</b><span>'+META[key].label+'</span>';
@@ -272,7 +273,7 @@ function renderStats(history,today){
       const moods=reasonMoods[label]||{};
       const topMood=Object.entries(moods).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';
       const positive=(Number(moods.joy||0)+Number(moods.love||0));
-      const negative=(Number(moods.fatigue||0)+Number(moods.sadness||0)+Number(moods.boredom||0)+Number(moods.anger||0));
+      const negative=(Number(moods.fatigue||0)+Number(moods.sadness||0)+Number(moods.boredom||0)+Number(moods.anger||0)+Number(moods.anxiety||0));
       const isPositive=topMood==='joy'||topMood==='love'||(positive>negative&&positive>0);
       const item=document.createElement('div');
       item.className='mood-factor-item'+(isPositive?' is-positive':'');
@@ -305,7 +306,7 @@ function renderDayDetail(row){
     const meta=META[sample.mood];if(!meta)continue;
     const line=document.createElement('div');line.className='mood-day-sample';
     const time=document.createElement('span');time.textContent=fmtTime(sample.updatedAt);
-    const mood=document.createElement('b');mood.textContent=meta.emoji+' '+meta.label;
+    const mood=document.createElement('b');mood.textContent=meta.emoji+' '+meta.label+(sample.submood?' · '+sample.submood:'');
     line.append(time,mood);
     const reasonText=reasonLabel(sample);if(reasonText){const reason=document.createElement('em');reason.textContent=reasonText;line.append(reason)}
     box.append(line);

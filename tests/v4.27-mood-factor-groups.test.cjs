@@ -7,7 +7,7 @@ test('v4.27 mood analyzer groups emotions and sees concrete factors',()=>{
   const ai=read('api/mood-analysis-ai.cjs');
   const api=read('api/partner-message.js');
   assert.match(ai,/позитивные — радость и любовь/);
-  assert.match(ai,/негативные — грусть, скука, усталость и злость/);
+  assert.match(ai,/негативные — грусть, скука, усталость, злость и страх/);
   assert.match(ai,/### 🟢 Позитивные эмоции/);
   assert.match(ai,/### 🔴 Негативные эмоции/);
   assert.match(ai,/### ⚪ Нейтральные эмоции/);

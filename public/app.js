@@ -7331,7 +7331,7 @@
       }
 
       function homeMoodView(value){
-        return {sadness:'😢',boredom:'🥱',neutral:'😐',fatigue:'😩',anger:'😡',joy:'😄',love:'🥰'}[String(value||'')==='fear'?'boredom':String(value||'')]||'—';
+        return {sadness:'😢',boredom:'🥱',neutral:'😐',fatigue:'😩',anger:'😡',anxiety:'😨',joy:'😄',love:'🥰'}[String(value||'')==='fear'?'boredom':String(value||'')]||'—';
       }
 
       function homeDashboardDateLabel(){
@@ -18664,7 +18664,8 @@
         boredom:{emoji:'🥱',label:'Скука'},
         neutral:{emoji:'😐',label:'Нейтрально'},
         fatigue:{emoji:'😩',label:'Усталость'},
-        anger:{emoji:'😡',label:'Злость'},
+        anger:{emoji:'😡',label:'Гнев'},
+        anxiety:{emoji:'😨',label:'Страх'},
         joy:{emoji:'😄',label:'Радость'},
         love:{emoji:'🥰',label:'Любовь'}
       };
@@ -18676,14 +18677,33 @@
       function setMoodChoicesOpen(open){
         const choices=document.getElementById('moodChoices');
         const trigger=document.getElementById('moodCurrentButton');
-        if(!choices||!trigger)return;
+        if(!trigger)return;
         const next=Boolean(open);
-        choices.hidden=!next;
-        choices.classList.toggle('is-open',next);
+        if(choices){choices.hidden=true;choices.classList.remove('is-open')}
         trigger.setAttribute('aria-expanded',next?'true':'false');
         trigger.classList.toggle('is-open',next);
         const prompt=document.getElementById('moodPrompt');
         if(prompt)prompt.hidden=next||Boolean(trigger.dataset.mood);
+        if(!next){window.RudiMoodPicker?.close();return}
+        window.RudiMoodPicker?.open({
+          onClose(){trigger.setAttribute('aria-expanded','false');trigger.classList.remove('is-open');if(prompt)prompt.hidden=Boolean(trigger.dataset.mood)},
+          onAnalyze(){window.RUDI_MOOD_HISTORY?.open?.()},
+          async onSave(draft){
+            const {mood,...extra}=draft;
+            try{
+              const payload=await moodRequest('set',mood,extra);
+              renderDailyMood(payload);
+            }catch(error){
+              if(!error?.rudiQueued)throw error;
+              const previous=homeDashboardState.moods||homeBootstrapPayload?.mood||{};
+              const sample={...draft,updatedAt:new Date().toISOString()};
+              renderDailyMood({...previous,date:todayState().key,mine:{...sample,samples:[...(previous.mine?.samples||[]),sample]}});
+            }
+            showMoodMessage(mood);
+            setTimeout(()=>loadActivityJournal({silent:true}),180);
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }
+        });
       }
 
       let moodReasonTimer=0;
@@ -18775,8 +18795,7 @@
             event.preventDefault();
             event.stopPropagation();
             if(moodLongPressActivated){moodLongPressActivated=false;return;}
-            const choices=document.getElementById('moodChoices');
-            setMoodChoicesOpen(Boolean(choices?.hidden));
+            setMoodChoicesOpen(!window.RudiMoodPicker?.isOpen());
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         }
@@ -18795,45 +18814,9 @@
           prompt.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')openPicker(event)});
         }
 
-        moodButtons().forEach(button=>{
-          if(button.dataset.moodPickerBound==='1')return;
-          button.dataset.moodPickerBound='1';
-          button.addEventListener('click',async(event)=>{
-            event.preventDefault();
-            event.stopPropagation();
-            const mood=button.dataset.mood;
-            const buttons=moodButtons();
-            buttons.forEach(item=>item.disabled=true);
-            selectOwnMood(mood);
-            setMoodChoicesOpen(false);
-            showMoodMessage(mood);
-            try{
-              const payload=await moodRequest('set',mood);
-              renderDailyMood(payload);
-              showMoodReasonPrompt();
-              setTimeout(()=>loadActivityJournal({silent:true}),180);
-              try{
-                if(mood==='joy'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
-                else tg?.HapticFeedback?.selectionChanged?.();
-              }catch(_){}
-            }catch(error){
-              if(error?.rudiQueued){
-                const previous=homeDashboardState.moods||homeBootstrapPayload?.mood||{};
-                const optimistic={...previous,date:todayState().key,mine:{...(previous.mine||{}),mood}};
-                renderDailyMood(optimistic);
-                showMoodReasonPrompt();
-              }else{
-                await refreshDailyMood();
-                try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-              }
-            }finally{
-              buttons.forEach(item=>item.disabled=false);
-            }
-          });
-        });
       }
 
-      function selectOwnMood(value){
+      function selectOwnMood(value,entry=null){
         const mood=String(value||'');
         const meta=MOOD_META[mood]||null;
         const trigger=document.getElementById('moodCurrentButton');
@@ -18844,7 +18827,7 @@
           trigger.hidden=false;
           trigger.classList.toggle('is-empty',!meta);
           trigger.setAttribute('aria-label',meta?'Текущее настроение: '+meta.label+'. Изменить':'Выбрать настроение');
-          trigger.title=meta?.label||'Выбрать настроение';
+          trigger.title=[meta?.label,entry?.submood].filter(Boolean).join(' · ')||'Выбрать настроение';
         }
         moodButtons().forEach(button=>{
           const selected=button.dataset.mood===mood;
@@ -18877,7 +18860,8 @@
         const meta=MOOD_REASON_META[reason];
         const reasonLabel=reason==='other'?reasonText:(meta?(meta[0]+' '+meta[1]):'');
         const mood=String(latest?.mood||entry?.mood||moodValue||'');
-        const label=reasonLabel||MOOD_META[mood==='fear'?'boredom':mood]?.label||'';
+        const subtype=String(latest?.submood||entry?.submood||'').trim();
+        const label=subtype?[subtype,reasonLabel].filter(Boolean).join(' · '):(reasonLabel||MOOD_META[mood==='fear'?'boredom':mood]?.label||'');
         const stamp=String(latest?.updatedAt||entry?.updatedAt||'').trim();
         const timestamp=stamp?new Date(stamp):null;
         const time=timestamp&&Number.isFinite(timestamp.getTime())?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(timestamp):'';
@@ -18921,7 +18905,7 @@
         const mood=String(value||'');
         const normalizedMood=mood==='fear'?'boredom':mood;
         const visiblePartner=partnerProfileName||partner||'Партнёр';
-        const hasMood=['sadness','boredom','neutral','fatigue','anger','joy','love'].includes(normalizedMood);
+        const hasMood=['sadness','boredom','neutral','fatigue','anger','anxiety','joy','love'].includes(normalizedMood);
         if(label) label.textContent='';
         holder.dataset.mood=normalizedMood;
         holder.dataset.moodReasonText=partnerMoodReasonText(entry,normalizedMood);
@@ -18936,7 +18920,7 @@
         holder.setAttribute(
           'aria-label',
           visiblePartner+': '+(
-            mood==='sadness'?'грусть':(mood==='boredom'||mood==='fear')?'скука':mood==='neutral'?'нейтрально':mood==='fatigue'?'усталость':mood==='anger'?'злость':mood==='joy'?'радость':mood==='love'?'любовь':'настроение ещё не выбрано'
+            mood==='sadness'?'грусть':(mood==='boredom'||mood==='fear')?'скука':mood==='neutral'?'нейтрально':mood==='fatigue'?'усталость':mood==='anger'?'гнев':mood==='anxiety'?'страх':mood==='joy'?'радость':mood==='love'?'любовь':'настроение ещё не выбрано'
           )+'. Нажмите, чтобы увидеть подробности.'
         );
         if(holder.dataset.moodReasonBound!=='1'){
@@ -18950,7 +18934,7 @@
         homeDashboardState.moods=payload||null;
         const mine=String(payload?.mine?.mood||'');
         const partnerMood=String(payload?.partnerMood?.mood||'');
-        selectOwnMood(mine);
+        selectOwnMood(mine,payload?.mine);
         renderPartnerMood(partnerMood,String(payload?.partner||''),payload?.partnerMood);
         renderHomeDashboard();
         window.dispatchEvent(new Event('rudi:mood-updated'));

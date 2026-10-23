@@ -340,7 +340,9 @@
     }else if(action==='saves'){
       // Saves have their own actor-scoped durable outbox and optimistic data.
       queue=false;
-    }else if(action==='for-di-feed'||action==='reactions'||action==='mood'||action==='cycle'){
+    }else if(url.pathname==='/api/mood'||action==='mood'){
+      queue=operation==='set'||operation==='reason';
+    }else if(action==='for-di-feed'||action==='reactions'||action==='cycle'){
       queue=!readOps.has(operation||'get');
     }
     if(!queue) return null;

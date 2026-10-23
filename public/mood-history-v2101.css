@@ -94,5 +94,6 @@
 @media(max-width:430px){.mood-analysis-kpis{gap:6px}.mood-analysis-kpi{padding:9px}.mood-analysis-kpi>strong{font-size:16px}}
 
 /* RUDI v3.91 — more reliable iOS edge swipe */
+.mood-analysis-mood-segment[data-mood="anxiety"],.mood-analysis-mood-legend span[data-mood="anxiety"] i{background:#ab83d5}
 .mood-history-page{touch-action:pan-y;overscroll-behavior-x:contain}
 

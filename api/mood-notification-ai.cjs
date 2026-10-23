@@ -1,6 +1,7 @@
 const MODEL = 'openai/gpt-oss-20b';
 
 const MOODS = {
+  anxiety: { label: 'страх', emoji: '😨' },
   sadness: { label: 'грусть', emoji: '😢' },
   boredom: { label: 'скука', emoji: '🥱' },
   neutral: { label: 'нейтрально', emoji: '😐' },

@@ -1,8 +1,9 @@
 const MODEL='openai/gpt-oss-20b';
-const LABELS={sadness:'грусть',boredom:'скука',neutral:'нейтрально',fatigue:'усталость',anger:'злость',joy:'радость',love:'любовь'};
+const {normalizeSubmood}=require('../public/mood-catalog.js');
+const LABELS={sadness:'грусть',boredom:'скука',neutral:'нейтрально',fatigue:'усталость',anger:'злость',joy:'радость',love:'любовь',anxiety:'страх'};
 const REASONS={work:'работа',food:'еда',relationship:'отношения',money:'деньги',health:'самочувствие',sport:'спорт',fatigue:'усталость',sleep:'сон',fasting:'голодание',other:'другое'};
 const POSITIVE_MOODS=new Set(['joy','love']);
-const NEGATIVE_MOODS=new Set(['sadness','boredom','fatigue','anger']);
+const NEGATIVE_MOODS=new Set(['sadness','boredom','fatigue','anger','anxiety']);
 function moodGroup(value){const mood=String(value||'');return POSITIVE_MOODS.has(mood)?'positive':NEGATIVE_MOODS.has(mood)?'negative':mood==='neutral'?'neutral':'';}
 
 function reasonLabel(sample){
@@ -44,6 +45,11 @@ function factorSummary(rows){
 function clean(value,max=7000){return String(value||'').replace(/\r\n?/g,'\n').trim().slice(0,max)}
 function rowLine(row){
   const parts=[];
+  const submoods=(Array.isArray(row?.samples)?row.samples:[]).map(sample=>{
+    const submood=normalizeSubmood(sample?.mood,sample?.submood);
+    return submood?submood+' → '+(LABELS[sample.mood]||''):'';
+  }).filter(Boolean);
+  if(submoods.length)parts.push('уточнения: '+submoods.join('; '));
   const reasons=(Array.isArray(row?.samples)?row.samples:[]).map(sample=>{
     const label=reasonLabel(sample),mood=LABELS[sample?.mood]?LABELS[sample.mood]:LABELS[row?.mood];
     return label?(label+(mood?' → '+mood:'')):'';
@@ -76,7 +82,8 @@ function promptForMoodAnalysis({history,cycle,windowDays=30,level='full',context
   const factors=factorSummary(rows);
   return[
     'Проанализируйте историю настроения пользователя РуДи и покажите только то, с чем чаще совпадают три группы эмоций.',
-    'Группы фиксированы: позитивные — радость и любовь; негативные — грусть, скука, усталость и злость; нейтральные — нейтральное состояние.',
+    'Группы фиксированы: позитивные — радость и любовь; негативные — грусть, скука, усталость, злость и страх; нейтральные — нейтральное состояние.',
+    'Учитывайте выбранные уточнения эмоций, даже если причина не указана.',
     'Все ответы пишите лично человеку на «вы» (например, «Вы чаще отмечали», «У вас наблюдается связь»). Не используйте формулировки в третьем лице: «пользователь», «у пользователя», «он», «она», «человек» как обозначение адресата. Не называйте имя адресата.',
     'Учитывайте только реальные данные из истории. Не ставьте диагнозы и не выдумывайте причины.',
     'Обязательно анализируйте конкретные названия привычек, конкретные названия БАДов и конкретные причины настроения, выбранные пользователем. Не заменяйте их общими словами вроде «привычки» или «добавки», если конкретное название есть в данных.',
@@ -102,7 +109,7 @@ function promptForMoodAnalysis({history,cycle,windowDays=30,level='full',context
     '### 🟢 Позитивные эмоции',
     'Покажите, какие конкретные причины, выполненные или невыполненные привычки, БАДы, голодание или факторы цикла чаще совпадают с радостью и любовью.',
     '### 🔴 Негативные эмоции',
-    'Покажите, какие конкретные факторы чаще совпадают с грустью, скукой, усталостью или злостью.',
+    'Покажите, какие конкретные факторы чаще совпадают с грустью, скукой, усталостью, злостью или страхом.',
     '### ⚪ Нейтральные эмоции',
     'Покажите, какие конкретные факторы чаще совпадают с нейтральным состоянием.'
   ].filter(Boolean).join('\n');

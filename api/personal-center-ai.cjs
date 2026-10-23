@@ -78,7 +78,7 @@ async function gather(a,date,slot,options={}){
     supplements:supp?{items:supp.items.map(x=>({name:x.name,status:x.status,goal:x.goal,intakes:x.intakes.length,latestIntake:x.intakes.at(-1)?.date||null,skips:x.skips.length})).slice(0,80)}:null,
     habits:habits?buildHabitDigest(habits,date):null,
     moodHistory:Array.isArray(mood)?(()=>{
-    const labels={sadness:'Грусть',boredom:'Скука',neutral:'Нейтрально',fatigue:'Усталость',anger:'Злость',joy:'Радость',love:'Любовь'};
+    const labels={sadness:'Грусть',boredom:'Скука',neutral:'Нейтрально',fatigue:'Усталость',anger:'Злость',joy:'Радость',love:'Любовь',anxiety:'Страх'};
     const month=new Map();
     for(const row of mood){const k=String(row.date||'').slice(0,7);if(!k)continue;const entry=month.get(k)||{month:k,entries:0,positive:0,negative:0,neutral:0};entry.entries++;const value=row.mood;if(['joy','love'].includes(value))entry.positive++;else if(value==='neutral')entry.neutral++;else if(labels[value])entry.negative++;month.set(k,entry);}
     return {entries:mood.length,monthly:[...month.values()].sort((a,b)=>a.month.localeCompare(b.month)),latest:mood.slice(-21).map(v=>({date:v.date,mood:labels[v.mood]||'Не отмечено',reasons:(v.samples||[]).map(s=>({mood:labels[s.mood]||'',reason:s.reason==='other'?s.reasonText:s.reason})).filter(x=>x.reason).slice(-5)}))};
@@ -106,7 +106,7 @@ function cycleDigest(state,date,moods,symptoms=[]){
   x.days++;
   if(['joy','love'].includes(row.mood))x.positive++;
   else if(row.mood==='neutral')x.neutral++;
-  else if(['sadness','boredom','fatigue','anger'].includes(row.mood))x.negative++;
+  else if(['sadness','boredom','fatigue','anger','anxiety'].includes(row.mood))x.negative++;
   const percent=computeEmotionSignals([row]).latest?.negativePercent;
   if(Number.isFinite(percent)){x.negativePctCount++;x.negativePctTotal+=percent;}
   buckets.set(phase,x);
