@@ -10,7 +10,11 @@ const distance=(a,b)=>Math.round((Date.parse(b+'T12:00:00Z')-Date.parse(a+'T12:0
 const boundaryCache=new Map();
 function midnight(date,tz){const key=date+'|'+tz;if(boundaryCache.has(key))return boundaryCache.get(key);let low=Date.parse(date+'T00:00:00Z')-86400000,high=low+3*86400000;while(high-low>1){const m=Math.floor((low+high)/2);if(dayKey(m,tz)<date)low=m;else high=m}const result=new Date(high).toISOString();boundaryCache.set(key,result);return result}
 function entries(row){if(!row)return [];return [{...row,id:'initial',savedAt:Object.hasOwn(row,'savedAt')?row.savedAt:row.closedAt?null:row.completedAt||null},...(row.entries||[])]}
-function entry(run,day,id='initial'){return entries(run?.days?.[day]).find(e=>e.id===(id||'initial'))||null}
+function canonicalEntryId(row,id='initial'){return row?.entryAliases&&Object.hasOwn(row.entryAliases,id)?row.entryAliases[id]:id||'initial'}
+function entry(run,day,id='initial'){return entries(run?.days?.[day]).find(e=>e.id===canonicalEntryId(run?.days?.[day],id))||null}
+function hasAnswers(answers){return Object.values(answers||{}).some(v=>typeof v==='number'&&Number.isFinite(v)||v===true||typeof v==='string'&&!!v.trim()||Array.isArray(v)&&v.some(x=>typeof x==='string'&&!!x.trim()))}
+function reusableEntry(row,preferred){const drafts=entries(row).filter(e=>!e.savedAt);return drafts.find(e=>preferred&&e.id===canonicalEntryId(row,preferred))?.id||drafts.find(e=>hasAnswers(e.answers))?.id||drafts.at(-1)?.id||null}
+
 function nextEntry(row){const list=entries(row);return list.filter(e=>!e.savedAt).at(-1)?.id||list.at(-1)?.id||'initial'}
 function calendar(run,now=new Date().toISOString()){
  if(!run?.calendar)return null;
@@ -35,6 +39,7 @@ function validate(op){
  if(['start','schedule'].includes(op.type))return;
  if(op.entryId!==undefined&&!validId(op.entryId))error('cbt-invalid-entry');
  if(!Number.isInteger(op.day)||op.day<1||op.day>21)error('cbt-invalid-day');
+ if(op.reuseDraft!==undefined&&typeof op.reuseDraft!=='boolean')error('cbt-invalid-entry');
  if(op.type==='new-entry'){if(!op.entryId||op.entryId==='initial')error('cbt-invalid-entry');return}
  if(op.type==='complete')return;
  if(!op.patch||Array.isArray(op.patch)||typeof op.patch!=='object'||!Object.keys(op.patch).length||Object.keys(op.patch).length>15)error('cbt-invalid-fields');
@@ -65,10 +70,12 @@ function apply(state,op,now=new Date().toISOString(),local=false){
  }
  const row=run.days[op.day]||{answers:{},startedAt:now,completedAt:null,updatedAt:now};
  if(!Object.hasOwn(row,'savedAt'))row.savedAt=row.closedAt?null:row.completedAt||null;
- const entryId=op.entryId||'initial';
+ const entryId=canonicalEntryId(row,op.entryId);
  if(op.type==='new-entry'){
   row.entries=row.entries||[];
-  if(!row.entries.some(e=>e.id===entryId))row.entries.push({id:entryId,answers:{},startedAt:now,updatedAt:now,savedAt:null});
+  const reusable=op.reuseDraft?reusableEntry(row):null;
+  if(reusable&&!entries(row).some(e=>e.id===entryId)){row.entryAliases={...(row.entryAliases||{}),[op.entryId]:reusable}}
+  else if(!row.entries.some(e=>e.id===entryId)&&entryId!=='initial')row.entries.push({id:entryId,answers:{},startedAt:now,updatedAt:now,savedAt:null});
  }else{
   const target=entryId==='initial'?row:(row.entries||[]).find(e=>e.id===entryId);
   if(!target)error('cbt-entry-missing');
@@ -76,7 +83,7 @@ function apply(state,op,now=new Date().toISOString(),local=false){
   else if(op.type==='edit'){
    const conflicts=Object.keys(op.patch).filter(k=>!same(target.answers[k],op.base?.[k])&&!same(target.answers[k],op.patch[k]));
    if(conflicts.length&&!local)error('cbt-conflict-fields',conflicts);
-   target.answers={...target.answers,...op.patch};
+   target.answers={...target.answers,...op.patch};target.answerUpdatedAt=Date.parse(target.answerUpdatedAt)>Date.parse(now)?target.answerUpdatedAt:now;
    if(target.savedAt&&missing(op.day,target.answers).length)target.savedAt=null;
   }else if(!local&&missing(op.day,target.answers).length)error('cbt-incomplete',missing(op.day,target.answers));
   else target.savedAt=target.savedAt||now;
@@ -101,5 +108,5 @@ function stats(run,week,now=new Date().toISOString()){
  return {completed,records:rows.length,percent:Math.round(completed/(week?7:21)*100),moodBefore:points('moodBefore'),moodAfter:points('moodAfter'),intensity:points('emotionIntensity'),beliefBefore:points('beliefBefore'),beliefAfter:points('beliefAfter'),moodPairs:mood.length,beliefPairs:belief.length,moodChange:avg(mood,r=>r.answers.moodAfter-r.answers.moodBefore),beliefChange:avg(belief,r=>r.answers.beliefAfter-r.answers.beliefBefore),emotions:Object.entries(counts).sort((a,b)=>b[1]-a[1]),actions:rows.filter(r=>r.answers.actionDone===true).length};
 }
 function report(run,week){const s=stats(run,week);const result=[`Завершено дней: ${s.completed} из ${week?7:21}.`,`Сохранено записей: ${s.records}.`];if(s.moodPairs)result.push(`Среднее изменение настроения в ${s.moodPairs} записях с двумя оценками: ${s.moodChange>0?'+':''}${s.moodChange} из 10.`);if(s.beliefPairs)result.push(`Среднее изменение убеждённости в ${s.beliefPairs} разборах: ${s.beliefChange>0?'+':''}${s.beliefChange} п. п.`);if(s.emotions.length)result.push(`Чаще отмечалась эмоция: ${s.emotions[0][0]} (${s.emotions[0][1]}).`);if(s.actions)result.push(`Выполнено практических действий: ${s.actions}.`);if(s.records<2)result.push('Данных пока недостаточно для оценки динамики.');result.push('Эти записи описывают отдельные занятия и не позволяют оценить эффект терапии или поставить диагноз.');return result}
-return {active,empty,apply,stats,report,nextDay,missing,validate,same,entries,entry,nextEntry,calendar,refresh,dayKey,midnight};
+return {active,empty,apply,stats,report,nextDay,missing,validate,same,entries,entry,nextEntry,hasAnswers,reusableEntry,canonicalEntryId,calendar,refresh,dayKey,midnight};
 });
