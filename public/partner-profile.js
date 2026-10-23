@@ -44,6 +44,7 @@
   const today=document.createElement('section');today.className='partner-today';today.innerHTML='<h2>Сегодня</h2>';
   const first=meditation||habits||expense||cbt||intakes;if(first)first.before(today);else details.append(today);groups.push(today);
   for(const node of [meditation,habits,expense])move(node,today);
+  if(habits){habits.classList.remove('profile-partner-habits-summary');habits.classList.add('partner-habits-plain');}
   if(cbt)today.append(cbt);
   move(intakes,today);
   const cycle=details.querySelector('.home-cycle-summary');
@@ -121,7 +122,11 @@
   if(!active)return;
   const saved=active;active=null;
   saved.page.querySelector('.partner-cbt-status')?.remove();
-  for(const {node,marker} of saved.parts||[])marker.replaceWith(node);
+  for(const {node,marker} of saved.parts||[]){
+   if(node.classList.contains('partner-habits-plain')){node.classList.remove('partner-habits-plain');node.classList.add('profile-partner-habits-summary');}
+   marker.replaceWith(node);
+  }
+  window.RudiHomeNote?.detachPartner?.();
   for(const group of saved.groups||[])group.remove();
   clearInterval(saved.birthdayTimer);
   for(const {node,marker,style} of saved.slots){marker.replaceWith(node);if(style===null)node.removeAttribute('style');else node.setAttribute('style',style)}
@@ -170,6 +175,8 @@
    active.birthdayTimer=setInterval(active.updateBirthday,60000);
    addCbtStatus(page,actor,loadCbtStatus);
    Object.assign(active,composePage(page,energy,advice,details));
+   const today=page.querySelector('.partner-today'),note=window.RudiHomeNote?.mountPartner?.();
+   if(today&&note)today.after(note);
    addPlans(page,actor,loadPlans);
    document.body.classList.add('partner-profile-open');
    window.RudiViewport?.sync();

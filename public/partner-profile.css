@@ -211,3 +211,12 @@ html[data-theme="dark"] .rudi-meditation-page.partner-profile-page{
   background:transparent!important;
   background-image:none!important;
 }
+/* Partner page: compact energy and plain, unboxed habits. */
+.partner-profile-page .partner-profile-layout .partner-energy-card>.profile-energy-strip{height:96px!important;min-height:96px!important;max-height:96px!important;grid-template-rows:18px 50px 12px!important;padding:7px 11px!important;border-radius:0!important}
+.partner-profile-page .partner-profile-layout .partner-energy-card .profile-energy-plot{height:50px!important;min-height:0!important;max-height:50px!important}
+.partner-profile-page .partner-energy-card>.rhythm-advice{padding:8px 12px!important;font-size:12px!important;line-height:1.4!important}
+.partner-profile-page .partner-today>.partner-habits-plain{margin:0!important;padding:10px 0!important;outline:0!important;box-shadow:none!important;border:0!important;border-radius:0!important;background:none!important;background-color:transparent!important;background-image:none!important}
+.partner-profile-page .partner-today>.partner-habits-plain[hidden]{display:none!important}
+.partner-profile-page .partner-profile-layout>.profile-person-details>#partnerNoteTile{padding:0!important;margin:0!important;box-sizing:border-box;width:100%!important;border-radius:19px!important;border:1px solid rgba(160,130,75,.24)!important;background:linear-gradient(135deg,rgba(255,250,228,.98),rgba(255,244,208,.93))!important;color:#53442c!important;box-shadow:0 6px 20px rgba(92,75,29,.065)!important;font-size:inherit;font-weight:inherit;line-height:inherit}
+html[data-theme="dark"] .partner-profile-page .partner-profile-layout>.profile-person-details>#partnerNoteTile{background:linear-gradient(135deg,#3f392a,#393326)!important;color:#f4e7c9!important;border-color:rgba(228,200,133,.19)!important}
+.partner-profile-page #partnerNoteTile .home-note-content{min-width:0}
