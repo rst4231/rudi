@@ -1389,17 +1389,6 @@ function moscowDateKey(now = Date.now()) {
   return [parts.year, parts.month, parts.day].join('-');
 }
 
-function moscowMoodScoreWindow(now = Date.now()) {
-  const hour = Number(new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Moscow',
-    hour: '2-digit',
-    hourCycle: 'h23',
-  }).format(new Date(now)));
-  if (hour < 12) return { key: 'morning', label: 'утро' };
-  if (hour < 18) return { key: 'day', label: 'день' };
-  return { key: 'evening', label: 'вечер' };
-}
-
 function feedPreviewBaseUrl(options = {}) {
   const env = options.env || process.env;
   const explicit = String(options.appBaseUrl || env.RUDI_APP_URL || '').trim();
@@ -4131,13 +4120,6 @@ async function handleRudiAction(req, res, action, options = {}) {
           if (activityText) {
             await recordActivity({type:'mood',actor,text:activityText,icon:MOOD_ACTIVITY[nextMood]?.emoji||'🙂',targetTab:'home'},options);
           }
-          const moodScoreWindow = moscowMoodScoreWindow(options.now || Date.now());
-          await awardScoreSafe(actor,1,{
-            label:'Настроение',
-            detail:(MOOD_ACTIVITY[nextMood]?.emoji||'🙂')+' '+(MOOD_ACTIVITY[nextMood]?.label||'Выбор настроения')+' · '+moodScoreWindow.label,
-            icon:MOOD_ACTIVITY[nextMood]?.emoji||'🙂',
-            dedupeKey:'score:mood:'+actor+':'+date+':'+moodScoreWindow.key,
-          },options);
         }
         backupToken=await refreshBackupToken(previousSnapshot,options);
       } else if (operation === 'reason') {

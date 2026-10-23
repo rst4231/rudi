@@ -7765,7 +7765,6 @@
                 <div class="score-rules-item"><span class="score-rules-emoji">🔥</span><span>21 день подряд выполнял привычку</span><strong>+5 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">⏱️</span><span>Закончил голодание<small>12 ч: +0,5 · 16 ч: +1,5 · 24 ч: +3 · 40 ч: +5</small></span><strong>до +5 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🧘</span><span>Медитация<small>5 мин: +0,1 · 10 мин: +0,2 · 20 мин: +0,3 · 30 мин: +0,4 · 60 мин: +0,5 ⭐</small><small>По фактическому времени. Только одна награда в день на человека.</small></span><strong>до +0,5 ⭐</strong></div>
-                <div class="score-rules-item"><span class="score-rules-emoji">🙂</span><span>Отметил настроение<small>Утром, днём или вечером</small></span><strong>+0,1 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">💌</span><span>Написал послание<small>Один раз в день</small></span><strong>+0,1 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">💳</span><span>Записал первый расход за день</span><strong>+0,2 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🎁</span><span>Исполнил желание партнёра из вишлиста</span><strong>+100 ⭐</strong></div>
