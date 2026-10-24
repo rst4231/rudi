@@ -37,10 +37,6 @@ function renderSelfProfile(){
  const head=source?.querySelector('.profile-person-head');
  slot.hidden=!head;root.querySelector('.rudi-center__hero').hidden=!!head;
  if(!head)return;
- const homePaint=getComputedStyle(source);
- slot.style.setProperty('--profile-home-background',homePaint.background);
- slot.style.setProperty('--profile-home-border',homePaint.borderColor);
- slot.style.setProperty('--profile-home-shadow',homePaint.boxShadow);
  // Mirror the existing live Home data; never create a second request or move its nodes.
  const clone=node=>{
   if(!node)return null;const copy=node.cloneNode(true),original=[node,...node.querySelectorAll('*')],nodes=[copy,...copy.querySelectorAll('*')];
@@ -55,7 +51,9 @@ function renderSelfProfile(){
  const layout=document.createElement('div');layout.className='partner-profile-layout profile-person-card';
  const details=document.createElement('div');details.className='profile-person-details';
  const hero=document.createElement('section');hero.className='partner-hero';hero.setAttribute('aria-label','Мой профиль');
- const identity=clone(head);hero.append(identity);
+ const identity=clone(head);
+ for(const control of identity.querySelectorAll('.block-collapse-button,.profile-person-actions'))control.remove();
+ hero.append(identity);
  const person=identity.querySelector('.person'),meta=$('pcHeroMeta');
  if(person&&meta){const metrics=document.createElement('div');metrics.className='partner-body-metrics';metrics.append(...[...meta.children].map(el=>el.cloneNode(true)));person.append(metrics)}
  const mood=identity.querySelector('.avatar-mood-badge'),name=identity.querySelector('.name');

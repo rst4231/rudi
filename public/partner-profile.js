@@ -201,8 +201,6 @@
    const advice=details.querySelector('.rhythm-advice');
    const slots=[energy,advice,head,details].filter(Boolean).map(node=>{const marker=document.createComment('partner-content');node.before(marker);const style=node.getAttribute('style');node.removeAttribute('style');return {node,marker,style}});
    const page=document.createElement('section');page.className='rudi-meditation-page partner-profile-page';
-   const syncHomePalette=()=>{const paint=getComputedStyle(tile);page.style.setProperty('--profile-home-background',paint.background);page.style.setProperty('--profile-home-border',paint.borderColor)};
-   syncHomePalette();
    page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';
    page.setAttribute('aria-label','Профиль: '+actor);
    page.innerHTML='<header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head partner-profile-bar"><button type="button" class="fasting-back-button rudi-app-page-back partner-profile-back" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="fasting-page-title"><h1></h1></div><button type="button" class="partner-profile-stars"></button></header><div class="partner-profile-content"><div class="partner-profile-layout profile-person-card"></div></div>';
@@ -215,7 +213,7 @@
    };
    const paints=[...head.querySelectorAll('#partnerHeaderName,.profile-work-status'),...details.querySelectorAll('.rhythm-advice,.meditation-partner-summary,.profile-partner-habits-summary,.home-cycle-status,.home-cycle-advice,.home-cycle-insight')].map(node=>({node,style:node.getAttribute('style')}));
    for(const {node} of paints){node.style.removeProperty('color');node.style.removeProperty('-webkit-text-fill-color')}
-   active={tile,details,slots,paints,page,trigger,actor,hidden:tile.hidden,scroll:window.scrollY,updateBalance,syncHomePalette};
+   active={tile,details,slots,paints,page,trigger,actor,hidden:tile.hidden,scroll:window.scrollY,updateBalance};
    tile.hidden=true;
    details.hidden=false;
    if(energy)energy.hidden=false;
@@ -270,7 +268,6 @@
   document.body.classList.toggle('partner-profile-open',visible);
  });
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)active?.updateBirthday?.()});
- new MutationObserver(()=>active?.syncHomePalette?.()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
  document.addEventListener('keydown',event=>{if(active&&!active.page.hidden&&event.key==='Escape')close()});
  new MutationObserver(()=>{if(active)close(true)}).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
  window.RudiPartnerProfile={bind,close,refresh:()=>active?.updateBalance()};

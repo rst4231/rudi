@@ -18,6 +18,7 @@ for(const theme of ['light','dark'])test('AI center profile, gifts and name navi
  expect(await page.evaluate(()=>window.added)).toEqual({text:'Книга',url:'https://example.com/book'});
  await expect(center.locator('#pcWishText')).toHaveValue('');await expect(center.locator('#pcWishUrl')).toBeHidden();
  await center.locator('.pc-wish a').last().click();expect(await page.evaluate(()=>window.opened)).toBe('https://example.com/book');
+ await expect(center.locator('.pc-wish .wish-remove').first()).toHaveCSS('background-color','rgba(0, 0, 0, 0)');
  await center.locator('.pc-wish .wish-remove').first().click();await expect(center.locator('.pc-wish')).toHaveCount(1);expect(await page.evaluate(()=>window.removed)).toBe('1');expect(await center.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
  await center.locator('.rudi-center__wrap').evaluate(el=>el.scrollTop=0);
  await center.screenshot({path:test.info().outputPath('ai-center-'+theme+'.png')});

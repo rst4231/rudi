@@ -35,8 +35,15 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  expect(await profile.locator('.partner-mood-cbt').evaluate(el=>el.previousElementSibling.id)).toBe('partnerMoodValue');
  await expect(profile.locator('.partner-mood-cbt')).toHaveAttribute('data-status',actor==='Диана'?'active':'inactive');
  await page.evaluate(()=>{document.querySelector('#partnerMoodValue').hidden=true});
+ let heroPaint;
  for(const theme of ['light','dark']){
   await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+  const paint=await profile.locator('.partner-hero').evaluate(el=>{const s=getComputedStyle(el),name=getComputedStyle(el.querySelector('.name,#partnerHeaderName'));return {background:s.backgroundImage,text:name.color}});
+  if(theme==='light'){heroPaint=paint;await expect(profile).toHaveCSS('background-color','rgb(244, 245, 251)')}
+  else expect(paint).toEqual(heroPaint);
+  expect(paint.text).toBe('rgb(243, 245, 252)');
+  await expect(profile.locator('.partner-hero-bubble.is-expense .home-partner-last-expense')).toHaveCSS('color','rgb(243, 245, 252)');
+  await expect(profile.locator('.partner-hero-bubble.is-expense .home-partner-last-expense')).toHaveCSS('-webkit-text-fill-color','rgb(243, 245, 252)');
   if(actor==='Диана')await expect(profile.locator('.partner-mood-cbt')).toBeVisible();else await expect(profile.locator('.partner-mood-cbt')).toBeHidden();
   await page.evaluate(()=>{document.querySelector('#homePartnerHabitsSummary').textContent='🌱 Привычки: 1 из 4'});
   await expect(profile.locator('.partner-mood-habits')).toBeVisible();
@@ -73,6 +80,8 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await expect(profile.locator('.partner-hero-bubble.is-meditation')).toBeVisible();
  await expect(profile.locator('.partner-hero-bubble.is-cbt,.partner-cbt-status')).toHaveCount(0);
  await expect(page.locator('#tile .partner-hero')).toHaveCount(0);
+ expect(await profile.locator('.partner-wish-row').first().evaluate(el=>getComputedStyle(el,'::before').content)).toBe('none');
+ await expect(profile.locator('.partner-wish-row').first()).toHaveCSS('display','grid');
  await expect(profile.locator('.partner-wish-text')).toHaveText(['Поездка к морю','Книга']);
  await expect(profile.locator('.partner-wish-link a')).toHaveAttribute('href','https://example.com/gift');
  await expect(profile.locator('.partner-wish-row.is-done')).toHaveCount(2);

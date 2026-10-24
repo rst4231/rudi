@@ -388,7 +388,7 @@ body.rudi-center-open{overflow:hidden!important}
 .rudi-center__bar{height:auto;flex:none;width:100%;max-width:760px;align-self:center;grid-template-columns:var(--rudi-page-head-control,48px) minmax(0,1fr) auto!important;background:transparent;border:0}
 .rudi-center__bar h1{white-space:nowrap;font-size:clamp(19px,5vw,25px)!important}
 .rudi-center__wrap{height:auto;flex:1;min-height:0;padding:12px 0 max(16px,env(safe-area-inset-bottom));width:100%}
-@media(max-width:420px){.rudi-center{--pc-page-side:12px}}
+@media(max-width:420px){.rudi-center__content{padding:0 8px;box-sizing:border-box}}
 @media(min-width:1000px){.rudi-center__bar,.rudi-center__content{max-width:1100px}}
 .pc-gifts{padding:14px;border:1px solid #d9af75;border-radius:24px;background:radial-gradient(ellipse at 100% 0,#f5cfdf,transparent 65%),linear-gradient(140deg,#fbe5ad,#fff2d7);color:var(--pc-text);margin-bottom:12px}
 .pc-gifts h2{margin:0 0 12px;font-size:16px;color:#7b5b2d}
@@ -407,10 +407,10 @@ body.rudi-center-open{overflow:hidden!important}
 .rudi-center__sheet-head h1{white-space:normal}
 .rudi-center__bar .partner-profile-stars{background:#fff5d9;border-color:color-mix(in srgb,#95630c 20%,transparent);color:#95630c;box-shadow:none;letter-spacing:-.02em}
 :root[data-theme=dark] .rudi-center__bar .partner-profile-stars{background:#332d21;border-color:color-mix(in srgb,#f4d080 20%,transparent);color:#f4d080}
-.pc-self-profile{margin-bottom:12px;--pp-panel:var(--pc-panel);--pp-edge:var(--pc-border);--pp-muted:var(--pc-muted);--pp-mint:var(--pc-accent);--pp-mint-soft:var(--pc-mint);--pp-mint-edge:var(--pc-mint-edge);--pp-blue:var(--pc-blue);--text:var(--pc-text);--muted:var(--pc-muted);--surface-strong:var(--pc-panel);--line:var(--pc-border)}
-.pc-self-profile .partner-profile-layout{padding:0!important;background:transparent!important;border:0!important}
+.pc-self-profile{margin-bottom:20px;--pp-panel:var(--pc-panel);--pp-edge:var(--pc-border);--pp-muted:var(--pc-muted);--pp-mint:var(--pc-accent);--pp-mint-soft:var(--pc-mint);--pp-mint-edge:var(--pc-mint-edge);--pp-blue:var(--pc-blue);--text:var(--pc-text);--muted:var(--pc-muted);--surface-strong:var(--pc-panel);--line:var(--pc-border)}
+.pc-self-profile .partner-profile-layout{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:20px!important;padding:0!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible;min-height:0}
 .pc-self-profile .profile-person-details{padding:0!important;border:0!important;background:transparent!important}
-.pc-self-profile .profile-person-details>.partner-hero{order:0}
+.pc-self-profile .profile-person-details>.partner-hero{order:0;display:block;min-height:0!important;height:auto!important;padding:20px 16px!important}
 .pc-self-profile .profile-person-details>.partner-energy-card{order:1;padding:0!important}
 .pc-self-profile .profile-person-details>.partner-today{order:2}
 .pc-self-profile .partner-hero .profile-person-head{width:100%;margin:0!important;border:0!important;background:transparent!important;padding:0!important}
@@ -426,5 +426,10 @@ body.rudi-center-open{overflow:hidden!important}
  .rudi-center__sheet-content{width:100%;max-width:760px;align-self:center;padding:12px 0 max(16px,env(safe-area-inset-bottom))}
 }
 @media(max-width:350px){.rudi-center__bar{column-gap:8px!important}.rudi-center__bar h1{font-size:18px!important}}
-html:not([data-theme=dark]) .pc-self-profile .partner-hero{background:var(--profile-home-background)!important;border-color:var(--profile-home-border)!important;box-shadow:var(--profile-home-shadow)!important}
-.pc-wish .wish-remove{flex:none;width:26px;height:26px;border:0;border-radius:8px;background:var(--pc-bg);color:var(--pc-muted);font-size:21px;cursor:pointer}
+.pc-wish .wish-remove{flex:none;width:26px;height:26px;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--pc-muted);font-size:21px;cursor:pointer}
+
+/* Keep readable overview text and comfortable spacing independently of the shell theme. */
+.pc-self-profile .partner-hero .profile-rhythm-status{color:var(--hero-muted)!important;-webkit-text-fill-color:var(--hero-muted)!important}
+.pc-self-profile .partner-body-metrics{color:var(--hero-muted)!important}
+.rudi-center__content>.rudi-center__card,.rudi-center__content>.rudi-center__tile-grid,.rudi-center__content>.pc-gifts{margin-bottom:20px}
+.rudi-center__wrap{padding-top:20px}
