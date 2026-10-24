@@ -1,7 +1,8 @@
 const {test,expect}=require('@playwright/test');
+const overview='Вес стабилен, а привычки выполняются регулярно. '.repeat(18)+'Последняя строка полного обзора.';
 for(const actor of ['Рустам','Диана'])test('own AI profile reuses partner components and own stars: '+actor,async({page})=>{
  await page.route('http://127.0.0.1:4173/',route=>route.fulfill({contentType:'text/html',body:`<!doctype html><html data-theme="light"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/rudi-design-system.css"><link rel="stylesheet" href="/home-reference-layout.css"><link rel="stylesheet" href="/partner-profile.css"><link rel="stylesheet" href="/personal-center.css"><body data-rudi-actor="${actor}" data-app-tab="home" class="auth-ok"><section id="home${actor==='Диана'?'Diana':'Rustam'}Tile"><div class="profile-person-head"><button class="block-collapse-button" aria-label="Свернуть карточку">⌄</button><div class="identity identity-self"><div class="score-avatar-wrap"><span id="avatar" class="avatar">Р</span></div><div class="person"><span id="displayName" class="name">${actor}</span><div class="profile-work-status">Отдыхаю</div><div class="profile-rhythm-status">Темп</div></div><div class="mood-person mood-self"><div class="mood-self-buttons"></div></div></div></div><div class="profile-energy-strip" data-energy-actor="${actor}"><div class="profile-energy-label">Энергия</div><div class="profile-energy-plot"><svg class="profile-energy-svg" viewBox="0 0 640 40"><path d="M0 20Q320 0 640 20"/></svg></div><div class="profile-energy-times">00:00 · 12:00 · 24:00</div></div><div class="rhythm-advice">Текущий темп: восстановление</div><article class="profile-supplement-intakes"><div class="profile-supplement-intakes-head">Сегодня принято</div><div class="profile-supplement-intakes-list"><div class="profile-supplement-intake-row"><span>💊</span><span class="profile-supplement-intake-copy"><span class="profile-supplement-intake-name">Магний</span><time>12:35</time></span><span>✓</span></div></div></article></section><script>window.RudiStars={balance:()=>125.25,openHistory:()=>{window.historyActor=document.body.dataset.rudiActor;document.body.dataset.appTab='score';window.dispatchEvent(new Event('rudi:app-tab-change'));history.pushState({rudiTab:'score'},'','?tab=score')}};</script><script src="/personal-center.js"></script></body></html>`}));
- await page.route('**/api/personal-center',route=>route.fulfill({json:{ok:true,actor,data:{profile:{height:181,birthDate:'1992-03-03'},weights:[{kg:86}],symptoms:[],checkins:{},version:1},report:null}}));
+ await page.route('**/api/personal-center',route=>route.fulfill({json:{ok:true,actor,data:{profile:{height:181,birthDate:'1992-03-03'},weights:[{kg:86}],symptoms:[],checkins:{},version:1},report:{id:"compact-report",date:"2026-10-18",createdAt:"2026-10-18T09:00:00Z",slot:"weekly",model:"test-ai",narrative:{overview,mainChange:"Главное изменение недели",mainAction:"Следующий шаг недели",mainObservation:"Наблюдение недели",forecast:"Прогноз недели"}}}}));
  await page.goto('/');await page.locator('#displayName').click();
  const center=page.locator('#personalAICenter');await expect(center).toBeVisible();
  await expect(center.locator('#pcStars')).toHaveText('⭐ 125,25');await expect(center.locator('.rudi-center__bar h1')).toHaveText('Моя страница');await expect(center.locator('#pcSettings,#pcPull')).toHaveCount(0);
@@ -9,6 +10,8 @@ for(const actor of ['Рустам','Диана'])test('own AI profile reuses par
  await expect(center.locator('#pcSelfProfile .block-collapse-button')).toHaveCount(0);
  for(const theme of ['light','dark']){
   await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+  await expect(center.locator('.rudi-center__report')).toHaveCSS('background-color',theme==='light'?'rgb(255, 255, 255)':'rgb(27, 34, 45)');
+  await expect(center.locator('#pcSelfProfile .profile-energy-label')).toHaveCSS('color',theme==='light'?'rgb(98, 87, 168)':'rgb(194, 184, 245)');
   await expect(center.locator('#pcSelfProfile .name')).toHaveCSS('color','rgb(243, 245, 252)');
   await expect(center.locator('#pcSelfProfile .profile-work-status')).toHaveCSS('color','rgb(217, 222, 235)');
   expect((await center.locator('#pcSelfProfile .partner-hero').boundingBox()).x).toBeGreaterThanOrEqual(24);
@@ -19,6 +22,13 @@ for(const actor of ['Рустам','Диана'])test('own AI profile reuses par
   for(let i=1;i<boxes.length;i++)expect(boxes[i].top-boxes[i-1].bottom).toBeGreaterThanOrEqual(16);
  }
  await page.evaluate(()=>document.documentElement.dataset.theme='light');
+ expect((await center.locator('#pcSelfProfile .partner-today').boundingBox()).height).toBeLessThan(120);
+ expect((await center.locator('.rudi-center__tile').first().boundingBox()).height).toBeLessThan(88);
+ expect((await center.locator('#pcReport').boundingBox()).height).toBeLessThanOrEqual(85);
+ await center.locator('#pcReportMore').click();
+ await expect(center.locator('#pcSheetContent')).toContainText('Последняя строка полного обзора.');
+ await expect(center.locator('#pcSheetContent')).toContainText('Следующий шаг недели');
+ await center.locator('#pcSheetClose').click();await expect(center.locator('#pcOverlay')).toBeHidden();
  await expect(center.locator('#pcSelfProfile .partner-energy-card')).toContainText('Текущий темп: восстановление');
  await expect(center.locator('#pcSelfProfile .partner-today')).toContainText('Магний');
  await expect(center.locator('#pcSelfProfile .partner-today time')).toHaveText('12:35');

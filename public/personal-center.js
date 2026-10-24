@@ -569,7 +569,8 @@ function sheet(name,{fromHistory=false}={}){
     if(report.model==='deterministic'){
       html+=section('Анализ пока недоступен','AI-модель не ответила. Факты сохранены, но персональные выводы и рекомендации пока не сформированы.');
     }else{
-      // The short AI overview already appears on the personal page. Do not repeat it here.
+      // The page shows a compact preview; preserve every summary in the full report.
+      html+=section('Обзор недели',n.overview)+section('Главное',n.mainChange)+section('Что сделать',n.mainAction)+section('Наблюдение',n.mainObservation)+section('Что дальше',n.forecast);
       const domains={mood:'Настроение',habits:'Привычки',tasks:'Дела и планы',health:'Самочувствие',supplements:'Добавки',cycle:'Цикл',finances:'Финансы'};
       const deep=(Array.isArray(n.deepAnalysis)?n.deepAnalysis:[]).filter(x=>domains[x?.domain]&&reportHasText(x.analysis)&&reportHasText(x.evidence)).slice(0,4);
       if(deep.length){

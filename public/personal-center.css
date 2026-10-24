@@ -433,3 +433,51 @@ body.rudi-center-open{overflow:hidden!important}
 .pc-self-profile .partner-body-metrics{color:var(--hero-muted)!important}
 .rudi-center__content>.rudi-center__card,.rudi-center__content>.rudi-center__tile-grid,.rudi-center__content>.pc-gifts{margin-bottom:20px}
 .rudi-center__wrap{padding-top:20px}
+
+/* Compact personal-page cards share one spacing and heading scale. */
+.rudi-center__content{--pc-card-padding:14px;--pc-card-radius:20px}
+.rudi-center__content>.rudi-center__card,.rudi-center__content>.pc-gifts{padding:var(--pc-card-padding);border-radius:var(--pc-card-radius)}
+.rudi-center__content .rudi-center__head{margin-bottom:10px}
+.rudi-center__content .rudi-center__head h2,.rudi-center__content .pc-gifts>h2{font-size:15px;line-height:1.3;margin:0}
+.rudi-center__content .pc-gifts>h2{margin-bottom:10px}
+.rudi-center__content>.rudi-center__report .rudi-center__report-lead{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;font-size:14px!important;line-height:1.5!important;margin:0}
+.rudi-center__content>.rudi-center__report .rudi-center__summary-grid{display:none}
+.rudi-center__content>.rudi-center__report .rudi-center__report-more{margin-top:10px;padding-top:10px;min-height:36px}
+.rudi-center__content .rudi-center__generate-report{min-height:38px;font-size:12px;padding:9px 12px;margin-top:10px}
+.rudi-center__content .rudi-center__rhythm-head{margin:10px 0 4px}
+.rudi-center__content .rudi-center__rhythm-head strong{font-size:18px}
+.rudi-center__content .rudi-center__rhythm-chart{height:140px;min-height:0;max-height:140px}
+.rudi-center__content .rudi-center__rhythm-empty{padding:12px 8px}
+.rudi-center__content .rudi-center__rhythm-tabs button{min-height:32px;padding:6px 3px}
+.rudi-center__content .rudi-center__chart{height:120px;max-height:120px;margin-top:10px}
+.rudi-center__content .rudi-center__tile{display:grid;grid-template-columns:28px minmax(0,1fr);align-content:center;column-gap:9px;row-gap:3px;min-height:78px;padding:12px}
+.rudi-center__content .rudi-center__tile-icon{grid-row:1/3;align-self:center}
+.rudi-center__content .rudi-center__tile strong,.rudi-center__content .rudi-center__tile small{grid-column:2}
+#pcSelfProfile .profile-person-details>.partner-today{padding:14px!important;border-radius:20px!important}
+#pcSelfProfile .partner-today>h2{margin:0 0 10px!important;font-size:15px!important;line-height:1.3;text-transform:none;letter-spacing:-.015em}
+#pcSelfProfile .partner-today>.profile-supplement-intakes{padding:0!important}
+#pcSelfProfile .partner-today>.profile-supplement-intakes-empty{padding:0!important;font-size:12px!important;line-height:1.5!important}
+#pcSelfProfile .partner-today .profile-supplement-intake-row{padding:8px!important;min-height:0!important;border-radius:12px}
+#pcSelfProfile .partner-today .profile-supplement-intake-name{font-size:12px!important}
+#pcSelfProfile .partner-today :is(time,.profile-supplement-intake-time){font-size:10px!important}
+#pcSelfProfile .partner-profile-layout .partner-energy-card>.profile-energy-strip{height:88px!important;min-height:88px!important;max-height:88px!important;grid-template-rows:18px 42px 12px!important}
+#pcSelfProfile .partner-profile-layout .partner-energy-card .profile-energy-plot{height:42px!important;max-height:42px!important}
+#pcSelfProfile .partner-energy-card{border-radius:20px}
+#pcSelfProfile .partner-energy-card>.rhythm-advice{padding:9px 14px!important;font-size:12px!important;line-height:1.5!important}
+.rudi-center__content .pc-birthday{padding:10px 10px 10px 18px}
+.rudi-center__content .pc-wishes{padding:10px}
+.rudi-center__content .pc-wish{padding:9px 10px;line-height:1.4}
+
+/* Energy has a lavender tint; the weekly preview uses the neutral card surface. */
+#pcSelfProfile .partner-energy-card{
+ --pp-mint:#6257a8;--pp-mint-soft:#eeebf8;--pp-mint-edge:#c9c2e5;--pc-energy-text:#4c456c;
+ background:linear-gradient(130deg,#ece8fa,#f3f1fc)!important;border-color:var(--pp-mint-edge)!important;box-shadow:none!important;
+}
+#pcSelfProfile .partner-energy-card>.rhythm-advice{color:var(--pc-energy-text)!important;-webkit-text-fill-color:var(--pc-energy-text)!important;border-top-color:var(--pp-mint-edge)!important}
+.rudi-center__content>.rudi-center__report{--pc-accent:#6558b5;background:var(--pc-panel);border-color:var(--pc-border)}
+.rudi-center__content>.rudi-center__report .rudi-center__generate-report{background:#6d5fc2;color:#fff}
+:root[data-theme=dark] #pcSelfProfile .partner-energy-card{
+ --pp-mint:#c2b8f5;--pp-mint-soft:#272439;--pp-mint-edge:#4b446b;--pc-energy-text:#ded8f3;
+ background:linear-gradient(130deg,#2c283f,#252434)!important;
+}
+:root[data-theme=dark] .rudi-center__content>.rudi-center__report{--pc-accent:#c2b8f5}
