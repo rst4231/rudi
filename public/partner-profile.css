@@ -396,3 +396,85 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-wish-row {
 .partner-profile-page .partner-today>.partner-habits-plain,
 .partner-profile-page .partner-today>#homePartnerHabitsSummary *,
 .partner-profile-page .partner-today>.partner-habits-plain *{font-weight:400!important}
+
+/* v4.328: the dedicated partner page gets a glass overview; Home is untouched. */
+.partner-profile-page .partner-profile-layout>.profile-person-details{display:contents!important}
+.partner-profile-page .partner-hero{
+ order:-3;position:relative;isolation:isolate;display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);align-items:center;gap:24px;
+ min-width:0;padding:28px 22px!important;border-radius:30px!important;border:1px solid rgba(177,187,235,.19)!important;
+ color:#f5f4ff!important;background:radial-gradient(ellipse at 95% 5%,rgba(92,80,151,.15),transparent 65%),linear-gradient(125deg,#202733,#171d29)!important;
+ box-shadow:inset 0 1px 1px rgba(219,226,255,.12),0 14px 34px rgba(9,12,24,.16)!important;overflow:hidden;
+}
+.partner-profile-page .partner-hero::before,.partner-profile-page .partner-hero::after{
+ content:'';position:absolute;z-index:-1;border-radius:50%;pointer-events:none;
+ background:radial-gradient(circle at 28% 23%,rgba(186,172,255,.8),rgba(77,66,141,.38) 30%,rgba(22,29,48,.04) 72%);
+ box-shadow:inset 1px 1px 4px rgba(195,193,255,.15);width:60px;height:60px;right:16px;top:10px;
+}
+.partner-profile-page .partner-hero::after{width:88px;height:88px;top:auto;bottom:-34px;right:39%;opacity:.7}
+.partner-profile-page .partner-hero>.profile-person-head{
+ display:flex!important;align-items:center!important;flex-wrap:wrap;gap:12px!important;position:relative!important;inset:auto!important;
+ padding:12px 0!important;margin:0!important;min-width:0;width:100%!important;background:none!important;border:0!important;box-shadow:none!important;
+}
+.partner-profile-page .partner-hero .identity{display:grid!important;grid-template-columns:84px minmax(0,1fr)!important;gap:14px!important;align-items:center!important;min-width:0;width:100%}
+.partner-profile-page .partner-hero .score-avatar-wrap{width:84px!important;height:84px!important;min-width:84px!important;min-height:84px!important;flex-basis:84px!important}
+.partner-profile-page .partner-hero .avatar{width:84px!important;height:84px!important;min-width:84px!important;min-height:84px!important;border-radius:24px!important}
+.partner-profile-page .partner-hero .avatar img{width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.partner-profile-page .partner-hero .rudi-partner-fasting-outline{border-radius:28px}
+.partner-profile-page .partner-hero .rudi-partner-fasting-hours{font-size:12px!important;max-width:80px}
+.partner-profile-page .partner-hero .person{min-width:0;padding:0!important;align-self:center!important}
+.partner-profile-page .partner-hero :is(.name,#partnerHeaderName){color:#f5f4ff!important;-webkit-text-fill-color:#f5f4ff!important;font-size:29px!important;line-height:1.12!important;font-weight:780;letter-spacing:-.035em}
+.partner-profile-page .partner-hero .profile-work-status{color:#e4e7f4!important;-webkit-text-fill-color:#e4e7f4!important;font-size:17px!important;font-weight:650;line-height:1.3}
+.partner-profile-page .partner-hero .profile-cycle-mood{color:#e4a3cd!important;-webkit-text-fill-color:#e4a3cd!important;font-size:12px!important;line-height:1.4;font-weight:600;white-space:normal!important}
+.partner-profile-page .partner-hero .profile-rhythm-status{color:#c4c8df!important;-webkit-text-fill-color:#c4c8df!important;font-size:12px!important}
+.partner-profile-page .partner-hero .profile-person-actions:empty{display:none!important}
+.partner-profile-page .partner-hero-bubbles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 12px;align-items:center;min-width:0;padding:8px 0}
+.partner-profile-page .partner-hero-bubble{
+ --bubble:135,137,255;position:relative;min-width:0;display:flex;align-items:center;min-height:65px;padding:13px 14px;
+ border:1px solid rgba(var(--bubble),.55);border-radius:38px 30px 35px 28px;
+ background:radial-gradient(ellipse at 5% 8%,rgba(var(--bubble),.40),transparent 72%),linear-gradient(135deg,rgba(37,43,65,.92),rgba(22,29,46,.85));
+ box-shadow:inset 1px 1px 9px rgba(var(--bubble),.33),inset -2px -2px 9px rgba(var(--bubble),.13),0 5px 18px rgba(var(--bubble),.14);
+ transform:rotate(-4deg);color:#f1f3ff;
+}
+.partner-profile-page .partner-hero-bubble::after{content:'';position:absolute;width:7px;height:7px;border-radius:50%;right:10%;top:-12px;background:radial-gradient(circle at 30% 25%,#eef0ff,rgba(var(--bubble),.75) 35%,transparent 80%);box-shadow:0 0 8px rgba(var(--bubble),.4);pointer-events:none}
+.partner-profile-page .partner-hero-bubble.is-meditation{--bubble:243,195,100}
+.partner-profile-page .partner-hero-bubble.is-habits{--bubble:86,224,177;transform:rotate(5deg)}
+.partner-profile-page .partner-hero-bubble.is-expense{--bubble:122,153,255;transform:rotate(-5deg)}
+.partner-profile-page .partner-hero-bubble.is-cbt{--bubble:186,128,247;transform:rotate(-3deg)}
+.partner-profile-page .partner-hero-bubble:empty,.partner-profile-page .partner-hero-bubble:has(>[hidden]){display:none!important}
+.partner-profile-page .partner-hero-bubble>:is(.meditation-partner-summary,.home-partner-last-expense,.partner-habits-plain,.partner-cbt-status){
+ display:block;margin:0!important;padding:0!important;min-width:0;width:100%;border:0!important;outline:0!important;box-shadow:none!important;background:none!important;
+ color:#f1f3ff!important;-webkit-text-fill-color:#f1f3ff!important;font:inherit!important;font-size:12px!important;line-height:1.4!important;font-weight:400!important;overflow-wrap:anywhere;
+}
+.partner-profile-page .partner-hero-bubble>.partner-cbt-status{display:flex;align-items:center;gap:8px}
+.partner-profile-page .partner-hero-bubble .partner-cbt-status>svg{width:26px;height:26px;flex:none;color:#c5a0ff}
+.partner-profile-page .partner-hero-bubble.is-cbt:not(:has(.is-active)){opacity:.65}
+@media(min-width:1000px){
+ .partner-profile-page>.partner-profile-bar,.partner-profile-content>.partner-profile-layout{max-width:1100px}
+ .partner-profile-page .partner-hero{padding:36px 28px!important;gap:40px;min-height:235px}
+ .partner-profile-page .partner-hero :is(.name,#partnerHeaderName){font-size:40px!important}
+ .partner-profile-page .partner-hero-bubble{min-height:78px;padding:16px 18px}
+ .partner-profile-page .partner-hero-bubble>:is(.meditation-partner-summary,.home-partner-last-expense,.partner-habits-plain,.partner-cbt-status){font-size:14px!important}
+}
+@media(max-width:650px){
+ .partner-profile-page .partner-hero{grid-template-columns:minmax(0,1fr);gap:12px;padding:20px 16px 17px!important;border-radius:25px!important}
+ .partner-profile-page .partner-hero>.profile-person-head{padding:7px 0!important}
+ .partner-profile-page .partner-hero-bubbles{gap:14px 10px;padding:4px 0}
+ .partner-profile-page .partner-hero-bubble{min-height:66px;padding:12px}
+}
+@media(prefers-reduced-motion:no-preference){
+ .partner-profile-page .partner-hero-bubble{animation:partner-orbit 7s ease-in-out infinite alternate}
+ .partner-profile-page .partner-hero-bubble:nth-child(even){animation-delay:-3s}
+ @keyframes partner-orbit{to{translate:0 -4px}}
+}
+.partner-profile-page .partner-hero .rudi-partner-fasting-hours{
+ position:absolute!important;inset:auto!important;top:-13px!important;left:50%!important;transform:translateX(-50%)!important;
+ display:block;padding:4px 11px!important;border:2px solid #a89af2!important;border-radius:17px!important;
+ background:#24263d!important;color:#f4f1ff!important;-webkit-text-fill-color:#f4f1ff!important;white-space:nowrap;font-weight:750;line-height:1.2;
+ box-shadow:0 0 16px rgba(161,135,247,.24)!important;
+}
+@media(min-width:1000px){
+ .partner-profile-page .partner-hero .identity{grid-template-columns:120px minmax(0,1fr)!important;gap:22px!important}
+ .partner-profile-page .partner-hero .score-avatar-wrap{width:120px!important;height:120px!important;min-width:120px!important;min-height:120px!important;flex-basis:120px!important}
+ .partner-profile-page .partner-hero .avatar{width:120px!important;height:120px!important;min-width:120px!important;min-height:120px!important;border-radius:32px!important}
+ .partner-profile-page .partner-hero .rudi-partner-fasting-hours{font-size:15px!important}
+}

@@ -25,7 +25,7 @@
  function addPlans(page,actor,loadPlans){
   const card=document.createElement('section');card.className='partner-plans';
   card.innerHTML='<h2>Ближайшее</h2><div class="partner-plan-row"><span class="partner-plan-icon" aria-hidden="true">☀</span><div><h3>Ближайший выходной</h3><p class="partner-day-off">Обновляю график…</p></div></div><div class="partner-plan-row"><span class="partner-plan-icon" aria-hidden="true">♡</span><div><h3>Совместное событие</h3><p class="partner-next-event">Обновляю календарь…</p><small class="partner-event-time"></small></div></div>';
-  page.querySelector('.profile-person-head').after(card);
+  (page.querySelector('.partner-hero')||page.querySelector('.profile-person-head')).after(card);
   const off=card.querySelector('.partner-day-off'),event=card.querySelector('.partner-next-event'),time=card.querySelector('.partner-event-time');
   const dateLabel=date=>new Intl.DateTimeFormat('ru-RU',{weekday:'short',day:'numeric',month:'short',timeZone:'UTC'}).format(new Date(date+'T12:00:00Z'));
   Promise.resolve().then(()=>loadPlans?.()).then(data=>{
@@ -41,17 +41,27 @@
   const move=(node,target)=>{if(!node)return;const marker=document.createComment('partner-group');node.before(marker);parts.push({node,marker});target.append(node)};
   if(energy){const group=document.createElement('section');group.className='partner-energy-card';energy.before(group);group.append(energy);if(advice)group.append(advice)}
   const meditation=details.querySelector('.meditation-partner-summary:not(.home-partner-last-expense)'),habits=details.querySelector('.profile-partner-habits-summary'),expense=details.querySelector('.home-partner-last-expense'),cbt=details.querySelector('.partner-cbt-status'),intakes=details.querySelector('.profile-supplement-intakes');
+  const hero=document.createElement('section');hero.className='partner-hero';hero.setAttribute('aria-label','Обзор партнёра');
+  const bubbles=document.createElement('div');bubbles.className='partner-hero-bubbles';
+  details.prepend(hero);move(page.querySelector('.profile-person-head'),hero);hero.append(bubbles);groups.push(hero);
+  for(const [node,kind] of [[meditation,'meditation'],[habits,'habits'],[expense,'expense'],[cbt,'cbt']]){
+   const bubble=document.createElement('div');bubble.className='partner-hero-bubble is-'+kind;
+   bubbles.append(bubble);if(node)move(node,bubble);
+  }
+  // Keep moved rows inside details: existing live renderers find them here.
+  const observer=new MutationObserver(()=>{
+   const late=details.querySelector(':scope>#meditationPartnerSummary');
+   if(late)move(late,bubbles.querySelector('.is-meditation'));
+  });observer.observe(details,{childList:true});
   const today=document.createElement('section');today.className='partner-today';today.innerHTML='<h2>Сегодня</h2>';
-  const first=meditation||habits||expense||cbt||intakes;if(first)first.before(today);else details.append(today);groups.push(today);
-  for(const node of [meditation,habits,expense])move(node,today);
+  if(intakes)intakes.before(today);else details.append(today);groups.push(today);
   if(habits){habits.classList.remove('profile-partner-habits-summary');habits.classList.add('partner-habits-plain');}
-  if(cbt)today.append(cbt);
   move(intakes,today);
   const cycle=details.querySelector('.home-cycle-summary');
   if(cycle){const more=document.createElement('details');more.className='partner-cycle-more';more.innerHTML='<summary>Подробнее о самочувствии</summary>';cycle.append(more);groups.push(more);for(const node of [...cycle.querySelectorAll('.home-cycle-insight')])move(node,more)}
   const birthday=page.querySelector('.partner-birthday'),wishes=page.querySelector('.partner-profile-wishes');
   const gifts=document.createElement('section');gifts.className='partner-gifts';gifts.innerHTML='<h2>Подарки</h2>';birthday.before(gifts);gifts.append(birthday,wishes);
-  return {parts,groups};
+  return {parts,groups,heroObserver:observer};
  }
  function birthdayInfo(actor,now=new Date()){
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(now).map(p=>[p.type,p.value]));
@@ -121,11 +131,12 @@
  function close(fromHistory=false){
   if(!active)return;
   const saved=active;active=null;
-  saved.page.querySelector('.partner-cbt-status')?.remove();
+  saved.heroObserver?.disconnect();
   for(const {node,marker} of saved.parts||[]){
    if(node.classList.contains('partner-habits-plain')){node.classList.remove('partner-habits-plain');node.classList.add('profile-partner-habits-summary');}
    marker.replaceWith(node);
   }
+  saved.page.querySelector('.partner-cbt-status')?.remove();
   window.RudiHomeNote?.detachPartner?.();
   for(const group of saved.groups||[])group.remove();
   clearInterval(saved.birthdayTimer);

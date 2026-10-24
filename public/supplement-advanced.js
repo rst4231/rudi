@@ -2,7 +2,7 @@
 
 let started=false;
 let duplicatePanel=null,actionRow=null,drawer=null;
-let searchInput=null,interactionChoices=null,interactionRun=null,interactionResult=null;
+let interactionChoices=null,interactionRun=null,interactionResult=null;
 let interactionCheck=null,openActionName='',selectedInteractionIds=new Set();
 const actionButtons=new Map(),actionPanels=new Map();
 
@@ -69,7 +69,6 @@ function toggleAction(name){
   for(const [key,button] of actionButtons){const active=key===next;button.classList.toggle('is-active',active);button.setAttribute('aria-expanded',String(active))}
   for(const [key,panel] of actionPanels){const active=key===next;panel.hidden=!active;panel.classList.toggle('is-open',active)}
   drawer?.classList.toggle('is-open',Boolean(next));
-  if(next==='search')setTimeout(()=>searchInput?.focus({preventScroll:true}),120);
   if(next==='interactions')renderInteractionChoices();
 }
 
@@ -83,16 +82,11 @@ function ensureToolbar(){
   actionRow=document.createElement('div');actionRow.className='supplement-action-icons';actionRow.setAttribute('aria-label','Действия с БАДами');
   actionRow.append(
     makeActionButton('add','＋','Добавить БАД'),
-    makeActionButton('search','⌕','Поиск'),
     makeActionButton('interactions','🧪','Проверить сочетания')
   );
 
   drawer=document.createElement('div');drawer.className='supplement-action-drawer';
   const addPanel=makePanel('add');form.classList.add('supplement-action-add-form');addPanel.appendChild(form);
-
-  const searchPanel=makePanel('search');
-  searchInput=document.createElement('input');searchInput.type='search';searchInput.className='supplement-action-input';searchInput.placeholder='Поиск по названию, цели или составу';searchInput.setAttribute('aria-label','Поиск БАДов');
-  searchPanel.appendChild(searchInput);
 
   const interactionPanel=makePanel('interactions');
   const interactionHint=document.createElement('div');interactionHint.className='supplement-interaction-hint';interactionHint.textContent='Выбери минимум 2 БАДа для проверки';
@@ -101,11 +95,10 @@ function ensureToolbar(){
   interactionResult=document.createElement('div');interactionResult.className='supplement-interaction-panel';interactionResult.hidden=true;
   interactionPanel.append(interactionHint,interactionChoices,interactionRun,interactionResult);
 
-  drawer.append(addPanel,searchPanel,interactionPanel);
+  drawer.append(addPanel,interactionPanel);
   wrap.append(duplicatePanel,actionRow,drawer);
   const body=document.querySelector('.personal-supplements-body');body?.insertBefore(wrap,body.firstChild);
 
-  searchInput.addEventListener('input',applyGrouping);
   interactionRun.addEventListener('click',checkSelectedInteractions);
 }
 
@@ -178,7 +171,6 @@ function ensureStatusTabs(list){
 function applyGrouping(){
   const list=document.querySelector('.personal-supplements-list');if(!list)return;
   const tabs=ensureStatusTabs(list);
-  const query=(searchInput?.value||'').trim().toLowerCase();
   list.querySelectorAll('.supplement-group-title,.supplement-group-empty').forEach(node=>node.remove());
   const all=getItems();
   for(const button of tabs.querySelectorAll('.supplement-status-tab')){
@@ -194,8 +186,7 @@ function applyGrouping(){
   const rows=all.map(item=>({item,card:list.querySelector('[data-id="'+CSS.escape(item.id)+'"]')})).filter(row=>row.card);
   const matches=rows.filter(row=>{
     const sameStatus=String(row.item?.status||'active')===selectedStatusTab;
-    const sameSearch=!query||[row.item.name,row.item.goal,...(row.item.ingredients||[])].join(' ').toLowerCase().includes(query);
-    row.visible=sameStatus&&sameSearch;
+    row.visible=sameStatus;
     return row.visible;
   }).sort((a,b)=>{
     const byTaken=selectedStatusTab==='active'?Number(handledToday(a.item))-Number(handledToday(b.item)):0;
@@ -207,7 +198,7 @@ function applyGrouping(){
   if(!matches.length&&rows.length){
     const empty=document.createElement('div');
     empty.className='supplement-group-empty';
-    empty.textContent=query?'В этом разделе ничего не найдено.':selectedStatusTab==='paused'?'Пока нет БАДов на паузе.':selectedStatusTab==='finished'?'Архив пока пуст.':'Пока нет БАДов, которые ты принимаешь.';
+    empty.textContent=selectedStatusTab==='paused'?'Пока нет БАДов на паузе.':selectedStatusTab==='finished'?'Архив пока пуст.':'Пока нет БАДов, которые ты принимаешь.';
     list.prepend(empty);
   }
 }

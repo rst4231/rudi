@@ -5,7 +5,7 @@ const {
   readScoreState,awardScore,penalizeScore,reverseScoreByDedupeKey,reversePenaltyByDedupeKey,scoreView
 }=require('./score-store.cjs');
 
-const HABIT_REWARD_UNITS=2;
+const HABIT_REWARD_UNITS=1;
 const HABIT_PENALTY_UNITS=10;
 const HABIT_STREAK_BONUS_DAYS=21;
 const HABIT_STREAK_BONUS_UNITS=50;

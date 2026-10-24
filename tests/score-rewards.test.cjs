@@ -43,6 +43,25 @@ function memoryCache(initial=null) {
   };
 }
 
+test('completed habits earn 0.1 star once and undo reverses the actual award for both actors', async () => {
+  const {reconcileHabitScore} = require('../api/habit-rules.cjs');
+  for (const actor of ['Рустам','Диана']) {
+    resetMutationQueueForTests();
+    const options = {scoreCache:memoryCache(),now:Date.parse('2026-10-24T18:00:00Z')};
+    const habit = {id:'habit-reward-test',name:'Прогулка'};
+    const done = await reconcileHabitScore(actor,habit,'2026-10-24','done',true,options);
+    assert.equal(done.deltaPoints,0.1);
+    assert.equal(done.score.balances[actor],0.1);
+    const repeated = await reconcileHabitScore(actor,habit,'2026-10-24','done',true,options);
+    assert.equal(repeated.deltaPoints,0);
+    const undo = await reconcileHabitScore(actor,habit,'2026-10-24','pending',true,options);
+    assert.equal(undo.deltaPoints,-0.1);
+    assert.equal(undo.score.balances[actor],0);
+    const retry = await reconcileHabitScore(actor,habit,'2026-10-24','done',true,options);
+    assert.equal(retry.deltaPoints,0.1);
+  }
+});
+
 test('daily star earning limit is 15 stars', () => {
   assert.equal(DAILY_LIMIT_UNITS,150);
   const view=scoreView({}, { now: Date.parse('2026-09-26T12:00:00Z') });
