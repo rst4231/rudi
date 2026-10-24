@@ -52,7 +52,7 @@ function renderSelfProfile(){
  const details=document.createElement('div');details.className='profile-person-details';
  const hero=document.createElement('section');hero.className='partner-hero';hero.setAttribute('aria-label','Мой профиль');
  const identity=clone(head);
- for(const control of identity.querySelectorAll('.block-collapse-button,.profile-person-actions'))control.remove();
+ for(const control of identity.querySelectorAll('.block-collapse-button,.profile-person-actions,.mood-person'))control.remove();
  hero.append(identity);
  const person=identity.querySelector('.person'),meta=$('pcHeroMeta');
  if(person&&meta){const metrics=document.createElement('div');metrics.className='partner-body-metrics';metrics.append(...[...meta.children].map(el=>el.cloneNode(true)));person.append(metrics)}
