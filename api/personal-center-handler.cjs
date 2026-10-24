@@ -19,8 +19,9 @@ module.exports=async function handler(req,res){
   if(operation==='partner-profile'){
     if(!['Рустам','Диана'].includes(actor))throw Error('rudi-access-denied');
     const partner=actor==='Рустам'?'Диана':'Рустам';
-    const data=await state.read(partner);
-    return res.status(200).json({ok:true,actor,partner,metrics:require('./partner-body-metrics.cjs').partnerBodyMetrics(data)});
+    const [data,mood]=await Promise.all([state.read(partner),readMoodHistory(partner).catch(()=>null)]);
+    const emotions=Array.isArray(mood)?{daily:computeEmotionSignals(mood).daily.slice(-30).map(({date,positive,total})=>({date,positive,total}))}:null;
+    return res.status(200).json({ok:true,actor,partner,metrics:require('./partner-body-metrics.cjs').partnerBodyMetrics(data),emotions});
   }
   if(operation==='status')return res.status(200).json({ok:true,actor,...await state.unread(actor)});
   if(operation==='overview'){
