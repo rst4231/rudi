@@ -35,6 +35,7 @@
    event.textContent=next.event?.title||(data?.shared?.connected===false?'Совместный календарь не подключён':data?.shared?.unavailable?'Не удалось обновить календарь':'Пока нет совместных событий');
    time.textContent=next.event?[dateLabel(next.event.date),next.event.time].filter(Boolean).join(' · '):'';
   }).catch(()=>{if(card.isConnected){off.textContent='Не удалось обновить график';event.textContent='Не удалось обновить календарь'}});
+  return card;
  }
  function composePage(page,energy,advice,details){
   const parts=[],groups=[],layout=page.querySelector('.partner-profile-layout');
@@ -53,7 +54,7 @@
    const late=details.querySelector(':scope>#meditationPartnerSummary');
    if(late)move(late,bubbles.querySelector('.is-meditation'));
   });observer.observe(details,{childList:true});
-  const today=document.createElement('section');today.className='partner-today';today.innerHTML='<h2>Сегодня</h2>';
+  const today=document.createElement('section');today.className='partner-today';today.innerHTML='<h2>БАДы</h2>';
   if(intakes)intakes.before(today);else details.append(today);groups.push(today);
   if(habits){habits.classList.remove('profile-partner-habits-summary');habits.classList.add('partner-habits-plain');}
   move(intakes,today);
@@ -159,6 +160,8 @@
   tile.classList.add('partner-profile-card');
   function open(trigger){
    if(active)return;
+   // Remove leftovers from a previously mounted profile before reusing Home's nodes.
+   for(const stale of details.querySelectorAll('.partner-plans'))stale.remove();
    const head=tile.querySelector('.profile-person-head');
    const advice=details.querySelector('.rhythm-advice');
    const slots=[energy,advice,head,details].filter(Boolean).map(node=>{const marker=document.createComment('partner-content');node.before(marker);const style=node.getAttribute('style');node.removeAttribute('style');return {node,marker,style}});
@@ -188,7 +191,7 @@
    Object.assign(active,composePage(page,energy,advice,details));
    const today=page.querySelector('.partner-today'),note=window.RudiHomeNote?.mountPartner?.();
    if(today&&note)today.after(note);
-   addPlans(page,actor,loadPlans);
+   active.groups.push(addPlans(page,actor,loadPlans));
    document.body.classList.add('partner-profile-open');
    window.RudiViewport?.sync();
    history.pushState({...history.state,rudiPartnerProfile:actor},'','#partner-'+(actor==='Диана'?'diana':'rustam'));

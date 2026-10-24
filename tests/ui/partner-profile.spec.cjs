@@ -8,11 +8,12 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await expect(page.locator('.profile-energy-strip')).toBeVisible();
  await page.locator('.profile-energy-now').dispatchEvent('click');
  await expect(page.locator('.partner-profile-page')).toHaveCount(0);
+ await page.evaluate(()=>{const stale=document.createElement('section');stale.className='partner-plans';stale.textContent='Старый дубль';document.querySelector('#tile .profile-person-details').append(stale)});
  await page.locator('.partner-header-avatar').click();
  const profile=page.locator('.partner-profile-page');
  await expect(profile).toBeVisible();await expect(profile.locator('h1')).toHaveText(actor);
  await expect(profile.locator('.profile-person-details')).toBeVisible();
- await expect(profile.locator('.partner-today>h2')).toHaveText('Сегодня');
+ await expect(profile.locator('.partner-today>h2')).toHaveText('БАДы');
  await expect(profile.locator('.partner-gifts>h2')).toHaveText('Подарки');
  await expect(profile.locator('.partner-cycle-more .home-cycle-insight')).toBeHidden();
  await profile.locator('.partner-cycle-more>summary').click();
@@ -45,7 +46,18 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await expect(page.locator('#tile .partner-today,#tile .partner-cycle-more,#tile .partner-hero,#tile .partner-cbt-status')).toHaveCount(0);
  await expect(page.locator('.profile-energy-strip')).toBeVisible();
  await page.locator('#partnerHeaderName').click();await expect(profile).toBeVisible();
+ await expect(profile.locator('.partner-plans')).toHaveCount(1);
  await expect(profile.locator('.partner-cbt-status')).toHaveCount(1);
  await expect(page.locator('#partnerHeaderName')).toHaveCount(1);
  await page.screenshot({path:test.info().outputPath('partner-profile.png')});
+ for(let visit=0;visit<5;visit++){
+  await profile.locator('.partner-profile-back').click();await expect(profile).toHaveCount(0);
+  await expect(page).not.toHaveURL(/#partner-/);
+  await expect(page.locator('#tile .partner-plans,#tile .partner-hero,#tile .partner-cbt-status')).toHaveCount(0);
+  await page.locator('#partnerHeaderName').click();
+  await expect(profile.locator('.partner-plans')).toHaveCount(1);
+  await expect(profile.locator('.partner-hero')).toHaveCount(1);
+  await expect(profile.locator('.partner-cbt-status')).toHaveCount(1);
+  await expect(profile.locator('#meditationPartnerSummary')).toHaveCount(1);
+ }
 });
