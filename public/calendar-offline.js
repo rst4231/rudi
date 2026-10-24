@@ -88,7 +88,7 @@
   }
   async function enqueue(who, kind, details) {
     if (kind.startsWith('diana-') && who !== 'Диана')throw Error('calendar-offline-owner-forbidden');
-    if (!who || !['create', 'update', 'delete', 'complete', 'personal-complete', 'personal-update', 'personal-delete', 'move', 'personal-move', 'diana-create', 'diana-update', 'diana-delete', 'diana-complete'].includes(kind))
+    if (!who || !['create', 'update', 'delete', 'complete', 'personal-complete', 'personal-update', 'personal-delete', 'personal-reopen', 'move', 'personal-move', 'diana-create', 'diana-update', 'diana-delete', 'diana-complete', 'diana-reopen'].includes(kind))
       throw Error('calendar-offline-invalid-action');
     if(['complete','personal-complete','diana-complete'].includes(kind))
       root.RUDITaskCompletionPolicy?.assertTaskCompletionAllowed(details?.task||{id:details?.taskId,date:details?.date});
@@ -224,6 +224,10 @@
       }
       if (row.kind === 'complete' || row.kind === 'personal-complete' || row.kind === 'personal-delete' || row.kind === 'delete' || row.kind === 'diana-delete' || row.kind === 'diana-complete') continue;
       if (!old) continue;
+      if(row.kind==='personal-reopen'||row.kind==='diana-reopen'){
+        const next={...old,completed:false,canComplete:true,canEdit:true,offlinePending:true};delete next.completedAt;delete next.expiresAt;
+        if(next.date.slice(0,7)===month)getDay(next.date).events.push(next);continue;
+      }
       const value = row.kind==='diana-update'||row.kind==='personal-update'?d:(d.value || {});
       const next = {
         ...old, title: value.title === undefined ? old.title : value.title,
@@ -282,7 +286,7 @@
   async function acknowledge(row) {
     // Keep the confirmed edit in disk snapshots before removing its overlay.
     // Reapplying an edit after a crash is safe; losing the edit is not.
-    if(row.kind.startsWith('personal-')||row.kind==='diana-update'){
+    if(row.kind.startsWith('personal-')||row.kind==='diana-update'||row.kind==='diana-reopen'){
       const snapshots=(await all('snapshots')).filter(item=>item.key.startsWith(row.actor+'|'));
       for(const snapshot of snapshots){
         const [,scope,month]=snapshot.key.split('|');
@@ -299,13 +303,13 @@
   function endpoint(row) {
     const k = row.kind;
     if(k==='diana-create')return '/api/partner-message?ticktickAction=personal-task-create';
-    if(['diana-update','diana-delete','diana-complete'].includes(k))return '/api/partner-message?ticktickAction=personal-task-edit';
+    if(['diana-update','diana-delete','diana-complete','diana-reopen'].includes(k))return '/api/partner-message?ticktickAction=personal-task-edit';
     if (k === 'create') return '/api/ticktick/task-create';
     if (k === 'update') return '/api/ticktick/task-update';
     if (k === 'delete') return '/api/ticktick/task-delete';
     if (k === 'complete') return '/api/ticktick/task-complete';
     if (k === 'personal-complete') return '/api/partner-message?ticktickAction=personal-task-complete';
-    if (k==='personal-update'||k==='personal-delete') return '/api/partner-message?ticktickAction=personal-task-edit';
+    if (k==='personal-update'||k==='personal-delete'||k==='personal-reopen') return '/api/partner-message?ticktickAction=personal-task-edit';
     if (k === 'personal-move') return '/api/partner-message?ticktickAction=personal-task-move';
     if (k === 'move') return '/api/partner-message?ticktickAction=task-move';
     throw Error('calendar-offline-unsupported-action');
@@ -330,6 +334,7 @@
     // integration). Cross-list moves create a copy, so still require readback.
     if(row.kind==='personal-update'&&data.operation==='save'&&taskId&&string(data.projectId)&&
       string(data.targetProjectId||data.projectId)===string(data.projectId))return 'retry';
+    if(row.kind==='personal-reopen')return 'retry'; // Reopening the same stable ID is idempotent.
     if(['personal-complete','personal-delete','personal-move'].includes(row.kind)&&taskId&&string(data.projectId)){
       const readKey='task|'+string(data.projectId)+'|'+taskId;
       if(!reads.has(readKey)){
@@ -448,6 +453,10 @@
         if(waitingTasks.has(taskKey))continue;
         const now=Date.now();
         if(row.state==='blocked'){
+          // Old releases rejected delayed edits after task completion. The
+          // server now preserves that completion status while saving the edit.
+          if(row.errorCode==='ticktick-personal-task-completed'&&row.kind==='personal-update'&&
+            string(details.targetProjectId||details.projectId)===string(details.projectId))row.retryAt=0;
           if(now<Number(row.retryAt||0)){waitingTasks.add(taskKey);continue;}
           row.state='queued';
         }else if(row.state!=='queued'){

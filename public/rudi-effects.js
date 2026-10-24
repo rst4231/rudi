@@ -43,6 +43,20 @@ function particles(type){
 }
 function show(type,should){const present=!!document.getElementById('rudi-effect-'+type);
  if(!should||document.hidden||!motion()){if(present)remove(type)}else if(!present)particles(type)}
+let victoryTimer=0;
+function celebrateVictory(winner){
+ if(!['Рустам','Диана'].includes(winner)||document.body.dataset.rudiActor!==winner||document.hidden)return;
+ document.getElementById('rudiBattleVictory')?.remove();clearTimeout(victoryTimer);
+ const host=document.createElement('div');host.id='rudiBattleVictory';host.className='rudi-battle-victory';host.setAttribute('role','status');
+ const title=document.createElement('strong');title.textContent=winner+(winner==='Диана'?' победила!':' победил!');host.append(title);
+ if(motion()){
+  const fireworks=document.createElement('div');fireworks.className='rudi-effect rudi-effect-fireworks';fireworks.setAttribute('aria-hidden','true');
+  const colors=['#fe719e','#ffd175','#7dccef','#a994fa','#a1e1b0','#ffa982'];
+  for(let i=0;i<9;i++){const spark=document.createElement('span');spark.className='rudi-particle';spark.style.cssText='--x:'+((i*43+9)%90+5)+'%;--y:'+(15+i%4*19)+'%;--dur:2.7s;--delay:'+(-i*.4)+'s;--color:'+colors[i%colors.length];fireworks.append(spark)}
+  host.prepend(fireworks);
+ }
+ document.body.append(host);victoryTimer=setTimeout(()=>host.remove(),4000);
+}
 function updateSettings(){for(const type of ['rain','snow']){const el=document.getElementById('rudiWeather'+(type==='rain'?'Rain':'Snow')+'Switch');el?.setAttribute('aria-checked',enabled(type)?'true':'false')}}
 function installSettings(){
  const panel=document.getElementById('homeSettingsPanel');
@@ -125,5 +139,5 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){for(const 
 window.addEventListener('pageshow',()=>{if(initialized){installSettings();tick();void refreshWeather()}});
 setInterval(()=>{if(initialized&&!document.hidden){installSettings();tick()}},30000);
 setInterval(()=>{if(initialized&&!document.hidden)void refreshWeather()},15*60*1000);
-window.RUDI_EFFECTS={init,tick,enabled,setEnabled,installSettings,refreshWeather,onSettingChanged:null,logic:{moscow,classify,newYear,birthdayNow}};
+window.RUDI_EFFECTS={init,tick,enabled,setEnabled,installSettings,refreshWeather,celebrateVictory,onSettingChanged:null,logic:{moscow,classify,newYear,birthdayNow}};
 })();

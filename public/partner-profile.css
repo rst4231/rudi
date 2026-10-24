@@ -1,4 +1,8 @@
 /* Meditation header geometry, with the partner content outside the Home grid. */
+.partner-wish-toggle{display:grid;place-items:center;flex:0 0 25px;width:25px;height:25px;padding:0;border:1px solid var(--pp-rose);border-radius:8px;color:var(--pp-rose);background:var(--pp-panel);font-family:inherit;font-size:17px;font-weight:700;line-height:1;cursor:pointer}
+.partner-wish-toggle[aria-checked=true]{background:var(--pp-rose);color:#fff}
+.partner-wish-toggle:disabled{opacity:.5;cursor:wait}
+html:not([data-theme=dark]) .rudi-meditation-page.partner-profile-page{background:var(--profile-home-background,var(--pp-bg))!important}
 body.partner-profile-open{overflow:hidden!important;overscroll-behavior:none}
 body.partner-profile-open #appTabBar{display:none!important}
 .partner-profile-card>.profile-person-details[hidden]{display:none!important}

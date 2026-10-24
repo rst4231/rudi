@@ -7648,6 +7648,7 @@
         if(!currentScoreState) return;
         renderFinanceStarsWallet();
         window.RudiPartnerProfile?.refresh();
+        document.dispatchEvent(new CustomEvent('rudi:stars-changed'));
         if(scoreModalActor) renderScoreModal(scoreModalActor,currentScoreState);
       }
 
@@ -8108,6 +8109,16 @@
           renderScoreModal(actor,currentScoreState);
         }catch(_){}
       }
+
+      // The personal page always opens the authenticated actor's existing ledger.
+      window.RudiStars={
+        balance:()=>currentScoreState?Number(currentScoreState.balances?.[currentActor]||0):null,
+        openHistory:()=>{
+          if(!currentActor)return;
+          void openScoreModal(currentActor);
+          document.querySelector('#scoreModal [data-score-tab="history"]')?.click();
+        }
+      };
 
       async function activityRequest(){
         const response=await fetch('/api/partner-message?rudiAction=activity',{
@@ -14483,7 +14494,8 @@
       }
 
       async function completeCalendarTickTickTask(task,row,button,writable){
-        if(!task?.id||task.completed||task.externalCalendar||row?.dataset?.busy==='1') return;
+        if(task?.completed){await reopenCalendarTask(task,row,button);return;}
+        if(!task?.id||task.externalCalendar||row?.dataset?.busy==='1') return;
         if(blockFutureTaskCompletion(task,'workCalendarStatus'))return;
         if(!tickTickTaskCanComplete(task)||(task?.personal===true&&currentActor!=='Рустам'&&!(task.privateLocal===true&&currentActor==='Диана'))){
           const status=document.getElementById('workCalendarStatus');
@@ -14531,6 +14543,25 @@
           row.classList.remove('is-completing');
           if(row.isConnected) button.disabled=false;
         }
+      }
+
+      function calendarTaskCanReopen(task){return Boolean(task?.completed&&task.personal&&!task.externalCalendar&&(currentActor==='Рустам'||currentActor==='Диана'&&task.privateLocal));}
+      async function reopenCalendarTask(task,row,button){
+        if(!calendarTaskCanReopen(task)||row?.dataset?.busy==='1')return;
+        row.dataset.busy='1';button.disabled=true;
+        try{
+          const details={operation:'reopen',taskId:task.id,projectId:task.projectId||'',task};
+          const kind=task.privateLocal?'diana-reopen':'personal-reopen';
+          const queued=await queueCalendarWhenOffline(kind,details);
+          if(!queued)await managedJsonRequest('calendar-task-reopen:'+task.id,'/api/partner-message?ticktickAction=personal-task-edit',{body:{initData:telegramInitData(),operation:'reopen',taskId:task.id,projectId:task.projectId||''},ttlMs:0,timeoutMs:12000});
+          task.completed=false;task.canComplete=true;task.canEdit=true;
+          delete task.completedAt;delete task.expiresAt;
+          recentlyCompletedTickTickTaskIds.delete(String(task.id));recentlyCompletedTickTickTaskIds.delete(task.id+'|'+String(task.date||''));
+          row.classList.remove('is-completed');button.textContent='';button.setAttribute('aria-checked','false');button.setAttribute('aria-label','Отметить выполненным: '+task.title);
+          if(queued){void flushCalendarOffline();return;}
+          await refreshAfterTickTickTaskChange({preserveExpanded:true});
+        }catch(_){const status=document.getElementById('workCalendarStatus');status.hidden=false;status.textContent='Не удалось вернуть дело в активные. Попробуй ещё раз.';}
+        finally{delete row.dataset.busy;button.disabled=false;}
       }
 
       async function completeTickTickTodayTask(task,row,button,writable){
@@ -16122,10 +16153,10 @@
           if(!task)return;
           row.classList.add('calendar-agenda-task');
           const isPersonal=task.personal===true;
-          const writable=isPersonal?task.canComplete!==false:sharedWritable;
-          const allowed=isPersonal
+          const writable=calendarTaskCanReopen(task)||(isPersonal?task.canComplete!==false:sharedWritable);
+          const allowed=calendarTaskCanReopen(task)|| (isPersonal
             ?(currentActor==='Рустам'||task.privateLocal===true&&currentActor==='Диана')&&task.canComplete!==false
-            :tickTickTaskCanComplete(task);
+            :tickTickTaskCanComplete(task));
           const checkbox=document.createElement('button');
           checkbox.type='button';
           checkbox.className='calendar-agenda-task-checkbox';
@@ -16134,7 +16165,8 @@
           if(task.completed){row.classList.add('is-completed');checkbox.textContent='✓'}
           checkbox.setAttribute('aria-label','Отметить выполненным: '+String(task.title||'Дело'));
           const futureCompletion=taskCompletionIsFuture(task,dateKey);
-          checkbox.disabled=futureCompletion||Boolean(task.completed)||!task.id||!writable||!allowed;
+          checkbox.disabled=task.completed?!calendarTaskCanReopen(task):futureCompletion||!task.id||!writable||!allowed;
+          if(calendarTaskCanReopen(task))checkbox.setAttribute('aria-label','Вернуть в активные: '+String(task.title||'Дело'));
           if(futureCompletion){checkbox.title=window.RUDITaskCompletionPolicy.MESSAGE;checkbox.setAttribute('aria-label',checkbox.title);}
           checkbox.addEventListener('click',event=>{
             event.stopPropagation();
@@ -16533,7 +16565,8 @@
                   :isPersonalTask?'Недостаточно прав для выполнения личной задачи':'Эта задача назначена другому участнику');
                 const taskWritable=isPersonalTask?event?.canComplete!==false:payload?.ticktickWritable!==false;
                 const futureCompletion=taskCompletionIsFuture(event,day.date);
-                complete.disabled=futureCompletion||Boolean(event.completed)||!event?.id||!taskWritable||!canComplete;
+                complete.disabled=event.completed?!calendarTaskCanReopen(event):futureCompletion||!event?.id||!taskWritable||!canComplete;
+                if(calendarTaskCanReopen(event))complete.setAttribute('aria-label','Вернуть в активные: '+String(event.title||'Дело'));
                 if(futureCompletion){complete.title=window.RUDITaskCompletionPolicy.MESSAGE;complete.setAttribute('aria-label',complete.title);}
 
                 const taskCopy=document.createElement('button');
@@ -17985,6 +18018,8 @@
         window.RudiWishlist={
           list:async()=>{const data=await wishlistRequest('list');renderWishlist(data);return data.items||[];},
           add:async(text,url)=>{const data=await wishlistRequest('add',{text,url});renderWishlist(data);return data.items||[];},
+          remove:async id=>{const data=await wishlistRequest('remove',{id});renderWishlist(data);return data.items||[];},
+          toggle:async id=>{const data=await wishlistRequest('toggle',{id});renderWishlist(data);if(data.score)renderScoreStickers(data.score);else scoreRequest('state').then(result=>renderScoreStickers(result.score)).catch(()=>{});return data.items||[];},
           open:openWishlistUrl
         };
 
@@ -22301,19 +22336,14 @@
       }
 
       function setupQuickAccess(){
-        const wishlist=document.getElementById('quickWishlistButton');
         const dates=document.getElementById('quickDateButton');
         const forDi=document.getElementById('quickForDiButton');
         const photoSession=document.getElementById('quickPhotoSessionButton');
         const choices=document.getElementById('dateTimeChoices');
         const status=document.getElementById('dateIdeaStatus');
-        if(!wishlist||!dates||!forDi||!photoSession||!choices||choices.dataset.dateBound==='1') return;
+        if(!dates||!forDi||!photoSession||!choices||choices.dataset.dateBound==='1') return;
         choices.dataset.dateBound='1';
 
-        wishlist.addEventListener('click',()=>{
-          navigateToAppTab('wishlist',{scroll:true});
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
         dates.addEventListener('click',()=>{
           navigateToAppTab('dates',{scroll:true});
           window.RUDI_SAVES?.load?.();

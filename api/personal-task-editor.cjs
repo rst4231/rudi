@@ -93,7 +93,10 @@ async function editPersonalTask(input,deps={}){
   const original=await (deps.fetchTask||fetchTask)(token.accessToken,projectId,taskId,input.options||{});
   if(String(original?.id||'')!==taskId||String(original?.projectId||'')!==projectId)
     throw Error('ticktick-personal-task-mismatch');
-  if(Number(original.status??0)!==0)throw Error('ticktick-personal-task-completed');
+  const completed=Number(original.status??0)!==0;
+  // A delayed save may arrive after completion. Updating this same ID keeps
+  // TickTick's status intact; copying or deleting a completed task is disallowed.
+  if(completed&&(input.operation!=='save'||targetId!==projectId))throw Error('ticktick-personal-task-completed');
   if(input.operation==='delete'){
     await (deps.deleteTickTickTask||deleteTickTickTask)(token.accessToken,projectId,taskId,input.options||{});
     return {ok:true,deleted:true,taskId};
@@ -102,7 +105,7 @@ async function editPersonalTask(input,deps={}){
   const changes=editable(input,original);
   if(targetId===projectId){
     await (deps.updateTickTickTask||updateTickTickTask)(token.accessToken,projectId,taskId,changes,input.options||{});
-    return {ok:true,updated:true,taskId,projectId,date:String(input.date||'')};
+    return {ok:true,updated:true,taskId,projectId,date:String(input.date||''),...(completed?{completed:true,taskSnapshot:{...original,...changes}}:{})};
   }
   // The documented Open API does not reliably support changing projectId by UPDATE.
   // Copy first and verify before deleting the original; on failure the source remains.

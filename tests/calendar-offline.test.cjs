@@ -51,6 +51,15 @@ function harness(responder=null){
     setOnline:value=>{online=value},setFail:value=>{fail=value},setOfflineHint:value=>{window.document.body.dataset.offlineMode=value?'1':''}
   };
 }
+test('reopen queued offline restores the checked task and sends the same stable ID',async()=>{
+ const h=harness();await h.api.init('Рустам');
+ const task={id:'done',projectId:'joy',date:'2026-10-24',title:'Выполнено',completed:true,canComplete:false,personal:true};
+ await h.api.enqueue('Рустам','personal-reopen',{operation:'reopen',taskId:task.id,projectId:task.projectId,task});
+ const view=await h.api.materialize('Рустам','2026-10',{ticktickDays:[{date:task.date,events:[task]}]},'personal');
+ assert.equal(view.ticktickDays[0].events[0].completed,false);
+ h.setOnline(true);assert.equal((await h.api.flush('Рустам',()=>({}))).pending,0);
+ assert.equal(h.calls[0].body.operation,'reopen');assert.equal(h.calls[0].body.taskId,'done');
+});
 
 test('calendar works offline, isolates accounts, preserves unsent actions, and replays once',async()=>{
   const h=harness(),o=h.api;

@@ -20,7 +20,7 @@
    }
   }
   events.sort((a,b)=>(a.date+' '+(a.time||'00:00')).localeCompare(b.date+' '+(b.time||'00:00')));
-  return {dayOff,dayOffTomorrow:!!dayOff&&Date.parse(dayOff+'T12:00:00Z')-Date.parse(today+'T12:00:00Z')===86400000,event:events[0]||null};
+  return {dayOff,dayOffToday:dayOff===today,dayOffTomorrow:!!dayOff&&Date.parse(dayOff+'T12:00:00Z')-Date.parse(today+'T12:00:00Z')===86400000,event:events[0]||null};
  }
  function addPlans(page,actor,loadPlans){
   const card=document.createElement('section');card.className='partner-plans';
@@ -31,7 +31,7 @@
   Promise.resolve().then(()=>loadPlans?.()).then(data=>{
    if(!card.isConnected)return;
    const next=selectPartnerPlans(actor,data||{});
-   off.textContent=next.dayOff?dateLabel(next.dayOff)+(next.dayOffTomorrow?' (завтра)':'')+(actor==='Рустам'?' · По графику 5/2':''):data?.work?.configured?'В календаре пока нет выходных':'График пока недоступен';
+   off.textContent=next.dayOff?dateLabel(next.dayOff)+(next.dayOffToday?' (сегодня)':next.dayOffTomorrow?' (завтра)':'')+(actor==='Рустам'?' · По графику 5/2':''):data?.work?.configured?'В календаре пока нет выходных':'График пока недоступен';
    event.textContent=next.event?.title||(data?.shared?.connected===false?'Совместный календарь не подключён':data?.shared?.unavailable?'Не удалось обновить календарь':'Пока нет совместных событий');
    time.textContent=next.event?[dateLabel(next.event.date),next.event.time].filter(Boolean).join(' · '):'';
   }).catch(()=>{if(card.isConnected){off.textContent='Не удалось обновить график';event.textContent='Не удалось обновить календарь'}});
@@ -145,10 +145,12 @@
     if(!items.length){list.textContent='Пока нет желаний';return}
     for(const item of items){
      let url='';try{const parsed=new URL(String(item.url||''),location.origin);if(item.url&&['https:','http:'].includes(parsed.protocol))url=parsed.href}catch(_){}
-     const row=document.createElement(url?'a':'div');row.className='partner-wish-row'+(url?' partner-wish-link':'')+(item.done?' is-done':'');
+     const row=document.createElement('div');row.className='partner-wish-row'+(url?' partner-wish-link':'')+(item.done?' is-done':'');
+     const toggle=document.createElement('button');toggle.type='button';toggle.className='partner-wish-toggle';toggle.setAttribute('role','checkbox');toggle.setAttribute('aria-checked',String(!!item.done));toggle.setAttribute('aria-label',item.done?'Вернуть желание':'Отметить выполненным');toggle.textContent=item.done?'✓':'';
+     toggle.onclick=async()=>{if(toggle.disabled)return;toggle.disabled=true;try{await window.RudiWishlist.toggle(item.id);await refresh()}catch(_){toggle.disabled=false;toggle.title='Не удалось сохранить. Нажми ещё раз.'}};row.append(toggle);
      const text=document.createElement('span');text.className='partner-wish-text';text.textContent=String(item.text||'Желание');row.append(text);
      if(item.done){const status=document.createElement('span');status.className='partner-wish-done';status.textContent='Исполнено';row.append(status)}
-     if(url){row.href=url;row.target='_blank';row.rel='noopener noreferrer';const arrow=document.createElement('span');arrow.className='partner-wish-arrow';arrow.textContent='↗';arrow.setAttribute('aria-hidden','true');row.append(arrow);if(openWish)row.addEventListener('click',event=>{event.preventDefault();openWish(url)})}
+     if(url){const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.className='partner-wish-arrow';link.textContent='↗';link.setAttribute('aria-label','Открыть: '+item.text);row.append(link);if(openWish)row.onclick=event=>{if(event.target.closest('button'))return;event.preventDefault();openWish(url)}}
      list.append(row);
     }
    }catch(_){
@@ -199,6 +201,8 @@
    const advice=details.querySelector('.rhythm-advice');
    const slots=[energy,advice,head,details].filter(Boolean).map(node=>{const marker=document.createComment('partner-content');node.before(marker);const style=node.getAttribute('style');node.removeAttribute('style');return {node,marker,style}});
    const page=document.createElement('section');page.className='rudi-meditation-page partner-profile-page';
+   const syncHomePalette=()=>{const paint=getComputedStyle(tile);page.style.setProperty('--profile-home-background',paint.background);page.style.setProperty('--profile-home-border',paint.borderColor)};
+   syncHomePalette();
    page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';
    page.setAttribute('aria-label','Профиль: '+actor);
    page.innerHTML='<header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head partner-profile-bar"><button type="button" class="fasting-back-button rudi-app-page-back partner-profile-back" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="fasting-page-title"><h1></h1></div><button type="button" class="partner-profile-stars"></button></header><div class="partner-profile-content"><div class="partner-profile-layout profile-person-card"></div></div>';
@@ -211,7 +215,7 @@
    };
    const paints=[...head.querySelectorAll('#partnerHeaderName,.profile-work-status'),...details.querySelectorAll('.rhythm-advice,.meditation-partner-summary,.profile-partner-habits-summary,.home-cycle-status,.home-cycle-advice,.home-cycle-insight')].map(node=>({node,style:node.getAttribute('style')}));
    for(const {node} of paints){node.style.removeProperty('color');node.style.removeProperty('-webkit-text-fill-color')}
-   active={tile,details,slots,paints,page,trigger,actor,hidden:tile.hidden,scroll:window.scrollY,updateBalance};
+   active={tile,details,slots,paints,page,trigger,actor,hidden:tile.hidden,scroll:window.scrollY,updateBalance,syncHomePalette};
    tile.hidden=true;
    details.hidden=false;
    if(energy)energy.hidden=false;
@@ -266,6 +270,7 @@
   document.body.classList.toggle('partner-profile-open',visible);
  });
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)active?.updateBirthday?.()});
+ new MutationObserver(()=>active?.syncHomePalette?.()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
  document.addEventListener('keydown',event=>{if(active&&!active.page.hidden&&event.key==='Escape')close()});
  new MutationObserver(()=>{if(active)close(true)}).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
  window.RudiPartnerProfile={bind,close,refresh:()=>active?.updateBalance()};

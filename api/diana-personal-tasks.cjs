@@ -47,7 +47,7 @@ async function personalTasks(input,options={}){
   tasks.sort((a,b)=>a.date.localeCompare(b.date)||a.startTime.localeCompare(b.startTime)||a.id.localeCompare(b.id));
   return {ok:true,tasks,subscription:{configured:subscribed.subscribed===true,stale:subscribed.stale===true,unavailable:subscribed.unavailable===true}};
  }
- if(!['create','save','move','delete','complete'].includes(op))throw Error('calendar-operation-invalid');
+ if(!['create','save','move','delete','complete','reopen'].includes(op))throw Error('calendar-operation-invalid');
  let taskId=String(input.taskId||''),occurrenceDate='';
  if(op==='create'){
   const key=String(input.clientId||randomUUID());
@@ -56,6 +56,17 @@ async function personalTasks(input,options={}){
  }else ({seriesId:taskId,occurrenceDate}=parseId(taskId));
  const [record,tombstone]=await Promise.all([client.getRecord(NAMESPACE,taskId),client.getRecord(TOMBSTONES,taskId)]);
  const existing=record?.value;
+ if(op==='reopen'){
+  if(tombstone?.value?.deleted)throw Error('calendar-task-not-found');
+  const saved=(await Promise.all(recentMonths(now).map(async month=>({month,row:(await client.getRecord(historyNamespace(month),String(input.taskId)))?.value})))).find(x=>x.row?.kind==='completion');
+  if(!saved){if(existing)return {ok:true,reopened:true,alreadyOpen:true,taskId};throw Error('calendar-task-not-found');}
+  const item=saved.row.event;
+  if(!existing)await client.set(NAMESPACE,taskId,{id:taskId,title:item.title,date:item.seriesDate||item.date,time:item.startTime||'',description:item.description||'',repeat:item.repeat||'none',repeatEvery:item.repeatEvery||1,repeatDays:item.repeatDays||[]});
+  await client.remove(doneNamespace(saved.row.date.slice(0,7)),saved.row.id);
+  await client.remove(historyNamespace(saved.month),saved.row.id);
+  if(tombstone?.value?.completed)await client.remove(TOMBSTONES,taskId);
+  return {ok:true,reopened:true,taskId:item.id};
+ }
  if(tombstone?.value){
   if(op==='create'||op==='delete'||op==='complete')return {ok:true,taskId,[op==='create'?'created':op==='delete'?'deleted':'completed']:true};
   throw Error('calendar-task-not-found');

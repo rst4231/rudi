@@ -376,7 +376,7 @@ body.rudi-center-open{overflow:hidden!important}
 .rudi-center__tile:nth-child(3n){background:var(--pc-gold)}
 .rudi-center__tile strong{font-size:13px;color:var(--pc-text)}
 .rudi-center__tile small{font-size:11px;color:var(--pc-muted)}
-.rudi-center__tile-icon{background:color-mix(in srgb,var(--pc-panel) 65%,transparent);border-radius:12px}
+.rudi-center__tile-icon{display:inline-flex;align-items:center;justify-content:center;align-self:flex-start;width:28px;height:28px;background:transparent;border-radius:0}
 .rudi-center__meta{color:var(--pc-muted)}
 @media(prefers-reduced-motion:no-preference){
  .rudi-center__hero::before,.rudi-center__hero::after{animation:pc-glass-drift 7s ease-in-out infinite alternate}
@@ -384,11 +384,11 @@ body.rudi-center-open{overflow:hidden!important}
  @keyframes pc-glass-drift{to{transform:translate(-5px,4px)}}
 }
 /* Same page geometry as the dedicated partner page, including iPhone safe areas. */
-.rudi-center{display:flex;flex-direction:column;box-sizing:border-box;padding:calc(14px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-left)) 0}
-.rudi-center__bar{height:auto;flex:none;width:100%;max-width:760px;align-self:center;grid-template-columns:var(--rudi-page-head-control,48px) minmax(0,1fr) 42px!important;background:transparent;border:0}
+.rudi-center{--pc-page-top:max(28px,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px),calc(var(--tg-content-safe-top,0px) + 10px));--pc-page-side:max(16px,env(safe-area-inset-left));display:flex;flex-direction:column;box-sizing:border-box;padding:var(--pc-page-top) var(--pc-page-side) 0}
+.rudi-center__bar{height:auto;flex:none;width:100%;max-width:760px;align-self:center;grid-template-columns:var(--rudi-page-head-control,48px) minmax(0,1fr) auto!important;background:transparent;border:0}
 .rudi-center__bar h1{white-space:nowrap;font-size:clamp(19px,5vw,25px)!important}
 .rudi-center__wrap{height:auto;flex:1;min-height:0;padding:12px 0 max(16px,env(safe-area-inset-bottom));width:100%}
-@media(max-width:420px){.rudi-center{padding-left:12px;padding-right:12px}}
+@media(max-width:420px){.rudi-center{--pc-page-side:12px}}
 @media(min-width:1000px){.rudi-center__bar,.rudi-center__content{max-width:1100px}}
 .pc-gifts{padding:14px;border:1px solid #d9af75;border-radius:24px;background:radial-gradient(ellipse at 100% 0,#f5cfdf,transparent 65%),linear-gradient(140deg,#fbe5ad,#fff2d7);color:var(--pc-text);margin-bottom:12px}
 .pc-gifts h2{margin:0 0 12px;font-size:16px;color:#7b5b2d}
@@ -401,3 +401,30 @@ body.rudi-center-open{overflow:hidden!important}
 :root[data-theme=dark] .pc-gifts{background:radial-gradient(ellipse at 100% 0,#302332,transparent 65%),#332d21;border-color:#655335}:root[data-theme=dark] .pc-gifts h2{color:#f4d080}:root[data-theme=dark] .pc-birthday{background:#26231e;border-color:#655335}:root[data-theme=dark] .pc-birthday>b{color:#f4d080}:root[data-theme=dark] .pc-wishes-head,:root[data-theme=dark] .pc-wish>a{color:#eea1c4}
 .rudi-center .rudi-center__btn:not(.rudi-center__btn--ghost):not(.rudi-center__btn--danger){color:#fff}
 :root[data-theme=dark] .rudi-center .rudi-center__btn:not(.rudi-center__btn--ghost):not(.rudi-center__btn--danger){color:#103329}
+
+/* The nested pages use exactly the same header and safe area as the profile. */
+.rudi-center__sheet-head.rudi-app-page-head{border:0;background:transparent}
+.rudi-center__sheet-head h1{white-space:normal}
+.rudi-center__bar .partner-profile-stars{background:#fff5d9;border-color:color-mix(in srgb,#95630c 20%,transparent);color:#95630c;box-shadow:none;letter-spacing:-.02em}
+:root[data-theme=dark] .rudi-center__bar .partner-profile-stars{background:#332d21;border-color:color-mix(in srgb,#f4d080 20%,transparent);color:#f4d080}
+.pc-self-profile{margin-bottom:12px;--pp-panel:var(--pc-panel);--pp-edge:var(--pc-border);--pp-muted:var(--pc-muted);--pp-mint:var(--pc-accent);--pp-mint-soft:var(--pc-mint);--pp-mint-edge:var(--pc-mint-edge);--pp-blue:var(--pc-blue);--text:var(--pc-text);--muted:var(--pc-muted);--surface-strong:var(--pc-panel);--line:var(--pc-border)}
+.pc-self-profile .partner-profile-layout{padding:0!important;background:transparent!important;border:0!important}
+.pc-self-profile .profile-person-details{padding:0!important;border:0!important;background:transparent!important}
+.pc-self-profile .profile-person-details>.partner-hero{order:0}
+.pc-self-profile .profile-person-details>.partner-energy-card{order:1;padding:0!important}
+.pc-self-profile .profile-person-details>.partner-today{order:2}
+.pc-self-profile .partner-hero .profile-person-head{width:100%;margin:0!important;border:0!important;background:transparent!important;padding:0!important}
+.pc-self-profile .partner-hero .identity{display:grid!important;width:100%!important;min-width:0}
+.pc-self-profile .partner-hero .identity-self{grid-template-columns:52px minmax(0,1fr)!important}
+.pc-self-profile .partner-body-metrics .rudi-center__hero-metric{padding:0;border:0;background:none}
+.pc-self-profile .partner-body-metrics .rudi-center__hero-metric:not(:last-child)::after{content:'·';margin-left:5px}
+.pc-self-profile .partner-hero .avatar,.pc-self-profile .partner-hero .avatar img{border-radius:50%!important}
+.pc-self-profile .partner-energy-card .profile-energy-strip{position:relative!important;inset:auto!important;transform:none!important}
+@media(max-width:799px){
+ .rudi-center__sheet{padding:var(--pc-page-top) var(--pc-page-side) 0}
+ .rudi-center__sheet-head{width:100%;max-width:760px;align-self:center}
+ .rudi-center__sheet-content{width:100%;max-width:760px;align-self:center;padding:12px 0 max(16px,env(safe-area-inset-bottom))}
+}
+@media(max-width:350px){.rudi-center__bar{column-gap:8px!important}.rudi-center__bar h1{font-size:18px!important}}
+html:not([data-theme=dark]) .pc-self-profile .partner-hero{background:var(--profile-home-background)!important;border-color:var(--profile-home-border)!important;box-shadow:var(--profile-home-shadow)!important}
+.pc-wish .wish-remove{flex:none;width:26px;height:26px;border:0;border-radius:8px;background:var(--pc-bg);color:var(--pc-muted);font-size:21px;cursor:pointer}

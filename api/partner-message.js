@@ -2355,6 +2355,11 @@ async function handleTickTick(req, res, action, options = {}) {
       const config=await loadTickTickConfig(options);
       if(!config.enabled)return res.status(409).json({ok:false,error:'ticktick-disabled'});
       const {personalLists,editPersonalTask,createPersonalTask,readPersonalTaskState}=require('./personal-task-editor.cjs');
+      if(action==='personal-task-edit'&&body.operation==='reopen'){
+        const result=await reopenRustamPersonalTask({actor,token,taskId:body.taskId,projectId:body.projectId,sharedProjectId:config.projectId,options});
+        await updateCompletedTaskHistory(()=>forgetCompletedTask(actor,{id:body.taskId,projectId:body.projectId},options));
+        return res.status(200).json(result);
+      }
       if(action==='personal-task-state'){
         const result=await readPersonalTaskState({...body,actor,token,sharedProjectId:config.projectId,options});
         const kind=String(body.syncKind||'').replace(/[^a-z-]/g,'').slice(0,40);
@@ -2369,7 +2374,14 @@ async function handleTickTick(req, res, action, options = {}) {
       const result=action==='personal-task-create'
         ?await createPersonalTask({...body,actor,token,sharedProjectId:config.projectId,options})
         :await editPersonalTask({...body,actor,token,sharedProjectId:config.projectId,options});
-      return res.status(200).json(result);
+      if(result.completed&&result.taskSnapshot){
+        await updateCompletedTaskHistory(async()=>{
+          await forgetCompletedTask(actor,{id:result.taskId,projectId:result.projectId},options);
+          await archiveCompletedTask(actor,result.taskSnapshot,options);
+        });
+      }
+      const {taskSnapshot,...publicResult}=result;
+      return res.status(200).json(publicResult);
     }catch(error){
       const code=String(error?.message||error);
       if(code==='ticktick-token-invalid'){

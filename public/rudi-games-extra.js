@@ -231,6 +231,10 @@ function battleAvatar(name){
 }
 function renderBattle(){
  if(activeGame!=='battleship'||g()?.getMode?.()!=='battleship')return;
+ if(battleRoom?.status==='won'&&battleRoom.winner===actor()){
+  const stamp=String(battleRoom.round)+':'+battleRoom.winner;
+  if(read('battle-victory','')!==stamp&&window.RUDI_EFFECTS?.celebrateVictory){write('battle-victory',stamp);window.RUDI_EFFECTS.celebrateVictory(battleRoom.winner)}
+ }
  $('rudiGamesPage')?.classList?.add('is-battleship');
  const r=battleRoom;
  g().header('Морской бой','Рустам против Дианы · 7 × 7');

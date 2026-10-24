@@ -39,13 +39,13 @@ test('per-account erase does not delete existing finance or partner entries',asy
  assert.equal((await store.read('Диана',{client:c})).weights.length,1);
 });
 test('Moscow scheduled slots use UTC+3',()=>{
- assert.equal(cron.slotAt(Date.parse('2026-10-10T04:00:00Z')),'morning');
+ assert.equal(cron.slotAt(Date.parse('2026-10-11T04:00:00Z')),'weekly');
  assert.equal(cron.slotAt(Date.parse('2026-10-10T18:00:00Z')),'');
  assert.equal(cron.slotAt(Date.parse('2026-10-10T21:00:00Z')),'');
  assert.equal(cron.slotAt(Date.parse('2026-10-10T12:00:00Z')),'');
 });
 test('scheduler does not regenerate existing reports',async()=>{
- map.clear();const c=client(),now=Date.parse('2026-10-10T04:00:00Z');
+ map.clear();const c=client(),now=Date.parse('2026-10-11T04:00:00Z');
  let generated=0;
  const generate=async actor=>{generated++;return {narrative:{overview:actor},model:'test'}};
  const first=await cron.run({client:c,now,generate});
@@ -89,7 +89,7 @@ test('cycle history stays in D1 with no expiration and much larger lifetime hori
  assert.equal(cycle.TTL_SECONDS,0);
  assert.ok(cycle.MAX_HISTORY>=1000);
 });
-test('morning summary for each actor is idempotent without backfill',async()=>{
+test('weekly summary for each actor is idempotent without backfill',async()=>{
  map.clear();const c=client(),now=Date.parse('2026-10-11T04:00:00Z');
  let n=0;const generate=async actor=>{n++;return {narrative:{overview:actor},model:'test'};};
  const first=await cron.run({client:c,now,generate});
@@ -99,14 +99,14 @@ test('morning summary for each actor is idempotent without backfill',async()=>{
  await cron.run({client:c,now,generate});
  assert.equal(n,2);
  const evening=await cron.run({client:c,now:Date.parse('2026-10-11T18:00:00Z'),generate});
- assert.equal(evening.skipped,'outside-morning-window');
+ assert.equal(evening.skipped,'outside-weekly-window');
  assert.equal(n,2);
 });
-test('AI center never calls LLM on open or pull refresh; source data is not reentered',()=>{
+test('personal page never calls LLM on open and pull refresh is removed',()=>{
  const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
  const css=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
- assert.match(app,/installCenterPullRefresh/);
- assert.match(app,/Отпустите для обновления/);
+ assert.doesNotMatch(app,/installCenterPullRefresh/);
+ assert.doesNotMatch(app,/Отпустите для обновления/);
  assert.match(app,/knownVersion/);
  assert.doesNotMatch(app,/openai\\.com|groq\\.com/);
  assert.doesNotMatch(app,/ЭМОЦИОНАЛЬНАЯ ДИНАМИКА|pcEmotionValue|pcEmotionCaption/);
@@ -164,7 +164,7 @@ test('personal AI uses the same 06:00 Moscow cron as Telegram and has no duplica
  assert.doesNotMatch(yaml,/^\s*- cron:/m);
  assert.match(feed,/runPersonalAi/);
  assert.doesNotMatch(handler,/backfillOnly|releaseBackfill/);
- assert.equal(cron.slotAt(Date.parse('2026-10-10T03:00:00Z')),'morning');
+ assert.equal(cron.slotAt(Date.parse('2026-10-11T03:00:00Z')),'weekly');
  assert.equal(cron.slotAt(Date.parse('2026-10-10T18:00:00Z')),'');
 });
 test('paired evidence identifies supported habit-mood and expense comparisons, not missing values',()=>{
@@ -227,14 +227,14 @@ test('Diana cycle stays directly below dynamics chart, independently of calendar
  assert.match(css,/#dianaCycleCard\[data-app-tab-section="schedule"\]/);
 });
 
-test('manual button creates only the authorized actor morning report at any hour, then reuses it',async()=>{
+test('manual button creates only the authorized actor weekly report on Sunday at any hour, then reuses it',async()=>{
  map.clear();const c=client(),now=Date.parse('2026-10-11T13:40:00Z'),date='2026-10-11';
  let generated=0;
- const generate=async(actor,day,slot)=>{generated++;assert.equal(slot,'morning');assert.equal(day,date);return {narrative:{overview:'Сводка '+actor},model:'test'};};
+ const generate=async(actor,day,slot)=>{generated++;assert.equal(slot,'weekly');assert.equal(day,date);return {narrative:{overview:'Сводка '+actor},model:'test'};};
  const first=await cron.generateForActor('Диана',date,{client:c,now,generate});
  assert.equal(first.status,'created');
  assert.equal(first.report.date,date);
- assert.equal(first.report.slot,'morning');
+ assert.equal(first.report.slot,'weekly');
  assert.equal(generated,1);
  const repeat=await cron.generateForActor('Диана',date,{client:c,now,generate});
  assert.equal(repeat.status,'exists');
@@ -281,7 +281,7 @@ test('manual report is user authenticated, fixed to Moscow today and never gener
 
 test('existing fallback is upgraded in-place without an extra history row',async()=>{
  map.clear();const c=client(),now=Date.parse('2026-10-11T05:00:00Z'),date='2026-10-11';
- await store.saveReport('Рустам',date,'morning',{model:'deterministic',narrative:{overview:'Заглушка'}},{client:c,now});
+ await store.saveReport('Рустам',date,'weekly',{model:'deterministic',narrative:{overview:'Заглушка'}},{client:c,now});
  const before=await store.latest('Рустам',{client:c});
  const result=await cron.generateForActor('Рустам',date,{client:c,now:now+2000,retryFallback:true,
   generate:async()=>({model:'openai/gpt-oss-20b',narrative:{overview:'Реальные выводы'}})});
@@ -297,7 +297,7 @@ test('existing fallback is upgraded in-place without an extra history row',async
 });
 test('fallback retried at most three times with cooldown and no change to saved report on failure',async()=>{
  map.clear();const c=client(),date='2026-10-11',now=Date.parse('2026-10-11T05:00:00Z');
- await store.saveReport('Диана',date,'morning',{model:'deterministic',narrative:{overview:'Сохранено'}},{client:c,now});
+ await store.saveReport('Диана',date,'weekly',{model:'deterministic',narrative:{overview:'Сохранено'}},{client:c,now});
  let generated=0;
  const gen=async()=>{generated++;return {model:'deterministic',failureReason:'invalid-json',narrative:{overview:'Не заменять'}}};
  for(let i=0;i<3;i++){
@@ -342,7 +342,7 @@ test('positive mood charts and detailed AI insights are shown before evidence',(
  assert.ok(app.includes('Динамика позитивных эмоций'));
  assert.ok(app.includes("positiveShare(x)"));
  assert.ok(app.includes("v.positive+' из '+v.total+' позитивных"));
- assert.ok(app.includes("report?.date===dayKey()&&report?.slot==='morning'"));
+ assert.ok(app.includes("report?.date===dayKey()&&report?.slot==='weekly'"));
  assert.ok(app.includes('rudi-center__deep-list'));
  assert.ok(app.includes('КАК ПРОВЕРИТЬ РЕЗУЛЬТАТ'));
  assert.ok(app.includes('ЧТО ЭТО ЗНАЧИТ'));
@@ -385,18 +385,18 @@ test('a ready daily report cannot be regenerated and the history remains one row
 });
 test('a ready report stays unchanged even when manual generation is attempted after provider failure',async()=>{
  map.clear();const c=client(),date='2026-10-11',now=Date.parse('2026-10-11T11:00:00Z');
- await store.saveReport('Рустам',date,'morning',{model:'test',narrative:{overview:'Сохранённый результат'}},{client:c,now});
+ await store.saveReport('Рустам',date,'weekly',{model:'test',narrative:{overview:'Сохранённый результат'}},{client:c,now});
  const forbidden=await cron.generateForActor('Рустам',date,{client:c,now:now+2000,manual:true,generate:async()=>{throw Error('must not generate')}}); 
  assert.equal(forbidden.status,'exists');
  assert.equal((await store.latest('Рустам',{client:c})).narrative.overview,'Сохранённый результат');
 });
-test('Diana and Rustam share the 06:00 Moscow schedule, and either may manually fill a missing day',async()=>{
+test('Diana and Rustam share the 06:00 Moscow schedule, and either may manually fill a missing week',async()=>{
  map.clear();const c=client(),date='2026-10-11',now=Date.parse('2026-10-11T03:00:00Z');
  let count=0;const gen=async()=>{count++;return {model:'test',narrative:{overview:'Утренний анализ'}}};
  const scheduled=await cron.run({client:c,now,generate:gen});
  assert.equal(scheduled.ok,true);assert.equal(count,2);
  const stored=await store.latest('Диана',{client:c});
- assert.equal(stored.date,date);assert.equal(stored.slot,'morning');
+ assert.equal(stored.date,date);assert.equal(stored.slot,'weekly');
  const repeated=await cron.run({client:c,now,generate:gen});
  assert.equal(repeated.results.find(x=>x.actor==='Диана').status,'exists');
  assert.equal((await cron.generateForActor('Диана',date,{client:c,now,manual:true,generate:gen})).status,'exists');
@@ -509,21 +509,21 @@ test('deep analysis is generated separately and only for observed life domains',
 
 
 test('Diana can manually generate a missing report and neither actor can replace a ready report',async()=>{
- map.clear();const c=client(),now=Date.parse('2026-10-12T03:00:00Z');
+ map.clear();const c=client(),now=Date.parse('2026-10-18T03:00:00Z');
  let count=0;const generate=async actor=>{count++;return {model:'test',narrative:{overview:actor}};};
- const first=await cron.generateForActor('Диана','2026-10-12',{client:c,now,manual:true,generate});
+ const first=await cron.generateForActor('Диана','2026-10-18',{client:c,now,manual:true,generate});
  assert.equal(first.status,'created');assert.equal(count,1);
- const second=await cron.generateForActor('Диана','2026-10-12',{client:c,now,manual:true,generate});
+ const second=await cron.generateForActor('Диана','2026-10-18',{client:c,now,manual:true,generate});
  assert.equal(second.status,'exists');assert.equal(count,1);
  await store.seen('Диана',{client:c});
  assert.equal((await store.unread('Диана',{client:c})).unread,false);
 });
 
 test('deterministic placeholder never creates a green halo and remains manually retryable',async()=>{
- map.clear();const c=client(),now=Date.parse('2026-10-12T03:00:00Z');
- await store.saveReport('Диана','2026-10-12','morning',{model:'deterministic',narrative:{overview:'fallback'}},{client:c,now});
+ map.clear();const c=client(),now=Date.parse('2026-10-18T03:00:00Z');
+ await store.saveReport('Диана','2026-10-18','weekly',{model:'deterministic',narrative:{overview:'fallback'}},{client:c,now});
  assert.equal((await store.unread('Диана',{client:c})).unread,false);
- const row=await cron.generateForActor('Диана','2026-10-12',{client:c,now,manual:true,generate:async()=>({model:'test',narrative:{overview:'ready'}})});
+ const row=await cron.generateForActor('Диана','2026-10-18',{client:c,now,manual:true,generate:async()=>({model:'test',narrative:{overview:'ready'}})});
  assert.equal(row.status,'upgraded');assert.equal((await store.unread('Диана',{client:c})).unread,true);
 });
 

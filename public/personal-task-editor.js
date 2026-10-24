@@ -29,6 +29,11 @@ const quick=[
  {id:'clear',label:'Без даты',value:()=>''}
 ];
 function quickHtml(){return quick.map(q=>'<button type="button" data-personal-date-action="'+q.id+'" aria-label="'+q.label+'" title="'+q.label+'"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">'+icons[q.id]+'</svg></button>').join('')}
+function syncEditorViewport(){
+ if(!modal)return;const viewport=window.visualViewport;
+ modal.style.setProperty('--pt-height',Math.round(viewport?.height||window.innerHeight)+'px');
+ modal.style.setProperty('--pt-top',Math.max(0,Math.round(viewport?.offsetTop||0))+'px');
+}
 function init(){
   if(modal)return;
   modal=document.createElement('div');modal.id='rudiPersonalTaskModal';modal.className='ticktick-task-modal rudi-personal-task-modal';
@@ -59,6 +64,9 @@ function init(){
       '<p class="ticktick-task-form-status" id="rudiPersonalTaskStatus" aria-live="polite"></p>'+
     '</form></section>';
   document.body.appendChild(modal);
+  window.visualViewport?.addEventListener('resize',syncEditorViewport,{passive:true});
+  window.visualViewport?.addEventListener('scroll',syncEditorViewport,{passive:true});
+  window.addEventListener('resize',syncEditorViewport,{passive:true});
   menu=document.createElement('div');menu.id='rudiPersonalQuickMenu';menu.className='rudi-personal-quick-menu';
   menu.hidden=true;menu.setAttribute('role','group');menu.setAttribute('aria-label','Быстрые действия с делом');
   menu.innerHTML='<div class="rudi-personal-quick-caption">Изменить дату</div><div class="rudi-personal-quick-actions">'+quickHtml()+'</div>';
@@ -288,7 +296,8 @@ function open(task,ctx={}){
   syncTime();message('');enabled(true);
   modal.hidden=false;modal.setAttribute('aria-hidden','false');
   document.body.classList.add('ticktick-task-modal-open');
-  requestAnimationFrame(()=>f('title').focus({preventScroll:true}));
+  syncEditorViewport();
+  requestAnimationFrame(()=>{const heading=byId('rudiPersonalTaskHeading');heading.tabIndex=-1;heading.focus({preventScroll:true});modal.querySelector('.ticktick-task-modal-sheet').scrollTop=0;byId('rudiPersonalTaskForm').scrollTop=0});
   const local=ctx.actor==='Диана';
   f('project').closest('label').hidden=local;
   f('project').disabled=local;

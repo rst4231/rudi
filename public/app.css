@@ -7570,6 +7570,7 @@ html[data-theme="dark"] .partner-message .partner-edit{
 .quick-access-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .quick-access-head h2{margin:2px 0 0;font-size:19px;line-height:1.12;letter-spacing:-.025em}
 .quick-access-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.quick-access-actions>.quick-access-button:last-child:nth-child(odd){grid-column:1/-1}
 .quick-access-button{
   min-width:0;
   min-height:72px;
