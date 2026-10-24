@@ -295,3 +295,26 @@ html[data-theme="light"] body[data-app-tab="supplements"] .supplement-group-titl
 .supplement-editor-times-grid .supplement-editor-field{min-width:0;grid-column:auto!important}
 .supplement-editor-times-grid .supplement-editor-field input{min-width:0;min-height:43px;box-sizing:border-box}
 @media(max-width:365px){.supplement-editor-times{padding:9px}.supplement-editor-times-grid{gap:6px}}
+
+/* Supplement settings are a full page with a fixed back header and scrolling content. */
+.supplement-editor-page{color-scheme:light;--se-bg:#f4f5fa;--se-panel:#fff;--se-input:#f1f3f8;--se-edge:#d9deea;--se-text:#26324a;--se-muted:#596579;background:var(--se-bg);color:var(--se-text);height:100%;height:100dvh;box-sizing:border-box;padding:max(28px,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px),calc(var(--tg-content-safe-top,0px) + 10px)) max(16px,env(safe-area-inset-left)) 0}
+html[data-theme=dark] .supplement-editor-page{color-scheme:light;--se-bg:#10151d;--se-panel:#1b222d;--se-input:#242d3a;--se-edge:#354053;--se-text:#f3f5fc;--se-muted:#b2bfd1}
+.supplement-editor-page .supplement-editor-sheet{position:static;inset:auto;transform:none;width:100%;max-width:760px;height:100%;max-height:none;margin:0 auto;padding:0;display:flex;flex-direction:column;overflow:hidden;background:transparent!important;border:0;border-radius:0;box-shadow:none}
+.supplement-editor-page .supplement-editor-head{position:static;flex:none;display:grid;grid-template-columns:var(--rudi-page-head-control,44px) minmax(0,1fr)!important;gap:12px;margin:0;padding:0 0 16px;background:transparent!important;backdrop-filter:none}
+.supplement-editor-page .supplement-editor-head h1{min-width:0;margin:0;font-size:21px;line-height:1.2;overflow-wrap:anywhere;color:var(--se-text);outline:none}
+.supplement-editor-page .supplement-editor-back{width:var(--rudi-page-head-control,44px)!important;height:var(--rudi-page-head-control,44px)!important;background:var(--se-panel);color:var(--se-text);border:1px solid var(--se-edge);border-radius:16px}
+.supplement-editor-page .supplement-editor-back svg{width:23px;height:23px;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.supplement-editor-content{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:0 0 max(20px,env(safe-area-inset-bottom));scrollbar-width:none}
+.supplement-editor-page .supplement-editor-form,.supplement-editor-page .supplement-editor-section{padding:14px;border:1px solid var(--se-edge);border-radius:20px;background:var(--se-panel);margin:0 0 16px;gap:10px}
+.supplement-editor-page .supplement-editor-field{min-width:0;gap:6px}
+.supplement-editor-page .supplement-editor-field span{font-size:12px;line-height:1.3;color:var(--se-muted);opacity:1}
+.supplement-editor-page .supplement-editor-field input,.supplement-editor-page .supplement-editor-field textarea,.supplement-editor-page .supplement-editor-field select,.supplement-editor-page .supplement-note-form input{min-width:0;min-height:42px;font-size:16px;background:var(--se-input);color:var(--se-text);border-color:var(--se-edge);padding:9px}
+.supplement-editor-page .supplement-editor-save{min-height:42px;font-size:14px}
+.supplement-editor-page .supplement-editor-section>strong{font-size:15px}
+.supplement-history-intakes,.supplement-history-rest{display:grid;gap:6px}
+.supplement-history-rest[hidden]{display:none}
+.supplement-history-more{justify-self:start;border:0;border-radius:0;background:transparent;color:var(--accent,#6558b5);font:inherit;font-weight:700;padding:8px 0;text-align:left;cursor:pointer}
+.supplement-status-history>summary{cursor:pointer;font-weight:650;padding:6px 0}
+.supplement-status-history .supplement-history-row{margin-top:6px}
+.supplement-editor-page .supplement-history-list,.supplement-editor-page .supplement-notes-list{opacity:1;font-size:12px;line-height:1.45;color:var(--se-muted)}
+body.supplement-editor-open #appTabBar{display:none!important}
