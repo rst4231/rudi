@@ -16,6 +16,7 @@ const {
 } = require('./ticktick-client.cjs');
 const { readFeedSnapshot, moscowDateKey } = require('./feed-store.cjs');
 const { readSharedTaskMetaState } = require('./shared-task-meta-store.cjs');
+const sharedNativeTasks = require('./shared-native-tasks.cjs');
 const { telegramSendMessage, escapeTelegramHtml } = require('./telegram-notifications.cjs');
 const { readSmartHomeSnapshot } = require('./smart-home-client.cjs');
 const { loadCarTasks, serviceScheduleForMileage } = require('./car-client.cjs');
@@ -633,12 +634,37 @@ function buildMorningSummary(actor, data = {}) {
 
 async function loadTodayTasks(options = {}) {
   if (typeof options.loadTasksImpl === 'function') return options.loadTasksImpl(options);
+  const state = await sharedNativeTasks.ready(options).catch(() => null);
+  if (!state?.complete) return loadTodayTickTickTasks(options);
+
+  // After migration the RUDI agenda is authoritative. Reading the old shared
+  // TickTick project would miss new tasks and resurrect deleted/completed ones.
+  const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
+  const [shared, personal] = await Promise.all([
+    sharedNativeTasks.agendaDates([calendarDateKey(now)], 'Рустам', options)
+      .then(days => days[0] || [])
+      .catch(error => {
+        console.warn('RUDI_SUMMARY_SHARED_NATIVE_WARN', String(error?.message || error));
+        return null;
+      }),
+    loadTodayTickTickTasks({ ...options, includeShared: false }),
+  ]);
+  if (shared === null && personal === null) return null;
+  return [...(shared || []), ...(personal || [])]
+    .filter(task => !task.completed)
+    .sort((a, b) =>
+      String(a.startTime || '99:99').localeCompare(String(b.startTime || '99:99')) ||
+      String(a.title || '').localeCompare(String(b.title || ''), 'ru'));
+}
+
+async function loadTodayTickTickTasks(options = {}) {
   const fetchImpl = options.tickTickFetchImpl || globalThis.fetch;
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   const today = calendarDateKey(now);
   try {
     const [sharedResult, personalResult] = await Promise.allSettled([
-      (options.readTokenImpl || readToken)(options),
+      options.includeShared === false ? Promise.resolve(null)
+        : (options.readTokenImpl || readToken)(options),
       options.includePersonal === false ? Promise.resolve(null)
         : (options.readPersonalTokenImpl || readPersonalToken)('Рустам', options),
     ]);
