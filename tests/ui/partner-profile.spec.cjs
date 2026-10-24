@@ -31,6 +31,20 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await expect(profile.locator('.partner-mood-cbt')).toHaveCount(1);
  if(actor==='Диана')await expect(profile.locator('.partner-mood-cbt')).toBeVisible();else await expect(profile.locator('.partner-mood-cbt')).toBeHidden();
  expect(await profile.locator('.partner-mood-cbt').evaluate(el=>el.previousElementSibling.id)).toBe('partnerMoodValue');
+ await expect(profile.locator('.partner-mood-cbt')).toHaveAttribute('data-status',actor==='Диана'?'active':'inactive');
+ await page.evaluate(()=>{document.querySelector('#partnerMoodValue').hidden=true});
+ for(const theme of ['light','dark']){
+  await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+  if(actor==='Диана')await expect(profile.locator('.partner-mood-cbt')).toBeVisible();else await expect(profile.locator('.partner-mood-cbt')).toBeHidden();
+  await page.evaluate(()=>{document.querySelector('#homePartnerHabitsSummary').textContent='🌱 Привычки: 1 из 4'});
+  await expect(profile.locator('.partner-mood-habits')).toBeVisible();
+  await expect(profile.locator('.partner-mood-habits')).toHaveText('🌱 1/4');
+  await page.evaluate(()=>{document.querySelector('#homePartnerHabitsSummary').textContent='🌱 Привычки: 0 из 4'});
+  await expect(profile.locator('.partner-mood-habits')).toBeHidden();
+ }
+
+ await page.evaluate(()=>{document.querySelector('#partnerMoodValue').hidden=false});
+
 
  await expect(profile.locator('.score-avatar-wrap>.avatar')).toHaveCSS('border-radius','50%');
  await expect(profile.locator('.rudi-partner-fasting-value')).toHaveAttribute('d','M50 3 A47 47 0 1 1 50 97 A47 47 0 1 1 50 3');

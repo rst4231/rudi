@@ -604,7 +604,7 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-gifts .partner-wish
 .partner-profile-page .profile-name-row{display:flex!important;align-items:center!important;gap:6px!important}
 .partner-profile-page .partner-mood-cbt{display:inline-flex;align-items:center;justify-content:center;flex:0 0 22px;width:22px;height:22px;border-radius:7px;color:#c5a0ff;background:rgba(173,125,242,.16)}
 .partner-profile-page .partner-mood-cbt>svg{display:block;width:17px;height:17px}
-.partner-profile-page .partner-mood-cbt[hidden],.partner-profile-page #partnerMoodValue[hidden]+.partner-mood-cbt{display:none!important}
+.partner-profile-page .partner-mood-cbt[hidden]{display:none!important}
 html:not([data-theme="dark"]) .partner-profile-page .partner-mood-cbt{color:#78409e;background:#ead7f7}
 
 /* The CBT mark lives beside the mood; the two remaining summaries share one line. */
