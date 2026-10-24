@@ -41,19 +41,28 @@
   const parts=[],groups=[],layout=page.querySelector('.partner-profile-layout');
   const move=(node,target)=>{if(!node)return;const marker=document.createComment('partner-group');node.before(marker);parts.push({node,marker});target.append(node)};
   if(energy){const group=document.createElement('section');group.className='partner-energy-card';energy.before(group);group.append(energy);if(advice)group.append(advice)}
-  const meditation=details.querySelector('.meditation-partner-summary:not(.home-partner-last-expense)'),habits=details.querySelector('.profile-partner-habits-summary'),expense=details.querySelector('.home-partner-last-expense'),cbt=details.querySelector('.partner-cbt-status'),intakes=details.querySelector('.profile-supplement-intakes');
+  const meditation=details.querySelector('.meditation-partner-summary:not(.home-partner-last-expense)'),habits=details.querySelector('.profile-partner-habits-summary'),expense=details.querySelector('.home-partner-last-expense'),intakes=details.querySelector('.profile-supplement-intakes');
   const hero=document.createElement('section');hero.className='partner-hero';hero.setAttribute('aria-label','Обзор партнёра');
   const bubbles=document.createElement('div');bubbles.className='partner-hero-bubbles';
   details.prepend(hero);move(page.querySelector('.profile-person-head'),hero);hero.append(bubbles);groups.push(hero);
-  for(const [node,kind] of [[meditation,'meditation'],[habits,'habits'],[expense,'expense'],[cbt,'cbt']]){
+  // Normalize the circle to Home's existing path length, preserving fasting progress.
+  const haloPaths=[...hero.querySelectorAll('.rudi-partner-fasting-outline path')].map(node=>({node,d:node.getAttribute('d'),length:node.getAttribute('pathLength')}));
+  for(const {node} of haloPaths){node.setAttribute('d','M50 3 A47 47 0 1 1 50 97 A47 47 0 1 1 50 3');node.setAttribute('pathLength',String(168+52*Math.PI))}
+  const restoreHalo=()=>{for(const {node,d,length} of haloPaths){if(d===null)node.removeAttribute('d');else node.setAttribute('d',d);if(length===null)node.removeAttribute('pathLength');else node.setAttribute('pathLength',length)}};
+
+  for(const [node,kind] of [[meditation,'meditation'],[expense,'expense']]){
    const bubble=document.createElement('div');bubble.className='partner-hero-bubble is-'+kind;
    bubbles.append(bubble);if(node)move(node,bubble);
   }
+  const habitChip=document.createElement('span');habitChip.className='partner-mood-habits';habitChip.hidden=true;
+  const moodAnchor=hero.querySelector('.partner-mood-cbt')||hero.querySelector('#partnerMoodValue');
+  if(moodAnchor){moodAnchor.after(habitChip);groups.push(habitChip);move(habits,habitChip)}
   // Keep moved rows inside details: existing live renderers find them here.
   const compactHabits=()=>{
    if(!habits)return;
    const text=habits.textContent.replace(/Привычки:\s*(\d+)\s+из\s+(\d+)/u,'$1/$2');
    if(text!==habits.textContent)habits.textContent=text;
+   habitChip.hidden=!(Number(text.match(/(\d+)\s*\/\s*\d+/)?.[1])>0);
   };
   compactHabits();
   const observer=new MutationObserver(()=>{
@@ -70,7 +79,7 @@
   if(cycle){const more=document.createElement('details');more.className='partner-cycle-more';more.innerHTML='<summary>Подробнее о самочувствии</summary>';cycle.append(more);groups.push(more);for(const node of [...cycle.querySelectorAll('.home-cycle-insight')])move(node,more)}
   const birthday=page.querySelector('.partner-birthday'),wishes=page.querySelector('.partner-profile-wishes');
   const gifts=document.createElement('section');gifts.className='partner-gifts';gifts.innerHTML='<h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8H8a3 3 0 1 1 3-3l1 3Zm0 0h4a3 3 0 1 0-3-3l-1 3Z"/></svg>Подарки</h2>';birthday.before(gifts);gifts.append(birthday,wishes);
-  return {parts,groups,heroObserver:observer};
+  return {parts,groups,heroObserver:observer,restoreHalo};
  }
  function birthdayInfo(actor,now=new Date()){
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(now).map(p=>[p.type,p.value]));
@@ -95,19 +104,16 @@
   update();return update;
  }
  function addCbtStatus(page,actor,loadCbtStatus){
-  const row=document.createElement('div');row.className='partner-cbt-status';row.setAttribute('aria-live','polite');
-  row.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 6c-2-5-7-3-6 1-4 0-4 6-1 7-2 4 3 7 5 4V6m2 0c2-5 7-3 6 1 4 0 4 6 1 7 2 4-3 7-5 4V6M5 10l3 1m-3 4 3-1m11-4-3 1m3 4-3-1"/></svg><span>Обновляю статус КПТ…</span>';
-  const habits=page.querySelector('.profile-partner-habits-summary'),details=page.querySelector('.profile-person-details');
-  if(habits)habits.after(row);else details.append(row);
-  const text=row.querySelector('span');
+  const mood=page.querySelector('#partnerMoodValue');if(!mood)return;
+  const badge=document.createElement('span');badge.className='partner-mood-cbt';badge.hidden=true;
+  badge.setAttribute('role','img');badge.setAttribute('aria-label','Проходит КПТ');badge.title='Проходит когнитивно-поведенческую терапию';
+  badge.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 6c-2-5-7-3-6 1-4 0-4 6-1 7-2 4 3 7 5 4V6m2 0c2-5 7-3 6 1 4 0 4 6 1 7 2 4-3 7-5 4V6M5 10l3 1m-3 4 3-1m11-4-3 1m3 4-3-1"/></svg>';
+  mood.after(badge);
   Promise.resolve().then(()=>loadCbtStatus?.()).then(data=>{
-   if(!row.isConnected)return;
+   if(!badge.isConnected)return;
    if(data?.partner!==actor||typeof data.active!=='boolean')throw Error('status-unavailable');
-   row.classList.toggle('is-active',data.active);
-   const label=data.active?'Проходит когнитивно-поведенческую терапию':'Не проходит когнитивно-поведенческую терапию';
-   row.setAttribute('aria-label',label);row.title=label;
-   text.textContent=data.active?'Проходит КПТ':'Не проходит КПТ';
-  }).catch(()=>{if(row.isConnected){text.textContent='КПТ: нет данных';row.title='Статус КПТ пока недоступен';row.setAttribute('aria-label',row.title)}});
+   badge.hidden=!data.active;badge.dataset.status=data.active?'active':'inactive';
+  }).catch(()=>{if(badge.isConnected){badge.hidden=true;badge.dataset.status='unavailable'}});
  }
  function addWishes(page,actor,loadWishes,openWish){
   const section=document.createElement('section');section.className='partner-profile-wishes';section.setAttribute('aria-label','Желания '+actor);
@@ -143,11 +149,13 @@
   if(!active)return;
   const saved=active;active=null;
   saved.heroObserver?.disconnect();
+  saved.restoreHalo?.();
   for(const {node,marker} of saved.parts||[]){
    if(node.classList.contains('partner-habits-plain')){node.textContent=node.textContent.replace(/^(🌱\s*)(\d+)\/(\d+)$/u,'$1Привычки: $2 из $3');node.classList.remove('partner-habits-plain');node.classList.add('profile-partner-habits-summary');}
    marker.replaceWith(node);
   }
   saved.page.querySelector('.partner-cbt-status')?.remove();
+  saved.page.querySelector('.partner-mood-cbt')?.remove();
   window.RudiHomeNote?.detachPartner?.();
   for(const group of saved.groups||[])group.remove();
   clearInterval(saved.birthdayTimer);

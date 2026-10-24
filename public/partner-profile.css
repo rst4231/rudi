@@ -595,3 +595,24 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-gifts{background:ra
 html:not([data-theme="dark"]) .partner-profile-page .partner-gifts>.partner-birthday{background:#fffaf0!important;border:1px solid #e5c38c!important;padding-left:20px!important}
 html:not([data-theme="dark"]) .partner-profile-page .partner-gifts>.partner-profile-wishes{background:rgba(255,255,255,.9)!important}
 html:not([data-theme="dark"]) .partner-profile-page .partner-gifts .partner-wish-row{background:#f9e6f0!important;border:1px solid #e9bfd5!important;color:#493145!important}
+
+/* Round avatar and fasting progress share the same silhouette on the partner page. */
+.partner-profile-page .partner-hero .score-avatar-wrap>.avatar,
+.partner-profile-page .partner-hero .score-avatar-wrap>.avatar>img,
+.partner-profile-page .partner-hero .score-avatar-wrap>.rudi-partner-fasting-outline{border-radius:50%!important}
+
+.partner-profile-page .profile-name-row{display:flex!important;align-items:center!important;gap:6px!important}
+.partner-profile-page .partner-mood-cbt{display:inline-flex;align-items:center;justify-content:center;flex:0 0 22px;width:22px;height:22px;border-radius:7px;color:#c5a0ff;background:rgba(173,125,242,.16)}
+.partner-profile-page .partner-mood-cbt>svg{display:block;width:17px;height:17px}
+.partner-profile-page .partner-mood-cbt[hidden],.partner-profile-page #partnerMoodValue[hidden]+.partner-mood-cbt{display:none!important}
+html:not([data-theme="dark"]) .partner-profile-page .partner-mood-cbt{color:#78409e;background:#ead7f7}
+
+/* The CBT mark lives beside the mood; the two remaining summaries share one line. */
+.partner-profile-page .partner-hero-bubbles{grid-template-columns:70px minmax(0,1fr)}
+.partner-profile-page .partner-hero-bubble.is-expense{order:1;grid-column:auto}
+
+.partner-profile-page .profile-name-row{flex-wrap:wrap}
+.partner-profile-page .partner-mood-habits{display:inline-flex;align-items:center;flex:none;white-space:nowrap}
+.partner-profile-page .partner-mood-habits[hidden]{display:none!important}
+.partner-profile-page .partner-mood-habits>:is(#homePartnerHabitsSummary,.partner-habits-plain){display:block!important;width:auto!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;border-radius:0!important;color:var(--hero-text)!important;-webkit-text-fill-color:var(--hero-text)!important;font-size:12px!important;font-weight:400!important;line-height:1.25!important;white-space:nowrap!important}
+.partner-profile-page .partner-hero-bubbles{grid-template-columns:minmax(0,1fr)}
