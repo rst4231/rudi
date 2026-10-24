@@ -461,11 +461,6 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-wish-row {
  .partner-profile-page .partner-hero-bubbles{gap:9px 8px;padding:2px 0}
  .partner-profile-page .partner-hero-bubble{min-height:44px;padding:8px 9px}
 }
-@media(prefers-reduced-motion:no-preference){
- .partner-profile-page .partner-hero-bubble{animation:partner-orbit 7s ease-in-out infinite alternate}
- .partner-profile-page .partner-hero-bubble:nth-child(even){animation-delay:-3s}
- @keyframes partner-orbit{to{translate:0 -4px}}
-}
 .partner-profile-page .partner-hero .rudi-partner-fasting-hours{
  position:absolute!important;inset:auto!important;top:-13px!important;left:50%!important;transform:translateX(-50%)!important;
  display:block;padding:3px 8px!important;border:2px solid #a89af2!important;border-radius:17px!important;
@@ -479,7 +474,7 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-wish-row {
  .partner-profile-page .partner-hero .rudi-partner-fasting-hours{font-size:12px!important}
 }
 
-/* v4.330: content-sized, level pills and an explicit palette for each theme. */
+/* Compact, aligned status grid with explicit theme colors. */
 .partner-profile-page .partner-hero{
  --hero-text:#f3f5fc;--hero-muted:#d9deeb;gap:10px!important;min-height:0!important;padding:14px 12px!important;
 }
@@ -491,21 +486,26 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-wish-row {
 .partner-profile-page .partner-hero :is(.profile-cycle-mood,.profile-rhythm-status){font-size:11px!important}
 .partner-profile-page .partner-hero::before{width:24px;height:24px;opacity:.6}
 .partner-profile-page .partner-hero::after{width:38px;height:38px;bottom:-20px;opacity:.4}
-.partner-profile-page .partner-hero-bubbles{display:flex!important;flex-wrap:wrap;align-items:center;gap:7px!important;padding:2px 0!important}
+.partner-profile-page .partner-hero-bubbles{display:grid!important;grid-template-columns:minmax(70px,.7fr) minmax(0,1.3fr);align-items:stretch;gap:7px!important;padding:2px 0!important}
+.partner-profile-page .partner-hero-bubble.is-habits{order:0}
+.partner-profile-page .partner-hero-bubble.is-cbt{order:1}
+.partner-profile-page .partner-hero-bubble.is-meditation{order:2;grid-column:1/-1}
+.partner-profile-page .partner-hero-bubble.is-expense{order:3;grid-column:1/-1}
 .partner-profile-page .partner-hero-bubble{
- flex:0 1 auto;width:max-content;max-width:100%;min-height:32px!important;padding:5px 9px!important;
- border-radius:999px;transform:none!important;animation:none!important;translate:none!important;color:var(--hero-text)!important;
+ flex:0 1 auto;width:100%;box-sizing:border-box;max-width:100%;height:32px;min-height:32px!important;padding:5px 9px!important;
+ border-radius:999px;transform:none!important;translate:none!important;color:var(--hero-text)!important;
  box-shadow:inset 0 1px 5px rgba(var(--bubble),.2),0 3px 9px rgba(var(--bubble),.09);
 }
 .partner-profile-page .partner-hero-bubble::after{display:none}
 .partner-profile-page .partner-hero-bubble :is(#homePartnerHabitsSummary,.meditation-partner-summary,.home-partner-last-expense,.partner-habits-plain,.partner-cbt-status){
- width:auto!important;max-width:100%;min-height:0!important;display:block!important;margin:0!important;padding:0!important;
+ width:100%!important;max-width:100%;min-height:0!important;display:flex!important;align-items:center;gap:6px;margin:0!important;padding:0!important;
  border:0!important;outline:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;
  color:var(--hero-text)!important;-webkit-text-fill-color:var(--hero-text)!important;font-size:12px!important;line-height:1.25!important;font-weight:400!important;
  white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;text-align:left!important;
 }
 .partner-profile-page .partner-hero-bubble .partner-cbt-status{display:flex!important;align-items:center;gap:6px}
-.partner-profile-page .partner-hero-bubble .partner-cbt-status>svg{width:16px;height:16px}
+.partner-profile-page .partner-hero-bubble .partner-cbt-status>svg{display:block;flex:0 0 16px;width:16px;height:16px}
+.partner-profile-page .partner-hero-bubble .partner-cbt-status>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .partner-profile-page .partner-hero .rudi-partner-fasting-hours{font-size:10px!important;padding:3px 7px!important;top:-12px!important}
 html:not([data-theme="dark"]) .partner-profile-page .partner-hero{
  --hero-text:#26324a;--hero-muted:#44506a;
@@ -520,3 +520,78 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-hero .profile-cycle
 html:not([data-theme="dark"]) .partner-profile-page .partner-hero .profile-rhythm-status{color:#44506a!important;-webkit-text-fill-color:#44506a!important}
 html:not([data-theme="dark"]) .partner-profile-page .partner-hero .partner-cbt-status>svg{color:#7052a1}
 .partner-profile-page .partner-hero-bubble.is-meditation:has(>.meditation-partner-summary[data-meditated-today="false"]){display:none!important}
+
+/* Keep the live fasting outline and timer identical to Home's lavender halo. */
+.partner-profile-page .partner-hero .score-avatar-wrap{position:relative!important;overflow:visible!important}
+.partner-profile-page .partner-hero .score-avatar-wrap>.rudi-partner-fasting-outline{
+ position:absolute!important;inset:-4px!important;width:calc(100% + 8px)!important;height:calc(100% + 8px)!important;
+ max-width:none!important;display:block!important;overflow:visible!important;z-index:8;pointer-events:none;
+}
+.partner-profile-page .partner-hero .rudi-partner-fasting-outline[hidden]{display:none!important}
+.partner-profile-page .partner-hero .rudi-partner-fasting-outline path{fill:none!important;stroke-width:7!important;stroke-linecap:round;stroke-linejoin:round}
+.partner-profile-page .partner-hero .rudi-partner-fasting-track{stroke:rgba(151,146,245,.22)!important}
+.partner-profile-page .partner-hero .rudi-partner-fasting-value{stroke:var(--rudi-partner-fasting-color,#a59af9)!important;filter:drop-shadow(0 0 3px var(--rudi-partner-fasting-color,#a59af9))}
+.partner-profile-page .partner-hero .rudi-partner-fasting-hours{z-index:40!important;border-color:var(--rudi-partner-fasting-color,#a59af9)!important}
+@media(prefers-reduced-motion:no-preference){
+ .partner-profile-page .partner-hero-bubble{animation:partner-pill-arrive .35s ease-out both}
+ .partner-profile-page .partner-hero-bubble.is-cbt{animation-delay:.05s}
+ .partner-profile-page .partner-hero-bubble.is-expense{animation-delay:.1s}
+ .partner-profile-page .partner-hero-bubble::before{content:'';position:absolute;inset:0;border:1px solid rgba(var(--bubble),.5);border-radius:inherit;pointer-events:none;animation:partner-pill-glow 4s ease-in-out infinite alternate}
+ .partner-profile-page .partner-hero-bubble.is-cbt::before{animation-delay:-2s}
+ .partner-profile-page .partner-hero::before,.partner-profile-page .partner-hero::after{animation:partner-sphere-drift 7s ease-in-out infinite alternate}
+ .partner-profile-page .partner-hero::after{animation-delay:-3s}
+ @keyframes partner-pill-arrive{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+ @keyframes partner-pill-glow{from{opacity:.15;box-shadow:0 0 0 rgba(var(--bubble),0)}to{opacity:.65;box-shadow:0 0 8px rgba(var(--bubble),.22)}}
+ @keyframes partner-sphere-drift{to{transform:translate(-6px,5px)}}
+}
+@media(prefers-reduced-motion:reduce){
+ .partner-profile-page .partner-hero-bubble,.partner-profile-page .partner-hero-bubble::before,.partner-profile-page .partner-hero::before,.partner-profile-page .partner-hero::after{animation:none!important}
+}
+
+/* Stronger daylight colors keep the glass sections distinct on an iPhone. */
+html:not([data-theme="dark"]) .rudi-meditation-page.partner-profile-page{
+ --pp-bg:#f1f3fa;--pp-muted:#4d5a70;--pp-blue:#4857af;--pp-mint:#146b5b;--pp-rose:#a5346c;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero{
+ background:linear-gradient(120deg,#e2dcfa,#e3edff)!important;border-color:#b2acd4!important;
+ box-shadow:inset 0 1px 0 #fff,0 5px 15px rgba(64,55,113,.12)!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero-bubble{
+ border-color:rgba(var(--bubble),.95);background:linear-gradient(135deg,rgba(var(--bubble),.38),rgba(255,255,255,.85));
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 2px 7px rgba(49,55,97,.1);
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero-bubble.is-habits{--bubble:35,169,130}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero-bubble.is-expense{--bubble:94,120,225}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero-bubble.is-cbt{--bubble:155,92,205}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero-bubble.is-meditation{--bubble:207,155,47}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero::before{opacity:.9}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero::after{opacity:.7}
+html:not([data-theme="dark"]) .partner-profile-page .partner-energy-card{
+ background:linear-gradient(130deg,#c5eede,#def5e9)!important;border:1px solid #91ccb9!important;box-shadow:none!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-energy-card>.rhythm-advice{color:#164a3f!important;-webkit-text-fill-color:#164a3f!important;border-top-color:#97cebb!important}
+html:not([data-theme="dark"]) .partner-profile-page .partner-plans{
+ background:linear-gradient(140deg,#dfe3fc,#eae7fc)!important;border:1px solid #bac2e8!important;box-shadow:none!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-plan-row{background:#fff!important}
+html:not([data-theme="dark"]) .partner-profile-page .partner-plan-row h3{color:#4d5972}
+html:not([data-theme="dark"]) .partner-profile-page .partner-event-time{color:#4d5972}
+html:not([data-theme="dark"]) .partner-profile-page .partner-profile-layout>.profile-person-details>.partner-today{border:1px solid #c9cbe3!important;box-shadow:none!important}
+html:not([data-theme="dark"]) .partner-profile-page .partner-profile-layout>.profile-person-details>.home-cycle-summary{background:linear-gradient(130deg,#f9dce9,#fff0f5)!important;border:1px solid #e4aec7!important;box-shadow:none!important}
+html:not([data-theme="dark"]) .partner-profile-page .partner-gifts{background:linear-gradient(140deg,#fbe8bb,#fff5db)!important;border:1px solid #d9bd7e!important;box-shadow:none!important}
+
+/* A wrapped-gift motif, without adding another large illustration. */
+.partner-profile-page .partner-gifts{position:relative;isolation:isolate;overflow:hidden;border-color:color-mix(in srgb,var(--pp-rose) 28%,transparent);background:radial-gradient(ellipse at 100% 0,var(--pp-rose-soft),transparent 65%),var(--pp-gold-soft)}
+.partner-profile-page .partner-gifts>h2{display:flex;align-items:center;gap:9px;color:var(--pp-gold)}
+.partner-profile-page .partner-gifts>h2>svg{width:22px;height:22px;flex:none;color:var(--pp-rose)}
+.partner-profile-page .partner-gifts>.partner-birthday{position:relative;overflow:hidden;padding-left:20px;background:var(--pp-panel);border-color:color-mix(in srgb,var(--pp-gold) 25%,transparent)}
+.partner-profile-page .partner-gifts>.partner-birthday::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(var(--pp-rose),var(--pp-gold));border-radius:8px}
+.partner-profile-page .partner-gifts .partner-birthday-count{padding:8px;border-radius:12px;background:var(--pp-gold-soft)}
+.partner-profile-page .partner-gifts .partner-wishes-head{color:var(--pp-rose)}
+.partner-profile-page .partner-gifts .partner-wish-row{position:relative;gap:10px;padding:11px 10px;background:var(--pp-rose-soft);border:1px solid color-mix(in srgb,var(--pp-rose) 12%,transparent)}
+.partner-profile-page .partner-gifts .partner-wish-row::before{content:'';display:block;width:24px;height:26px;flex:0 0 24px;background:var(--pp-rose);opacity:.85;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8H8a3 3 0 1 1 3-3l1 3Zm0 0h4a3 3 0 1 0-3-3l-1 3Z'/%3E%3C/svg%3E") center/contain no-repeat}
+.partner-profile-page .partner-gifts .partner-wish-row.is-done::before{opacity:.35}
+html:not([data-theme="dark"]) .partner-profile-page .partner-gifts{background:radial-gradient(ellipse at 100% 0,#f5cfdf,transparent 65%),linear-gradient(140deg,#fbe5ad,#fff2d7)!important;border-color:#d9af75!important}
+html:not([data-theme="dark"]) .partner-profile-page .partner-gifts>.partner-birthday{background:#fffaf0!important;border:1px solid #e5c38c!important;padding-left:20px!important}
+html:not([data-theme="dark"]) .partner-profile-page .partner-gifts>.partner-profile-wishes{background:rgba(255,255,255,.9)!important}
+html:not([data-theme="dark"]) .partner-profile-page .partner-gifts .partner-wish-row{background:#f9e6f0!important;border:1px solid #e9bfd5!important;color:#493145!important}

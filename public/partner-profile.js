@@ -69,7 +69,7 @@
   const cycle=details.querySelector('.home-cycle-summary');
   if(cycle){const more=document.createElement('details');more.className='partner-cycle-more';more.innerHTML='<summary>Подробнее о самочувствии</summary>';cycle.append(more);groups.push(more);for(const node of [...cycle.querySelectorAll('.home-cycle-insight')])move(node,more)}
   const birthday=page.querySelector('.partner-birthday'),wishes=page.querySelector('.partner-profile-wishes');
-  const gifts=document.createElement('section');gifts.className='partner-gifts';gifts.innerHTML='<h2>Подарки</h2>';birthday.before(gifts);gifts.append(birthday,wishes);
+  const gifts=document.createElement('section');gifts.className='partner-gifts';gifts.innerHTML='<h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8H8a3 3 0 1 1 3-3l1 3Zm0 0h4a3 3 0 1 0-3-3l-1 3Z"/></svg>Подарки</h2>';birthday.before(gifts);gifts.append(birthday,wishes);
   return {parts,groups,heroObserver:observer};
  }
  function birthdayInfo(actor,now=new Date()){
