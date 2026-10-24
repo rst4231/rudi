@@ -117,7 +117,7 @@
    const data=await response.json();
    if(!row.isConnected)return;
    if(!response.ok||!data.ok||data.actor!==viewer||data.partner!==actor)throw Error('partner-profile-unavailable');
-   if(Array.isArray(data.emotions?.daily)&&window.RudiPositiveEmotions){window.RudiPositiveEmotions.render(chart,data.emotions.daily);chart.hidden=false;status.hidden=true}
+   if(Array.isArray(data.emotions?.daily)&&window.RudiPositiveEmotions){window.RudiPositiveEmotions.render(chart,data.emotions.daily);chart.removeAttribute('hidden');status.hidden=true}
    else status.textContent='Не удалось загрузить динамику настроения.';
    const m=data.metrics||{},items=[['Вес',m.weight,' кг'],['Рост',m.height,' см'],['Возраст',m.age,'']];
    if(!items.some(([,value])=>value!=null))return;

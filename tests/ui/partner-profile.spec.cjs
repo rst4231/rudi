@@ -19,6 +19,8 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await expect(profile.locator('.partner-today>h2')).toHaveText('БАДы');
  await expect(profile.locator('.partner-positive-emotions>h2')).toHaveText('Динамика позитивных эмоций');
  expect(await profile.locator('.partner-positive-emotions').evaluate(el=>el.previousElementSibling.id==='partnerNoteTile')).toBe(true);
+ await expect(profile.locator('.partner-positive-emotions svg')).toBeVisible();
+ expect((await profile.locator('.partner-positive-emotions svg').boundingBox()).height).toBe(120);
  await expect(profile.locator('.partner-positive-emotions svg polyline')).toHaveAttribute('points','22.0,63.5 332.0,17.0');
  await expect(profile.locator('.partner-positive-emotions svg')).toContainText('23.10');
  await expect(profile.locator('.partner-positive-emotions svg')).toContainText('24.10');
@@ -44,6 +46,8 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  let heroPaint;
  for(const theme of ['light','dark']){
   await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+  await expect(profile.locator('.partner-positive-emotions svg')).toBeVisible();
+  await profile.locator('.partner-positive-emotions').screenshot({path:test.info().outputPath('emotion-chart-'+theme+'.png')});
   const paint=await profile.locator('.partner-hero').evaluate(el=>{const s=getComputedStyle(el),name=getComputedStyle(el.querySelector('.name,#partnerHeaderName'));return {background:s.backgroundImage,text:name.color}});
   if(theme==='light'){heroPaint=paint;await expect(profile).toHaveCSS('background-color','rgb(244, 245, 251)')}
   else expect(paint).toEqual(heroPaint);
@@ -115,6 +119,7 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await page.screenshot({path:test.info().outputPath('partner-profile.png')});
  await profile.locator('.partner-profile-back').click();moodDaily=[];
  await page.locator('#partnerHeaderName').click();
+ await expect(profile.locator('.partner-positive-emotions svg')).toBeVisible();
  await expect(profile.locator('.partner-positive-emotions svg')).toContainText('График появится после двух дней');
  await expect(profile.locator('.partner-positive-emotions svg polyline')).toHaveCount(0);
  await profile.locator('.partner-profile-back').click();moodDaily=null;
