@@ -103,6 +103,21 @@
   }
   update();return update;
  }
+ async function addBodyMetrics(page,actor){
+  const person=page.querySelector('.partner-hero .person');if(!person)return;
+  const row=document.createElement('div');row.className='partner-body-metrics';row.hidden=true;person.append(row);
+  active.groups.push(row);
+  const viewer=document.body.dataset.rudiActor,controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
+  try{
+   const response=await fetch('/api/personal-center',{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'partner-profile',initData:window.Telegram?.WebApp?.initData||''})});
+   const data=await response.json();
+   if(!response.ok||!data.ok||data.actor!==viewer||data.partner!==actor||!row.isConnected)return;
+   const m=data.metrics||{},items=[['Вес',m.weight,' кг'],['Рост',m.height,' см'],['Возраст',m.age,'']];
+   if(!items.some(([,value])=>value!=null))return;
+   for(const [label,value,unit] of items){const metric=document.createElement('span');metric.textContent=label+' '+(value==null?'—':String(value).replace('.',',')+unit);row.append(metric)}
+   row.hidden=false;
+  }catch(_){}finally{clearTimeout(timeout)}
+ }
  function addCbtStatus(page,actor,loadCbtStatus){
   const mood=page.querySelector('#partnerMoodValue');if(!mood)return;
   const badge=document.createElement('span');badge.className='partner-mood-cbt';badge.hidden=true;
@@ -207,6 +222,7 @@
    active.birthdayTimer=setInterval(active.updateBirthday,60000);
    addCbtStatus(page,actor,loadCbtStatus);
    Object.assign(active,composePage(page,energy,advice,details));
+   void addBodyMetrics(page,actor);
    const today=page.querySelector('.partner-today'),note=window.RudiHomeNote?.mountPartner?.();
    if(today&&note)today.after(note);
    active.groups.push(addPlans(page,actor,loadPlans));

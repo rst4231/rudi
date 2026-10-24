@@ -616,3 +616,8 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-mood-cbt{color:#784
 .partner-profile-page .partner-mood-habits[hidden]{display:none!important}
 .partner-profile-page .partner-mood-habits>:is(#homePartnerHabitsSummary,.partner-habits-plain){display:block!important;width:auto!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;border-radius:0!important;color:var(--hero-text)!important;-webkit-text-fill-color:var(--hero-text)!important;font-size:12px!important;font-weight:400!important;line-height:1.25!important;white-space:nowrap!important}
 .partner-profile-page .partner-hero-bubbles{grid-template-columns:minmax(0,1fr)}
+
+.partner-profile-page .partner-body-metrics{display:flex;flex-wrap:wrap;gap:3px 8px;margin-top:5px;font-size:11px;line-height:1.5;font-weight:400;color:var(--hero-muted)}
+.partner-profile-page .partner-body-metrics[hidden]{display:none!important}
+.partner-profile-page .partner-body-metrics>span{white-space:nowrap}
+.partner-profile-page .partner-body-metrics>span:not(:last-child)::after{content:'·';margin-left:8px;opacity:.6}

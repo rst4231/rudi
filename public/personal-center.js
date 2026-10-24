@@ -26,7 +26,7 @@ function formField(label,control){return '<label class="rudi-center__field">'+la
 function makeMarkup(){
  const p=[];
  p.push('<div class="rudi-center__pull" id="pcPull" hidden><span class="rudi-center__pull-dot"></span><span id="pcPullLabel">Потяните для обновления</span></div>');
- p.push('<header class="rudi-center__bar"><button id="pcBack" class="rudi-center__back" type="button">← Назад</button><b>Мой AI-центр</b><button id="pcSettings" class="rudi-center__icon" type="button" aria-label="Управление данными">⚙</button></header>');
+ p.push('<header class="rudi-center__bar rudi-app-page-head"><button id="pcBack" class="rudi-center__back rudi-app-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m15 18-6-6 6-6"/></svg></button><h1>Мой AI-центр</h1><button id="pcSettings" class="rudi-center__icon" type="button" aria-label="Управление данными">⚙</button></header>');
  p.push('<div class="rudi-center__wrap"><div class="rudi-center__content">');
  p.push('<div class="rudi-center__hero"><small>✦ ЛИЧНЫЙ ОБЗОР</small><div class="rudi-center__hero-identity"><div class="rudi-center__hero-avatar" aria-hidden="true"><span id="pcHeroInitial">Р</span><img id="pcHeroImage" alt="" hidden></div><div class="rudi-center__hero-name"><h1 id="pcPerson">Мой день</h1><p id="pcHeroMeta">Возраст — · Вес — · Рост —</p><div id="pcHeroAttention" class="rudi-center__hero-attention" hidden></div></div></div></div>');
  p.push('<div class="rudi-center__card rudi-center__report"><div class="rudi-center__head"><div><small class="rudi-center__eyebrow">ТВОЙ ДЕНЬ</small></div><span class="rudi-center__meta" id="pcReportDate">Сегодня</span></div><p class="rudi-center__report-lead" id="pcReport">Нажми кнопку, чтобы получить обзор.</p><div class="rudi-center__summary-grid" id="pcSummaryGrid" hidden><div class="rudi-center__summary-main" id="pcMainBlock"><small>ГЛАВНОЕ</small><p id="pcMainChange">—</p></div><div class="rudi-center__summary-action" id="pcActionBlock"><small>ЧТО СДЕЛАТЬ</small><p id="pcMainAction">—</p></div><div class="rudi-center__summary-note" id="pcObservationBlock"><small>НАБЛЮДЕНИЕ</small><p id="pcMainObservation">—</p></div><div class="rudi-center__summary-note" id="pcForecastBlock"><small>ЧТО ДАЛЬШЕ</small><p id="pcForecast">—</p></div></div><button id="pcReportMore" class="rudi-center__report-more" data-open="report" type="button" hidden>Открыть подробности →</button><button id="pcGenerateReport" class="rudi-center__btn rudi-center__generate-report" type="button" hidden>Получить обзор</button><div class="rudi-center__status" id="pcStatus" role="status" aria-live="polite"></div></div>');
@@ -34,6 +34,7 @@ function makeMarkup(){
  p.push('<div class="rudi-center__tile-grid"><button class="rudi-center__tile" data-open="symptoms"><span class="rudi-center__tile-icon">♡</span><strong>Здоровье</strong><small id="pcSymptomsCount">Дневник здоровья</small></button><button class="rudi-center__tile" data-open="weight"><span class="rudi-center__tile-icon">↟</span><strong>Моё тело</strong><small id="pcWeight">Вес и рост</small></button></div>');
  p.push('<div class="rudi-center__card"><div class="rudi-center__head"><h2>Динамика позитивных эмоций</h2></div><svg class="rudi-center__chart" id="pcGraph" viewBox="0 0 350 168" role="img" aria-label="График доли позитивных эмоций с датами"></svg></div>');
  p.push('<div id="pcDianaCycleSlot" class="rudi-center__cycle-slot" hidden><section class="rudi-center__card rudi-center__cycle-card"><div class="rudi-center__head"><h2>Цикл Дианы</h2><span class="rudi-center__meta">Прогноз</span></div><div class="rudi-center__cycle-grid"><div><span>Фаза</span><strong id="pcCyclePhase">—</strong></div><div><span>День цикла</span><strong id="pcCycleDay">—</strong></div><div><span>До следующих месячных</span><strong id="pcCycleCountdown">—</strong></div><div><span>Последнее начало</span><strong id="pcCyclePeriod">—</strong></div></div><p id="pcCycleNote" class="rudi-center__meta">Прогноз ориентировочный.</p><button id="pcCycleRecord" class="rudi-center__btn" type="button" hidden>Отметить начало сегодня</button></section></div>');
+ p.push('<section class="pc-gifts"><h2>🎁 Подарки</h2><div class="pc-birthday"><span aria-hidden="true">🎂</span><div><strong>До дня рождения</strong><small id="pcBirthdayDate"></small></div><b id="pcBirthdayDays"></b></div><div class="pc-wishes"><div class="pc-wishes-head"><h3>♡ Желания</h3><span id="pcWishCount"></span></div><form id="pcWishForm"><input id="pcWishText" maxlength="180" placeholder="Добавить желание…" aria-label="Желание" required><button type="submit" aria-label="Добавить желание">+</button><button id="pcWishLinkToggle" type="button" aria-expanded="false">+ Добавить ссылку</button><input id="pcWishUrl" type="url" maxlength="1200" placeholder="https://…" aria-label="Ссылка на подарок" hidden></form><p id="pcWishStatus" role="status"></p><div id="pcWishList"></div></div></section>');
  p.push('</div></div>');
  p.push('<div class="rudi-center__overlay" id="pcOverlay" hidden><div class="rudi-center__sheet" role="dialog" aria-modal="true" aria-labelledby="pcSheetTitle"><div class="rudi-center__sheet-head"><button id="pcSheetClose" class="rudi-center__back" type="button">← Назад</button><h2 id="pcSheetTitle">Данные</h2><span class="rudi-center__sheet-spacer" aria-hidden="true"></span></div><div id="pcSheetContent" class="rudi-center__sheet-content"></div></div></div>');
  return p.join('');
@@ -44,6 +45,15 @@ function attach(){
  root.innerHTML=makeMarkup();document.body.appendChild(root);
  $('pcBack').onclick=hide;$('pcSettings').onclick=()=>sheet('settings');
  $('pcGenerateReport').onclick=()=>void requestDailyReport();
+ $('pcWishLinkToggle').onclick=()=>{const input=$('pcWishUrl');input.hidden=!input.hidden;$('pcWishLinkToggle').setAttribute('aria-expanded',String(!input.hidden));if(!input.hidden)input.focus()};
+ $('pcWishForm').onsubmit=async event=>{
+  event.preventDefault();const text=$('pcWishText').value.trim(),url=$('pcWishUrl').value.trim(),actor=who;
+  if(!text||!window.RudiWishlist)return;
+  const button=$('pcWishForm').querySelector('[type=submit]');button.disabled=true;
+  try{const items=await window.RudiWishlist.add(text,url);if(actor!==who)return;$('pcWishText').value='';$('pcWishUrl').value='';$('pcWishUrl').hidden=true;$('pcWishLinkToggle').setAttribute('aria-expanded','false');renderGiftWishes(items);$('pcWishStatus').textContent='Желание добавлено';}
+  catch(_){$('pcWishStatus').textContent='Не удалось добавить желание. Попробуй ещё раз.'}finally{button.disabled=false}
+ };
+
  root.querySelectorAll('[data-rhythm]').forEach(btn=>btn.onclick=()=>{rhythmMode=btn.dataset.rhythm;renderRhythm();});
  $('pcCycleRecord').onclick=()=>void recordPersonalCycle();
  $('pcSheetClose').onclick=closeSheet;$('pcOverlay').addEventListener('click',e=>{if(e.target===$('pcOverlay'))closeSheet();});
@@ -54,6 +64,11 @@ function attach(){
   if(btn.dataset.tab)closeAndNavigate(()=>{if(typeof window.RUDI_NAVIGATE_TO_TAB==='function')window.RUDI_NAVIGATE_TO_TAB(btn.dataset.tab,{scroll:true});else document.querySelector('[data-app-tab="'+btn.dataset.tab+'"]')?.click();});
  });
  document.addEventListener('keydown',e=>{if(!open||e.key!=='Escape')return;if(activeSheet)closeSheet();else hide();});
+ const name=$('displayName');if(name){
+  name.setAttribute('role','button');name.tabIndex=0;name.setAttribute('aria-label','Открыть мой AI-центр');name.removeAttribute('aria-controls');name.removeAttribute('aria-expanded');
+  name.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();void show()},{capture:true});
+  name.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopImmediatePropagation();void show()}},{capture:true});
+ }
  const av=$('avatar');if(av){
   av.style.cursor='pointer';av.setAttribute('role','button');av.setAttribute('tabindex','0');
   av.addEventListener('click',e=>{if(e.target.closest('button'))return;show();});
@@ -137,7 +152,7 @@ async function show({fromHistory=false}={}){
  if(!data)showOffline();
  updateReportButton();
  setStatus('');
- try{await fetchOverview(false);}
+ try{await fetchOverview(false);void refreshGifts();}
  catch(_){if(!data&&!showOffline())setStatus('Нет соединения с RUDI · попробуй позже');}
 }
 function motionReduced(){
@@ -425,9 +440,32 @@ async function requestDailyReport(){
   setStatus(error?.message==='Требуется вход'?'Нужно войти в RUDI':'Не удалось получить сводку. Попробуй позже.');
  }finally{manualLoading=false;updateReportButton();}
 }
+function renderGiftWishes(items){
+ const list=$('pcWishList');list.replaceChildren();const own=(items||[]).filter(item=>item.owner===who);
+ $('pcWishCount').textContent=String(own.filter(item=>!item.done).length);
+ for(const item of own){const row=document.createElement('div');row.className='pc-wish'+(item.done?' is-done':'');
+  const icon=document.createElement('span');icon.textContent='🎁';icon.setAttribute('aria-hidden','true');row.append(icon);
+  const copy=document.createElement('span');copy.textContent=String(item.text||'');row.append(copy);
+  if(item.url&&/^https?:\/\//i.test(item.url)){const link=document.createElement('a');link.href=item.url;link.textContent='↗';link.setAttribute('aria-label','Открыть: '+item.text);link.onclick=e=>{e.preventDefault();window.RudiWishlist?.open(item.url)};row.append(link)}
+  if(item.done){const done=document.createElement('small');done.textContent='Исполнено';row.append(done)}list.append(row);
+ }
+ if(!own.length)list.textContent='Пока нет желаний';
+}
+async function refreshGifts(){
+ const actor=who;if(!actor||!window.RudiWishlist)return;
+ try{const items=await window.RudiWishlist.list();if(actor===who&&open){renderGiftWishes(items);$('pcWishStatus').textContent=''}}catch(_){if(actor===who)$('pcWishStatus').textContent='Не удалось загрузить желания'}
+}
+function renderGiftBirthday(){
+ if(!who)return;const today=dayKey(),year=Number(today.slice(0,4)),date=String(data?.profile?.birthDate||''),fallback=who==='Диана'?'06-30':'03-03',md=/^\d{4}-\d{2}-\d{2}$/.test(date)?date.slice(5):fallback;
+ let target=year+'-'+md;if(target<today)target=(year+1)+'-'+md;
+ const days=Math.round((Date.parse(target+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/86400000);
+ $('pcBirthdayDate').textContent=new Date(target+'T12:00:00Z').toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+ $('pcBirthdayDays').textContent=days===0?'Сегодня':days+' '+(days%100>=11&&days%100<=14?'дней':days%10===1?'день':days%10>=2&&days%10<=4?'дня':'дней');
+}
 function draw(){
  if(!data)return;
  showText('pcPerson',who||'Мой день');
+ renderGiftBirthday();
  const emotions=data.emotions;
  syncHero();
  mountDianaCycle();

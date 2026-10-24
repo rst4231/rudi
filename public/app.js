@@ -10645,7 +10645,7 @@
         const button=collapseButton('Свернуть или развернуть блок');
         addHeaderCollapseButton(section,host,button);
         const titleTrigger=key.startsWith('profile-')
-          ?host.querySelector('#displayName,#partnerHeaderName')
+          ?host.querySelector('#partnerHeaderName')
           :key==='smart-home'?host.querySelector('#smartHomeTitle')
           :key==='daily-question'?host.querySelector('#dailyQuestionTitle')
           :null;
@@ -17982,6 +17982,12 @@
       }
 
       function setupWishlist(){
+        window.RudiWishlist={
+          list:async()=>{const data=await wishlistRequest('list');renderWishlist(data);return data.items||[];},
+          add:async(text,url)=>{const data=await wishlistRequest('add',{text,url});renderWishlist(data);return data.items||[];},
+          open:openWishlistUrl
+        };
+
         const form=document.getElementById('wishlistForm');
         const input=document.getElementById('wishlistInput');
         const urlInput=document.getElementById('wishlistUrl');
