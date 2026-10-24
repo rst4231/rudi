@@ -50,10 +50,18 @@
    bubbles.append(bubble);if(node)move(node,bubble);
   }
   // Keep moved rows inside details: existing live renderers find them here.
+  const compactHabits=()=>{
+   if(!habits)return;
+   const text=habits.textContent.replace(/Привычки:\s*(\d+)\s+из\s+(\d+)/u,'$1/$2');
+   if(text!==habits.textContent)habits.textContent=text;
+  };
+  compactHabits();
   const observer=new MutationObserver(()=>{
+   compactHabits();
    const late=details.querySelector(':scope>#meditationPartnerSummary');
    if(late)move(late,bubbles.querySelector('.is-meditation'));
   });observer.observe(details,{childList:true});
+  if(habits)observer.observe(habits,{childList:true,subtree:true,characterData:true});
   const today=document.createElement('section');today.className='partner-today';today.innerHTML='<h2>БАДы</h2>';
   if(intakes)intakes.before(today);else details.append(today);groups.push(today);
   if(habits){habits.classList.remove('profile-partner-habits-summary');habits.classList.add('partner-habits-plain');}
@@ -96,8 +104,10 @@
    if(!row.isConnected)return;
    if(data?.partner!==actor||typeof data.active!=='boolean')throw Error('status-unavailable');
    row.classList.toggle('is-active',data.active);
-   text.textContent=data.active?'Проходит когнитивно-поведенческую терапию':'Не проходит когнитивно-поведенческую терапию';
-  }).catch(()=>{if(row.isConnected)text.textContent='Статус КПТ пока недоступен'});
+   const label=data.active?'Проходит когнитивно-поведенческую терапию':'Не проходит когнитивно-поведенческую терапию';
+   row.setAttribute('aria-label',label);row.title=label;
+   text.textContent=data.active?'Проходит КПТ':'Не проходит КПТ';
+  }).catch(()=>{if(row.isConnected){text.textContent='КПТ: нет данных';row.title='Статус КПТ пока недоступен';row.setAttribute('aria-label',row.title)}});
  }
  function addWishes(page,actor,loadWishes,openWish){
   const section=document.createElement('section');section.className='partner-profile-wishes';section.setAttribute('aria-label','Желания '+actor);
@@ -134,7 +144,7 @@
   const saved=active;active=null;
   saved.heroObserver?.disconnect();
   for(const {node,marker} of saved.parts||[]){
-   if(node.classList.contains('partner-habits-plain')){node.classList.remove('partner-habits-plain');node.classList.add('profile-partner-habits-summary');}
+   if(node.classList.contains('partner-habits-plain')){node.textContent=node.textContent.replace(/^(🌱\s*)(\d+)\/(\d+)$/u,'$1Привычки: $2 из $3');node.classList.remove('partner-habits-plain');node.classList.add('profile-partner-habits-summary');}
    marker.replaceWith(node);
   }
   saved.page.querySelector('.partner-cbt-status')?.remove();
@@ -177,7 +187,7 @@
     stars.setAttribute('aria-label','Звёзды '+actor+': '+(count==null?'загружаются':stars.textContent.slice(3))+'. Открыть историю');
    };
    const paints=[...head.querySelectorAll('#partnerHeaderName,.profile-work-status'),...details.querySelectorAll('.rhythm-advice,.meditation-partner-summary,.profile-partner-habits-summary,.home-cycle-status,.home-cycle-advice,.home-cycle-insight')].map(node=>({node,style:node.getAttribute('style')}));
-   for(const {node} of paints){node.style.setProperty('color','var(--text)','important');node.style.setProperty('-webkit-text-fill-color','var(--text)','important')}
+   for(const {node} of paints){node.style.removeProperty('color');node.style.removeProperty('-webkit-text-fill-color')}
    active={tile,details,slots,paints,page,trigger,actor,hidden:tile.hidden,scroll:window.scrollY,updateBalance};
    tile.hidden=true;
    details.hidden=false;

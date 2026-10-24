@@ -478,3 +478,45 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-wish-row {
  .partner-profile-page .partner-hero .avatar{width:80px!important;height:80px!important;min-width:80px!important;min-height:80px!important;border-radius:23px!important}
  .partner-profile-page .partner-hero .rudi-partner-fasting-hours{font-size:12px!important}
 }
+
+/* v4.330: content-sized, level pills and an explicit palette for each theme. */
+.partner-profile-page .partner-hero{
+ --hero-text:#f3f5fc;--hero-muted:#d9deeb;gap:10px!important;min-height:0!important;padding:14px 12px!important;
+}
+.partner-profile-page .partner-hero .identity{grid-template-columns:52px minmax(0,1fr)!important;gap:11px!important}
+.partner-profile-page .partner-hero .score-avatar-wrap{width:52px!important;height:52px!important;min-width:52px!important;min-height:52px!important;flex-basis:52px!important}
+.partner-profile-page .partner-hero .avatar{width:52px!important;height:52px!important;min-width:52px!important;min-height:52px!important;border-radius:16px!important}
+.partner-profile-page .partner-hero :is(.name,#partnerHeaderName){font-size:22px!important;color:var(--hero-text)!important;-webkit-text-fill-color:var(--hero-text)!important}
+.partner-profile-page .partner-hero .profile-work-status{font-size:13px!important;color:var(--hero-muted)!important;-webkit-text-fill-color:var(--hero-muted)!important}
+.partner-profile-page .partner-hero :is(.profile-cycle-mood,.profile-rhythm-status){font-size:11px!important}
+.partner-profile-page .partner-hero::before{width:24px;height:24px;opacity:.6}
+.partner-profile-page .partner-hero::after{width:38px;height:38px;bottom:-20px;opacity:.4}
+.partner-profile-page .partner-hero-bubbles{display:flex!important;flex-wrap:wrap;align-items:center;gap:7px!important;padding:2px 0!important}
+.partner-profile-page .partner-hero-bubble{
+ flex:0 1 auto;width:max-content;max-width:100%;min-height:32px!important;padding:5px 9px!important;
+ border-radius:999px;transform:none!important;animation:none!important;translate:none!important;color:var(--hero-text)!important;
+ box-shadow:inset 0 1px 5px rgba(var(--bubble),.2),0 3px 9px rgba(var(--bubble),.09);
+}
+.partner-profile-page .partner-hero-bubble::after{display:none}
+.partner-profile-page .partner-hero-bubble :is(#homePartnerHabitsSummary,.meditation-partner-summary,.home-partner-last-expense,.partner-habits-plain,.partner-cbt-status){
+ width:auto!important;max-width:100%;min-height:0!important;display:block!important;margin:0!important;padding:0!important;
+ border:0!important;outline:0!important;border-radius:0!important;box-shadow:none!important;background:none!important;
+ color:var(--hero-text)!important;-webkit-text-fill-color:var(--hero-text)!important;font-size:12px!important;line-height:1.25!important;font-weight:400!important;
+ white-space:nowrap!important;overflow:hidden;text-overflow:ellipsis;text-align:left!important;
+}
+.partner-profile-page .partner-hero-bubble .partner-cbt-status{display:flex!important;align-items:center;gap:6px}
+.partner-profile-page .partner-hero-bubble .partner-cbt-status>svg{width:16px;height:16px}
+.partner-profile-page .partner-hero .rudi-partner-fasting-hours{font-size:10px!important;padding:3px 7px!important;top:-12px!important}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero{
+ --hero-text:#26324a;--hero-muted:#44506a;
+ background:linear-gradient(125deg,#f3f1fc,#eef3fb)!important;border-color:#d5d7e8!important;
+ box-shadow:inset 0 1px 0 #fff,0 6px 16px rgba(49,55,97,.07)!important;
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero-bubble{
+ background:linear-gradient(135deg,rgba(var(--bubble),.18),rgba(255,255,255,.94));border-color:rgba(var(--bubble),.65);
+ box-shadow:inset 0 1px 0 #fff,0 2px 6px rgba(49,55,97,.05);
+}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero .profile-cycle-mood{color:#96365f!important;-webkit-text-fill-color:#96365f!important}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero .profile-rhythm-status{color:#44506a!important;-webkit-text-fill-color:#44506a!important}
+html:not([data-theme="dark"]) .partner-profile-page .partner-hero .partner-cbt-status>svg{color:#7052a1}
+.partner-profile-page .partner-hero-bubble.is-meditation:has(>.meditation-partner-summary[data-meditated-today="false"]){display:none!important}

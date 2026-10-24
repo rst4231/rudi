@@ -300,6 +300,7 @@ function updatePartner(){
  let card=detail.querySelector('#meditationPartnerSummary');
  if(!card){card=document.createElement('div');card.id='meditationPartnerSummary';card.className='meditation-partner-summary';const expense=detail.querySelector('#homePartnerLastExpense');const supplements=detail.querySelector('.profile-supplement-intakes');const anchor=expense||supplements;if(anchor)anchor.insertAdjacentElement('afterend',card);else detail.appendChild(card)}
  const count=Number(partner.todaySessions||0),minutes=Number(partner.todayMinutes||0);
+ card.dataset.meditatedToday=String(count>0);
  const feminine=partner.actor==='Диана';
  card.textContent='🧘 '+(count?(feminine?'Медитировала ':'Медитировал ')+formatDailyTime(minutes):(feminine?'Не медитировала':'Не медитировал'));
  updateNudges();
