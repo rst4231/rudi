@@ -1,0 +1,21 @@
+name: Luma TV APK handoff
+on:
+  push:
+    branches: [luma-tv-releases]
+    paths: ['.github/workflows/luma-tv-handoff.yml']
+permissions:
+  contents: read
+jobs:
+  transfer-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download signed Luma TV 1.1.4
+        run: |
+          curl --fail --location --retry 5 --retry-delay 2 --max-time 90 \
+            'https://sb-t2d3g920y17g.vercel.run/luma-tv-1.1.4.apk' -o luma-tv-1.1.4.apk
+          echo 'ccf2e985d74928e5c64e2219e8f572e56bb7d531ac8f9db039a4f817478cbb77  luma-tv-1.1.4.apk' | sha256sum --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: luma-tv-1.1.4
+          path: luma-tv-1.1.4.apk
+          retention-days: 3
