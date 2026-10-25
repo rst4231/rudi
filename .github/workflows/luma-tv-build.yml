@@ -29,6 +29,7 @@ jobs:
         run: |
           cd src
           chmod +x gradlew
+          sed -i 's/void convertsNearTermMetNoWeather(){/void convertsNearTermMetNoWeather() throws Exception {/' app/src/test/java/tech/lumatv/launcher/MetNorwayTest.java
           ./gradlew --no-daemon --console plain :app:testReleaseUnitTest :app:assembleRelease
       - name: Bundle APK and local signing tools
         run: |
