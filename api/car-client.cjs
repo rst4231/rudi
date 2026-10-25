@@ -8,6 +8,8 @@ const { fetchProjectData, createTickTickTask, completeTickTickTask, tickTickTask
 const { createStateBackup, openSnapshot } = require('./rudi-backup.cjs');
 const { getLatestPhotos } = require('./shared-album.cjs');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
+const { createCarDeviceService } = require('./car-device.cjs');
+const carDeviceService = createCarDeviceService();
 
 const CONFIG_URL = 'https://raw.githubusercontent.com/rst4231/rudi/main/rudi-config.json';
 const CONFIG_TTL_MS = 5 * 60 * 1000;
@@ -77,7 +79,7 @@ function statusFor(error) {
   if (code.startsWith('telegram-auth') || code === 'telegram-user-invalid' || code.startsWith('rudi-session')) return 401;
   if (code === 'rudi-access-denied') return 403;
   if (code === 'car-mileage-invalid' || code === 'car-mileage-history-invalid' || code === 'car-mileage-history-not-found' || code === 'car-task-invalid' || code === 'car-task-title-invalid' || code === 'car-task-date-invalid' || code === 'car-error-invalid' || code === 'car-error-not-found' || code === 'car-repair-archive-invalid' || code === 'car-repair-archive-not-found' || code === 'car-repair-cost-invalid' || code === 'car-note-invalid' || code === 'car-note-not-found' || code === 'car-tyre-season-invalid' || code === 'car-service-date-invalid') return 400;
-  if (code === 'ticktick-not-connected') return 503;
+  if (code === 'ticktick-not-connected' || code === 'car-device-unavailable') return 503;
   if (code.startsWith('ticktick-')) return 502;
   return 500;
 }
@@ -432,7 +434,9 @@ async function carDocumentsSafe(config) {
   }
 }
 
-async function handleCarRequest(req, res) {
+async function handleCarRequest(req, res, options = {}) {
+  const deviceService = options.carDeviceService || carDeviceService;
+  res.setHeader('Content-Type','application/json; charset=utf-8');
   res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, max-age=0');
   if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
 
@@ -455,6 +459,19 @@ async function handleCarRequest(req, res) {
   }
 
   const operation = String(body.operation || 'get');
+  // These small device operations never fetch tasks or restore unrelated car data.
+  if (['create-device-pairing','revoke-car-device','get-location'].includes(operation)) {
+    try {
+      const result = operation === 'create-device-pairing'
+        ? {pairing:await deviceService.createPairing()}
+        : operation === 'revoke-car-device'
+          ? {carDevice:await deviceService.revoke()}
+          : await deviceService.readState();
+      return res.status(200).json({ok:true,actor:session.actor,visible:true,...result});
+    } catch {
+      return res.status(503).json({ok:false,error:'car-device-unavailable'});
+    }
+  }
   let previousSnapshot=null;
   if(body.backupToken){
     try{
@@ -480,7 +497,7 @@ async function handleCarRequest(req, res) {
     }
 
     if (operation === 'get') {
-      const [state,tasks] = await Promise.all([readCarState(),carTasksSafe()]);
+      const [state,tasks,deviceState] = await Promise.all([readCarState(),carTasksSafe(),deviceService.readState()]);
       const config = await loadCarTaskConfig();
       return res.status(200).json({
         ok:true,
@@ -491,6 +508,7 @@ async function handleCarRequest(req, res) {
         nextService:serviceScheduleForMileage(state.mileage),
         ticktick:tasks,
         priorityConfig:config.priority,
+        ...deviceState,
       });
     }
 

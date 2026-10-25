@@ -3,6 +3,7 @@
   const API = '/api/index?route=car';
   const FINANCE_API = '/api/finances';
   const state = { car:null, weather:null, loading:false, documents:null, documentsLoading:false, finance:null, financeLoading:false };
+  let locationView=null;
   let pendingNoteUndo=null;
   let pendingNoteUndoTimer=null;
 
@@ -956,6 +957,7 @@
     carTabObserver=new MutationObserver(()=>{
       const next=String(document.body.dataset.appTab||'');
       if(next==='car'&&previous!=='car'){
+        locationView?.refresh();
         requestAnimationFrame(()=>applyCarSmartOrder({animate:false}));
         loadCarDocuments().catch(()=>{});
         loadCarExpenses().catch(()=>{});
@@ -2050,6 +2052,7 @@
 
   function render() {
     if(!state.car) return;
+    locationView?.render();
     renderService(state.car);
     renderWeather(state.weather);
     renderErrors(state.car);
@@ -2160,6 +2163,7 @@
   }
 
   function start() {
+    if(window.RUDI_CAR_LOCATION&&!locationView)locationView=window.RUDI_CAR_LOCATION.mount({api,getCar:()=>state.car,onUpdate:data=>{state.car={...(state.car||{}),...data}}});
     setupCarSmartCards();
     setupCarWashModal();
     setupCarTabObserver();
