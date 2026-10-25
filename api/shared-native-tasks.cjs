@@ -182,12 +182,67 @@ async function list(options={}) {
  const client=clientOf(options);
  return (await client.list(TASK_NS)).map(row=>row.value).filter(task=>task&&!task.deleted&&Number(task.status||0)===0);
 }
+function explicitlyDeleted(task){return Boolean(task?.deleted&&(!task.completed||task.deletedAt))}
+function completionSnapshot(task,date){
+ const {canEdit,canDelete,canComplete,...event}=view(task,date);
+ return event;
+}
+function savedCompletionEvent(row,task,id,actor,completed=true){
+ let parsed;try{parsed=parseTaskId(id)}catch(_){return null}
+ let event=row?.event;
+ if(event){
+  if(event.personal!==false||event.projectId!=='native-shared'||event.id!==id||
+   !dateIsValid(event.date)||(parsed.date&&parsed.date!==event.date))return null;
+ }else{
+  if(!task||explicitlyDeleted(task))return null;
+  const date=parsed.date||task.date;if(!dateIsValid(date))return null;
+  event=completionSnapshot(task,date);
+ }
+ const responsible=completed?responsibility(event):responsibility(task);
+ const canAct=!!task&&!explicitlyDeleted(task)&&permitted(task,actor);
+ return {...event,id,seriesId:parsed.id,responsible,
+  assigned:!!responsible,together:!responsible,responsibilityKnown:true,
+  assignee:responsible==='Рустам'?'RST':responsible==='Диана'?'Ди':'Не назначен',
+  ownerScope:responsible==='Рустам'?'rustam':responsible==='Диана'?'diana':'shared',
+  personal:false,projectId:'native-shared',completed,
+  canEdit:!completed&&canAct,canDelete:!completed&&canAct,canComplete:!completed&&canAct,
+  canReopen:completed&&canAct,completedAt:completed?String(row?.at||task?.completedAt||task?.modifiedTime||''):''};
+}
 async function occurrences(month,actor,options={}){
  if(!/^20\d{2}-(0[1-9]|1[0-2])$/.test(month))throw Error('shared-month-invalid');
+ await initialize(options);
  const first=month+'-01',last=isoDay(utcDay(first)+new Date(Date.UTC(+month.slice(0,4),+month.slice(5,7),0)).getUTCDate()-1);
- const [tasks,done]=await Promise.all([list(options),clientOf(options).list(DONE_NS+month)]);
- const completedIds=new Set(done.map(row=>row.key));
- return tasks.flatMap(task=>recurrenceDates(task,first,last).map(date=>view(task,date,actor)).filter(item=>!completedIds.has(item.id)));
+ const client=clientOf(options);
+ const [records,done]=await Promise.all([client.list(TASK_NS),client.list(DONE_NS+month)]);
+ const tasks=records.map(row=>row.value).filter(Boolean),byId=new Map(tasks.map(task=>[task.id,task]));
+ const completions=new Map(done.map(row=>[row.key,row.value]));
+ const events=new Map();
+ for(const task of tasks.filter(task=>!task.deleted&&!task.completed&&Number(task.status||0)===0)){
+  for(const date of recurrenceDates(task,first,last)){
+   const item=view(task,date,actor),completion=completions.get(item.id);
+   if(!completion||completion.reopened===true)events.set(item.id,item);
+  }
+ }
+ for(const [id,row] of completions){
+  const parsed=(()=>{try{return parseTaskId(id)}catch(_){return null}})();
+  if(!parsed)continue;
+  const task=byId.get(parsed.id);
+  if(row?.reopened===true){
+   if(!task||explicitlyDeleted(task)||Number(task.status||0)!==0||events.has(id))continue;
+   const item=savedCompletionEvent(row,task,id,actor,false);
+   if(item?.date>=first&&item.date<=last)events.set(id,item);
+  }else if(options.includeCompleted===true){
+   const item=savedCompletionEvent(row,task,id,actor);
+   if(item?.date>=first&&item.date<=last)events.set(id,item);
+  }
+ }
+ // Older single completions lived only on the task tombstone, without a DONE row.
+ if(options.includeCompleted===true)for(const task of tasks){
+  if(!task.completed||explicitlyDeleted(task)||parseRule(task.repeatFlag).FREQ||
+   task.date<first||task.date>last||completions.has(task.id))continue;
+  const item=savedCompletionEvent(null,task,task.id,actor);if(item)events.set(item.id,item);
+ }
+ return [...events.values()];
 }
 async function agendaDates(dates,actor,options={}){
  const months=[...new Set(dates.map(date=>date.slice(0,7)))];
@@ -205,8 +260,56 @@ async function create(body,actor,options={}){
  if(task?.deleted)throw Error('shared-task-deleted');
  return {ok:true,connected:true,writable:true,created:inserted,task:view(task,task.date,actor)};
 }
+async function modifyCompletion(action,body,actor,options={}){
+ const client=clientOf(options),parsed=parseTaskId(body.taskId);
+ if(!['Рустам','Диана'].includes(actor))throw Error('shared-task-forbidden');
+ if(parsed.date&&!dateIsValid(parsed.date))throw Error('shared-task-occurrence-invalid');
+ const original=(await client.getRecord(TASK_NS,parsed.id))?.value;
+ if(!original)throw Error('shared-task-not-found');
+ const date=parsed.date||original.date;
+ if(!dateIsValid(date))throw Error('shared-task-occurrence-invalid');
+ if(!permitted(original,actor))throw Error('shared-task-forbidden');
+ // Reject future completions before even writing the transient mutation lock.
+ if(action==='complete')assertTaskCompletionAllowed({date},options.now??Date.now());
+ const id=(parsed.date||parseRule(original.repeatFlag).FREQ)?parsed.id+'__'+date:parsed.id;
+ const lock='completion-lock:'+id;
+ if(!await client.setIfAbsent(STATE_NS,lock,{actor},{ttl:20}))throw Error('shared-task-busy');
+ try{
+  const task=(await client.getRecord(TASK_NS,parsed.id))?.value;
+  if(!task||explicitlyDeleted(task))throw Error('shared-task-not-found');
+  if(!permitted(task,actor))throw Error('shared-task-forbidden');
+  const ns=DONE_NS+date.slice(0,7),previous=(await client.getRecord(ns,id))?.value;
+  if((!dateMatches(task,date)||parsed.date&&!parseRule(task.repeatFlag).FREQ)&&!previous)throw Error('shared-task-occurrence-invalid');
+  const at=new Date(options.now??Date.now()).toISOString();
+  const event=previous?.event||completionSnapshot(task,date);
+  if(action==='reopen'){
+   const legacy=task.completed===true&&!parsed.date;
+   const wasCompleted=previous?previous.reopened!==true:legacy;
+   if(wasCompleted){
+    // Restore the single task before acknowledging its completion transition: a failed
+    // restore must leave the DONE marker closed so the same request can safely retry.
+    if(task.completed&&!parsed.date)await client.set(TASK_NS,task.id,{...task,deleted:false,completed:false,version:Number(task.version||0)+1});
+    // Keep an open exception so a historical occurrence can return even after a series edit.
+    await client.set(ns,id,{...previous,at:previous?.at||task.completedAt||at,
+     actor:previous?.actor||actor,event,reopened:true,reopenedAt:at});
+   }
+   const taskSnapshot={...task,title:event.title,responsible:event.responsible,
+    repeatFlag:parsed.date?event.repeatFlag||'RRULE:FREQ=DAILY':'',date};
+   return {ok:true,reopened:true,wasCompleted,taskId:id,date,...(wasCompleted?{taskSnapshot}:{})};
+  }
+  assertTaskCompletionAllowed({date},options.now??Date.now());
+  const wasOpen=previous?previous.reopened===true:!task.completed;
+  const snapshot=wasOpen&&dateMatches(task,date)?completionSnapshot(task,date):event;
+  if(!previous||wasOpen){
+   await client.set(ns,id,{at,actor,event:{...snapshot,id},reopened:false});
+   if(!parsed.date&&!parseRule(task.repeatFlag).FREQ)await client.set(TASK_NS,task.id,{...task,deleted:true,completed:true,completedAt:at});
+  }
+  return {ok:true,taskId:id,title:snapshot.title,completed:true,wasOpen,scoreDate:date,responsible:responsibility(snapshot)};
+ }finally{await client.remove(STATE_NS,lock)}
+}
 async function modify(action,body,actor,options={}){
  await initialize(options);
+ if(action==='complete'||action==='reopen')return modifyCompletion(action,body,actor,options);
  const client=clientOf(options),parsed=parseTaskId(body.taskId),record=await client.getRecord(TASK_NS,parsed.id),task=record?.value;
  if(!task||task.deleted) {
   if(action==='delete'||action==='complete')return {ok:true,taskId:body.taskId,[action==='delete'?'deleted':'completed']:true};
@@ -214,14 +317,6 @@ async function modify(action,body,actor,options={}){
  }
  if(!permitted(task,actor))throw Error('shared-task-forbidden');
  const date=parsed.date||task.date;
- if(action==='complete'){
-  if(!dateMatches(task,date))throw Error('shared-task-occurrence-invalid');
-  assertTaskCompletionAllowed({date},options.now??Date.now());
-  const id=parseRule(task.repeatFlag).FREQ?task.id+'__'+date:task.id;
-  const inserted=await client.setIfAbsent(DONE_NS+date.slice(0,7),id,{at:new Date().toISOString(),actor});
-  if(!parseRule(task.repeatFlag).FREQ&&inserted)await client.set(TASK_NS,task.id,{...task,deleted:true,completed:true});
-  return {ok:true,taskId:id,title:task.title,completed:true,wasOpen:inserted,scoreDate:date,responsible:responsibility(task)};
- }
  if(action==='checklist-toggle'){
   if(body.completed===true)assertTaskCompletionAllowed({date},options.now??Date.now());
   const item=task.items?.find(item=>String(item.id)===String(body.itemId));

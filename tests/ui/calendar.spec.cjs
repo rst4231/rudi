@@ -151,18 +151,22 @@ async function mockRudi(page,options={}){
     if(path==='/api/ticktick/calendar'){
       state.tickCalendarCalls++;
       const next=body.view==='next-month';
-      const task=state.taskCompleted?[]:[{
-        id:'groceries',title:'🛒 Купить продукты',allDay:true,completed:false,
+      const task=[{
+        id:'groceries',title:'🛒 Купить продукты',allDay:true,completed:state.taskCompleted,canReopen:true,
         assigned:true,assignee:'rst'
       }];
       return ok({
         ok:true,connected:true,enabled:true,writable:true,view:next?'next-month':'month',
         days:next?monthDays(2026,10).map(day=>({date:day.date,events:[]})):
-          monthDays(2026,9).map(day=>({date:day.date,events:day.date==='2026-09-23'?[...task,{id:'together',title:'Вместе в театр',allDay:false,startTime:'19:00',assigned:false}]:[]}))
+          monthDays(2026,9).map(day=>({date:day.date,events:day.date===(options.taskDate||'2026-09-23')?[...task,{id:'together',title:'Вместе в театр',allDay:false,startTime:'19:00',assigned:false}]:[]}))
       });
     }
     if(path==='/api/ticktick/today'){
       return ok({ok:true,connected:true,enabled:true,writable:true,date:'2026-09-21',tasks:[]});
+    }
+    if(path==='/api/partner-message'&&url.searchParams.get('ticktickAction')==='task-reopen'){
+      state.taskCompleted=false;
+      return ok({ok:true,reopened:true,wasCompleted:true,taskId:body.taskId});
     }
     if(path==='/api/ticktick/task-complete'){
       state.completionCalls++;
@@ -442,20 +446,37 @@ test('iPhone calendar taps, spacing and silent refresh stay stable',async({page}
   expect(state.workCalendarCalls-before).toBeLessThanOrEqual(1);
 });
 
-test('calendar task completes in TickTick and refreshes in place with confetti',async({page})=>{
-  const state=await mockRudi(page);
+test('calendar keeps checked tasks, reopens them and updates overdue date markers',async({page})=>{
+  const state=await mockRudi(page,{taskDate:'2026-09-20'});
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('schedule',{scroll:false}));
-  await expect(page.locator('#workCalendarDays .calendar-day-cell')).toHaveCount(30);
-  const day=page.locator('.calendar-day-cell[aria-label*="23 сентября"]');
+  await page.locator('#calendarScopeSwitch').click();
+  await expect(page.locator('body')).toHaveAttribute('data-calendar-scope','shared');
+  const day=page.locator('#workCalendarDays .calendar-day-cell[data-date="2026-09-20"]');
+  await expect(day.locator('.calendar-overdue-count')).toHaveText('2');
   await day.click();
-  await expect(day).toHaveClass(/selected/);
-  await expect(page.locator('#workCalendarSelected')).toContainText('Купить продукты');
-  const task=page.getByRole('checkbox',{name:/Купить продукты/});
+  const task=page.locator('#workCalendarSelected').getByRole('checkbox',{name:/Купить продукты/});
   await task.click();
   await expect.poll(()=>state.completionCalls).toBe(1);
-  await expect(page.locator('#workCalendarSelected')).not.toContainText('Купить продукты');
+  await expect(page.locator('#workCalendarSelected')).toContainText('Купить продукты');
+  await expect(task).toHaveAttribute('aria-checked','true');
+  await expect(day.locator('.calendar-overdue-count')).toHaveText('1');
+  await page.reload();
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('schedule',{scroll:false}));
+  await day.click();
+  await expect(task).toHaveAttribute('aria-checked','true');
+  await task.click();
+  await expect(task).toHaveAttribute('aria-checked','false');
+  await expect.poll(()=>state.taskCompleted).toBe(false);
+  await expect(day.locator('.calendar-overdue-count')).toHaveText('2');
+  await page.reload();
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('schedule',{scroll:false}));
+  await expect(day.locator('.calendar-overdue-count')).toHaveText('2');
+  await day.click();
+  await expect(task).toHaveAttribute('aria-checked','false');
 });
 
 test('feed is structured, today-first and keeps five-tab layout',async({page})=>{

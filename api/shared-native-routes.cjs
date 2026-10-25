@@ -9,14 +9,14 @@ const monthKey=()=>calendarDateKey(new Date()).slice(0,7);
 function errorCode(error){return String(error?.message||error)}
 function status(error){
  const c=errorCode(error);
- if(c==='task-completion-future-forbidden')return 409;
+ if(c==='task-completion-future-forbidden'||c==='shared-task-busy')return 409;
  return /forbidden/.test(c)?403:/not-found/.test(c)?404:/invalid|required|without-start/.test(c)?400:503;
 }
-const nativeActions=new Set(['next','today','calendar','overdue','task-create','task-update','task-delete','task-restore','task-complete','task-completion-undo','task-move','checklist-toggle']);
+const nativeActions=new Set(['next','today','calendar','overdue','task-create','task-update','task-delete','task-restore','task-complete','task-reopen','task-completion-undo','task-move','checklist-toggle']);
 function shouldHandle(action,body={}){
  if(!nativeActions.has(action))return false;
  if(action==='today'&&body.scope==='personal')return false;
- if(action==='task-completion-undo'&&body.personal===true)return false;
+ if((action==='task-completion-undo'||action==='task-reopen')&&body.personal===true)return false;
  return true;
 }
 function actionDates(options){
@@ -68,23 +68,13 @@ async function nativeCalendar(body,actor,options={}){
   new Date(Date.UTC(Number(today.slice(0,4)),Number(today.slice(5,7))-1+(view==='next-month'?1:0),1)).toISOString().slice(0,7);
  const scope=['shared','rustam','diana'].includes(body.scope)?body.scope:'shared';
  if(scope==='rustam'&&actor!=='Рустам'||scope==='diana'&&actor!=='Диана')throw Error('calendar-owner-forbidden');
- const all=await store.occurrences(month,actor,options);
+ const all=await store.occurrences(month,actor,{...options,includeCompleted:true});
  const filtered=scope==='shared'?all:all.filter(t=>t.ownerScope===scope||t.together);
  const search=String(body.search||'').trim().slice(0,100);
  if(search){
   const fold=v=>String(v||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
   const words=fold(search).split(/\s+/).filter(Boolean);
-  const tasks=await store.list(options),results=[];
-  for(const task of tasks){
-    const text=fold(task.title+' '+(task.desc||task.content||''));
-    if(!words.every(w=>text.includes(w)))continue;
-    const calendarDates=store.recurrenceDates(task,month+'-01',new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0)).toISOString().slice(0,10));
-    for(const date of calendarDates){
-     const item=store.view(task,date,actor);
-     if(scope!=='shared'&&item.ownerScope!==scope&&!item.together)continue;
-     results.push(item);
-    }
-  }
+  const results=filtered.filter(task=>words.every(w=>fold(task.title+' '+(task.description||'')).includes(w)));
   if(scope==='rustam'&&actor==='Рустам'){
     // Preserve search results from Rustam's separate personal TickTick account.
     try{
@@ -163,7 +153,8 @@ async function nativeOverdue(actor,options={}){
     const dates=latest.slice(-60);
     const done=await Promise.all(dates.map(async date=>{
       const key=task.repeatFlag?task.id+'__'+date:task.id;
-      return Boolean(await client.getRecord(store.DONE_NS+date.slice(0,7),key));
+      const completion=await client.getRecord(store.DONE_NS+date.slice(0,7),key);
+      return Boolean(completion&&completion.value?.reopened!==true);
     }));
     if(done.some(value=>!value))count++;
   }
@@ -180,8 +171,8 @@ async function handle(req,res,action,actor,options={},hooks={}){
   if(action==='next')return res.status(200).json(await nativeNext(actor,options));
   if(action==='overdue')return res.status(200).json(await nativeOverdue(actor,options));
   if(action==='task-create')return res.status(200).json(await store.create(body,actor,options));
-  if(action==='task-update'||action==='task-move'||action==='task-delete'||action==='task-complete'||action==='checklist-toggle'){
-   const op={'task-update':'update','task-move':'move','task-delete':'delete','task-complete':'complete','checklist-toggle':'checklist-toggle'}[action];
+  if(action==='task-update'||action==='task-move'||action==='task-delete'||action==='task-complete'||action==='task-reopen'||action==='checklist-toggle'){
+   const op={'task-update':'update','task-move':'move','task-delete':'delete','task-complete':'complete','task-reopen':'reopen','checklist-toggle':'checklist-toggle'}[action];
    const result=await store.modify(op,body,actor,options);
    if(action==='task-delete'&&result.taskSnapshot&&hooks.seal){
     result.undoToken=hooks.seal({type:'rudi-shared-delete-v1',actor,task:result.taskSnapshot,expiresAt:Date.now()+30000});
@@ -191,6 +182,7 @@ async function handle(req,res,action,actor,options={},hooks={}){
     await hooks.onCompleted?.(result,actor);
     if(hooks.seal)result.undoToken=hooks.seal({type:'rudi-shared-completion-v1',actor,taskId:result.taskId,expiresAt:Date.now()+30000});
    }
+   if(action==='task-reopen'&&result.wasCompleted)await hooks.onUndo?.(result.taskSnapshot,result.date,actor);
    delete result.taskSnapshot;
    return res.status(200).json(result);
   }
@@ -206,15 +198,10 @@ async function handle(req,res,action,actor,options={},hooks={}){
     return res.status(200).json({ok:true,taskId:task.id});
    }
    if(action==='task-completion-undo'&&snapshot.type==='rudi-shared-completion-v1'){
-    const {id,date}=store.parseTaskId(snapshot.taskId);
-    const client=options.client||require('./rudi-state-client.cjs').createRudiStateClient(options);
-    const task=(await client.getRecord(store.TASK_NS,id))?.value;
-    if(!task)throw Error('shared-task-undo-invalid');
-    const occurrence=date||task.date;
-    await client.remove(store.DONE_NS+occurrence.slice(0,7),snapshot.taskId);
-    if(task.completed)await client.set(store.TASK_NS,id,{...task,completed:false,deleted:false});
-    await hooks.onUndo?.(task,occurrence,actor);
-    return res.status(200).json({ok:true,reopened:true,taskId:snapshot.taskId});
+    const result=await store.modify('reopen',{taskId:snapshot.taskId},actor,options);
+    if(result.wasCompleted)await hooks.onUndo?.(result.taskSnapshot,result.date,actor);
+    delete result.taskSnapshot;
+    return res.status(200).json(result);
    }
    throw Error('shared-task-undo-invalid');
   }

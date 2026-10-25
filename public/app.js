@@ -14220,6 +14220,7 @@
           const restored=await requestTickTickTaskCompletionUndo(undoToken);
           if(!restored?.ok)throw new Error(restored?.error||'ticktick-task-undo-failed');
           recentlyCompletedTickTickTaskIds.delete(String(task?.id||''));
+          recentlyCompletedTickTickTaskIds.delete(task.id+'|'+String(task.date||''));
           if(restored?.score){
             acceptScoreState(restored.score);
             document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:restored.score}}));
@@ -14529,7 +14530,9 @@
           playCalendarConfetti();
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           await new Promise(resolve=>setTimeout(resolve,300));
-          if(row.isConnected) row.remove();
+          task.completed=true;task.canComplete=false;task.canEdit=false;task.canReopen=true;
+          row.classList.add('is-completed');
+          button.setAttribute('aria-label','Вернуть в активные: '+String(task.title||'Дело'));
           // Keep Undo available immediately, even if TickTick refresh is slow or down.
           showTickTickCompletionUndo(task,payload);
           await refreshAfterTickTickTaskChange({preserveExpanded:false});
@@ -14541,19 +14544,22 @@
         }finally{
           row.dataset.busy='0';
           row.classList.remove('is-completing');
-          if(row.isConnected) button.disabled=false;
+          if(row.isConnected) button.disabled=task.completed?!calendarTaskCanReopen(task):false;
         }
       }
 
-      function calendarTaskCanReopen(task){return Boolean(task?.completed&&task.personal&&!task.externalCalendar&&(currentActor==='Рустам'||currentActor==='Диана'&&task.privateLocal));}
+      function calendarTaskCanReopen(task){return Boolean(task?.completed&&!task.externalCalendar&&(task.personal?(currentActor==='Рустам'||currentActor==='Диана'&&task.privateLocal):task.canReopen===true));}
       async function reopenCalendarTask(task,row,button){
         if(!calendarTaskCanReopen(task)||row?.dataset?.busy==='1')return;
         row.dataset.busy='1';button.disabled=true;
         try{
-          const details={operation:'reopen',taskId:task.id,projectId:task.projectId||'',task};
-          const kind=task.privateLocal?'diana-reopen':'personal-reopen';
+          const details={operation:'reopen',taskId:task.id,projectId:task.projectId||'',date:task.date,task};
+          const kind=task.privateLocal?'diana-reopen':task.personal?'personal-reopen':'reopen';
           const queued=await queueCalendarWhenOffline(kind,details);
-          if(!queued)await managedJsonRequest('calendar-task-reopen:'+task.id,'/api/partner-message?ticktickAction=personal-task-edit',{body:{initData:telegramInitData(),operation:'reopen',taskId:task.id,projectId:task.projectId||''},ttlMs:0,timeoutMs:12000});
+          if(!queued){
+            const payload=await managedJsonRequest('calendar-task-reopen:'+task.id,'/api/partner-message?ticktickAction='+(task.personal?'personal-task-edit':'task-reopen'),{body:{initData:telegramInitData(),backupToken:currentStateBackupToken,operation:'reopen',taskId:task.id,projectId:task.projectId||'',date:task.date},ttlMs:0,timeoutMs:12000});
+            if(!payload?.ok)throw new Error(payload?.error||'calendar-task-reopen');
+          }
           task.completed=false;task.canComplete=true;task.canEdit=true;
           delete task.completedAt;delete task.expiresAt;
           recentlyCompletedTickTickTaskIds.delete(String(task.id));recentlyCompletedTickTickTaskIds.delete(task.id+'|'+String(task.date||''));
@@ -15931,10 +15937,22 @@
           return false;
         }
       }
+      function calendarOverdueTaskCount(date,tasks,today){
+        if(!date||date>=today)return 0;
+        return (Array.isArray(tasks)?tasks:[]).filter(task=>task&&!task.completed&&!task.externalCalendar).length;
+      }
+      function appendCalendarOverdueMarker(cell,count){
+        if(!count)return;
+        const marker=document.createElement('span');
+        marker.className='calendar-overdue-count';
+        marker.textContent=String(count);
+        marker.setAttribute('aria-hidden','true');
+        cell.appendChild(marker);
+      }
       function workCalendarRenderSignature(payload){
         try{
           return JSON.stringify({
-            view:String(payload?.view||'month'),scope:calendarScope,mode:calendarDisplayMode,cursor:calendarDateCursor,
+            view:String(payload?.view||'month'),scope:calendarScope,mode:calendarDisplayMode,cursor:calendarDateCursor,today:todayState().key,
             stale:Boolean(payload?.stale),ticktickUnavailable:Boolean(payload?.ticktickUnavailable),icloudUnavailable:Boolean(payload?.icloudUnavailable),
             days:Array.isArray(payload?.days)?payload.days:[],
             ticktickDays:Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[],
@@ -16416,6 +16434,7 @@
             .filter(event=>event?.completed||!tickTickTaskRecentlyCompleted(event?.id+'|'+String(day.date||'')))
             // Each occurrence gets the day shown on its calendar card.
             .map(event=>({...event,date:String(day.date)}));
+          const overdueCount=calendarOverdueTaskCount(day.date,tasks,today);
           const holidays=(Array.isArray(holidayDays.get(String(day.date))?.items)?holidayDays.get(String(day.date)).items:[])
             .slice(0,5)
             .filter(Boolean);
@@ -16432,6 +16451,7 @@
             (calendarScope==='shared'&&payload?.workReady&&!day.working?' diana-day-off':'')+
             ([0,6].includes(date.getUTCDay())?' calendar-weekend':'')+
             (tasks.length?' has-tasks':'')+
+            (overdueCount?' has-overdue-tasks':'')+
             (holidays.length?' has-holidays':'')+
 
             (day.date===today?' today':'');
@@ -16439,6 +16459,7 @@
             calendarScope==='shared'||currentActor==='Диана'?(day.working?timeText:'Выходной'):'Личный календарь',
             tasks.length?tasks.map(event=>event.title).filter(Boolean).join(' · '):'',
             holidays.length?holidays.join(' · '):'',
+            overdueCount?'Просроченных дел: '+overdueCount:'',
             obligations.length?obligations.map(row=>String(row.title||'Платёж')+(row.paid?' ✓':'')).join(' · '):''
           ].filter(Boolean).join(' · ');
           cell.title=tooltip;
@@ -16447,6 +16468,7 @@
             (calendarScope==='shared'||currentActor==='Диана'?(day.working?'Работа ':'Выходной '):'Дата ')+
             new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+
             (tasks.length?', дел: '+tasks.length:'')+
+            (overdueCount?', просроченных дел: '+overdueCount:'')+
             (holidays.length?', праздников: '+holidays.length:'')+
             (unpaidObligations.length?', неоплаченных обязательных расходов: '+unpaidObligations.length:'')
           );
@@ -16463,6 +16485,7 @@
           number.textContent=String(date.getUTCDate());
           cell.appendChild(number);
 
+          appendCalendarOverdueMarker(cell,overdueCount);
           if(tasks.length||unpaidObligations.length){
             const indicators=document.createElement('span');
             indicators.className='calendar-day-indicators';
@@ -16966,14 +16989,16 @@
           const events=(Array.isArray(day.events)?day.events:[])
             .filter(event=>event?.completed||!tickTickTaskRecentlyCompleted(event?.id+'|'+String(day.date||'')));
           const hasEvents=events.length>0;
+          const overdueCount=calendarOverdueTaskCount(day.date,events,today);
           const cell=document.createElement('button');
           cell.type='button';
-          cell.className='calendar-day-cell shared-day-cell'+(hasEvents?' shared-event':'')+(day.date===today?' today':'');
+          cell.className='calendar-day-cell shared-day-cell'+(hasEvents?' shared-event':'')+(overdueCount?' has-overdue-tasks':'')+(day.date===today?' today':'');
           cell.title=hasEvents?events.map(event=>event.title).join(' · '):'Совместных дел нет';
           cell.setAttribute(
             'aria-label',
             new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+
-            (hasEvents?', '+events.length+' совместных дел':' — совместных дел нет')
+            (hasEvents?', '+events.length+' совместных дел':' — совместных дел нет')+
+            (overdueCount?', просроченных дел: '+overdueCount:'')
           );
 
           const number=document.createElement('span');
@@ -16981,6 +17006,7 @@
           number.textContent=String(date.getUTCDate());
           cell.appendChild(number);
 
+          appendCalendarOverdueMarker(cell,overdueCount);
           if(hasEvents){
             const dot=document.createElement('span');
             dot.className='calendar-work-dot';

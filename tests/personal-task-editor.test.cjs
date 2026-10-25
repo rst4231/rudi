@@ -118,7 +118,7 @@ test('a checked calendar task reopens by ID and is marked active only after succ
  const a=source.indexOf('      function calendarTaskCanReopen('),b=source.indexOf('      async function completeTickTickTodayTask(',a);
  for(const actor of ['Рустам','Диана']){
   const calls=[],task={id:'done',projectId:'private',date:'2026-10-24',title:'Дело',completed:true,personal:true,privateLocal:actor==='Диана'},row={dataset:{},classList:{remove(){}}},button={setAttribute(){}};
-  const context={currentActor:actor,queueCalendarWhenOffline:async()=>false,managedJsonRequest:async(key,url,options)=>{calls.push({url,body:options.body});return {ok:true}},telegramInitData:()=>'',recentlyCompletedTickTickTaskIds:new Map(),refreshAfterTickTickTaskChange:async()=>{},document:{getElementById:()=>({})}};
+  const context={currentActor:actor,currentStateBackupToken:'',queueCalendarWhenOffline:async()=>false,managedJsonRequest:async(key,url,options)=>{calls.push({url,body:options.body});return {ok:true}},telegramInitData:()=>'',recentlyCompletedTickTickTaskIds:new Map(),refreshAfterTickTickTaskChange:async()=>{},document:{getElementById:()=>({})}};
   vm.createContext(context);vm.runInContext(source.slice(a,b),context);await context.reopenCalendarTask(task,row,button);
   assert.equal(task.completed,false);assert.equal(task.canComplete,true);assert.equal(calls[0].body.operation,'reopen');assert.equal(calls[0].body.taskId,'done');assert.equal(button.disabled,false);
  }

@@ -74,7 +74,8 @@ test('calendar works offline, isolates accounts, preserves unsent actions, and r
   assert.equal(local.offlineStale,true);
   const view=await o.materialize('Рустам','2026-10',local);
   assert.equal(view.offlinePending,2);
-  assert.equal(view.ticktickDays[0].events.map(e=>e.title).join(','),'Офлайн');
+  assert.equal(view.ticktickDays[0].events.filter(e=>!e.completed).map(e=>e.title).join(','),'Офлайн');
+  assert.equal(view.ticktickDays[0].events.find(e=>e.id==='t1').completed,true);
   assert.equal(await o.cached('Диана','shared','2026-10'),null);
   assert.equal(h.calls.length,0,'nothing was sent without network');
   h.setOnline(true);
@@ -454,4 +455,25 @@ test('persisted UUID key order cannot override a newer local edit with an older 
  assert.equal(view.ticktickDays.find(day=>day.date==='2026-10-27')?.events.length,1);
  const home=await h.api.materializeAgenda('Рустам','personal',payload);
  assert.equal(home.tomorrowTasks.length,0);
+});
+
+test('completed tasks remain checked offline and can be reopened in their original date',async()=>{
+ for(const [actor,complete,reopen,scope] of [['Рустам','complete','reopen','shared'],['Рустам','personal-complete','personal-reopen','personal'],['Диана','diana-complete','diana-reopen','personal']]){
+  const h=harness();await h.api.init(actor);
+  const task={id:complete==='complete'?'shared__2026-10-24':'task__2026-10-24',date:'2026-10-24',title:'Дело',personal:scope==='personal',privateLocal:actor==='Диана'};
+  const base={days:[{date:task.date}],ticktickDays:[{date:task.date,events:[task]}]};
+  await h.api.capture(actor,scope,'2026-10',base);
+  await h.api.enqueue(actor,complete,{taskId:task.id,task});
+  let view=await h.api.materialize(actor,'2026-10',base,scope);
+  assert.equal(view.ticktickDays[0].events.length,1,complete+' keeps completed task');
+  assert.equal(view.ticktickDays[0].events[0].completed,true);
+  await h.api.enqueue(actor,reopen,{operation:'reopen',taskId:task.id,date:task.date,task:view.ticktickDays[0].events[0]});
+  view=await h.api.materialize(actor,'2026-10',base,scope);
+  assert.equal(view.ticktickDays[0].events.length,1,reopen+' never duplicates task');
+  assert.equal(view.ticktickDays[0].events[0].completed,false);
+  h.setOnline(true);await h.api.flush(actor,()=>({}));
+  if(scope==='shared')assert.match(h.calls[1].url,/ticktickAction=task-reopen$/);
+  const cached=await h.api.cached(actor,scope,'2026-10');
+  assert.equal(cached.ticktickDays[0].events[0].completed,false,'confirmed state survives reconnect');
+ }
 });
