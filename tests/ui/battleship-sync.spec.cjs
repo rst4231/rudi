@@ -40,6 +40,7 @@ test('two players see shots, full horizontal and vertical fires, and turns promp
  const contexts=[];
  async function player(actor){
   const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true});contexts.push(context);
+  await context.addInitScript(()=>{window.__battleImpacts=[];window.Telegram={WebApp:{initData:'',HapticFeedback:{impactOccurred:type=>window.__battleImpacts.push(type)}}}});
   const page=await context.newPage();
   await page.route('**/api/battleship-game',async route=>{
    const body=route.request().postDataJSON();
@@ -60,6 +61,8 @@ test('two players see shots, full horizontal and vertical fires, and turns promp
   const a=await player('Рустам'),b=await player('Диана');
   await a.locator('[data-battle-cell="0"]').click();
   await expect(b.locator('.rudi-battle-own .is-hit')).toHaveCount(1,{timeout:1800});
+  await expect.poll(()=>b.evaluate(()=>window.__battleImpacts.length)).toBe(1);
+  expect(await a.evaluate(()=>window.__battleImpacts.length)).toBe(0);
   await expect(b.locator('.rudi-battle-vessel-fire')).toHaveCount(0);
   for(const cell of [1,2,14,21])await a.locator(`[data-battle-cell="${cell}"]`).click();
   await expect(a.locator('.rudi-battle-enemy .is-sunk .rudi-battle-vessel-fire')).toHaveCount(2);

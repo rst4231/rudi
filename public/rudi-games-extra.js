@@ -103,6 +103,21 @@ function scheduleBattle(elapsed=0){
   (battleRoom.turn===actor()?2500:750):battleRoom?.status==='placing'?1000:5000;
  battleTimer=setTimeout(()=>{battleTimer=null;void pollBattle()},Math.max(100,interval-(battleMessage?0:elapsed)));
 }
+function acceptBattleRoom(next){
+ const previous=battleRoom;
+ if(previous&&next.version<previous.version)return;
+ battleRoom=next;
+ if(!previous||previous.round!==next.round||document.hidden)return;
+ if(previous.status!=='playing'&&!(previous.status==='placing'&&previous.ready?.[actor()]))return;
+ const knownHits=new Set((previous.enemyShots||[]).filter(shot=>shot.hit).map(shot=>shot.cell));
+ const ownShips=new Set(next.ownShips||[]);
+ if(!(next.enemyShots||[]).some(shot=>shot.hit&&ownShips.has(shot.cell)&&!knownHits.has(shot.cell)))return;
+ try{
+  const feedback=window.Telegram?.WebApp?.HapticFeedback;
+  if(typeof feedback?.impactOccurred==='function'){feedback.impactOccurred('heavy');return}
+ }catch(_){}
+ try{navigator.vibrate?.([90,40,90])}catch(_){}
+}
 async function pollBattle(){
  if(activeGame!=='battleship'||document.hidden||!navigator.onLine||battleBusy||battlePollController)return;
  const controller=new AbortController(),started=Date.now();
@@ -121,7 +136,7 @@ async function pollBattle(){
   if(heartbeat)battleLastHeartbeat=Date.now();
   const changed=battleRoom?.version!==r.version||!!battleMessage||previousPresence!==JSON.stringify(battlePresence);
   if(battleRoom?.version!==r.version)battleFeedback='';
-  battleRoom=r;battleMessage='';updateOne('battleship',r);
+  acceptBattleRoom(r);battleMessage='';updateOne('battleship',r);
   if(changed)renderBattle();else updateBattleReminder();
  }catch(e){if(battlePollController===controller&&activeGame==='battleship'){
   battleMessage=navigator.onLine?(e.name==='AbortError'?'Нет связи с игрой':e.message):'Нет интернета';renderBattle();
@@ -334,12 +349,12 @@ async function battleRemind(){
  try{
   const result=await battleRequest('remind',{version:battleRoom.version},controller.signal);
   if(epoch!==battleEpoch||activeGame!=='battleship')return;
-  if(result.room.version>=battleRoom.version)battleRoom=result.room;
+  if(result.room.version>=battleRoom.version)acceptBattleRoom(result.room);
   battleFeedback=result.reminded?'Пуш-напоминание отправлено.':'Пуш не доставлен. Проверьте, включены ли уведомления у соперника.';
   renderBattle();
  }catch(error){
   if(epoch!==battleEpoch||activeGame!=='battleship')return;
-  if(error.room?.version>=battleRoom.version)battleRoom=error.room;
+  if(error.room?.version>=battleRoom.version)acceptBattleRoom(error.room);
   battleMessage=error.name==='AbortError'?'Отправка пока не подтверждена.':error.message;renderBattle();
  }finally{clearTimeout(timeout);if(epoch===battleEpoch){battleReminderBusy=false;updateBattleReminder()}}
 }
@@ -399,7 +414,7 @@ async function battleAction(action,index){
   const result=await battleRequest(action,params);
   if(epoch!==battleEpoch||activeGame!=='battleship')return;
   if(battleRoom&&result.version<battleRoom.version)return;
-  battleRoom=result;
+  acceptBattleRoom(result);
   if(action==='move'){
    const shot=(battleRoom.ownShots||[]).find(x=>x.cell===index);
    const sunk=(battleRoom.sunkShips||[]).some(group=>group.includes(index));
@@ -410,7 +425,7 @@ async function battleAction(action,index){
  }catch(e){
   if(epoch!==battleEpoch||activeGame!=='battleship')return;
   if(e.room&&battleRoom&&e.room.version<battleRoom.version)return;
-  if(e.room){battleRoom=e.room;updateOne('battleship',battleRoom)}
+  if(e.room){acceptBattleRoom(e.room);updateOne('battleship',battleRoom)}
   battleMessage=e.message;renderBattle();
  }finally{if(epoch===battleEpoch){battleBusy=false;if(battleRoom?.status==='placing')renderBattle();updateBattleReminder();scheduleBattle()}}
 }
