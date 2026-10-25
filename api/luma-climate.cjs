@@ -34,6 +34,7 @@ async function handleLumaClimate(req,res,options={}) {
   try{
     const readSnapshot=options.readSnapshot||require('./smart-home-client.cjs').readSmartHomeSnapshot;
     const snapshot=await readSnapshot(false,{env,fetchImpl:options.fetchImpl||globalThis.fetch,observeCamera:false});
+    // The TV reads climate and the latest message together, with one five-minute poll.
     let messages={latestMessageStatus:'unavailable'};
     try {
       const readMessage=options.readPartnerMessage||require('./partner-message-store.cjs').readPartnerMessage;
