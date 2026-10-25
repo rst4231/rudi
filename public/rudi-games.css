@@ -307,10 +307,11 @@ html[data-theme="dark"] .rudi-games-page .rudi-games-head > #rudiGamesBack:focus
 }
 @keyframes rudi-battle-flame{from{transform:translateY(1px) scale(.93) rotate(-5deg)}to{transform:translateY(-2px) scale(1.09) rotate(5deg)}}
 .rudi-battle-vessel{
- position:relative;z-index:2;box-sizing:border-box;pointer-events:none;
+ display:none;position:relative;z-index:2;box-sizing:border-box;pointer-events:none;
  min-width:0;min-height:0;align-self:stretch;justify-self:stretch;
  filter:drop-shadow(0 2px 2px rgba(17,37,66,.32));
 }
+.rudi-games-page.is-battleship:not([hidden]) .rudi-battle-grid>.rudi-battle-vessel{display:block}
 .rudi-battle-vessel::before{
  content:"";position:absolute;inset:9% 0;box-sizing:border-box;
  clip-path:polygon(0 50%,8% 5%,87% 5%,100% 50%,87% 95%,8% 95%);

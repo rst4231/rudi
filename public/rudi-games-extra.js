@@ -90,8 +90,17 @@ function leaveBattle(){
  battleSession='';battleLastHeartbeat=0;
  if(session)void battleRequest('leave',{sessionId:session}).catch(()=>{});
 }
+function clearBattleView(){
+ const work=$('rudiGamesContent')?.querySelector('.rudi-battle-work');
+ if(!work)return;
+ // Drop animated/filter layers while their battle styles still apply, before home is shown.
+ work.style.visibility='hidden';
+ for(const animation of work.getAnimations?.({subtree:true})||[])animation.cancel();
+ work.remove();
+}
 function stop(){
  battleEpoch++;
+ clearBattleView();
  $('rudiGamesPage')?.classList?.remove('is-battleship');
  if(activeGame==='battleship')leaveBattle();
  activeGame='';if(battleTimer){clearTimeout(battleTimer);battleTimer=null}
@@ -416,7 +425,7 @@ function updateBattlePending(){
  }
 }
 function renderBattle(){
- if(activeGame!=='battleship'||g()?.getMode?.()!=='battleship')return;
+ if(document.hidden||activeGame!=='battleship'||g()?.getMode?.()!=='battleship'||g()?.getPage?.()?.hidden)return;
  if(battleRoom?.status==='won'&&battleRoom.winner===actor()){
   const stamp=String(battleRoom.round)+':'+battleRoom.winner;
   if(read('battle-victory','')!==stamp&&window.RUDI_EFFECTS?.celebrateVictory){write('battle-victory',stamp);window.RUDI_EFFECTS.celebrateVictory(battleRoom.winner)}
@@ -729,8 +738,8 @@ function onClick(e){
 }
 document.addEventListener('submit',e=>{if(e.target?.id==='rudiWordForm'){e.preventDefault();submitWord()}});
 document.addEventListener('visibilitychange',()=>{
- if(document.hidden){if(battleTimer){clearTimeout(battleTimer);battleTimer=null}if(activeGame==='battleship')leaveBattle()}
- else{if(activeGame==='battleship'){battlePresence=null;void pollBattle()}else void refreshStatus(true)}
+ if(document.hidden){if(battleTimer){clearTimeout(battleTimer);battleTimer=null}if(activeGame==='battleship'){clearBattleView();leaveBattle()}}
+ else{if(activeGame==='battleship'){battlePresence=null;renderBattle();void pollBattle()}else void refreshStatus(true)}
 });
 window.addEventListener('online',()=>{if(activeGame==='battleship')void pollBattle();else void refreshStatus(true)});
 window.addEventListener('focus',()=>{if(activeGame!=='battleship')void refreshStatus()});
