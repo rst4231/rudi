@@ -452,7 +452,7 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-wish-row {
 .partner-profile-page .partner-hero-bubble .partner-cbt-status>svg{width:18px;height:18px;flex:none;color:#c5a0ff}
 .partner-profile-page .partner-hero-bubble.is-cbt:not(:has(.is-active)){opacity:.65}
 @media(min-width:1000px){
- .partner-profile-page>.partner-profile-bar,.partner-profile-content>.partner-profile-layout{max-width:1100px}
+ .partner-profile-page>.partner-profile-bar,.partner-profile-content>.partner-profile-layout{max-width:760px}
  .partner-profile-page .partner-hero{padding:20px 20px!important;gap:24px;min-height:160px}
  .partner-profile-page .partner-hero :is(.name,#partnerHeaderName){font-size:30px!important}
  .partner-profile-page .partner-hero-bubble{min-height:48px;padding:10px 12px}
@@ -605,3 +605,11 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-mood-cbt{color:#784
 .partner-positive-emotions>svg{display:block;width:100%;height:120px;max-height:120px;border-radius:12px;background:color-mix(in srgb,var(--pp-panel) 85%,var(--pp-blue));color:var(--pp-muted)}
 .partner-positive-emotions>[hidden]{display:none!important}
 .partner-positive-emotions>p{font-size:12px;line-height:1.5;font-weight:400;margin:0;padding:12px 0}
+
+/* Desktop profile width must win over Home card styles and theme overrides. */
+@media(min-width:800px){
+ .rudi-meditation-page.partner-profile-page>.partner-profile-bar,
+ html .rudi-meditation-page.partner-profile-page .partner-profile-content>.partner-profile-layout{
+  width:100%!important;max-width:760px!important;margin-inline:auto!important;box-sizing:border-box;
+ }
+}

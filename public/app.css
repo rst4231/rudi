@@ -18504,3 +18504,10 @@ body[data-app-tab="feed"] .feed-event-item .feed-event-copy{position:relative;z-
 
 .home-agenda-scopes .home-agenda-combined{display:inline-flex;align-items:center;justify-content:center;padding:7px 10px;min-width:34px}
 #ticktickAddButton[hidden]{display:none!important}
+
+/* Give desktop balance metrics the width of their finance panel. */
+@media(min-width:800px){
+ .finance-page .finance-balance-card{
+  width:calc(100% - 32px)!important;max-width:none!important;
+ }
+}

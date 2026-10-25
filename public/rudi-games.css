@@ -568,3 +568,9 @@ html[data-theme="dark"] .is-battleship .rudi-battle-cell:not(.is-hit),html[data-
  .is-battleship .rudi-battle-own{width:90px;min-width:90px}
  .is-battleship .rudi-battle-footer{display:flex;align-items:center;justify-content:center;gap:12px}
 }
+
+@media(min-width:800px){
+ .rudi-games-page:not(.is-battleship)>.rudi-games-head,.rudi-games-page:not(.is-battleship)>.rudi-games-content{
+  width:100%;max-width:620px!important;margin-inline:auto!important;box-sizing:border-box;
+ }
+}

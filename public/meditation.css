@@ -171,3 +171,9 @@ body[data-app-tab="home"] #homeTileHost > .meditation-mood-nudge + .profile-pers
 
 /* iOS: avoid native context menus that interrupt 550-ms icon holds. */
 #fastingProfileButton,#meditationProfileButton{touch-action:manipulation;-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+
+@media(min-width:800px){
+ #meditationPage>.meditation-head,#meditationPage>.meditation-scroll{
+  width:100%;max-width:620px!important;margin-inline:auto!important;box-sizing:border-box;
+ }
+}

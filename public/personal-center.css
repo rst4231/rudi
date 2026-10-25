@@ -389,7 +389,7 @@ body.rudi-center-open{overflow:hidden!important}
 .rudi-center__bar h1{white-space:nowrap;font-size:clamp(19px,5vw,25px)!important}
 .rudi-center__wrap{height:auto;flex:1;min-height:0;padding:12px 0 max(16px,env(safe-area-inset-bottom));width:100%}
 @media(max-width:420px){.rudi-center__content{padding:0 8px;box-sizing:border-box}}
-@media(min-width:1000px){.rudi-center__bar,.rudi-center__content{max-width:1100px}}
+@media(min-width:1000px){.rudi-center__bar,.rudi-center__content{max-width:760px}}
 .pc-gifts{padding:14px;border:1px solid #d9af75;border-radius:24px;background:radial-gradient(ellipse at 100% 0,#f5cfdf,transparent 65%),linear-gradient(140deg,#fbe5ad,#fff2d7);color:var(--pc-text);margin-bottom:12px}
 .pc-gifts h2{margin:0 0 12px;font-size:16px;color:#7b5b2d}
 .pc-birthday{position:relative;display:flex;align-items:center;gap:10px;padding:12px 12px 12px 20px;background:#fffaf0;border:1px solid #e5c38c;border-radius:16px;overflow:hidden;margin-bottom:10px}

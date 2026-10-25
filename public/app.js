@@ -11804,6 +11804,9 @@
       const IPHONE_FACEID_GRANT_KEY_PREFIX='rudi:iphone:faceid-grant:v2:';
       let iphoneFaceIdGrant=null,iphoneFaceIdImmediateActor='',iphoneFaceIdTimer=null,iphoneFaceIdGuardPromise=null;
       function iphoneFaceIdActor(){
+        // Telegram has already authenticated the actor through app-auth.
+        // Keep the extra device lock for Safari/PWA only, including resume.
+        if(telegramInitData())return '';
         const actor=String(currentActor||'');
         return /iPhone/i.test(String(navigator?.userAgent||''))&&['Рустам','Диана'].includes(actor)?actor:'';
       }
@@ -13027,7 +13030,7 @@
           },0);
         }
         if(isProtectedIphoneAccount()&&window.rudiOfflinePin?.isOffline())clearIphoneFaceIdWindow();
-        if(telegramInitData()) await ensureTelegramPin();
+        // PIN enrollment is optional; never interrupt a Telegram launch for it.
         if(isProtectedIphoneAccount())await ensureIphoneFaceIdAccess();
         appAccessReady=true;
         showAuthenticatedApp();
