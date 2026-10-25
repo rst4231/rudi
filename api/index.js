@@ -247,6 +247,7 @@ async function handler(req, res) {
     }
     if (req.query?.route === 'calendar-day-summary') return handleCalendarDaySummary(req, res);
     if (req.query?.route === 'meditation') return handleMeditation(req, res);
+    if (req.query?.route === 'luma-climate') return require('./luma-climate.cjs').handleLumaClimate(req, res);
     if (req.query?.route === 'smart-home') return handleSmartHomeRequest(req, res);
     if (req.query?.route === 'smart-home-humidity-cron') {
       const authorized = isCronRequestAuthorized(req) || await isGitHubActionsRequestAuthorized(req, {

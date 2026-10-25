@@ -1,0 +1,15 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const crypto=require('node:crypto');
+const {handleLumaClimate,climateOnly}=require('../api/luma-climate.cjs');
+const token='test-only-read-climate-key-1234567890';
+const env={RUDI_LUMA_CLIMATE_TOKEN_SHA256:crypto.createHash('sha256').update(token).digest('hex')};
+function response(){return {code:200,headers:{},setHeader(k,v){this.headers[k]=v},status(c){this.code=c;return this},json(v){this.body=v;return this}}}
+const prop=(instance,value,state={})=>({parameters:{instance},state:{value,...state}});
+const snapshot={rooms:[{id:'living',name:'Гостиная'}],devices:[{id:'private-device-id',name:'Датчик',room:'living',properties:[prop('temperature',23.4),prop('humidity',45),prop('battery_level',85)],capabilities:[{type:'on_off'}]}],scenarios:[{id:'private-scenario'}],actor:'private-actor'};
+test('missing/wrong bearer is rejected before reading home',async()=>{for(const authorization of ['', 'Bearer wrong']){let reads=0;const res=response();await handleLumaClimate({method:'GET',headers:{authorization}},res,{env,readSnapshot:async()=>{reads++;return snapshot}});assert.equal(res.code,401);assert.equal(reads,0);assert.equal(res.body.ok,false)}});
+test('missing server config fails closed',async()=>{const res=response();await handleLumaClimate({method:'GET',headers:{authorization:'Bearer '+token}},res,{env:{},readSnapshot:async()=>snapshot});assert.equal(res.code,503)});
+test('only climate leaves endpoint; no identifiers or control data',async()=>{const res=response();await handleLumaClimate({method:'GET',headers:{authorization:'Bearer '+token}},res,{env,readSnapshot:async()=>snapshot,now:()=>123});assert.equal(res.code,200);assert.deepEqual(res.body,{ok:true,temperature:23.4,humidity:45,room:'Гостиная',fetchedAt:123});assert.match(res.headers['Cache-Control'],/no-store/)});
+test('POST cannot invoke any device control',async()=>{let reads=0;const res=response();await handleLumaClimate({method:'POST',headers:{authorization:'Bearer '+token},body:{operation:'switch'}},res,{env,readSnapshot:async()=>{reads++;return snapshot}});assert.equal(res.code,405);assert.equal(reads,0)});
+test('missing, null, boolean, invalid and offline readings never become zero',()=>{for(const value of [null,'',true,151])assert.equal(climateOnly({devices:[{properties:[prop('humidity',value)]}]}).humidity,null);assert.equal(climateOnly({devices:[{online:false,properties:[prop('temperature',23)]}]}).temperature,null);assert.equal(climateOnly({devices:[{properties:[prop('temperature',23,{error_code:'UNREACHABLE'})]}]}).temperature,null);assert.equal(climateOnly({devices:[{properties:[prop('humidity',0)]}]}).humidity,0)});
+test('upstream failure returns no error details',async()=>{const res=response();await handleLumaClimate({method:'GET',headers:{authorization:'Bearer '+token}},res,{env,readSnapshot:async()=>{throw new Error('private-upstream-token')}});assert.equal(res.code,503);assert.equal(JSON.stringify(res.body).includes('private'),false)});
