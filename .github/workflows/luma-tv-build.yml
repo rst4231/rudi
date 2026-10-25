@@ -1,4 +1,4 @@
-name: Build Luma TV 1.1.5 APK
+name: Build Luma TV 1.1.6 APK
 on:
   push:
     branches: [luma-tv-releases]
@@ -16,9 +16,9 @@ jobs:
           curl -fsSL --retry 3 \
             -H "Authorization: Bearer $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            'https://api.github.com/repos/rst4231/rudi/git/blobs/25a3395bcf536ad024f62d1224a4c6c1c136a1cf' \
+            'https://api.github.com/repos/rst4231/rudi/git/blobs/c96b0ecba3554b3fc5e7389b731ab0413cebb6e0' \
             | jq -r '.content' | tr -d '\n' | base64 -d > source.tar.gz
-          echo 'adfb322976218fb131d878f103c3492850c2e6e9ae5671c71b6d359ec09f29a3  source.tar.gz' | sha256sum -c -
+          echo '5ae31ae0c26784b8af3344bc5c6f23db17acfcbb0053a1c7668d09384f75835e  source.tar.gz' | sha256sum -c -
           mkdir src
           tar -xf source.tar.gz -C src
       - uses: actions/setup-java@v4
@@ -34,13 +34,13 @@ jobs:
       - name: Bundle APK and local signing tools
         run: |
           mkdir -p out/tools
-          cp src/app/build/outputs/apk/release/app-release-unsigned.apk out/luma-tv-1.1.5-unsigned.apk
+          cp src/app/build/outputs/apk/release/app-release-unsigned.apk out/luma-tv-1.1.6-unsigned.apk
           cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" out/tools/
           cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" out/tools/
           cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" out/tools/
           ls -l out out/tools
       - uses: actions/upload-artifact@v4
         with:
-          name: luma-tv-1.1.5-build
+          name: luma-tv-1.1.6-build
           path: out/
           retention-days: 3
