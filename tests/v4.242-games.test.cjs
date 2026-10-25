@@ -2,7 +2,9 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const battle=require('../api/battleship-game.cjs');
 const {summarize}=require('../api/game-status.cjs');
-const mockShips=()=>[0,1,2,14,15,28,29];
+const mockShips=()=>[0,1,2,3,20,21,22,40,41,42,6,7,26,27,46,47,60,63,66,69];
+// Current gameplay fixtures submit both fleets explicitly before shooting.
+function playing(){let room=battle.nextMove(null,'Рустам','start').room;for(const actor of ['Рустам','Диана'])room=battle.nextMove(room,actor,'ready',mockShips()).room;return room}
 function dbFixture(){
  const table=new Map(),messages=[],background=[];
  const cache={
@@ -21,41 +23,42 @@ function dbFixture(){
    json(v){this.body=v;return this}};
   await handler(req,res);return res;
  }
- return {call,messages,background};
+ async function ready(){await call('Рустам','ready',{round:1,ships:mockShips()});return call('Диана','ready',{round:1,ships:mockShips()})}
+ return {call,ready,messages,background};
 }
-test('sea battle has 7x7, 7-ship cells, no overlaps or touching ships',()=>{
+test('sea battle has 10x10 and the classic 20-cell fleet',()=>{
  for(let i=0;i<20;i++){
   const cells=battle.ships();
-  assert.equal(cells.length,7);assert.equal(new Set(cells).size,7);
-  assert.ok(cells.every(x=>x>=0&&x<49));
+  assert.equal(cells.length,20);assert.equal(new Set(cells).size,20);
+  assert.ok(cells.every(x=>x>=0&&x<100));
  }
 });
 test('opponent fleet remains secret during a live battle',()=>{
- const room=battle.nextMove(null,'Рустам','start',null,'2026-10-14T12:00:00Z',mockShips).room;
+ const room=playing();
  assert.equal(room.status,'playing');
- assert.equal(battle.publicRoom(room,'Рустам').ownShips.length,7);
+ assert.equal(battle.publicRoom(room,'Рустам').ownShips.length,20);
  assert.equal(battle.publicRoom(room,'Рустам').opponentShips,undefined);
  assert.equal(battle.publicRoom(room,'Диана').opponentShips,undefined);
- assert.equal(battle.publicRoom({...room,status:'ended'},'Рустам').opponentShips.length,7);
+ assert.equal(battle.publicRoom({...room,status:'ended'},'Рустам').opponentShips.length,20);
 });
 test('battle alternates turns, rejects repeated, stale and opponent moves',async()=>{
  const d=dbFixture();
  const start=await d.call('Рустам','start');assert.equal(start.code,200);
- assert.equal(start.body.room.turn,'Рустам');
+ assert.equal(start.body.room.turn,'');await d.ready();
  assert.equal(start.body.room.opponentShips,undefined);
- assert.equal((await d.call('Диана','move',{index:0,version:1})).code,409);
- const first=await d.call('Рустам','move',{index:6,version:1});assert.equal(first.code,200);
+ assert.equal((await d.call('Диана','move',{index:0,version:3})).code,409);
+ const first=await d.call('Рустам','move',{index:9,version:3});assert.equal(first.code,200);
  assert.equal(first.body.room.turn,'Диана');
- assert.equal((await d.call('Рустам','move',{index:1,version:2})).code,409);
- assert.equal((await d.call('Диана','move',{index:0,version:1})).code,409);
- const second=await d.call('Диана','move',{index:6,version:2});assert.equal(second.code,200);
+ assert.equal((await d.call('Рустам','move',{index:1,version:4})).code,409);
+ assert.equal((await d.call('Диана','move',{index:0,version:3})).code,409);
+ const second=await d.call('Диана','move',{index:9,version:4});assert.equal(second.code,200);
  assert.equal(second.body.room.ownShots.length,1);
- assert.equal((await d.call('Рустам','move',{index:6,version:3})).code,409);
+ assert.equal((await d.call('Рустам','move',{index:9,version:5})).code,409);
 });
 test('hit grants another turn; miss passes turn',()=>{
- const a=battle.nextMove(null,'Рустам','start',null,'2026-10-14T12:00:00Z',mockShips).room;
+ const a=playing();
  const hit=battle.nextMove(a,'Рустам','move',0);assert.equal(hit.room.turn,'Рустам');
- const miss=battle.nextMove(hit.room,'Рустам','move',6);assert.equal(miss.room.turn,'Диана');
+ const miss=battle.nextMove(hit.room,'Рустам','move',9);assert.equal(miss.room.turn,'Диана');
 });
 test('start sends one push to partner only after durable success; shots do not spam',async()=>{
  const d=dbFixture();
@@ -67,7 +70,8 @@ test('start sends one push to partner only after durable success; shots do not s
  assert.match(d.messages[0].payload.body,/Диана начала новую партию/);
  assert.equal((await d.call('Рустам','start')).code,409);
  assert.equal(d.messages.length,1);
- const move=await d.call('Рустам','move',{index:0,version:1});assert.equal(move.code,200);
+ await d.ready();
+ const move=await d.call('Рустам','move',{index:0,version:3});assert.equal(move.code,200);
  await Promise.all(d.background);
  assert.equal(d.messages.length,1,'Shots do not create extra notifications');
 });

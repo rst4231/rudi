@@ -9,7 +9,8 @@ const html=fs.readFileSync('public/index.html','utf8');
 const sw=fs.readFileSync('public/sw.js','utf8');
 
 test('only fully sunk vessels are revealed, not the other hidden enemy positions',()=>{
- let room=battle.nextMove(null,'Рустам','start',null,undefined,ships).room;
+ // Explicit legacy stored round verifies existing 7x7 battles stay readable.
+ let room={status:'playing',round:1,version:1,turn:'Рустам',lastStarter:'Рустам',ships:{'Рустам':ships(),'Диана':ships()},shots:{'Рустам':[],'Диана':[]}};
  for(const i of [0,1]){
   room=battle.nextMove(room,'Рустам','move',i).room;
   const publicView=battle.publicRoom(room,'Рустам');
@@ -29,8 +30,8 @@ test('only fully sunk vessels are revealed, not the other hidden enemy positions
  assert.deepEqual(battle.publicRoom(room,'Диана').sunkShips,[]);
 });
 test('ship grouping handles horizontal, vertical and isolated cells without wrap',()=>{
- assert.deepEqual(battle.vesselGroups([2,0,1,14,21,28,48]),[[0,1,2],[14,21,28],[48]]);
- assert.deepEqual(battle.vesselGroups([6,7]),[[6],[7]]);
+ assert.deepEqual(battle.vesselGroups([2,0,1,14,21,28,48],7),[[0,1,2],[14,21,28],[48]]);
+ assert.deepEqual(battle.vesselGroups([6,7],7),[[6],[7]]);
 });
 test('shots use reference target markers, complete ships via grid spans, and mute is available',()=>{
  assert.match(js,/rudi-battle-fire/);
