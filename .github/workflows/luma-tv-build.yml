@@ -1,0 +1,46 @@
+name: Build Luma TV 1.1.5 APK
+on:
+  push:
+    branches: [luma-tv-releases]
+    paths: ['.github/workflows/luma-tv-build.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Retrieve Luma source snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -fsSL --retry 3 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            'https://api.github.com/repos/rst4231/rudi/git/blobs/25a3395bcf536ad024f62d1224a4c6c1c136a1cf' \
+            | jq -r '.content' | tr -d '\n' | base64 -d > source.tar.gz
+          echo 'adfb322976218fb131d878f103c3492850c2e6e9ae5671c71b6d359ec09f29a3  source.tar.gz' | sha256sum -c -
+          mkdir src
+          tar -xf source.tar.gz -C src
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Compile and run offline parser tests
+        run: |
+          cd src
+          chmod +x gradlew
+          ./gradlew --no-daemon --console plain :app:testReleaseUnitTest :app:assembleRelease
+      - name: Bundle APK and local signing tools
+        run: |
+          mkdir -p out/tools
+          cp src/app/build/outputs/apk/release/app-release-unsigned.apk out/luma-tv-1.1.5-unsigned.apk
+          cp "$ANDROID_HOME/build-tools/35.0.0/apksigner" out/tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/zipalign" out/tools/
+          cp "$ANDROID_HOME/build-tools/35.0.0/lib/apksigner.jar" out/tools/
+          ls -l out out/tools
+      - uses: actions/upload-artifact@v4
+        with:
+          name: luma-tv-1.1.5-build
+          path: out/
+          retention-days: 3
