@@ -34,7 +34,17 @@ async function handleLumaClimate(req,res,options={}) {
   try{
     const readSnapshot=options.readSnapshot||require('./smart-home-client.cjs').readSmartHomeSnapshot;
     const snapshot=await readSnapshot(false,{env,fetchImpl:options.fetchImpl||globalThis.fetch,observeCamera:false});
-    return res.status(200).json({ok:true,...climateOnly(snapshot),fetchedAt:(options.now||Date.now)()});
+    let messages={latestMessageStatus:'unavailable'};
+    try {
+      const readMessage=options.readPartnerMessage||require('./partner-message-store.cjs').readPartnerMessage;
+      const message=await readMessage();
+      messages={latestMessageStatus:'ok',latestMessage:message?{
+        text:String(message.text||'').slice(0,4000),
+        authorName:String(message.authorName||'').slice(0,80),
+        updatedAt:String(message.updatedAt||'').slice(0,64)
+      }:null};
+    }catch(_){/* Climate stays available; clients retain the last saved message. */}
+    return res.status(200).json({ok:true,...climateOnly(snapshot),...messages,fetchedAt:(options.now||Date.now)()});
   }catch(_){return res.status(503).json({ok:false,error:'climate-unavailable'})}
 }
 module.exports={climateOnly,handleLumaClimate};
