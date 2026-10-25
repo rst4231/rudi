@@ -227,6 +227,8 @@ function createHandler(deps={}){
     const result=nextMove(current,actor,operation,operation==='ready'?body.ships:body.index,now(),deps.makeShips||ships);
     if(!result.ok)return res.status(409).json({ok:false,error:result.error,room:publicRoom(result.room,actor)});
     await cache.set(ROOM,result.room,{ttl:TTL});
+    // The next tap can arrive as soon as JSON is sent, before a finally block completes.
+    await cache.delete(LOCK);locked=false;
     // Send one push per successfully persisted new round; moves never spam notifications.
     if(operation==='start')notifyGameStart(actor,result.room.round,deps);
     return res.status(200).json({ok:true,actor,room:publicRoom(result.room,actor)});

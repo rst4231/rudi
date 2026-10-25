@@ -437,7 +437,7 @@ html[data-theme="dark"] .rudi-battle-work .rudi-duel-player.is-current-turn b{co
 }
 .is-battleship .rudi-games-head svg{width:26px;height:26px}
 .is-battleship .rudi-games-content{max-width:520px;gap:0}
-.is-battleship .rudi-battle-work{position:relative;max-width:none;width:100%;padding:0;border:0;border-radius:0;background:transparent;gap:15px;box-shadow:none}
+.is-battleship .rudi-battle-work{position:relative;max-width:none;width:100%;padding:0;border:0;border-radius:0;background:transparent;gap:10px;box-shadow:none}
 .is-battleship .rudi-battle-players{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:8px;margin:0 47px 3px;align-items:start}
 .is-battleship .rudi-battle-player,html[data-theme="dark"] .is-battleship .rudi-battle-player,
 .is-battleship .rudi-battle-player.is-current-turn,html[data-theme="dark"] .is-battleship .rudi-battle-player.is-current-turn{
@@ -464,6 +464,10 @@ html[data-theme="dark"] .is-battleship .rudi-battle-cell:not(.is-hit),html[data-
 .is-battleship .rudi-battle-cell.is-edge-bottom{border-bottom:0}
 .is-battleship .rudi-battle-cell:not(:disabled):active{background:#a3e9ff30}
 .is-battleship .rudi-battle-cell:focus-visible{outline:2px solid white;outline-offset:-3px}
+.is-battleship .rudi-battle-cell{min-height:0}
+.is-battleship .rudi-battle-cell.is-pending{background:#b4e7f244}
+.rudi-battle-cell.is-pending::after{content:"";position:absolute;width:24%;height:24%;border:2px solid #e5f9ff;border-top-color:transparent;border-radius:50%;animation:rudi-battle-pending .7s linear infinite}
+@keyframes rudi-battle-pending{to{transform:rotate(360deg)}}
 .is-battleship .rudi-battle-splash{font-size:clamp(26px,8vw,45px);font-weight:200;font-family:system-ui;line-height:1;opacity:.95}
 .is-battleship .rudi-battle-fire{width:78%;height:78%;font-size:0;animation:none;filter:drop-shadow(0 1px 2px #872a14b0)}
 .rudi-battle-fire svg{width:100%;height:100%;fill:#ee461dcc;stroke:#ff783e;stroke-width:2.2}
@@ -522,8 +526,16 @@ html[data-theme="dark"] .is-battleship .rudi-battle-cell:not(.is-hit),html[data-
 .is-battleship .rudi-battle-feedback{text-align:center;font-size:15px;font-weight:700;line-height:1.4;min-height:42px;display:grid;place-items:center;margin:0;text-shadow:0 1px 3px #0b466977}
 .is-battleship .rudi-battle-own{width:27%;min-width:110px;max-width:150px;margin:0 auto;gap:7px}
 .is-battleship .rudi-battle-own h2{text-align:center;text-transform:uppercase;letter-spacing:.05em;font-size:12px;line-height:1.4;margin:0;white-space:nowrap;color:#d6eef5}
-.is-battleship .rudi-battle-own .rudi-battle-splash{font-size:18px}
+.is-battleship .rudi-battle-own .rudi-battle-splash{position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(7px,2.2vw,10px);line-height:1}
+.is-battleship .rudi-battle-own .rudi-battle-fire{position:absolute;inset:11%;width:auto;height:auto}
 .is-battleship .rudi-battle-own .rudi-battle-grid{border-color:#b4e7f255}
+.rudi-battle-fleet-remaining{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;width:100%;max-width:360px;margin:0 auto;font-size:10px;line-height:1.2;color:#e4f4fa}
+.rudi-battle-fleet-remaining>span{white-space:nowrap}
+.rudi-battle-fleet-remaining>div{display:flex;gap:9px;align-items:center;justify-content:center;flex-wrap:wrap;min-height:14px}
+.rudi-battle-fleet-remaining [data-fleet-length]{display:flex;gap:5px;align-items:center}
+.rudi-battle-fleet-remaining .rudi-battle-fleet-shape{gap:1px}
+.rudi-battle-fleet-remaining .rudi-battle-fleet-shape i{width:7px;height:6px}
+.rudi-battle-fleet-remaining .is-cleared{opacity:.35}
 .rudi-battle-footer{display:grid;justify-items:center;gap:8px;margin-top:0}
 .rudi-battle-footer>span{font-size:10px;color:#c4e3eb}
 .rudi-battle-remind{justify-self:center;min-height:40px;border:1px solid #c5efff66;border-radius:22px;background:#08394d66;color:#fff;padding:9px 18px;font:inherit;font-size:12px;font-weight:600}

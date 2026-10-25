@@ -15,6 +15,7 @@ const status={duel:{active:false,turn:null},battleship:{active:false,turn:null}}
 let statusLast=0,statusBusy=false,battleRoom=null,battleMessage='',battleBusy=false,battleTimer=null,activeGame='',think=null,word=null,wordDate='';
 let battlePresence=null,battleSession='',battleLastHeartbeat=0,battleFeedback='';
 let battlePollController=null,battleLastPresence=0,battleEpoch=0,battleReminderBusy=false,battleLayout=null;
+let battlePendingCell=null;
 let previousLauncherBadge=null;
 function sum(){return Object.values(status).filter(x=>x.active).length}
 function myTurns(){return Object.values(status).filter(x=>x.active&&x.turn===actor()).length}
@@ -177,7 +178,7 @@ function battleShips(kind,room,hitMap){
   if(!group.length)return '';
   const first=group[0],vertical=group.length>1&&group[1]-first===size;
   const sunk=group.every(i=>hitMap.get(i)===true);
-  return '<span aria-hidden="true" class="rudi-battle-vessel'+(vertical?' is-vertical':'')+
+  return '<span aria-hidden="true" data-battle-node="vessel:'+kind+':'+group.join('-')+'" class="rudi-battle-vessel'+(vertical?' is-vertical':'')+
    (sunk?' is-sunk':'')+'" style="grid-row:'+(Math.floor(first/size)+1)+' / span '+(vertical?group.length:1)+
    ';grid-column:'+(first%size+1)+' / span '+(vertical?1:group.length)+'">'+
    '<i class="rudi-battle-vessel-deck"></i><i class="rudi-battle-vessel-bridge"></i>'+
@@ -243,12 +244,12 @@ function cells(kind,room){
   (room.sunkShips||[]):vesselGroups(room.opponentShips)).filter(group=>
   group.length&&group.every(i=>hitmap.get(i)===true)).flat());
  const turn=room.status==='playing'&&room.turn===actor();
- return '<div class="rudi-battle-grid" style="--battle-size:'+size+'" role="group" aria-label="'+('Поле '+battleGenitive(own?actor():opponentName()))+'">'+
+ return '<div class="rudi-battle-grid" data-battle-node="grid:'+kind+'" style="--battle-size:'+size+'" role="group" aria-label="'+('Поле '+battleGenitive(own?actor():opponentName()))+'">'+
  Array.from({length:size*size},(_,i)=>{
   const has=hitmap.has(i),hit=hitmap.get(i),ship=shipset.has(i);
   const label='Клетка '+'АБВГДЕЖЗИК'[Math.floor(i/size)]+(i%size+1);
   const glyph=has?(hit?'<span class="rudi-battle-fire" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="17"/><circle cx="20" cy="20" r="12"/><path d="M20 1v11m0 16v11M1 20h11m16 0h11"/><circle class="rudi-battle-target-dot" cx="20" cy="20" r="3"/></svg></span>':'<span class="rudi-battle-splash" aria-hidden="true">×</span>'):'';
-  return '<button type="button" style="grid-row:'+(Math.floor(i/size)+1)+';grid-column:'+(i%size+1)+'" '+(placing?'data-battle-place="'+i+'" ':own?'':'data-battle-cell="'+i+'" ')+'aria-label="'+label+
+  return '<button type="button" data-battle-node="cell:'+kind+':'+i+'" style="grid-row:'+(Math.floor(i/size)+1)+';grid-column:'+(i%size+1)+'" '+(placing?'data-battle-place="'+i+'" ':own?'':'data-battle-cell="'+i+'" ')+'aria-label="'+label+
    (has?(hit?sunk.has(i)?', корабль потоплен':', попадание':', мимо'):own&&ship?', корабль':'')+
    '" class="rudi-battle-cell'+(i%size===size-1?' is-edge-right':'')+(i>=size*(size-1)?' is-edge-bottom':'')+(ship?' is-ship':'')+
    (has?(hit?' is-hit'+(sunk.has(i)?' is-sunk':''):' is-miss'):'')+'" '+(placing?(room.ready?.[actor()]?'disabled':''):(own||has||!turn?'disabled':''))+'>'+glyph+'</button>';
@@ -260,6 +261,45 @@ function battleAvatar(name){
  const src=image?.getAttribute('src')||'';
  const allowed=/^(https?:\/\/|data:image\/|\/(?!\/))/i.test(src);
  return '<span class="rudi-battle-avatar">'+(allowed?'<img src="'+safe(src)+'" alt="" width="60" height="60">':'<span>'+safe(name[0])+'</span>')+'</span>';
+}
+/* Preserve cell and vessel nodes across polls, including a finger already pressing a cell. */
+function patchBattleNode(current,next){
+ if(current.nodeType===3){if(current.nodeValue!==next.nodeValue)current.nodeValue=next.nodeValue;return}
+ for(const attr of [...current.attributes])if(!next.hasAttribute(attr.name))current.removeAttribute(attr.name);
+ for(const attr of [...next.attributes])if(current.getAttribute(attr.name)!==attr.value)current.setAttribute(attr.name,attr.value);
+ const key=node=>node.nodeType===1?node.getAttribute('data-battle-node'):null;
+ const existing=new Map([...current.childNodes].filter(node=>key(node)).map(node=>[key(node),node]));
+ let cursor=current.firstChild;
+ for(const source of [...next.childNodes]){
+  const id=key(source);
+  let target=id?existing.get(id):cursor;
+  if(!target||key(target)!==id||target.nodeType!==source.nodeType||target.nodeName!==source.nodeName){
+   target=source.cloneNode(true);current.insertBefore(target,cursor);
+  }else{
+   if(target!==cursor)current.insertBefore(target,cursor);
+   patchBattleNode(target,source);
+  }
+  cursor=target.nextSibling;
+ }
+ while(cursor){const following=cursor.nextSibling;cursor.remove();cursor=following}
+}
+function battleSection(html){
+ const host=$('rudiGamesContent'),current=host?.firstElementChild;
+ if(!current?.classList.contains('rudi-battle-work')){g().section(html);return}
+ const template=document.createElement('template');template.innerHTML=html;
+ const next=template.content.firstElementChild;
+ if(!next||current.classList.contains('rudi-battle-setup')!==next.classList.contains('rudi-battle-setup')){g().section(html);return}
+ patchBattleNode(current,next);
+}
+function remainingBattleFleet(room){
+ const lengths=battleSize(room)===10?BATTLE_LENGTHS:[3,2,2];
+ const hits=new Set((room.ownShots||[]).filter(shot=>shot.hit).map(shot=>shot.cell));
+ const sunk=room.status==='playing'?room.sunkShips||[]:vesselGroups(room.opponentShips,battleSize(room)).filter(group=>group.every(cell=>hits.has(cell)));
+ const counts=Object.fromEntries([4,3,2,1].map(length=>[length,Math.max(0,lengths.filter(n=>n===length).length-sunk.filter(group=>group.length===length).length)]));
+ const total=Object.values(counts).reduce((sum,n)=>sum+n,0);
+ return '<div class="rudi-battle-fleet-remaining" data-battle-node="fleet-remaining" aria-label="Оставшиеся корабли соперника">'+
+  '<span>Осталось: <b>'+total+'</b> из '+lengths.length+'</span><div>'+[4,3,2,1].filter(length=>lengths.includes(length)).map(length=>
+   '<span data-fleet-length="'+length+'" class="'+(counts[length]?'':'is-cleared')+'" aria-label="'+length+'-палубных осталось '+counts[length]+'"><i class="rudi-battle-fleet-shape">'+Array.from({length},()=>'<i></i>').join('')+'</i><b>× '+counts[length]+'</b></span>').join('')+'</div></div>';
 }
 function layoutRemaining(layout,length){return BATTLE_LENGTHS.filter(n=>n===length).length-layout.groups.filter(group=>group.length===length).length}
 function validLayoutGroup(group,groups,size=10){
@@ -330,7 +370,7 @@ function renderBattlePlacement(room,presenceHtml){
   return '<button type="button" data-battle-length="'+length+'" class="rudi-battle-fleet-choice'+(layout.length===length?' is-selected':'')+'" aria-pressed="'+(layout.length===length)+'" aria-label="Корабль: '+length+' кл., осталось '+remaining+'" '+(remaining<=0?'disabled':'')+'><span class="rudi-battle-fleet-shape">'+Array.from({length},()=>'<i></i>').join('')+'</span><b>× '+remaining+'</b></button>';
  }).join('');
  const message=battleMessage||(ready?'Флот готов. Ждём '+(opponentName()==='Диана'?'Диану':'Рустама')+'.':layout.message||'Выбери корабль и нажми на поле. Нажми на свой корабль, чтобы убрать его.');
- g().section('<div class="rudi-game-work rudi-battle-work rudi-battle-setup">'+presenceHtml+
+ battleSection('<div class="rudi-game-work rudi-battle-work rudi-battle-setup">'+presenceHtml+
   '<h2 class="rudi-battle-setup-title">'+(ready?'Твой флот готов':'Расставь корабли')+'</h2>'+
   '<p class="rudi-battle-ready-status">'+safe(opponentName())+': '+(partnerReady?'флот готов':'расставляет корабли')+'</p>'+
   (ready?'':'<div class="rudi-battle-fleet-picker">'+fleet+'</div><div class="rudi-battle-setup-tools">'+
@@ -365,6 +405,16 @@ function updateBattleReminder(){
  button.disabled=battleBusy||battleReminderBusy||seconds>0||!navigator.onLine;
  button.textContent=seconds?'Напомнить через '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0'):'Напомнить о ходе';
 }
+function updateBattlePending(){
+ const grid=document.querySelector('.rudi-battle-enemy .rudi-battle-grid');
+ if(!grid)return;
+ grid.setAttribute('aria-busy',String(battleBusy));
+ for(const cell of grid.querySelectorAll('[data-battle-cell]')){
+  const index=Number(cell.dataset.battleCell);
+  cell.classList.toggle('is-pending',battleBusy&&index===battlePendingCell);
+  cell.disabled=battleBusy||battleRoom?.status!=='playing'||battleRoom.turn!==actor()||(battleRoom.ownShots||[]).some(shot=>shot.cell===index);
+ }
+}
 function renderBattle(){
  if(activeGame!=='battleship'||g()?.getMode?.()!=='battleship')return;
  if(battleRoom?.status==='won'&&battleRoom.winner===actor()){
@@ -389,16 +439,17 @@ function renderBattle(){
  const message=playing?(turn?'Твой ход. Выбирай клетку.':'Ходит '+r.turn+'. Ждём выстрел.'):
   r.status==='won'?(r.winner===actor()?'Победа! Все корабли соперника потоплены.':'Победил'+(r.winner==='Диана'?'а':'')+' '+r.winner):
   ended?'Партия завершена.':r.round?'Можно начать новую партию.':'Игра ещё не началась.';
- g().section('<div class="rudi-game-work rudi-battle-work">'+presenceHtml+
+ battleSection('<div class="rudi-game-work rudi-battle-work">'+presenceHtml+
   '<button type="button" class="rudi-battle-sound" data-battle-sound aria-pressed="'+battleSoundEnabled+'" aria-label="'+(battleSoundEnabled?'Выключить звуки':'Включить звуки')+'" title="'+(battleSoundEnabled?'Выключить звуки':'Включить звуки')+'"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4Z"/>'+(battleSoundEnabled?'<path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/>':'<path d="m16 9 5 6m0-6-5 6"/>')+'</svg></button>'+
   '<section class="rudi-battle-field rudi-battle-enemy"><h2>Поле '+safe(battleGenitive(other))+'</h2>'+
-  cells('enemy',r)+'</section><p class="rudi-battle-feedback" role="status" aria-live="polite">'+safe(battleMessage||(playing&&battleFeedback)||message)+'</p>'+
+  cells('enemy',r)+'</section>'+((playing||r.status==='won')?remainingBattleFleet(r):'')+'<p class="rudi-battle-feedback" role="status" aria-live="polite">'+safe(battleMessage||(playing&&battleFeedback)||message)+'</p>'+
   '<section class="rudi-battle-field rudi-battle-own">'+cells('own',r)+'<h2>Мои корабли</h2></section>'+
   (playing&&!turn?'<button class="rudi-battle-remind" type="button" data-battle-action="remind">Напомнить о ходе</button>':'')+
   '<div class="rudi-battle-footer"><span>Раунд '+r.round+'</span>'+
   (playing?'<button class="rudi-duel-finish" type="button" data-battle-action="end">Завершить партию</button>':
    '<button class="rudi-game-primary" type="button" data-battle-action="start">'+(r.round?'Новая партия':'Начать игру')+'</button>')+'</div></div>');
  updateBattleReminder();
+ updateBattlePending();
 }
 async function battleAction(action,index){
  if(activeGame!=='battleship'||battleBusy)return;
@@ -407,6 +458,7 @@ async function battleAction(action,index){
  if(battleTimer){clearTimeout(battleTimer);battleTimer=null}
  const epoch=battleEpoch;
  battleBusy=true;battleMessage='';
+ battlePendingCell=action==='move'?index:null;updateBattlePending();
  updateBattleReminder();
  try{
   if(action==='move')playBattleSound('fire');
@@ -427,10 +479,10 @@ async function battleAction(action,index){
   if(e.room&&battleRoom&&e.room.version<battleRoom.version)return;
   if(e.room){acceptBattleRoom(e.room);updateOne('battleship',battleRoom)}
   battleMessage=e.message;renderBattle();
- }finally{if(epoch===battleEpoch){battleBusy=false;if(battleRoom?.status==='placing')renderBattle();updateBattleReminder();scheduleBattle()}}
+ }finally{if(epoch===battleEpoch){battleBusy=false;battlePendingCell=null;if(battleRoom?.status==='placing')renderBattle();updateBattleReminder();updateBattlePending();scheduleBattle()}}
 }
 function startBattle(){
- battleEpoch++;battlePollController?.abort();battlePollController=null;battleBusy=false;battleReminderBusy=false;battleLastPresence=0;
+ battleEpoch++;battlePollController?.abort();battlePollController=null;battleBusy=false;battlePendingCell=null;battleReminderBusy=false;battleLastPresence=0;
  activeGame='battleship';battleFeedback='';battleRoom=null;battlePresence=null;battleSession='';battleLastHeartbeat=0;battleMessage='';g().setMode('battleship');
  renderBattle();void pollBattle();
 }

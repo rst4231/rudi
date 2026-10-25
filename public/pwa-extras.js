@@ -136,6 +136,10 @@
     let url;
     try{url=new URL(typeof input==='string'?input:input?.url||'',window.location.href)}catch(_){return ''}
     if(url.origin!==window.location.origin||!url.pathname.startsWith('/api/')) return '';
+    // Multiplayer state must always come from the server, including canceled polls.
+    // A stale field cannot safely stand in for a live turn or ready response.
+    const route=url.pathname==='/api/index'?url.searchParams.get('route'):url.pathname.slice(5);
+    if(['battleship-game','duel-game','game-status'].includes(route)) return '';
 
     const action=String(url.searchParams.get('rudiAction')||'').trim().toLowerCase();
     if(['app-auth','browser-auth','passkey'].includes(action)) return '';
