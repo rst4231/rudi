@@ -15,7 +15,7 @@ const status={duel:{active:false,turn:null},battleship:{active:false,turn:null}}
 let statusLast=0,statusBusy=false,battleRoom=null,battleMessage='',battleBusy=false,battleTimer=null,activeGame='',think=null,word=null,wordDate='';
 let battlePresence=null,battleSession='',battleLastHeartbeat=0,battleFeedback='';
 let battlePollController=null,battleLastPresence=0,battleEpoch=0,battleReminderBusy=false,battleLayout=null;
-let battlePendingCell=null;
+let battlePendingCell=null,battleActionController=null;
 let previousLauncherBadge=null;
 function sum(){return Object.values(status).filter(x=>x.active).length}
 function myTurns(){return Object.values(status).filter(x=>x.active&&x.turn===actor()).length}
@@ -74,15 +74,35 @@ async function refreshStatus(force=false){
 function decorateMenu(){renderBadges();void refreshStatus()}
 function onExistingDuel(room){updateOne('duel',room)}
 async function battleRequest(operation='get',payload={},signal){
- const response=await fetch('/api/battleship-game',{method:'POST',credentials:'same-origin',cache:'no-store',
-  signal,headers:{'content-type':'application/json'},
-  body:JSON.stringify({operation,initData:String(window.Telegram?.WebApp?.initData||''),...payload})});
- const data=await response.json().catch(()=>null);
- if(!response.ok||!data?.ok){
-  const e=new Error(response.status===429?'Напоминать можно раз в 5 минут':response.status===409?'Поле изменилось. Обновляю…':response.status===401?'Нужен повторный вход':'Нет связи с игрой');
-  e.room=data?.room;throw e;
+ const controller=new AbortController();
+ let timedOut=false;
+ const abort=()=>controller.abort();
+ let onAbort;
+ const cancelled=new Promise((_,reject)=>{
+  onAbort=()=>{const error=new Error(timedOut?'Ответ игры задерживается. Проверяю поле…':'Запрос отменён');error.name='AbortError';reject(error)};
+  controller.signal.addEventListener('abort',onAbort,{once:true});
+ });
+ signal?.addEventListener('abort',abort,{once:true});
+ if(signal?.aborted)abort();
+ const timeout=setTimeout(()=>{timedOut=true;abort()},operation==='remind'?15000:8000);
+ try{
+  // Bound both response headers and JSON parsing, including wrappers that ignore abort.
+  return await Promise.race([cancelled,(async()=>{
+   if(controller.signal.aborted)return cancelled;
+   const response=await fetch('/api/battleship-game',{method:'POST',credentials:'same-origin',cache:'no-store',
+    signal:controller.signal,headers:{'content-type':'application/json'},
+    body:JSON.stringify({operation,initData:String(window.Telegram?.WebApp?.initData||''),...payload})});
+   const data=await response.json().catch(()=>null);
+   if(!response.ok||!data?.ok){
+    const e=new Error(response.status===429?'Напоминать можно раз в 5 минут':response.status===409?'Поле изменилось. Обновляю…':response.status===401?'Нужен повторный вход':'Нет связи с игрой');
+    e.room=data?.room;throw e;
+   }
+   return operation==='get'||operation==='remind'?data:data.room;
+  })()]);
+ }finally{
+  clearTimeout(timeout);signal?.removeEventListener('abort',abort);
+  controller.signal.removeEventListener('abort',onAbort);
  }
- return operation==='get'||operation==='remind'?data:data.room;
 }
 function leaveBattle(){
  battlePollController?.abort();battlePollController=null;
@@ -96,10 +116,12 @@ function clearBattleView(){
  // Drop animated/filter layers while their battle styles still apply, before home is shown.
  work.style.visibility='hidden';
  for(const animation of work.getAnimations?.({subtree:true})||[])animation.cancel();
+ // Destroy filtered descendants before detaching the scroll surface (iOS compositor).
+ work.replaceChildren();
  work.remove();
 }
 function stop(){
- battleEpoch++;
+ battleEpoch++;battleActionController?.abort();battleActionController=null;
  clearBattleView();
  $('rudiGamesPage')?.classList?.remove('is-battleship');
  if(activeGame==='battleship')leaveBattle();
@@ -465,14 +487,15 @@ async function battleAction(action,index){
  if(action==='remind'){void battleRemind();return}
  battlePollController?.abort();battlePollController=null;
  if(battleTimer){clearTimeout(battleTimer);battleTimer=null}
- const epoch=battleEpoch;
+ const epoch=battleEpoch,controller=new AbortController();
+ battleActionController=controller;
  battleBusy=true;battleMessage='';
  battlePendingCell=action==='move'?index:null;updateBattlePending();
  updateBattleReminder();
  try{
   if(action==='move')playBattleSound('fire');
   const params=action==='ready'?{round:battleRoom?.round,ships:ensureBattleLayout(battleRoom).groups.flat()}:['move','end'].includes(action)?{version:battleRoom?.version,...(action==='move'?{index}:{})}:{};
-  const result=await battleRequest(action,params);
+  const result=await battleRequest(action,params,controller.signal);
   if(epoch!==battleEpoch||activeGame!=='battleship')return;
   if(battleRoom&&result.version<battleRoom.version)return;
   acceptBattleRoom(result);
@@ -488,10 +511,10 @@ async function battleAction(action,index){
   if(e.room&&battleRoom&&e.room.version<battleRoom.version)return;
   if(e.room){acceptBattleRoom(e.room);updateOne('battleship',battleRoom)}
   battleMessage=e.message;renderBattle();
- }finally{if(epoch===battleEpoch){battleBusy=false;battlePendingCell=null;if(battleRoom?.status==='placing')renderBattle();updateBattleReminder();updateBattlePending();scheduleBattle()}}
+ }finally{if(battleActionController===controller)battleActionController=null;if(epoch===battleEpoch){battleBusy=false;battlePendingCell=null;if(battleRoom?.status==='placing')renderBattle();updateBattleReminder();updateBattlePending();if(battleMessage)void pollBattle();else scheduleBattle()}}
 }
 function startBattle(){
- battleEpoch++;battlePollController?.abort();battlePollController=null;battleBusy=false;battlePendingCell=null;battleReminderBusy=false;battleLastPresence=0;
+ battleEpoch++;battleActionController?.abort();battleActionController=null;battlePollController?.abort();battlePollController=null;battleBusy=false;battlePendingCell=null;battleReminderBusy=false;battleLastPresence=0;
  activeGame='battleship';battleFeedback='';battleRoom=null;battlePresence=null;battleSession='';battleLastHeartbeat=0;battleMessage='';g().setMode('battleship');
  renderBattle();void pollBattle();
 }

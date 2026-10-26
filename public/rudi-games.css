@@ -496,19 +496,19 @@ html[data-theme="dark"] .is-battleship .rudi-battle-cell:not(.is-hit),html[data-
 .rudi-battle-blaze{position:relative;min-width:0;min-height:0}
 .rudi-battle-blaze::before,.rudi-battle-blaze::after{
  content:"";position:absolute;pointer-events:none;
- animation-delay:var(--fire-delay);animation-iteration-count:infinite;
+
 }
 .rudi-battle-blaze::before{
  left:10%;bottom:12%;width:85%;height:110%;
  border-radius:55% 15% 45% 45%;transform-origin:50% 90%;
  background:radial-gradient(ellipse at 50% 85%,#fff9c7 0 13%,#ffd74e 26%,#ff8a19 47%,#ef3c0bd9 70%,#c52b0000 80%);
- filter:drop-shadow(0 0 3px #ff6816b0);
- animation-name:rudi-battle-burn;animation-duration:.65s;animation-direction:alternate;animation-timing-function:ease-in-out;
+
+
 }
 .rudi-battle-blaze::after{
  left:10%;bottom:45%;width:85%;height:100%;border-radius:50%;
  background:radial-gradient(ellipse,#2e343a70,#30383b00 72%);
- animation-name:rudi-battle-smoke;animation-duration:2.3s;animation-timing-function:ease-out;
+ opacity:.35;
 }
 .is-vertical .rudi-battle-blaze::before{left:18%;width:65%;height:145%}
 @keyframes rudi-battle-burn{
@@ -520,7 +520,13 @@ html[data-theme="dark"] .is-battleship .rudi-battle-cell:not(.is-hit),html[data-
  25%{opacity:.65}
  100%{transform:translate(25%,-100%) scale(1.6);opacity:0}
 }
+/* Animate one composite flame layer per ship, rather than every flame and smoke particle. */
+.rudi-battle-enemy .rudi-battle-vessel-fire{animation:rudi-battle-ship-burn 1.4s steps(8,end) infinite alternate;transform-origin:center bottom}
+.is-battleship .rudi-battle-vessel.is-sunk{filter:none}
+.rudi-battle-own .rudi-battle-blaze::after{display:none}
+@keyframes rudi-battle-ship-burn{from{transform:scale(.98,.94);opacity:.88}to{transform:scale(1.02,1.04);opacity:1}}
 @media(prefers-reduced-motion:reduce){
+ .rudi-battle-enemy .rudi-battle-vessel-fire{animation:none}
  .rudi-battle-blaze::before,.rudi-battle-blaze::after{animation:none}
  .rudi-battle-blaze::after{opacity:.25}
 }
@@ -574,3 +580,10 @@ html[data-theme="dark"] .is-battleship .rudi-battle-cell:not(.is-hit),html[data-
   width:100%;max-width:620px!important;margin-inline:auto!important;box-sizing:border-box;
  }
 }
+
+/* Keep ship compositor layers inside the game viewport, including iOS page transitions. */
+.rudi-games-page.is-battleship{contain:paint;isolation:isolate}
+body:not(.rudi-games-open) .rudi-battle-vessel,
+body:not(.rudi-games-open) .rudi-battle-vessel *,
+body:not(.rudi-games-open) .rudi-battle-vessel *::before,
+body:not(.rudi-games-open) .rudi-battle-vessel *::after{visibility:hidden!important;animation:none!important;filter:none!important}

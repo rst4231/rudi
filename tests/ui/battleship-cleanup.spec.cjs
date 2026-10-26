@@ -43,3 +43,14 @@ test('backgrounding removes layers and a late move cannot remount them; returnin
  await expect(page.locator('.rudi-battle-vessel-fire')).toHaveCount(2);
  await expect(page.locator('[data-battle-cell="20"]')).toBeDisabled();
 });
+
+test('burning uses one animation per enemy vessel and none on the miniature field',async({page})=>{
+ await fixture(page);
+ const enemy=page.locator('.rudi-battle-enemy .rudi-battle-vessel-fire');
+ const own=page.locator('.rudi-battle-own .rudi-battle-vessel-fire');
+ expect(await enemy.evaluate(el=>el.getAnimations({subtree:true}).length)).toBe(1);
+ expect(await own.evaluate(el=>el.getAnimations({subtree:true}).length)).toBe(0);
+ await expect(enemy.locator('.rudi-battle-blaze')).toHaveCount(4);
+ await page.emulateMedia({reducedMotion:'reduce'});
+ expect(await enemy.evaluate(el=>el.getAnimations({subtree:true}).length)).toBe(0);
+});
