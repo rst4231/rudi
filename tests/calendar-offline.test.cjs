@@ -477,3 +477,11 @@ test('completed tasks remain checked offline and can be reopened in their origin
   assert.equal(cached.ticktickDays[0].events[0].completed,false,'confirmed state survives reconnect');
  }
 });
+
+test('unlimited weekday creation stays visible offline beyond two occurrences and across months',async()=>{
+ const h=harness();await h.api.init('Диана');
+ await h.api.enqueue('Диана','create',{value:{clientId:'weekday',title:'Работа',date:'2026-10-26',repeat:'weekdays',repeatCount:0,responsible:'Диана'}});
+ const view=await h.api.materialize('Диана','2026-11',{ticktickDays:[]},'shared');
+ const dates=view.ticktickDays.filter(day=>day.events.length).map(day=>day.date);
+ assert.equal(dates.length,21);assert.equal(dates[0],'2026-11-02');assert.equal(dates.at(-1),'2026-11-30');
+});

@@ -62,12 +62,19 @@ function dateMatches(task,date){
  if(freq==='YEARLY')return (Number(date.slice(0,4))-Number(anchor.slice(0,4)))%interval===0&&date.slice(5)===anchor.slice(5);
  return date===anchor;
 }
+function recurrenceCount(task){
+ const rule=parseRule(task.repeatFlag);
+ // Native weekday tasks used to inherit the form's accidental one-repeat default.
+ if(String(task.id||'').startsWith('rudi-')&&task.repeatLimitExplicit!==true&&
+  repeatOf(task.repeatFlag)==='weekdays'&&Number(rule.COUNT)===2&&Number(task.repeatCount)===1)return 0;
+ return Math.max(0,Number(rule.COUNT)||0);
+}
 function recurrenceDates(task,first,last){
  const anchor=taskDate(task),rule=parseRule(task.repeatFlag);
  if(!rule.FREQ){return anchor>=first&&anchor<=last?[anchor]:[]}
  if(!dateIsValid(anchor))return [];
  const begin=Math.max(utcDay(first),utcDay(anchor)),end=Math.min(utcDay(last),begin+RECUR_LIMIT);
- const count=Math.max(0,Number(rule.COUNT)||0),out=[];
+ const count=recurrenceCount(task),out=[];
  // COUNT counts occurrences from the first recurrence, not from month start.
  let occurrences=0;
  for(let i=utcDay(anchor);i<=end;i++){
@@ -88,20 +95,20 @@ function normalizeTask(input,previous={},actor=''){
  const responsible=String(input.responsible??previous.responsible??'').trim();
  if(responsible&&!['Рустам','Диана'].includes(responsible))throw Error('shared-task-owner-invalid');
  const repeat=String(input.repeat??previous.repeat??'none');
- const repeatCount=Math.max(1,Math.min(365,Math.round(Number(input.repeatCount??previous.repeatCount??1)||1)));
+ const repeatCount=Math.max(0,Math.min(365,Math.round(Number(input.repeatCount??previous.repeatCount??0)||0)));
  const flags={daily:'RRULE:FREQ=DAILY;INTERVAL=1',weekdays:'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR',weekly:'RRULE:FREQ=WEEKLY;INTERVAL=1',monthly:'RRULE:FREQ=MONTHLY;INTERVAL=1',yearly:'RRULE:FREQ=YEARLY;INTERVAL=1'};
  const repeatDays=checkedDays(input.repeatDays??previous.repeatDays??[]);
  if(repeat==='custom'&&!repeatDays.length)throw Error('shared-task-weekdays-required');
  if(repeat!=='none'&&repeat!=='custom'&&!flags[repeat])throw Error('shared-task-repeat-invalid');
  const recurrenceRule=repeat==='custom'?'RRULE:FREQ=WEEKLY;INTERVAL=1;BYDAY='+repeatDays.map(day=>DAY_NAMES[day]).join(','):flags[repeat];
- const repeatFlag=input.preserveRepeat===true?String(previous.repeatFlag||''):(repeat==='none'?'':recurrenceRule+';COUNT='+(repeatCount+1));
+ const repeatFlag=input.preserveRepeat===true?String(previous.repeatFlag||''):(repeat==='none'?'':recurrenceRule+(repeatCount?';COUNT='+(repeatCount+1):''));
  return {...previous,id:String(previous.id||input.taskId||'rudi-'+randomUUID()),title,date,
   startDate:encodeDate(date,time),dueDate:encodeDate(date,endTime||time),isAllDay:!time,
   timeZone:'Europe/Moscow',endTime:time&&endTime||'',responsible,
   assigneeUsername:responsible==='Рустам'?'rudi-rustam':responsible==='Диана'?'rudi-diana':'',
   desc:String(input.description??previous.desc??previous.content??'').trim().slice(0,5000),
   content:String(input.description??previous.desc??previous.content??'').trim().slice(0,5000),
-  repeat,repeatDays,repeatCount,repeatFlag,
+  repeat,repeatDays,repeatCount,repeatFlag,repeatLimitExplicit:input.preserveRepeat===true?previous.repeatLimitExplicit:true,
   status:Number(previous.status||0),createdBy:previous.createdBy||actor,
   createdTime:previous.createdTime||new Date().toISOString(),modifiedTime:new Date().toISOString(),
   items:Array.isArray(previous.items)?previous.items:[],version:Number(previous.version||0)+1};
@@ -139,7 +146,7 @@ function view(task,date=task.date,actor=''){
   location:String(task.location||''),responsible:responsibility(task),ownerScope:responsibility(task)==='Рустам'?'rustam':responsibility(task)==='Диана'?'diana':'shared',
   assignee:responsibility(task)==='Рустам'?'RST':responsibility(task)==='Диана'?'Ди':'Не назначен',
   assigned:!!responsibility(task),responsibilityKnown:true,together:!responsibility(task),
-  repeat:repeatOf(task.repeatFlag),repeatDays:daysOf(task.repeatFlag),repeatFlag:task.repeatFlag||'',repeatCount:task.repeatCount||1,
+  repeat:repeatOf(task.repeatFlag),repeatDays:daysOf(task.repeatFlag),repeatFlag:task.repeatFlag||'',repeatCount:recurrenceCount(task)?recurrenceCount(task)-1:0,
   canEdit:permitted(task,actor),canDelete:permitted(task,actor),canComplete:permitted(task,actor),
   checklist:(task.items||[]).map(item=>({id:item.id,title:item.title,completed:Number(item.status||0)===1,changedBy:item.changedBy||'',changedAt:item.changedAt||''})),
   personal:false,completed:false,projectId:'native-shared',projectName:'Общий'};

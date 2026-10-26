@@ -115,7 +115,7 @@
       date: String(value.date || ''), startTime: String(value.time || ''),
       endTime: String(value.endTime||''), allDay: !value.time, description: String(value.description || ''),
       responsible: String(value.responsible || ''), repeat: value.repeat || 'none',
-      repeatCount: value.repeatCount || 1, repeatDays:Array.isArray(value.repeatDays)?value.repeatDays:[], together: !value.responsible,
+      repeatCount: value.repeatCount ?? 0, repeatDays:Array.isArray(value.repeatDays)?value.repeatDays:[], together: !value.responsible,
       assigned: Boolean(value.responsible), personal: false, canEdit: false,
       canComplete: false, canDelete: false, offlinePending: true
     };
@@ -143,7 +143,7 @@
     if(!Number.isFinite(first.getTime()))return [];
     const chosen=Array.isArray(task.repeatDays)?task.repeatDays.map(Number):[];
     const last=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0));
-    const results=[],limit=Math.max(1,Math.min(366,Number(task.repeatCount||1)+1));
+    const results=[],limit=Number(task.repeatCount)>0?Math.min(366,Number(task.repeatCount)+1):Infinity;
     let count=0;
     for(let day=new Date(first);day<=last;day.setUTCDate(day.getUTCDate()+1)){
       const date=day.toISOString().slice(0,10),weekday=day.getUTCDay();

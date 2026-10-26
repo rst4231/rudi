@@ -14314,7 +14314,7 @@
             responsible:String(value?.responsible||'').trim(),
             description:String(value?.description||'').trim(),
             repeat:String(value?.repeat||'none').trim(),
-            repeatCount:Number(value?.repeatCount||1),repeatDays:Array.isArray(value?.repeatDays)?value.repeatDays:[]
+            repeatCount:Number(value?.repeatCount??0),repeatDays:Array.isArray(value?.repeatDays)?value.repeatDays:[]
           },
           ttlMs:0,
           timeoutMs:12000
@@ -14331,7 +14331,7 @@
             title:String(value?.title||'').trim(),date:String(value?.date||'').trim(),
             time:String(value?.time||'').trim(),endTime:String(value?.endTime||'').trim(),responsible:String(value?.responsible||'').trim(),
             description:String(value?.description||'').trim(),repeat:String(value?.repeat||'none'),
-            repeatCount:Number(value?.repeatCount||1),repeatDays:Array.isArray(value?.repeatDays)?value.repeatDays:[],preserveRepeat:value?.preserveRepeat===true},
+            repeatCount:Number(value?.repeatCount??0),repeatDays:Array.isArray(value?.repeatDays)?value.repeatDays:[],preserveRepeat:value?.preserveRepeat===true},
           ttlMs:0,timeoutMs:12000
         });
       }
@@ -15011,7 +15011,7 @@
         const syncRepeat=()=>{
           const repeating=String(repeatInput?.value||'none')!=='none';
           if(repeatCountField) repeatCountField.hidden=!repeating;
-          if(repeatCountInput) repeatCountInput.required=repeating;
+          if(repeatCountInput) repeatCountInput.required=false;
           if(repeatDaysField)repeatDaysField.hidden=repeatInput?.value!=='custom';
         };
         const close=()=>{
@@ -15037,7 +15037,7 @@
           if(repeatInput)repeatInput.value=editingTask?.repeat||'none';
           const selectedDays=Array.isArray(editingTask?.repeatDays)?editingTask.repeatDays:[];
           repeatDaysField?.querySelectorAll('input').forEach(checkbox=>checkbox.checked=selectedDays.includes(Number(checkbox.value)));
-          if(repeatCountInput)repeatCountInput.value=String(editingTask?.repeatCount||1);
+          if(repeatCountInput)repeatCountInput.value=editingTask?.repeatCount?String(editingTask.repeatCount):'';
           if(heading)heading.textContent=editingTask?'Редактировать дело':'Новое дело';
           if(save)save.textContent=editingTask?'Сохранить':'Добавить';
           if(deleteButton){
@@ -15106,7 +15106,7 @@
           const repeating=String(repeatInput?.value||'none')!=='none';
           const repeatDays=getRepeatDays();
           if(repeatInput?.value==='custom'&&!repeatDays.length){if(status)status.textContent='Выбери хотя бы один день недели.';return;}
-          const repeatCount=repeating?Math.max(1,Math.min(365,Math.round(Number(repeatCountInput?.value)||1))):1;
+          const repeatCount=repeating?Math.max(0,Math.min(365,Math.round(Number(repeatCountInput?.value)||0))):0;
           if(save) save.disabled=true;
           if(status) status.textContent=editingTask?'Сохраняю…':'Добавляю…';
           const editedId=editingTask?.id||'';
@@ -15114,7 +15114,7 @@
             const data={title,date,time,endTime,responsible:String(responsibleInput?.value||'').trim(),
               description:String(descriptionInput?.value||'').trim(),repeat:String(repeatInput?.value||'none'),repeatCount,repeatDays,
               preserveRepeat:Boolean(editingTask&&(repeatInput?.value!=='custom'||JSON.stringify(repeatDays)===JSON.stringify([...(editingTask.repeatDays||[])].sort((a,b)=>a-b)))&&String(repeatInput?.value||'none')===String(editingTask.repeat||'none')
-                &&(!repeating||repeatCount===Math.max(1,Math.min(365,Math.round(Number(editingTask.repeatCount)||1)))))};
+                &&(!repeating||repeatCount===Math.max(0,Math.min(365,Math.round(Number(editingTask.repeatCount)||0)))))};
             const payload=editedId?await requestTickTickTaskUpdate(editedId,data,editingTask):await requestTickTickTaskCreate(data);
             if(!payload?.ok) throw new Error(payload?.error||(editedId?'ticktick-task-update':'ticktick-task-create'));
             close();
