@@ -1,18 +1,16 @@
 {
-  "current": "v4.348",
-  "versionBranch": "feat/uni-v-last-location",
+  "current": "v4.349",
+  "versionBranch": "fix/remove-weekly-rhythm-20261026",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-10-25",
-  "basedOnProduction": "v4.347",
+  "createdAt": "2026-10-26",
+  "basedOnProduction": "v4.348",
   "notes": [
-    "Последняя GPS-точка UNI-V OS внизу раздела Машина",
-    "Разовое подключение магнитолы по коду и передача координат с отдельным доступом"
+    "Удалён блок Ритм недели из Моей страницы"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Add scoped headunit GPS pairing and monotonic durable location storage",
-    "Show last captured point, GPS accuracy and Yandex Maps in the car page"
+    "Remove weekly rhythm card and its unused chart renderer from My Page"
   ]
 }

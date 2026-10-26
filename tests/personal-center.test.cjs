@@ -313,7 +313,7 @@ test('fallback retried at most three times with cooldown and no change to saved 
  assert.equal(last.status,'retry-limit');
  assert.equal(generated,3);
 });
-test('strict JSON output, all-domain factual coach and compact 7-day dashboard are wired',()=>{
+test('strict JSON output and factual coach remain without the removed weekly rhythm',()=>{
  const aiCode=fs.readFileSync(path.join(__dirname,'..','api','personal-center-ai.cjs'),'utf8');
  const app=fs.readFileSync(path.join(__dirname,'..','public','personal-center.js'),'utf8');
  const css=fs.readFileSync(path.join(__dirname,'..','public','personal-center.css'),'utf8');
@@ -321,11 +321,7 @@ test('strict JSON output, all-domain factual coach and compact 7-day dashboard a
  assert.match(aiCode,/strict:true/);
  assert.match(aiCode,/Ты RUDI — личный коуч/);
  assert.match(aiCode,/Не называй запланированные задачи выполненными/);
- assert.match(app,/id="pcRhythmGraph"/);
- assert.match(app,/data-rhythm="habits"/);
- assert.match(app,/data-rhythm="expenses"/);
- assert.match(app,/data-rhythm="mood"/);
- assert.match(app,/dates\.map\(d=>series\.has\(d\)\?series\.get\(d\):null\)/);
+ assert.doesNotMatch(app,/pcRhythm|data-rhythm=|Ритм недели|renderRhythm/);
  assert.match(app,/report\.model!=='deterministic'/);
  assert.match(app,/id="pcGenerateReport"/);
  assert.match(css,/\.rudi-center__rhythm-tabs/);
@@ -337,10 +333,7 @@ test('positive mood charts and detailed AI insights are shown before evidence',(
  const generator=fs.readFileSync(path.join(__dirname,'..','api','personal-center-ai.cjs'),'utf8');
  assert.match(app,/function positiveShare\(entry\)/);
  assert.match(app,/entry\?\.positive/);
- assert.ok(app.includes("mood:'Позитивные отметки'"));
- assert.ok(app.includes('Доля позитивных отметок из дневника настроения.'));
  assert.ok(app.includes('Динамика позитивных эмоций'));
- assert.ok(app.includes("positiveShare(x)"));
  assert.ok(app.includes("v.positive+' из '+v.total+' позитивных"));
  assert.ok(app.includes("report?.date===dayKey()&&report?.slot==='weekly'"));
  assert.ok(app.includes('rudi-center__deep-list'));
