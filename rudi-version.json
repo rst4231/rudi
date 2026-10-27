@@ -1,17 +1,17 @@
 {
-  "current": "v4.355",
+  "current": "v4.356",
   "versionBranch": "feat/uni-v-owner-location",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.354",
+  "basedOnProduction": "v4.355",
   "notes": [
-    "Машина: восстановлено отображение блока подключения после пересборки карточек раздела.",
-    "Код подключения магнитолы состоит из 6 цифр, действует 10 минут и используется один раз; попытки ограничены."
+    "Пароль админ-панели UNI V OS проверяется внутри APK без интернета.",
+    "Из Rudi удалены настройка и смена пароля; подключение по одноразовому шестизначному коду сохранено."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Preserve headunit connection through Car card rebuild and use six-digit pairing codes"
+    "Remove server admin password and Rudi password-change UI; retain rate-limited six-digit pairing"
   ]
 }

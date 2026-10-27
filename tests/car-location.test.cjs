@@ -23,12 +23,7 @@ function service(f) {
 }
 function response() { return { headers:{}, statusCode:200, setHeader(k,v){this.headers[k]=v;}, status(code){this.statusCode=code;return this;}, json(data){this.data=data;return this;} }; }
 async function request(device,body,token='',method='POST') {
-  if(body.operation==='pair') {
-    if(!(await device.admin.status()).configured)await device.admin.setPassword('synthetic-admin-password');
-    const id='synthetic-installation-1234567890';
-    token=(await device.admin.login('synthetic-admin-password',id)).adminToken;
-    body={...body,deviceId:id};
-  }
+  if(body.operation==='pair')body={...body,deviceId:'synthetic-installation-1234567890'};
   const res=response();
   await device.handleRequest({method,body,headers:token?{authorization:'Bearer '+token}:{}},res);
   assert.match(res.headers['Cache-Control'],/no-store/);

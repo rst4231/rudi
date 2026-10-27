@@ -1,25 +1,12 @@
 'use strict';
-const test=require('node:test'),assert=require('node:assert/strict');
-const {createCarAdminService}=require('../api/car-device-admin.cjs');
-function fixture(){const rows=new Map();let now=1000000;const client={getRecord:async(n,k)=>rows.has(n+'|'+k)?{value:rows.get(n+'|'+k)}:null,set:async(n,k,v)=>rows.set(n+'|'+k,v),setIfAbsent:async(n,k,v)=>{const id=n+'|'+k;if(rows.has(id))return false;rows.set(id,v);return true;}};return {rows,service:createCarAdminService({client,now:()=>now}),advance:ms=>now+=ms};}
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
+const {createCarPairingGate}=require('../api/car-device-admin.cjs');
 const id='synthetic-installation-1234567890';
-test('server environment verifier enables supplied owner password without plaintext storage',async()=>{
- const crypto=require('node:crypto'),salt='a'.repeat(48),password='synthetic-env-password';
- const digest=crypto.scryptSync(password,salt,32).toString('hex');
- const rows=new Map(),client={getRecord:async(n,k)=>rows.has(n+k)?{value:rows.get(n+k)}:null,set:async(n,k,v)=>rows.set(n+k,v),setIfAbsent:async(n,k,v)=>{if(rows.has(n+k))return false;rows.set(n+k,v);return true;}};
- const service=createCarAdminService({client,env:{UNI_V_ADMIN_PASSWORD_HASH:'scrypt:'+salt+':'+digest}});
- assert.equal((await service.status()).configured,true);const s=await service.login(password,id);await service.authorize(s.adminToken,id);assert.equal(JSON.stringify([...rows]).includes(password),false);
-});
-test('unconfigured admin rejects login and stores no plaintext password',async()=>{const f=fixture();await assert.rejects(f.service.login('test-password',id),/car-admin-not-configured/);await f.service.setPassword('test-password');assert.equal((await f.service.status()).configured,true);assert.equal(JSON.stringify([...f.rows]).includes('test-password'),false);await assert.rejects(f.service.login('wrong-password',id),/car-admin-invalid/);});
-test('admin session binds installation, expires and is invalidated by password rotation',async()=>{const f=fixture();await f.service.setPassword('test-password');const s=await f.service.login('test-password',id);await f.service.authorize(s.adminToken,id);await assert.rejects(f.service.authorize(s.adminToken,id+'x'),/car-admin-unauthorized/);assert.equal(JSON.stringify([...f.rows]).includes(s.adminToken),false);f.advance(15*60000+1);await assert.rejects(f.service.authorize(s.adminToken,id),/car-admin-unauthorized/);const next=await f.service.login('test-password',id);await f.service.setPassword('changed-password');await assert.rejects(f.service.authorize(next.adminToken,id),/car-admin-unauthorized/);});
-test('login budget is durable across service instances and rejects brute force',async()=>{const f=fixture();await f.service.setPassword('test-password');for(let i=0;i<5;i++)await assert.rejects(f.service.login('wrong-password',id),/car-admin-invalid/);await assert.rejects(f.service.login('test-password',id),/car-admin-rate-limited/);});
-test('weak passwords cannot enable admin access',async()=>{const f=fixture();for(const value of ['',null,'1234567','x'.repeat(129)])await assert.rejects(f.service.setPassword(value),/car-admin-password-format/);assert.equal((await f.service.status()).configured,false);});
-test('six-digit enrollment cannot be brute-forced through an unlocked admin session',async()=>{const f=fixture();await f.service.setPassword('test-password');for(let i=0;i<5;i++)await f.service.pairAttempt(id);await assert.rejects(f.service.pairAttempt(id),/car-admin-rate-limited/);});
-test('public pairing cannot bypass admin gate even with a correct pairing code',async()=>{
-  const rows=new Map(),client={getRecord:async(n,k)=>rows.has(n+k)?{value:rows.get(n+k)}:null,set:async(n,k,v)=>rows.set(n+k,v),setIfAbsent:async(n,k,v)=>{if(rows.has(n+k))return false;rows.set(n+k,v);return true;}};
-  const device=require('../api/car-device.cjs').createCarDeviceService({client});
-  const pairing=await device.createPairing();
-  const res={setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}};
-  await device.handleRequest({method:'POST',headers:{},body:{operation:'pair',code:pairing.code,deviceId:id}},res);
-  assert.equal(res.code,401);assert.equal(res.body.error,'car-admin-unauthorized');
-});
+function fixture(){const rows=new Map();let now=1000000,claims=0;const client={getRecord:async(n,k)=>rows.has(n+k)?{value:rows.get(n+k)}:null,set:async(n,k,v)=>rows.set(n+k,v),setIfAbsent:async(n,k,v)=>{claims++;if(rows.has(n+k))return false;rows.set(n+k,v);return true;}};return {rows,client,now:()=>now,advance:ms=>now+=ms,claims:()=>claims,gate:()=>createCarPairingGate({client,now:()=>now})};}
+function response(){return {setHeader(){},status(code){this.code=code;return this;},json(body){this.body=body;return this;}};}
+test('pairing budget survives service restart and denies the sixth attempt per installation',async()=>{const f=fixture();for(let i=0;i<5;i++)await f.gate().pairAttempt(id);await assert.rejects(f.gate().pairAttempt(id),/car-device-rate-limited/);f.advance(900000);await f.gate().pairAttempt(id);});
+test('global budget limits rotating installation IDs to thirty attempts',async()=>{const f=fixture();for(let i=0;i<30;i++)await f.gate().pairAttempt(id+i);await assert.rejects(f.gate().pairAttempt(id+30),/car-device-rate-limited/);});
+test('malformed installation IDs cannot consume pairing attempts',async()=>{const f=fixture();for(const value of [null,'','short','x'.repeat(129),'x'.repeat(20)+'!'])await assert.rejects(f.gate().pairAttempt(value),/car-device-code-invalid/);assert.equal(f.rows.size,0);});
+test('nearly full budget needs only two atomic claims',async()=>{const f=fixture(),bucket=Math.floor(f.now()/900000);for(let slot=0;slot<29;slot++)f.rows.set('rudi-car-pair-rate-v1attempt:global:'+bucket+':'+slot,{used:true});await f.gate().pairAttempt(id);assert.equal(f.claims(),2);});
+test('owner-issued code enrolls without a server admin password and cannot be replayed',async()=>{const f=fixture(),device=require('../api/car-device.cjs').createCarDeviceService({client:f.client,now:f.now}),pairing=await device.createPairing();const request=async operation=>{const res=response();await device.handleRequest({method:'POST',headers:{},body:{operation,code:pairing.code,deviceId:id}},res);return res;};const paired=await request('pair');assert.equal(paired.code,200);assert.match(paired.body.deviceToken,/^[A-Za-z0-9_-]{43}$/);assert.equal((await request('pair')).code,400);for(const operation of ['admin-login','admin-status'])assert.equal((await request(operation)).body.error,'bad-operation');});
+test('server and Rudi UI contain no admin password configuration',()=>{for(const path of ['api/car-device-admin.cjs','api/car-device.cjs','api/car-client.cjs','public/car-location-view.js','public/index.html'])assert.doesNotMatch(fs.readFileSync(path,'utf8'),/UNI_V_ADMIN_PASSWORD_HASH|set-device-admin-password|device-admin-status|carAdminPasswordDetails|createCarAdminService/);});

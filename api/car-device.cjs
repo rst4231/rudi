@@ -1,7 +1,7 @@
 'use strict';
 const crypto = require('node:crypto');
 const { createRudiStateClient } = require('./rudi-state-client.cjs');
-const { createCarAdminService } = require('./car-device-admin.cjs');
+const { createCarPairingGate } = require('./car-device-admin.cjs');
 
 const DEVICE_NAMESPACE = 'rudi-car-device-v1';
 const LOCATION_NAMESPACE = 'rudi-car-device-location-v1';
@@ -26,7 +26,7 @@ function validateLocation(value, now) {
 function createCarDeviceService(options = {}) {
   const client = options.client || createRudiStateClient(options);
   const now = typeof options.now === 'function' ? options.now : () => options.now ?? Date.now();
-  const admin = createCarAdminService({client,now});
+  const pairingGate = createCarPairingGate({client,now});
   const read = async key => (await client.getRecord(DEVICE_NAMESPACE,key))?.value ?? null;
   async function stored(action) {
     try { return await action(); }
@@ -114,14 +114,8 @@ function createCarDeviceService(options = {}) {
     try {
       const authorization = req.headers?.authorization || req.headers?.Authorization || '';
       const bearer = typeof authorization === 'string' ? authorization.match(/^Bearer ([A-Za-z0-9_-]+)$/i)?.[1] : '';
-      if (body.operation === 'admin-login') return res.status(200).json(await admin.login(body.password,body.deviceId));
-      if (body.operation === 'admin-status') {
-        await admin.authorize(bearer,body.deviceId);
-        return res.status(200).json({ok:true});
-      }
       if (body.operation === 'pair') {
-        await admin.authorize(bearer,body.deviceId);
-        await admin.pairAttempt(body.deviceId);
+        await pairingGate.pairAttempt(body.deviceId);
         return res.status(200).json(await pair(body.code));
       }
       if (body.operation === 'location') {
@@ -137,11 +131,11 @@ function createCarDeviceService(options = {}) {
       return res.status(400).json({ok:false,error:'bad-operation'});
     } catch (error) {
       const message = String(error?.message || '');
-      const status = message === 'car-admin-rate-limited' ? 429 : message === 'car-admin-not-configured' ? 409 : ['car-device-unauthorized','car-admin-invalid','car-admin-unauthorized'].includes(message) ? 401 : ['car-device-code-invalid','car-device-location-invalid'].includes(message) ? 400 : 503;
+      const status = message === 'car-device-rate-limited' ? 429 : message === 'car-device-unauthorized' ? 401 : ['car-device-code-invalid','car-device-location-invalid'].includes(message) ? 400 : 503;
       return res.status(status).json({ok:false,error:status === 503 ? 'car-device-unavailable' : message});
     }
   }
-  return {createPairing,revoke,pair,location,readState,handleRequest,admin};
+  return {createPairing,revoke,pair,location,readState,handleRequest,pairingGate};
 }
 const defaultService = createCarDeviceService();
 module.exports = {createCarDeviceService,handleCarDeviceRequest:(req,res)=>defaultService.handleRequest(req,res)};

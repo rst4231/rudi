@@ -30,14 +30,13 @@
   function start(){
     const card=$('carDeviceCard');if(!card)return;
     let wasVisible=false;
-    function sync(){const allowed=owner();card.hidden=!allowed;if(!allowed){$('carDeviceCode').textContent='';$('carAdminPassword').value='';$('carLocationTime').textContent='';$('carLocationRoute').hidden=true;$('carLocationRoute').removeAttribute('href');}const shown=visible();if(shown&&!wasVisible)refresh();wasVisible=shown;}
+    function sync(){const allowed=owner();card.hidden=!allowed;if(!allowed){$('carDeviceCode').textContent='';$('carLocationTime').textContent='';$('carLocationRoute').hidden=true;$('carLocationRoute').removeAttribute('href');}const shown=visible();if(shown&&!wasVisible)refresh();wasVisible=shown;}
     new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class','data-rudi-actor','data-app-tab']});
     document.addEventListener('visibilitychange',sync);root.addEventListener('rudi:auth-ready',sync);sync();
     setInterval(function(){if(visible())refresh();},60000);
     $('carDeviceRefresh').onclick=refresh;
     $('carDevicePair').onclick=async function(){if(!owner())return;this.disabled=true;try{const d=await api('create-device-pairing');$('carDeviceCode').textContent=d.pairing.code;message('Код действует 10 минут. Введи его в UNI V OS → Настройки → Админ-панель. Новый код отключает прежнюю привязку.');await refresh();}catch(_){message('Не удалось создать код. Проверь подключение.');}finally{this.disabled=false;}};
     $('carDeviceRevoke').onclick=async function(){if(!owner())return;this.disabled=true;try{await api('revoke-car-device');$('carDeviceCode').textContent='';message('Связь отключена. Последняя полученная точка сохранена.');await refresh();}catch(_){message('Не удалось отключить связь. Повтори.');}finally{this.disabled=false;}};
-    $('carAdminPasswordForm').onsubmit=async function(event){event.preventDefault();if(!owner())return;const input=$('carAdminPassword'),password=input.value;input.value='';$('carAdminPasswordSave').disabled=true;try{await api('set-device-admin-password',{password});message('Пароль админ-панели сохранён. Используй его для входа на магнитоле.');$('carAdminPasswordDetails').open=false;}catch(error){message(error.message==='car-admin-password-format'?'Пароль должен содержать от 8 до 128 символов.':'Не удалось сохранить пароль. Повтори.');}finally{$('carAdminPasswordSave').disabled=false;}};
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
 })(typeof window==='undefined'?globalThis:window);
