@@ -23,7 +23,7 @@ function service(f) {
 }
 function response() { return { headers:{}, statusCode:200, setHeader(k,v){this.headers[k]=v;}, status(code){this.statusCode=code;return this;}, json(data){this.data=data;return this;} }; }
 async function request(device,body,token='',method='POST') {
-  if(body.operation==='pair')body={...body,deviceId:'synthetic-installation-1234567890'};
+  if(body.operation==='pair')body={deviceId:'synthetic-installation-1234567890',...body};
   const res=response();
   await device.handleRequest({method,body,headers:token?{authorization:'Bearer '+token}:{}},res);
   assert.match(res.headers['Cache-Control'],/no-store/);
@@ -43,7 +43,7 @@ test('pairing uses a single-use six-digit code and stores only a high entropy to
   assert.match(token,/^[A-Za-z0-9_-]{43,}$/);
   assert.equal(JSON.stringify([...f.rows]).includes(token),false);
   assert.deepEqual(await device.readState(),{lastLocation:null,carDevice:{paired:true}});
-  assert.equal((await request(device,{operation:'pair',code:pairing.code})).statusCode,400);
+  assert.equal((await request(device,{operation:'pair',code:pairing.code,deviceId:'other-installation-1234567890'})).statusCode,400);
 });
 test('expired, replaced and revoked pending codes cannot enroll a device',async()=>{
   const f=fixture(),device=service(f),old=await device.createPairing(),latest=await device.createPairing();
@@ -103,7 +103,7 @@ test('concurrent uploads serialize safely and retrying an older loser never regr
   for(const offset of [0,-1000,-500])await request(device,{operation:'location',...point(offset)},token);
   assert.deepEqual((await device.readState()).lastLocation,point());
   const pairing=await device.createPairing();
-  const enrollments=await Promise.all([request(device,{operation:'pair',code:pairing.code}),request(service(f),{operation:'pair',code:pairing.code})]);
+  const enrollments=await Promise.all([request(device,{operation:'pair',code:pairing.code}),request(service(f),{operation:'pair',code:pairing.code,deviceId:'competing-installation-1234567890'})]);
   assert.equal(enrollments.filter(res=>res.statusCode===200).length,1);
 });
 test('transient storage failures return 503 without leaking store errors or secrets',async()=>{
@@ -170,4 +170,13 @@ test('a late disconnect from an old headunit cannot revoke a replacement',async(
   f.client.set=real;const code=await device.createPairing();const next=await device.pair(code.code);
   release();assert.equal((await old).statusCode,200);assert.equal((await device.readState()).carDevice.paired,true);
   assert.equal((await request(device,{operation:'location',...point()},next.deviceToken)).statusCode,200);
+});
+
+test('retrying pairing after a lost response returns the same token only to the original installation',async()=>{
+ const f=fixture(),device=service(f),pairing=await device.createPairing();
+ const first=await request(device,{operation:'pair',code:pairing.code});
+ const retry=await request(service(f),{operation:'pair',code:pairing.code});
+ assert.equal(first.statusCode,200);assert.equal(retry.statusCode,200);assert.equal(retry.data.deviceToken,first.data.deviceToken);
+ const denied=response();await device.handleRequest({method:'POST',headers:{},body:{operation:'pair',code:pairing.code,deviceId:'different-installation-1234567890'}},denied);
+ assert.equal(denied.statusCode,400);
 });

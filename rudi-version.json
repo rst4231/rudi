@@ -1,17 +1,17 @@
 {
-  "current": "v4.356",
+  "current": "v4.357",
   "versionBranch": "feat/uni-v-owner-location",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.355",
+  "basedOnProduction": "v4.356",
   "notes": [
-    "Пароль админ-панели UNI V OS проверяется внутри APK без интернета.",
-    "Из Rudi удалены настройка и смена пароля; подключение по одноразовому шестизначному коду сохранено."
+    "Прямой канал подключения магнитолы к D1 без Vercel.",
+    "Повтор подключения после потери ответа сохраняет привязку той же магнитолы; другой установке код недоступен."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Remove server admin password and Rudi password-change UI; retain rate-limited six-digit pairing"
+    "Shared device protocol core and direct D1 endpoint; resumable installation-bound enrollment"
   ]
 }

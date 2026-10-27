@@ -6,7 +6,7 @@ function createCarPairingGate({client,now=Date.now}){
  async function budget(key,limit){
   const bucket=Math.floor(Number(now())/(TTL*1000));
   const keys=Array.from({length:limit},(_,slot)=>'attempt:'+key+':'+bucket+':'+slot);
-  const occupied=await Promise.all(keys.map(read));
+  const occupied=client.getRecords?(await client.getRecords(NS,keys)).map(row=>row?.value??null):await Promise.all(keys.map(read));
   for(let slot=0;slot<limit;slot++)if(!occupied[slot]&&await client.setIfAbsent(NS,keys[slot],{used:true},{ttl:TTL*2}))return;
   throw Error('car-device-rate-limited');
  }
