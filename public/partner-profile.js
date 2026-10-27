@@ -205,6 +205,7 @@
   saved.tile.hidden=saved.hidden;
   saved.details.hidden=true;
   saved.page.remove();
+  saved.unmountPresence?.();
   document.body.classList.remove('partner-profile-open');
   window.scrollTo({top:saved.scroll,left:0,behavior:'instant'});
   if(!fromHistory&&history.state?.rudiPartnerProfile)history.back();
@@ -248,6 +249,7 @@
    active.birthdayTimer=setInterval(active.updateBirthday,60000);
    addCbtStatus(page,actor,loadCbtStatus);
    Object.assign(active,composePage(page,energy,advice,details));
+   active.unmountPresence=window.RudiPresence?.mountProfile(page.querySelector('.partner-hero .person'),actor);
    const today=page.querySelector('.partner-today'),note=window.RudiHomeNote?.mountPartner?.();
    if(today&&note)(page.querySelector('.partner-finances')||today).after(note);
    Promise.resolve().then(()=>loadFinances?.()).then(data=>{if(page.isConnected)renderFinances(page,data,actor)}).catch(()=>{if(page.isConnected)renderFinances(page,null,actor)});

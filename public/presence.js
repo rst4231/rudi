@@ -8,13 +8,14 @@
  let status={'Рустам':false,'Диана':false};
  let lastSeen={'Рустам':null,'Диана':null};
  let detail=null;
+ const profileLines=new Map();
 
  function avatar(actor){
    const tile=document.getElementById(actor==='Рустам'?'homeRustamTile':'homeDianaTile');
    return tile?.querySelector('.score-avatar-wrap')||null;
  }
  function isOnline(actor){
-   return document.visibilityState==='visible'&&navigator.onLine!==false&&
+   return document.visibilityState==='visible'&&navigator.onLine!==false&&document.body.dataset.offlineMode!=='1'&&
      document.body.classList.contains('auth-ok')&&Date.now()-lastResponse<=ACTIVE_WINDOW_MS&&status[actor]===true;
  }
  function formatDate(value){
@@ -90,6 +91,22 @@
      dot.title=actor+(active?' · онлайн':' · не в сети');
    }
    refreshDetail();
+   for(const [line,actor] of profileLines)paintProfileLine(line,actor);
+ }
+ function paintProfileLine(line,actor){
+   const active=isOnline(actor),stamp=formatDate(lastSeen[actor]);
+   const text=active?'В сети':stamp?(actor==='Диана'?'Была в сети ':'Был в сети ')+stamp:'Нет данных о посещении';
+   line.classList.toggle('is-online',active);
+   if(line.textContent!==text)line.textContent=text;
+ }
+ function mountProfile(person,actor){
+   if(!person||!ACTORS.includes(actor))return ()=>{};
+   const line=document.createElement('p');line.className='partner-presence-status';
+   line.setAttribute('role','status');line.setAttribute('aria-live','polite');line.setAttribute('aria-atomic','true');
+   const name=person.querySelector('.profile-name-row');
+   if(name)name.after(line);else person.appendChild(line);
+   profileLines.set(line,actor);paintProfileLine(line,actor);
+   return ()=>{profileLines.delete(line);line.remove();paint()};
  }
  async function ping(){
    if(busy||document.visibilityState!=='visible'||navigator.onLine===false||
@@ -123,6 +140,7 @@
    timer=setInterval(()=>{paint();void ping()},INTERVAL_MS);
    paint();void ping();setTimeout(paint,1200);
  }
+ window.RudiPresence={mountProfile};
  window.addEventListener('rudi:auth-ready',start);
  window.addEventListener('rudi:app-tab-change',dismiss);
  window.addEventListener('pagehide',dismiss);

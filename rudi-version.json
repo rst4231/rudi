@@ -1,17 +1,17 @@
 {
-  "current": "v4.362",
-  "versionBranch": "feat/partner-finances",
+  "current": "v4.363",
+  "versionBranch": "feat/partner-online-status",
   "releaseCommit": "",
-  "deploymentSourceCommit": "",
+  "deploymentSourceCommit": "ae0b01f3afec3b2ac4a2bf5fac3d52635450f74f",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.361",
+  "basedOnProduction": "v4.362",
   "notes": [
-    "На Моей странице под БАДами добавлен такой же компактный финансовый блок, как на странице партнёра, но без месячного бюджета.",
-    "Отображаются только собственные последний расход и самая крупная покупка за месяц."
+    "В тёмной карточке на странице партнёра под именем отображается онлайн-статус и время последнего посещения.",
+    "Статус использует существующий heartbeat без дополнительных сетевых запросов."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Add self finances card under supplements without budget using authenticated read-only summary"
+    "Show live partner presence in dark hero using shared heartbeat and clean up on close"
   ]
 }
