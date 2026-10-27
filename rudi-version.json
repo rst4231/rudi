@@ -1,17 +1,17 @@
 {
-  "current": "v4.354",
+  "current": "v4.355",
   "versionBranch": "feat/uni-v-owner-location",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.353",
+  "basedOnProduction": "v4.354",
   "notes": [
-    "Машина: личное подключение UNI V OS через одноразовый код и админ-панель с серверной проверкой пароля.",
-    "Последняя GPS-локация с временем и точностью, маршрут до машины, отключение привязки; история не ведётся."
+    "Машина: восстановлено отображение блока подключения после пересборки карточек раздела.",
+    "Код подключения магнитолы состоит из 6 цифр, действует 10 минут и используется один раз; попытки ограничены."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Owner-only headunit pairing, password-protected admin access and latest location"
+    "Preserve headunit connection through Car card rebuild and use six-digit pairing codes"
   ]
 }

@@ -6,7 +6,6 @@ const { createCarAdminService } = require('./car-device-admin.cjs');
 const DEVICE_NAMESPACE = 'rudi-car-device-v1';
 const LOCATION_NAMESPACE = 'rudi-car-device-location-v1';
 const PAIRING_TTL_SECONDS = 10 * 60;
-const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const hash = value => crypto.createHash('sha256').update(value).digest('hex');
 const failure = message => new Error(message);
 
@@ -40,9 +39,7 @@ function createCarDeviceService(options = {}) {
   async function createPairing() {
     return stored(async () => {
       const epoch = crypto.randomBytes(24).toString('base64url');
-      let raw = '';
-      for (let i=0;i<12;i++) raw += CODE_ALPHABET[crypto.randomInt(CODE_ALPHABET.length)];
-      const code = raw.match(/.{4}/g).join('-');
+      const code = String(crypto.randomInt(1000000)).padStart(6,'0');
       const expiresAt = new Date(Number(now()) + PAIRING_TTL_SECONDS * 1000).toISOString();
       const inserted = await client.setIfAbsent(DEVICE_NAMESPACE,'pairing:'+hash(code),{epoch,expiresAt},{ttl:PAIRING_TTL_SECONDS});
       if (!inserted) throw failure('car-device-unavailable');
@@ -60,7 +57,7 @@ function createCarDeviceService(options = {}) {
   }
   async function pair(code) {
     return stored(async () => {
-      if (typeof code !== 'string' || !/^[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){2}$/.test(code)) throw failure('car-device-code-invalid');
+      if (typeof code !== 'string' || !/^\d{6}$/.test(code)) throw failure('car-device-code-invalid');
       const codeHash = hash(code), pairing = await read('pairing:'+codeHash);
       if (!pairing || Date.parse(pairing.expiresAt) <= Number(now()) || (await read('registry'))?.epoch !== pairing.epoch) throw failure('car-device-code-invalid');
       // Atomic and independent of process memory: parallel requests cannot redeem
@@ -124,6 +121,7 @@ function createCarDeviceService(options = {}) {
       }
       if (body.operation === 'pair') {
         await admin.authorize(bearer,body.deviceId);
+        await admin.pairAttempt(body.deviceId);
         return res.status(200).json(await pair(body.code));
       }
       if (body.operation === 'location') {

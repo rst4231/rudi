@@ -846,6 +846,7 @@
     const notes=body.querySelector('.car-notes');
     const progress=body.querySelector(':scope > .car-service-progress');
     const status=body.querySelector('#carStatus');
+    const deviceConnection=body.querySelector('#carDeviceCard');
 
     const mileageService=document.createElement('div');
     mileageService.className='car-mileage-service-content';
@@ -901,6 +902,7 @@
 
     const fragment=document.createDocumentFragment();
     cards.forEach(card=>fragment.appendChild(card));
+    if(deviceConnection) fragment.appendChild(deviceConnection);
     if(status) fragment.appendChild(status);
     body.replaceChildren(fragment);
     ensureCarEnhancementUi();
@@ -947,6 +949,8 @@
     if(expensesCard&&taskCard) host.insertBefore(expensesCard,taskCard.nextSibling); else if(expensesCard) host.insertBefore(expensesCard,document.getElementById('carStatus')||null);
     if(documentsCard&&expensesCard) host.insertBefore(documentsCard,expensesCard.nextSibling); else if(documentsCard&&taskCard) host.insertBefore(documentsCard,taskCard.nextSibling); else if(documentsCard) host.insertBefore(documentsCard,document.getElementById('carStatus')||null);
     if(notesCard&&documentsCard) host.insertBefore(notesCard,documentsCard.nextSibling); else if(notesCard&&expensesCard) host.insertBefore(notesCard,expensesCard.nextSibling); else if(notesCard&&taskCard) host.insertBefore(notesCard,taskCard.nextSibling); else if(notesCard) host.insertBefore(notesCard,document.getElementById('carStatus')||null);
+    const connection=host.querySelector('#carDeviceCard');
+    if(connection) host.insertBefore(connection,document.getElementById('carStatus')||null);
     if(animate) animateCarCardOrder(host,before);
   }
 

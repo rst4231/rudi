@@ -43,6 +43,11 @@ function createCarAdminService({client,now=Date.now,env=process.env}){
     const [session,creds]=await Promise.all([read('session:'+hash(token)),credentials()]);
     if(!session||!creds||session.epoch!==creds.epoch||session.device!==hash(deviceId)||session.expiresAt<=Number(now()))fail('car-admin-unauthorized');
   }
-  return {status,setPassword,login,authorize};
+  async function pairAttempt(deviceId){
+    const creds=await credentials();if(!creds||!validId(deviceId))fail('car-admin-unauthorized');
+    await budget(creds.epoch+':pair-device:'+hash(deviceId),5);
+    await budget(creds.epoch+':pair-global',30);
+  }
+  return {status,setPassword,login,authorize,pairAttempt};
 }
 module.exports={createCarAdminService};

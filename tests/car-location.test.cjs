@@ -41,9 +41,9 @@ async function paired(f) {
   assert.equal(result.statusCode,200); assert.equal(result.data.ok,true);
   return {device,token:result.data.deviceToken,pairing};
 }
-test('pairing uses a single-use 12-character code and stores only a high entropy token hash',async()=>{
+test('pairing uses a single-use six-digit code and stores only a high entropy token hash',async()=>{
   const f=fixture(),{device,token,pairing}=await paired(f);
-  assert.match(pairing.code,/^[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){2}$/);
+  assert.match(pairing.code,/^\d{6}$/);
   assert.equal(pairing.expiresAt,new Date(NOW+10*60000).toISOString());
   assert.match(token,/^[A-Za-z0-9_-]{43,}$/);
   assert.equal(JSON.stringify([...f.rows]).includes(token),false);
