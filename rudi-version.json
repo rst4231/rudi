@@ -1,17 +1,17 @@
 {
-  "current": "v4.359",
-  "versionBranch": "feat/uni-v-owner-location",
+  "current": "v4.360",
+  "versionBranch": "feat/partner-finances",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.358",
+  "basedOnProduction": "v4.359",
   "notes": [
-    "Восстановлена загрузка карточки машины: из основного запроса убрана ссылка на удалённый сервис магнитолы.",
-    "Карточка, пробег, ТО, мойка и шины сохранены; подключение магнитолы и передача GPS удалены."
+    "На странице партнёра под БАДами добавлен блок Финансы: последний расход, шкала месячного бюджета и крупнейшая покупка месяца.",
+    "Последний расход перенесён из верхней карточки без новых запросов к серверу."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Restore regular car summary independently from retired device service"
+    "Add compact partner finance summary below supplements using existing cached request"
   ]
 }

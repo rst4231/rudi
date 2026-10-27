@@ -142,6 +142,7 @@
         lulu:null,
         nearestStatic:null,
         partnerLastExpense:null,
+        partnerFinance:null,
         personalPush:[]
       };
       const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
@@ -10628,6 +10629,7 @@
         if(key.startsWith('profile-')&&section.querySelector('#partnerHeaderName')&&window.RudiPartnerProfile){
           const actor=key==='profile-diana'?'Диана':'Рустам';
           window.RudiPartnerProfile.bind(section,actor,{
+            loadFinances:async()=>{await loadHomePartnerLastExpense();return homeDashboardState.partnerFinance},
             openStars:openScoreModal,
             loadPlans:()=>loadPartnerProfilePlans(actor),
             loadWishes:()=>wishlistRequest('list').then(data=>data.items||[]),
@@ -12668,10 +12670,14 @@
         if(homePartnerExpensePromise)return homePartnerExpensePromise;
         homePartnerExpensePromise=(async()=>{
           try{
+            const expectedActor=currentActor;
             const data=await financeRequest('partner-last-expense');
+            if(currentActor!==expectedActor||data.actor!==expectedActor)return null;
+            homeDashboardState.partnerFinance=data;
             homeDashboardState.partnerLastExpense=data?.expense||null;
             homePartnerExpenseLoadedAt=Date.now();
             renderHomePartnerLastExpense(homeDashboardState.partnerLastExpense);
+            window.RudiPartnerProfile?.refreshFinance?.(data);
             return homeDashboardState.partnerLastExpense;
           }catch(error){
             console.warn('RUDI_PARTNER_EXPENSE_WARN',String(error?.message||error));

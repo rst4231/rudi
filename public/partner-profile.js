@@ -50,7 +50,7 @@
   for(const {node} of haloPaths){node.setAttribute('d','M50 3 A47 47 0 1 1 50 97 A47 47 0 1 1 50 3');node.setAttribute('pathLength',String(168+52*Math.PI))}
   const restoreHalo=()=>{for(const {node,d,length} of haloPaths){if(d===null)node.removeAttribute('d');else node.setAttribute('d',d);if(length===null)node.removeAttribute('pathLength');else node.setAttribute('pathLength',length)}};
 
-  for(const [node,kind] of [[meditation,'meditation'],[expense,'expense']]){
+  for(const [node,kind] of [[meditation,'meditation']]){
    const bubble=document.createElement('div');bubble.className='partner-hero-bubble is-'+kind;
    bubbles.append(bubble);if(node)move(node,bubble);
   }
@@ -75,11 +75,35 @@
   if(intakes)intakes.before(today);else details.append(today);groups.push(today);
   if(habits){habits.classList.remove('profile-partner-habits-summary');habits.classList.add('partner-habits-plain');}
   move(intakes,today);
+  const finances=document.createElement('section');finances.className='partner-finances';
+  finances.innerHTML='<h2>Финансы</h2><div class="partner-finance-last"><h3>Последний расход</h3></div><div class="partner-finance-budget"><div class="partner-finance-budget-head"><h3>Бюджет на месяц</h3><strong class="partner-finance-percent"></strong></div><div class="partner-finance-track" role="progressbar" aria-label="Использовано месячного бюджета" aria-valuemin="0" aria-valuemax="100"><i></i></div><p class="partner-finance-budget-copy">Загружаю бюджет…</p></div><div class="partner-finance-largest"><h3>Самая крупная покупка за месяц</h3><p>Загружаю…</p></div>';
+  today.after(finances);groups.push(finances);
+  move(expense,finances.querySelector('.partner-finance-last'));
   const cycle=details.querySelector('.home-cycle-summary');
   if(cycle){const more=document.createElement('details');more.className='partner-cycle-more';more.innerHTML='<summary>Подробнее о самочувствии</summary>';cycle.append(more);groups.push(more);for(const node of [...cycle.querySelectorAll('.home-cycle-insight')])move(node,more)}
   const birthday=page.querySelector('.partner-birthday'),wishes=page.querySelector('.partner-profile-wishes');
   const gifts=document.createElement('section');gifts.className='partner-gifts';gifts.innerHTML='<h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8H8a3 3 0 1 1 3-3l1 3Zm0 0h4a3 3 0 1 0-3-3l-1 3Z"/></svg>Подарки</h2>';birthday.before(gifts);gifts.append(birthday,wishes);
   return {parts,groups,heroObserver:observer,restoreHalo};
+ }
+ function renderFinances(page,data,actor){
+  const card=page.querySelector('.partner-finances');if(!card)return;
+  if(data?.partner&&data.partner!==actor)return;
+  const money=(amount,currency='RUB')=>new Intl.NumberFormat('ru-RU',{style:'currency',currency,maximumFractionDigits:2}).format(Number(amount)||0);
+  const expense=card.querySelector('.home-partner-last-expense');
+  const last=card.querySelector('.partner-finance-last');
+  let empty=last.querySelector('.partner-finance-empty');
+  if(!empty){empty=document.createElement('p');empty.className='partner-finance-empty';last.append(empty)}
+  empty.hidden=!!expense&&!expense.hidden;
+  empty.textContent=data?'Пока нет расходов':'Не удалось загрузить расходы';
+  const budget=data?.budget,configured=Number(budget?.plannedLimit)>0;
+  const percent=Math.max(0,Number(budget?.spentPercent)||0),track=card.querySelector('.partner-finance-track');
+  track.hidden=!configured;track.setAttribute('aria-valuenow',String(Math.min(100,percent)));
+  track.setAttribute('aria-valuetext','Использовано '+Math.round(percent)+'% бюджета');
+  track.dataset.level=percent>=100?'full':percent>=50?'mid':'low';track.querySelector('i').style.width=Math.min(100,percent)+'%';
+  card.querySelector('.partner-finance-percent').textContent=configured?Math.round(percent)+'%':'';
+  card.querySelector('.partner-finance-budget-copy').textContent=budget?(configured?money(budget.actualSpent)+' из '+money(budget.plannedLimit):'Бюджет пока не задан'):'Не удалось загрузить бюджет';
+  const largest=data?.largestPurchase;
+  card.querySelector('.partner-finance-largest>p').textContent=largest?[money(largest.amount,largest.currency),largest.note||largest.category,new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short'}).format(new Date(largest.occurredAt))].join(' · '):data?'В этом месяце пока нет покупок':'Не удалось загрузить покупки';
  }
  function birthdayInfo(actor,now=new Date()){
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(now).map(p=>[p.type,p.value]));
@@ -193,7 +217,7 @@
   if(!fromHistory&&history.state?.rudiPartnerProfile)history.back();
   saved.trigger?.focus?.({preventScroll:true});
  }
- function bind(tile,actor,{openStars,balance,refreshBalance,loadWishes,openWish,loadCbtStatus,loadPlans}){
+ function bind(tile,actor,{openStars,balance,refreshBalance,loadWishes,openWish,loadCbtStatus,loadPlans,loadFinances}){
   if(bindings.has(tile))return;
   const details=tile.querySelector('.profile-person-details');
   if(!details)return;
@@ -232,7 +256,8 @@
    addCbtStatus(page,actor,loadCbtStatus);
    Object.assign(active,composePage(page,energy,advice,details));
    const today=page.querySelector('.partner-today'),note=window.RudiHomeNote?.mountPartner?.();
-   if(today&&note)today.after(note);
+   if(today&&note)(page.querySelector('.partner-finances')||today).after(note);
+   Promise.resolve().then(()=>loadFinances?.()).then(data=>{if(page.isConnected)renderFinances(page,data,actor)}).catch(()=>{if(page.isConnected)renderFinances(page,null,actor)});
    void addPartnerDetails(page,actor);
    active.groups.push(addPlans(page,actor,loadPlans));
    document.body.classList.add('partner-profile-open');
@@ -277,5 +302,5 @@
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)active?.updateBirthday?.()});
  document.addEventListener('keydown',event=>{if(active&&!active.page.hidden&&event.key==='Escape')close()});
  new MutationObserver(()=>{if(active)close(true)}).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
- window.RudiPartnerProfile={bind,close,refresh:()=>active?.updateBalance()};
+ window.RudiPartnerProfile={bind,close,refreshFinance:data=>{if(active)renderFinances(active.page,data,active.actor)},refresh:()=>active?.updateBalance()};
 })();
