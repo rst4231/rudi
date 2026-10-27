@@ -1,17 +1,17 @@
 {
-  "current": "v4.360",
+  "current": "v4.361",
   "versionBranch": "feat/partner-finances",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.359",
+  "basedOnProduction": "v4.360",
   "notes": [
-    "На странице партнёра под БАДами добавлен блок Финансы: последний расход, шкала месячного бюджета и крупнейшая покупка месяца.",
-    "Последний расход перенесён из верхней карточки без новых запросов к серверу."
+    "В блоке Финансы на странице партнёра удалён месячный бюджет (сумма, процент и шкала).",
+    "Последний расход и крупнейшая покупка за месяц сохранены без изменений."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Add compact partner finance summary below supplements using existing cached request"
+    "Remove partner monthly budget from finance card while keeping latest expense and largest purchase"
   ]
 }

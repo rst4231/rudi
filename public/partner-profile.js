@@ -76,7 +76,7 @@
   if(habits){habits.classList.remove('profile-partner-habits-summary');habits.classList.add('partner-habits-plain');}
   move(intakes,today);
   const finances=document.createElement('section');finances.className='partner-finances';
-  finances.innerHTML='<h2>Финансы</h2><div class="partner-finance-last"><h3>Последний расход</h3></div><div class="partner-finance-budget"><div class="partner-finance-budget-head"><h3>Бюджет на месяц</h3><strong class="partner-finance-percent"></strong></div><div class="partner-finance-track" role="progressbar" aria-label="Использовано месячного бюджета" aria-valuemin="0" aria-valuemax="100"><i></i></div><p class="partner-finance-budget-copy">Загружаю бюджет…</p></div><div class="partner-finance-largest"><h3>Самая крупная покупка за месяц</h3><p>Загружаю…</p></div>';
+  finances.innerHTML='<h2>Финансы</h2><div class="partner-finance-last"><h3>Последний расход</h3></div><div class="partner-finance-largest"><h3>Самая крупная покупка за месяц</h3><p>Загружаю…</p></div>';
   today.after(finances);groups.push(finances);
   move(expense,finances.querySelector('.partner-finance-last'));
   const cycle=details.querySelector('.home-cycle-summary');
@@ -95,13 +95,6 @@
   if(!empty){empty=document.createElement('p');empty.className='partner-finance-empty';last.append(empty)}
   empty.hidden=!!expense&&!expense.hidden;
   empty.textContent=data?'Пока нет расходов':'Не удалось загрузить расходы';
-  const budget=data?.budget,configured=Number(budget?.plannedLimit)>0;
-  const percent=Math.max(0,Number(budget?.spentPercent)||0),track=card.querySelector('.partner-finance-track');
-  track.hidden=!configured;track.setAttribute('aria-valuenow',String(Math.min(100,percent)));
-  track.setAttribute('aria-valuetext','Использовано '+Math.round(percent)+'% бюджета');
-  track.dataset.level=percent>=100?'full':percent>=50?'mid':'low';track.querySelector('i').style.width=Math.min(100,percent)+'%';
-  card.querySelector('.partner-finance-percent').textContent=configured?Math.round(percent)+'%':'';
-  card.querySelector('.partner-finance-budget-copy').textContent=budget?(configured?money(budget.actualSpent)+' из '+money(budget.plannedLimit):'Бюджет пока не задан'):'Не удалось загрузить бюджет';
   const largest=data?.largestPurchase;
   card.querySelector('.partner-finance-largest>p').textContent=largest?[money(largest.amount,largest.currency),largest.note||largest.category,new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short'}).format(new Date(largest.occurredAt))].join(' · '):data?'В этом месяце пока нет покупок':'Не удалось загрузить покупки';
  }
