@@ -1,17 +1,17 @@
 {
-  "current": "v4.361",
+  "current": "v4.362",
   "versionBranch": "feat/partner-finances",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.360",
+  "basedOnProduction": "v4.361",
   "notes": [
-    "В блоке Финансы на странице партнёра удалён месячный бюджет (сумма, процент и шкала).",
-    "Последний расход и крупнейшая покупка за месяц сохранены без изменений."
+    "На Моей странице под БАДами добавлен такой же компактный финансовый блок, как на странице партнёра, но без месячного бюджета.",
+    "Отображаются только собственные последний расход и самая крупная покупка за месяц."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Remove partner monthly budget from finance card while keeping latest expense and largest purchase"
+    "Add self finances card under supplements without budget using authenticated read-only summary"
   ]
 }

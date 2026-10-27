@@ -30,6 +30,48 @@ function renderStars(){
  button.textContent='⭐ '+(balance==null?'…':Number(balance).toLocaleString('ru-RU',{maximumFractionDigits:2}));
  button.setAttribute('aria-label','Мои звёзды: '+(balance==null?'загружаются':button.textContent.slice(3))+'. Открыть историю');
 }
+
+const selfFinanceCache=new Map(),selfFinanceRequests=new Map(),selfFinanceErrors=new Set();
+function selfFinanceMoney(value,currency='RUB'){
+ try{return new Intl.NumberFormat('ru-RU',{style:'currency',currency,maximumFractionDigits:2}).format(Number(value)||0)}
+ catch(_){return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(Number(value)||0)+' ₽'}
+}
+function renderSelfFinanceCard(card,actor){
+ if(!card)return;
+ const data=selfFinanceCache.get(actor),failed=selfFinanceErrors.has(actor);
+ const format=row=>{
+  const stamp=new Date(row.occurredAt);
+  const date=Number.isFinite(stamp.getTime())?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short'}).format(stamp):'';
+  return [selfFinanceMoney(row.amount,row.currency),row.note||row.category,date].filter(Boolean).join(' · ');
+ };
+ card.querySelector('[data-self-finance-last]').textContent=data
+  ?(data.expense?format(data.expense):'Пока нет расходов')
+  :(failed?'Не удалось загрузить расходы':'Загружаю…');
+ card.querySelector('[data-self-finance-largest]').textContent=data
+  ?(data.largestPurchase?format(data.largestPurchase):'В этом месяце пока нет покупок')
+  :(failed?'Не удалось загрузить покупки':'Загружаю…');
+}
+function refreshSelfFinance(){
+ const actor=document.body.dataset.rudiActor||who;
+ if(!open||!['Рустам','Диана'].includes(actor))return Promise.resolve();
+ if(selfFinanceRequests.has(actor))return selfFinanceRequests.get(actor);
+ const pending=fetch('/api/finances',{
+  method:'POST',credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},
+  body:JSON.stringify({operation:'self-finance-summary',initData:String(window.Telegram?.WebApp?.initData||'')})
+ }).then(async response=>{
+  const result=await response.json().catch(()=>null);
+  if(!response.ok||!result?.ok||result.actor!==actor)throw new Error('self-finance-unavailable');
+  selfFinanceCache.set(actor,result);selfFinanceErrors.delete(actor);
+ }).catch(()=>{
+  if(!selfFinanceCache.has(actor))selfFinanceErrors.add(actor);
+ }).finally(()=>{
+  selfFinanceRequests.delete(actor);
+  if(open&&(document.body.dataset.rudiActor||who)===actor)
+   renderSelfFinanceCard($('pcSelfProfile')?.querySelector('.pc-self-finances'),actor);
+ });
+ selfFinanceRequests.set(actor,pending);
+ return pending;
+}
 function renderSelfProfile(){
  const actor=document.body.dataset.rudiActor||who;
  const source=$(actor==='Диана'?'homeDianaTile':'homeRustamTile'),slot=$('pcSelfProfile');
@@ -65,7 +107,11 @@ function renderSelfProfile(){
  const today=document.createElement('section');today.className='partner-today';today.innerHTML='<h2>БАДы</h2>';
  const intakes=clone(source.querySelector('.profile-supplement-intakes'));
  if(intakes)today.append(intakes);else today.insertAdjacentHTML('beforeend','<p class="profile-supplement-intakes-empty">Сегодня ещё ничего не отмечено</p>');
- details.append(hero);if(energy)details.append(energyCard);details.append(today);layout.append(details);slot.replaceChildren(layout);
+ details.append(hero);if(energy)details.append(energyCard);details.append(today);
+ const finances=document.createElement('section');finances.className='partner-finances pc-self-finances';
+ finances.innerHTML='<h2>Финансы</h2><div class="partner-finance-last"><h3>Последний расход</h3><p data-self-finance-last>Загружаю…</p></div><div class="partner-finance-largest"><h3>Самая крупная покупка за месяц</h3><p data-self-finance-largest>Загружаю…</p></div>';
+ details.append(finances);renderSelfFinanceCard(finances,actor);
+ layout.append(details);slot.replaceChildren(layout);
  if(selfProfileSource!==source){
   selfProfileObserver?.disconnect();selfProfileSource=source;
   selfProfileObserver=new MutationObserver(()=>{if(!open)return;cancelAnimationFrame(selfProfileFrame);selfProfileFrame=requestAnimationFrame(renderSelfProfile)});
@@ -191,7 +237,7 @@ async function show({fromHistory=false}={}){
  clearTimeout(centerCloseTimer);
  root.classList.remove('is-closing');
  open=true;root.hidden=false;document.body.classList.add('rudi-center-open');
- renderStars();renderSelfProfile();
+ renderStars();renderSelfProfile();void refreshSelfFinance();
  if(!fromHistory){
   try{
    const state=history.state&&typeof history.state==='object'?history.state:{};

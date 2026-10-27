@@ -1,4 +1,4 @@
-const { partnerFinanceSummary } = require('./partner-finances.cjs');
+const { partnerFinanceSummary, selfFinanceSummary } = require('./partner-finances.cjs');
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const coinKeeperHistory=require('./coinkeeper-history.cjs');
 const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
@@ -326,6 +326,10 @@ async function handler(req, res) {
     if (operation === 'partner-last-expense') {
       const state = await readFinanceState();
       return res.status(200).json({ok:true,actor,...partnerFinanceSummary(state,actor)});
+    }
+    if (operation === 'self-finance-summary') {
+      const state = await readFinanceState();
+      return res.status(200).json({ok:true,...selfFinanceSummary(state,actor)});
     }
     if (operation === 'save') {
       const state = await saveFinanceMonth(actor, body.month, body.rent, body.utilities, body.items);
