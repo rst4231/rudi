@@ -27,7 +27,14 @@ const root=path.resolve(__dirname,'../public');
   await page.waitForTimeout(150);
   assert.equal(await page.locator('#carDeviceCard,#carLocationTime,#carDevicePair').count(),0);
   assert.equal(operations.some(op=>['get-location','create-device-pairing','revoke-car-device'].includes(op)),false);
-  if(actor==='Рустам')assert.ok(await page.locator('#carPage .car-smart-card').count()>0,'regular Car cards retained');
+  if(actor==='Рустам'){
+   assert.ok(await page.locator('#carPage .car-smart-card').count()>0,'regular Car cards retained');
+   await page.evaluate(async()=>{document.body.dataset.appTab='home';await window.RUDI_CAR.refresh();});
+   assert.equal(await page.locator('#carTile').isVisible(),true,'main car card visible on Home');
+   assert.match((await page.locator('#carHomeMileageValue').textContent()).replace(/\s/g,''),/52001/,'home mileage retained');
+   assert.equal(await page.locator('#carHomeServiceValue').isVisible(),true);
+   assert.equal(await page.locator('#carHomeWashValue').isVisible(),true);
+  }
   assert.deepEqual(errors,[]);await page.close();console.log('PASS integrated Car cards without device connection',actor);
  }
  await browser.close();

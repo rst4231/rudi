@@ -483,7 +483,7 @@ async function handleCarRequest(req, res, options = {}) {
     }
 
     if (operation === 'get') {
-      const [state,tasks,deviceState] = await Promise.all([readCarState(),carTasksSafe(),deviceService.readState()]);
+      const [state,tasks] = await Promise.all([readCarState(),carTasksSafe()]);
       const config = await loadCarTaskConfig();
       return res.status(200).json({
         ok:true,
@@ -494,7 +494,6 @@ async function handleCarRequest(req, res, options = {}) {
         nextService:serviceScheduleForMileage(state.mileage),
         ticktick:tasks,
         priorityConfig:config.priority,
-        ...deviceState,
       });
     }
 

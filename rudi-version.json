@@ -1,17 +1,17 @@
 {
-  "current": "v4.358",
+  "current": "v4.359",
   "versionBranch": "feat/uni-v-owner-location",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.357",
+  "basedOnProduction": "v4.358",
   "notes": [
-    "Удалены подключение магнитолы, коды и последняя локация из раздела Машина.",
-    "Серверный приём координат прекращён; старый API отвечает 410."
+    "Восстановлена загрузка карточки машины: из основного запроса убрана ссылка на удалённый сервис магнитолы.",
+    "Карточка, пробег, ТО, мойка и шины сохранены; подключение магнитолы и передача GPS удалены."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Retire car device integration, UI, polling and location write API"
+    "Restore regular car summary independently from retired device service"
   ]
 }
