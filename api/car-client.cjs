@@ -459,6 +459,14 @@ async function handleCarRequest(req, res, options = {}) {
   }
 
   const operation = String(body.operation || 'get');
+  if (['device-admin-status','set-device-admin-password'].includes(operation)) {
+    try {
+      const admin = operation === 'device-admin-status' ? await deviceService.admin.status() : await deviceService.admin.setPassword(body.password);
+      return res.status(200).json({ok:true,actor:session.actor,visible:true,admin});
+    } catch(error) {
+      return res.status(error?.message==='car-admin-password-format'?400:503).json({ok:false,error:error?.message==='car-admin-password-format'?'car-admin-password-format':'car-device-unavailable'});
+    }
+  }
   // These small device operations never fetch tasks or restore unrelated car data.
   if (['create-device-pairing','revoke-car-device','get-location'].includes(operation)) {
     try {

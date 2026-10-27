@@ -10,6 +10,7 @@ WEB_ASSETS.push('viewport.js','positive-emotion-chart.js','partner-profile.js','
 WEB_ASSETS.push('cbt-content.js','cbt-core.js','cbt.js','cbt.css');
 
 WEB_ASSETS.push('mood-catalog.js','mood-picker.js','mood-picker.css');
+WEB_ASSETS.push('car-device.css','car-location-view.js');
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -176,6 +177,10 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/supplement-editor\.js\?v=[^"]+/g, '/supplement-editor.js?v=' + assetVersion);
   html = html.replace(/\/supplement-advanced\.js\?v=[^"]+/g, '/supplement-advanced.js?v=' + assetVersion);
   html = html.replace(/\/car\.js\?v=[^"]+/g, '/car.js?v=' + assetVersion);
+  for (const name of ['car-device.css','car-location-view.js']) {
+    const pattern=new RegExp('/'+name.replace(/\./g,'\\.')+'(?:\\?v=[^"\\s]+)?(?=")','g');
+    html=html.replace(pattern,'/'+name+'?v='+assetVersion);
+  }
   html = html.replace(/\/changan-uni-v-header\.webp\?v=[^"]+/g, '/changan-uni-v-header.webp?v=' + assetVersion);
   html = html.replace(/\/manifest\.webmanifest\?v=[^"]+/g, '/manifest.webmanifest?v=' + assetVersion);
   html = html.replace(

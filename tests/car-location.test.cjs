@@ -23,6 +23,12 @@ function service(f) {
 }
 function response() { return { headers:{}, statusCode:200, setHeader(k,v){this.headers[k]=v;}, status(code){this.statusCode=code;return this;}, json(data){this.data=data;return this;} }; }
 async function request(device,body,token='',method='POST') {
+  if(body.operation==='pair') {
+    if(!(await device.admin.status()).configured)await device.admin.setPassword('synthetic-admin-password');
+    const id='synthetic-installation-1234567890';
+    token=(await device.admin.login('synthetic-admin-password',id)).adminToken;
+    body={...body,deviceId:id};
+  }
   const res=response();
   await device.handleRequest({method,body,headers:token?{authorization:'Bearer '+token}:{}},res);
   assert.match(res.headers['Cache-Control'],/no-store/);
@@ -160,4 +166,13 @@ test('a delayed older upload cannot delete a concurrently written newer point',a
   assert.deepEqual((await request(service(f),{operation:'location',...point()},token)).data,{ok:true,accepted:true});
   release();await older;
   assert.deepEqual((await device.readState()).lastLocation,point());
+});
+test('a late disconnect from an old headunit cannot revoke a replacement',async()=>{
+  const f=fixture(),{device,token}=await paired(f),real=f.client.set;
+  let entered,release;const started=new Promise(r=>entered=r),resume=new Promise(r=>release=r);
+  f.client.set=async(ns,key,value,...rest)=>{if(key==='registry'||key.startsWith('revoked:')){entered();await resume;}return real(ns,key,value,...rest);};
+  const old=request(device,{operation:'disconnect'},token);await started;
+  f.client.set=real;const code=await device.createPairing();const next=await device.pair(code.code);
+  release();assert.equal((await old).statusCode,200);assert.equal((await device.readState()).carDevice.paired,true);
+  assert.equal((await request(device,{operation:'location',...point()},next.deviceToken)).statusCode,200);
 });

@@ -1,38 +1,43 @@
-(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.RUDI_CAR_LOCATION=factory()})(typeof window!=='undefined'?window:this,function(){'use strict';
-function describeLocation(point){
- const empty={available:false,title:'Магнитола ещё не передала GPS-точку',when:'Точка появится после подключения и получения GPS в машине.'};
- if(!point||!Number.isFinite(point.latitude)||!Number.isFinite(point.longitude)||Math.abs(point.latitude)>90||Math.abs(point.longitude)>180||!Number.isFinite(Date.parse(point.capturedAt)))return empty;
- const latitude=point.latitude.toFixed(5),longitude=point.longitude.toFixed(5);
- return {available:true,title:latitude+', '+longitude,when:'Получена '+new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Moscow'}).format(new Date(point.capturedAt)),accuracy:Number.isFinite(point.accuracy)?'Точность около '+Math.round(point.accuracy)+' м':'Точность не указана',url:'https://yandex.ru/maps/?ll='+encodeURIComponent(longitude+','+latitude)+'&z=17&pt='+encodeURIComponent(longitude+','+latitude)+',pm2blm'};
-}
-function mount({api,getCar,onUpdate}){
- const $=id=>document.getElementById(id);let inFlight=false,expires=0,pairingTimer=null;
- function render(){
-  const data=getCar()||{},description=describeLocation(data.lastLocation),paired=Boolean(data.carDevice?.paired);
-  $('carLocationPoint').textContent=description.title;$('carLocationWhen').textContent=description.when;
-  $('carLocationAccuracy').textContent=description.available?description.accuracy:'';
-  const link=$('carLocationMap');link.hidden=!description.available;if(description.available)link.href=description.url;else link.removeAttribute('href');
-  $('carLocationConnection').textContent=paired?'Магнитола подключена':'Магнитола не подключена';
-  $('carLocationPair').textContent=paired?'Переподключить магнитолу':'Подключить магнитолу';
-  $('carLocationDisconnect').hidden=!paired;
-  if(paired&&expires){expires=0;$('carLocationPairing').hidden=true;clearInterval(pairingTimer)}
- }
- async function refresh(){
-  if(inFlight||!document.body.classList.contains('auth-ok'))return;
-  inFlight=true;try{const data=await api('get-location');onUpdate(data);render();$('carLocationStatus').textContent=''}catch(_){$('carLocationStatus').textContent='Не удалось обновить связь. Сохранённая точка остаётся на экране.'}finally{inFlight=false}
- }
- $('carLocationRefresh').addEventListener('click',refresh);
- $('carLocationPair').addEventListener('click',async()=>{
-  const button=$('carLocationPair');button.disabled=true;$('carLocationStatus').textContent='Создаю код подключения…';
-  try{const data=await api('create-device-pairing');expires=Date.parse(data.pairing.expiresAt);$('carLocationPairCode').textContent=data.pairing.code;$('carLocationPairExpiry').textContent='Введи в UNI-V OS → Настройки → Руди до '+new Date(expires).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Moscow'});$('carLocationPairing').hidden=false;onUpdate({carDevice:{paired:false}});render();$('carLocationStatus').textContent='';clearInterval(pairingTimer);pairingTimer=setInterval(()=>{if(Date.now()>=expires){clearInterval(pairingTimer);$('carLocationPairCode').textContent='Срок кода истёк';$('carLocationPairExpiry').textContent='Создай новый код для подключения.';return}if(!document.hidden)refresh()},10000)}catch(_){$('carLocationStatus').textContent='Код не создан. Попробуй ещё раз.'}finally{button.disabled=false}
- });
- $('carLocationDisconnect').addEventListener('click',async()=>{
-  const button=$('carLocationDisconnect');button.disabled=true;
-  try{await api('revoke-car-device');onUpdate({carDevice:{paired:false}});expires=0;clearInterval(pairingTimer);$('carLocationPairing').hidden=true;render();$('carLocationStatus').textContent='Передача новых точек отключена. Последняя сохранённая точка осталась.'}catch(_){$('carLocationStatus').textContent='Не удалось отключить магнитолу. Попробуй ещё раз.'}finally{button.disabled=false}
- });
- setInterval(()=>{if(!document.hidden&&document.body.dataset.appTab==='car')refresh()},60000);
- document.addEventListener('visibilitychange',()=>{if(!document.hidden&&document.body.dataset.appTab==='car')refresh()});
- return {render,refresh};
-}
-return {describeLocation,mount};
-});
+(function(root){
+  'use strict';
+  function describeLocation(point){
+    if(!point||typeof point.latitude!=='number'||typeof point.longitude!=='number'||!Number.isFinite(point.latitude)||!Number.isFinite(point.longitude)||Math.abs(point.latitude)>90||Math.abs(point.longitude)>180||!Number.isFinite(Date.parse(point.capturedAt)))return {available:false};
+    return {available:true,when:new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}).format(new Date(point.capturedAt)),accuracy:'Точность около '+Math.round(point.accuracy)+' м',url:'https://yandex.ru/maps/?rtext=~'+point.latitude+','+point.longitude+'&ll='+point.longitude+','+point.latitude+'&z=16&rtt=auto'};
+  }
+  if(typeof module!=='undefined')module.exports={describeLocation};
+  if(!root.document)return;
+  const $=id=>document.getElementById(id);let busy=false;
+  function owner(){return document.body.classList.contains('auth-ok')&&document.body.dataset.rudiActor==='Рустам';}
+  function visible(){return owner()&&document.body.dataset.appTab==='car'&&!document.hidden;}
+  function message(text){$('carDeviceMessage').textContent=text;}
+  async function api(operation,payload){
+    const response=await fetch('/api/index?route=car',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation,initData:root.Telegram?.WebApp?.initData||'',...payload}),cache:'no-store',signal:AbortSignal.timeout(12000)});
+    const data=await response.json();if(!response.ok||!data.ok||!data.visible)throw Error(data.error||'request-failed');return data;
+  }
+  function render(data){
+    const p=describeLocation(data.lastLocation);$('carDeviceState').textContent=data.carDevice?.paired?'Магнитола подключена':'Магнитола не подключена';
+    if(data.carDevice?.paired)$('carDeviceCode').textContent='';
+    $('carLocationTime').textContent=p.available?'GPS: '+p.when+' · '+p.accuracy:'Координаты пока не получены';
+    $('carLocationRoute').hidden=!p.available;if(p.available)$('carLocationRoute').href=p.url;else $('carLocationRoute').removeAttribute('href');
+    $('carDeviceRevoke').hidden=!data.carDevice?.paired;
+  }
+  async function refresh(){
+    if(!visible()||busy)return;busy=true;
+    try{const data=await api('get-location');if(owner())render(data);}
+    catch(_){message('Не удалось проверить связь. Повтори при наличии интернета.');}
+    finally{busy=false;}
+  }
+  function start(){
+    const card=$('carDeviceCard');if(!card)return;
+    let wasVisible=false;
+    function sync(){const allowed=owner();card.hidden=!allowed;if(!allowed){$('carDeviceCode').textContent='';$('carAdminPassword').value='';$('carLocationTime').textContent='';$('carLocationRoute').hidden=true;$('carLocationRoute').removeAttribute('href');}const shown=visible();if(shown&&!wasVisible)refresh();wasVisible=shown;}
+    new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class','data-rudi-actor','data-app-tab']});
+    document.addEventListener('visibilitychange',sync);root.addEventListener('rudi:auth-ready',sync);sync();
+    setInterval(function(){if(visible())refresh();},60000);
+    $('carDeviceRefresh').onclick=refresh;
+    $('carDevicePair').onclick=async function(){if(!owner())return;this.disabled=true;try{const d=await api('create-device-pairing');$('carDeviceCode').textContent=d.pairing.code;message('Код действует 10 минут. Введи его в UNI V OS → Настройки → Админ-панель. Новый код отключает прежнюю привязку.');await refresh();}catch(_){message('Не удалось создать код. Проверь подключение.');}finally{this.disabled=false;}};
+    $('carDeviceRevoke').onclick=async function(){if(!owner())return;this.disabled=true;try{await api('revoke-car-device');$('carDeviceCode').textContent='';message('Связь отключена. Последняя полученная точка сохранена.');await refresh();}catch(_){message('Не удалось отключить связь. Повтори.');}finally{this.disabled=false;}};
+    $('carAdminPasswordForm').onsubmit=async function(event){event.preventDefault();if(!owner())return;const input=$('carAdminPassword'),password=input.value;input.value='';$('carAdminPasswordSave').disabled=true;try{await api('set-device-admin-password',{password});message('Пароль админ-панели сохранён. Используй его для входа на магнитоле.');$('carAdminPasswordDetails').open=false;}catch(error){message(error.message==='car-admin-password-format'?'Пароль должен содержать от 8 до 128 символов.':'Не удалось сохранить пароль. Повтори.');}finally{$('carAdminPasswordSave').disabled=false;}};
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start,{once:true});else start();
+})(typeof window==='undefined'?globalThis:window);
