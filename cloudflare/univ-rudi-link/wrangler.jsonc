@@ -1,8 +1,0 @@
-{
- "name":"univ-rudi-link",
- "main":"worker.mjs",
- "compatibility_date":"2026-10-03",
- "compatibility_flags":["nodejs_compat"],
- "d1_databases":[{"binding":"DB","database_name":"rudi-db","database_id":"1dbe9156-1612-4262-96eb-676faa0c3860"}],
- "observability":{"enabled":true}
-}

@@ -1,6 +1,4 @@
 'use strict';
-const {createCarDeviceService:factory}=require('./car-device-core.cjs');
-const {createRudiStateClient}=require('./rudi-state-client.cjs');
-function createCarDeviceService(options={}){return factory({...options,client:options.client||createRudiStateClient(options)});}
-let defaultService;
-module.exports={createCarDeviceService,handleCarDeviceRequest:(req,res)=>(defaultService||(defaultService=createCarDeviceService())).handleRequest(req,res)};
+// Retired: old APKs must never enter another route or accept location writes.
+function handleCarDeviceRequest(req,res){res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');return res.status(410).json({ok:false,error:'car-device-removed'});}
+module.exports={handleCarDeviceRequest};

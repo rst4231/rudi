@@ -1,17 +1,17 @@
 {
-  "current": "v4.357",
+  "current": "v4.358",
   "versionBranch": "feat/uni-v-owner-location",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.356",
+  "basedOnProduction": "v4.357",
   "notes": [
-    "Прямой канал подключения магнитолы к D1 без Vercel.",
-    "Повтор подключения после потери ответа сохраняет привязку той же магнитолы; другой установке код недоступен."
+    "Удалены подключение магнитолы, коды и последняя локация из раздела Машина.",
+    "Серверный приём координат прекращён; старый API отвечает 410."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Shared device protocol core and direct D1 endpoint; resumable installation-bound enrollment"
+    "Retire car device integration, UI, polling and location write API"
   ]
 }

@@ -24,16 +24,11 @@ const root=path.resolve(__dirname,'../public');
   await page.goto('http://rudi.test/');
   await page.evaluate(actor=>{document.body.classList.remove('auth-pending','auth-denied','auth-login');document.body.classList.add('auth-ok');document.body.dataset.rudiActor=actor;document.body.dataset.appTab='car';document.getElementById('carPage').hidden=false;window.RUDI_WEATHER={get:async()=>{throw Error('synthetic unavailable weather')}};},actor);
   await page.addScriptTag({path:path.join(root,'car.js')});
-  await page.addScriptTag({path:path.join(root,'car-location-view.js')});
   await page.waitForTimeout(150);
-  if(actor==='Рустам'){
-   assert.equal(await page.locator('#carDeviceCard').count(),1,'existing Car card rebuild must preserve connection card');
-   if(!await page.locator('#carDeviceCard').isVisible())console.log(await page.locator('#carDeviceCard').evaluate(n=>{var a=[];for(var x=n;x;x=x.parentElement)a.push([x.id,x.className,x.hidden,getComputedStyle(x).display]);return a}));await page.locator('#carDeviceCard').scrollIntoViewIfNeeded();assert.equal(await page.locator('#carDeviceCard').isVisible(),true);
-   await page.click('#carDevicePair');await page.waitForFunction(()=>document.getElementById('carDeviceCode').textContent==='012345');
-   assert.ok(operations.includes('get-location'));assert.ok(operations.includes('create-device-pairing'));
-   await page.screenshot({path:path.resolve(__dirname,'../../output/rudi-car-connection-mobile.png')});
-  }else{assert.equal(await page.locator('#carDeviceCard').isVisible(),false);assert.equal(operations.includes('get-location'),false);assert.equal(operations.includes('create-device-pairing'),false);}
-  assert.deepEqual(errors,[]);await page.close();console.log('PASS integrated Car cards and connection',actor);
+  assert.equal(await page.locator('#carDeviceCard,#carLocationTime,#carDevicePair').count(),0);
+  assert.equal(operations.some(op=>['get-location','create-device-pairing','revoke-car-device'].includes(op)),false);
+  if(actor==='Рустам')assert.ok(await page.locator('#carPage .car-smart-card').count()>0,'regular Car cards retained');
+  assert.deepEqual(errors,[]);await page.close();console.log('PASS integrated Car cards without device connection',actor);
  }
  await browser.close();
 })().catch(error=>{console.error(error);process.exit(1)});
