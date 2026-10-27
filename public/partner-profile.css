@@ -627,3 +627,9 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-mood-cbt{color:#784
 .partner-finance-track[data-level="mid"]>i{background:#e0aa2f}
 .partner-finance-track[data-level="full"]>i{background:#d94b55}
 .partner-finances [hidden]{display:none!important}
+
+/* Partner detail page only: equal outer space above and below the dark overview. */
+.partner-profile-page .partner-hero{
+  padding-top:18px!important;
+  padding-bottom:18px!important;
+}

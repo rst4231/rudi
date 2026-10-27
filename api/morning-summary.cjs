@@ -403,6 +403,8 @@ async function loadTodayHolidays(options = {}) {
     const [year,month,day] = date.split('-').map(Number);
     const result = await fetchHolidayDay(year,month,day,{
       ...options,
+      // The morning digest must not inherit the five-item calendar preview cap.
+      maxItems: 100,
       fetchImpl: options.holidayFetchImpl || options.fetchImpl || globalThis.fetch,
     });
     return Array.isArray(result?.items) ? result.items.map(String).filter(Boolean) : [];
@@ -594,7 +596,7 @@ function buildMorningSummary(actor, data = {}) {
   if (Array.isArray(data.holidays) && data.holidays.length) {
     blocks.push(
       '🎉 <b>Праздники сегодня</b>\n'
-      + data.holidays.slice(0,5).map(item => '• ' + escapeTelegramHtml(item)).join('\n')
+      + data.holidays.map(item => '• ' + escapeTelegramHtml(item)).join('\n')
     );
   }
 

@@ -8,6 +8,7 @@ const {
   formatDate,
   buildCarRecommendations,
   buildMorningSummary,
+  loadTodayHolidays,
   sendDailyMorningSummaries,
   writeSummaryMarker,
 } = require('../api/morning-summary.cjs');
@@ -411,4 +412,19 @@ test('morning summary retries Telegram 400 as plain text and never adds a Web Ap
 test('morning summary cache tolerates Vercel eventual consistency', () => {
   const source=fs.readFileSync(path.join(__dirname,'..','api','morning-summary.cjs'),'utf8');
   assert.match(source,/namespace:\s*NAMESPACE,[\s\S]*?confirmWrites:\s*false/);
+});
+
+
+test('morning digest includes more than five holidays from the daily source', async () => {
+  const expected = Array.from({ length: 9 }, (_, index) => 'День события ' + (index + 1));
+  const html = '<h1>Какой праздник 27 октября?</h1><ul>'
+    + expected.map(item => '<li>' + item + '</li>').join('')
+    + '</ul><h2>Православные праздники</h2>';
+  const holidays = await loadTodayHolidays({
+    now:new Date('2026-10-27T06:00:00Z'),
+    holidayFetchImpl:async() => new Response(html, { status:200 }),
+  });
+  assert.deepEqual(holidays, expected);
+  const summary = buildMorningSummary('Рустам', { holidays, tasks:[] });
+  for (const name of expected) assert.ok(summary.includes('• ' + name), name);
 });
