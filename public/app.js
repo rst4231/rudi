@@ -10515,6 +10515,8 @@
           if(title==='курсы'||title==='курсы валют')row.remove();
         });
         document.body.dataset.profileSplitReady='1';
+        homeSectionRenderSignatures.clear();
+        if(homeBootstrapPayload)applyHomeBootstrap(homeBootstrapPayload,{fromCache:!homeBootstrapLoadedAt});
         try{window.dispatchEvent(new CustomEvent('rudi:profile-ready'))}catch(_){}
         syncStaticProfileWorkStatus();
         setupHomeDashboardActions();
@@ -12116,7 +12118,7 @@
         document.body.classList.remove('auth-pending','auth-denied','auth-login');
         document.body.classList.add('auth-ok');
         if(isProtectedIphoneAccount())scheduleIphoneFaceIdExpiry();
-        if(!wasAuthenticated)try{window.dispatchEvent(new Event('rudi:auth-ready'))}catch(_){}
+        if(!wasAuthenticated&&document.body.dataset.rudiActor===currentActor&&document.body.dataset.profileSplitReady==='1')try{window.dispatchEvent(new Event('rudi:auth-ready'))}catch(_){}
         return true;
       }
 
@@ -12695,6 +12697,8 @@
         homeBootstrapLoadedAt=fromCache?0:Date.now();
         homeBootstrapLoadedDay=fromCache?'':todayState().key;
         homeBootstrapActor=currentActor;
+        // Preserve early snapshots, but do not mark sections rendered before their DOM exists.
+        if(document.body.dataset.profileSplitReady!=='1')return true;
         if(home.activity&&homeBootstrapSectionChanged('activity',home.activity))renderActivityJournal(home.activity);
         if(home.mood&&homeBootstrapSectionChanged('mood',home.mood)){
           currentMoodDateKey=String(home.mood?.date||todayState().key);
@@ -12869,6 +12873,21 @@
         if(appAccessReady&&currentAppTab==='home'&&document.visibilityState==='visible'&&
           window.rudiHomeOffline?.isOffline?.())reconnectHome();
       },15000);
+
+      let unlockHomeRefreshPromise=null;
+      function refreshHomeAfterUnlock(){
+        if(!currentActor||!appAccessReady||!document.body.classList.contains('auth-ok')||
+          document.body.dataset.rudiActor!==currentActor||document.body.dataset.profileSplitReady!=='1')return Promise.resolve(false);
+        if(unlockHomeRefreshPromise)return unlockHomeRefreshPromise;
+        homeSectionRenderSignatures.clear();
+        syncStaticProfileWorkStatus();
+        unlockHomeRefreshPromise=Promise.allSettled([
+          Promise.resolve().then(()=>ensureHomeBootstrap()),
+          Promise.resolve().then(()=>window.RudiSupplementApp?.loadHomeTools?.({force:false}))
+        ]).finally(()=>{unlockHomeRefreshPromise=null});
+        return unlockHomeRefreshPromise;
+      }
+      window.addEventListener('rudi:auth-ready',()=>{void refreshHomeAfterUnlock()});
 
       async function ensureHomeBootstrap({force=false}={}){
         if(window.rudiHomeOffline?.isOffline?.())return loadHomeBootstrap({force:true});
@@ -22628,6 +22647,8 @@
         setupWishlist();
         setupSharedAlbum();
         setupWorkCalendarDisclosure();
+        // The actor and all feature nodes now exist, including after a slow PIN/Face ID prompt.
+        try{window.dispatchEvent(new Event('rudi:auth-ready'))}catch(_){}
         loadCalendarOverdueCount({force:true}).catch(()=>{});
         markDataSyncNow();
         setTimeout(()=>{if(!stateBackupSyncFresh(6*60*60*1000)) refreshStateBackup()},2500);
@@ -22736,7 +22757,7 @@
       const AUTO_RESUME_HEAVY_REFRESH_MS=15*60*1000;
       async function refreshAfterResume({backgroundMs=0}={}){
         ensureAppSurface();
-        if(!currentActor||!appAccessReady) return;
+        if(!currentActor||!appAccessReady||!document.body.classList.contains('auth-ok')) return;
         const force=manualRefreshRequested;
         const awayMs=Math.max(0,Number(backgroundMs)||0);
         const now=Date.now();

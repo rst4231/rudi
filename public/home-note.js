@@ -290,13 +290,14 @@ textarea.addEventListener('keydown',event=>{
  if(event.key==='Enter'&&(event.metaKey||event.ctrlKey)){event.preventDefault();void persist()}
 });
 function onReady(){
- if(!document.body.classList.contains('auth-pending')){void load();return}
+ const ready=()=>document.body.classList.contains('auth-ok')&&['Рустам','Диана'].includes(document.body.dataset.rudiActor);
+ if(ready()){void load();return}
  const observer=new MutationObserver(()=>{
-  if(!document.body.classList.contains('auth-pending')){
+  if(ready()){
    observer.disconnect();void load();
   }
  });
- observer.observe(document.body,{attributes:true,attributeFilter:['class']});
+ observer.observe(document.body,{attributes:true,attributeFilter:['class','data-rudi-actor']});
 }
 document.addEventListener('visibilitychange',()=>{
  if(document.visibilityState==='visible'&&!editing&&!busy&&loaded&&Date.now()-lastFetched>60000)void load();

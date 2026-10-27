@@ -236,8 +236,12 @@
     stars.textContent='⭐ '+(count==null?'…':Number(count).toLocaleString('ru-RU',{maximumFractionDigits:2}));
     stars.setAttribute('aria-label','Звёзды '+actor+': '+(count==null?'загружаются':stars.textContent.slice(3))+'. Открыть историю');
    };
-   const paints=[...head.querySelectorAll('#partnerHeaderName,.profile-work-status'),...details.querySelectorAll('.rhythm-advice,.meditation-partner-summary,.profile-partner-habits-summary,.home-cycle-status,.home-cycle-advice,.home-cycle-insight')].map(node=>({node,style:node.getAttribute('style')}));
+   const geometry=[...head.querySelectorAll('.identity,.score-avatar-wrap,.avatar,.person')];
+   const paints=[...geometry,...head.querySelectorAll('#partnerHeaderName,.profile-work-status'),...details.querySelectorAll('.rhythm-advice,.meditation-partner-summary,.profile-partner-habits-summary,.home-cycle-status,.home-cycle-advice,.home-cycle-insight')].map(node=>({node,style:node.getAttribute('style')}));
    for(const {node} of paints){node.style.removeProperty('color');node.style.removeProperty('-webkit-text-fill-color')}
+   // Release Home's inline sizing while these live nodes belong to the detail page.
+   // The full original styles (including avatar photos) are restored through paints on close.
+   for(const node of geometry)for(const prop of ['display','grid-template-columns','gap','align-items','align-self','justify-content','width','height','min-width','min-height','max-width','max-height','margin','padding'])node.style.removeProperty(prop);
    active={tile,details,slots,paints,page,trigger,actor,hidden:tile.hidden,scroll:window.scrollY,updateBalance};
    tile.hidden=true;
    details.hidden=false;

@@ -1,6 +1,6 @@
 /* Meditation header geometry, with the partner content outside the Home grid. */
 .partner-profile-page .partner-hero .partner-presence-status{
- display:flex;align-items:center;gap:6px;min-width:0;margin:3px 0 0!important;padding:0!important;
+ display:flex;align-items:center;gap:6px;min-width:0;margin:0!important;padding:0!important;
  color:#c4cbd9!important;-webkit-text-fill-color:#c4cbd9!important;font-size:11px!important;font-weight:400!important;line-height:1.35!important;
 }
 .partner-profile-page .partner-hero .partner-presence-status::before{
@@ -638,8 +638,14 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-mood-cbt{color:#784
 .partner-finance-track[data-level="full"]>i{background:#d94b55}
 .partner-finances [hidden]{display:none!important}
 
-/* Partner detail page only: equal outer space above and below the dark overview. */
+/* Compact overview: equal outer insets, with no empty summary grid row. */
 .partner-profile-page .partner-hero{
-  padding-top:18px!important;
-  padding-bottom:18px!important;
+ padding:14px 14px!important;grid-template-columns:minmax(0,1fr)!important;row-gap:10px!important;
 }
+.partner-profile-page .partner-hero>.profile-person-head{padding:0!important;min-height:0!important;height:auto!important}
+.partner-profile-page .partner-hero .identity{grid-template-columns:60px minmax(0,1fr)!important;gap:12px!important}
+.partner-profile-page .partner-hero :is(.score-avatar-wrap,.avatar){width:60px!important;height:60px!important;min-width:60px!important;min-height:60px!important;flex-basis:60px!important}
+.partner-profile-page .partner-hero .person{display:flex!important;flex-direction:column!important;gap:4px!important;margin:0!important}
+.partner-profile-page .partner-hero .person>:is(.profile-name-row,.profile-work-status,.profile-cycle-mood,.profile-rhythm-status,.partner-body-metrics){margin:0!important;padding:0!important}
+.partner-profile-page .partner-hero .home-presence-status{display:none!important}
+.partner-profile-page .partner-hero-bubbles:not(:has(.meditation-partner-summary[data-meditated-today="true"])){display:none!important}
