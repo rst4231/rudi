@@ -48,8 +48,8 @@ test('settings request starts while authentication is still pending', async () =
 test('first pageshow does not repeat startup reads; bfcache return refreshes once', () => {
   let handler;
   let refreshes=0;
-  const context=vm.createContext({window:{addEventListener:(name,fn)=>{handler=fn}},ensureAppSurface(){},refreshAfterResume(){refreshes++}});
-  vm.runInContext(source.slice(source.indexOf("      window.addEventListener('pageshow'"),source.indexOf("      window.addEventListener('focus'")),context);
+  const context=vm.createContext({window:{addEventListener:(name,fn)=>{if(name==='pageshow')handler=fn}},ensureAppSurface(){},syncUiPreferencesAfterForeground(){},AUTO_RESUME_MIN_BACKGROUND_MS:1000,refreshAfterResume(){refreshes++}});
+  vm.runInContext(source.slice(source.indexOf("      window.addEventListener('pageshow',event=>{"),source.indexOf("      window.addEventListener('blur',()=>{",source.indexOf("      window.addEventListener('pageshow',event=>{"))),context);
   handler({persisted:false});
   assert.equal(refreshes,0);
   handler({persisted:true});

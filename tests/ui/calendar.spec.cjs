@@ -796,3 +796,25 @@ test('partner page keeps fasting outline on avatar and advice immediately below 
  expect(shape.avatarOffset).toBeLessThan(1);expect(shape.hoursTop).toBeLessThan(shape.avatarTop);expect(Math.abs(shape.outlineWidth-shape.avatarWidth-8)).toBeLessThan(1);expect(shape.fill).toBe('none');expect(shape.afterGraph).toBe(true);
  await page.screenshot({path:test.info().outputPath('partner-fasting.png')});
 });
+
+
+test('slow authentication keeps the initial Home visible and replaces it with the authenticated dashboard',async({page})=>{
+ await mockRudi(page);
+ let release;
+ await page.route('**/api/partner-message?rudiAction=app-auth',async route=>{
+  await new Promise(resolve=>release=resolve);
+  await route.fulfill({json:{ok:true,actor:'Рустам'}});
+ });
+ await page.goto('/');
+ await expect.poll(()=>Boolean(release)).toBe(true);
+ await expect(page.locator('body')).toHaveClass(/auth-pending/);
+ await expect(page.locator('#appStartupPreview')).toBeVisible();
+ await expect(page.locator('.priority-section')).toBeHidden();
+ await expect(page.locator('.footer')).toBeHidden();
+ release();
+ await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ await expect(page.locator('#homeRustamTile')).toBeVisible();
+ await expect(page.locator('#homeDianaTile')).toBeVisible();
+ await expect(page.locator('.footer')).toBeVisible();
+ await expect(page.locator('#appStartupPreview')).toBeHidden();
+});

@@ -18511,3 +18511,20 @@ body[data-app-tab="feed"] .feed-event-item .feed-event-copy{position:relative;z-
   width:calc(100% - 32px)!important;max-width:none!important;
  }
 }
+
+/* Copyright is content, not a loading indicator. Keep the initial Home surface clean. */
+body.auth-pending .footer{display:none!important}
+
+/* A static preview fills the cold-start gap without flashing uninitialized profile data. */
+.app-startup-preview{display:none}
+body.auth-pending .app-startup-preview{display:grid;gap:14px;align-content:start;padding:20px 0}
+body.auth-pending [data-app-tab-section="home"]{display:none!important}
+.app-startup-heading{display:grid;gap:5px;padding:4px 4px 8px}
+.app-startup-heading strong{font-size:28px;letter-spacing:-1px;color:var(--text)}
+.app-startup-heading span{font-size:14px;color:var(--muted)}
+.app-startup-card{display:grid;gap:13px;padding:22px;border:1px solid var(--line);border-radius:24px;background:var(--surface)}
+.app-startup-line{display:block;width:45%;height:11px;border-radius:8px;background:var(--line)}
+.app-startup-line.wide{width:72%}
+.app-startup-card.person{grid-template-columns:48px minmax(0,1fr);align-items:center}
+.app-startup-card.person>div{display:grid;gap:12px}
+.app-startup-avatar{width:48px;height:48px;border-radius:50%;background:var(--line)}
