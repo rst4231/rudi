@@ -1,6 +1,33 @@
+/* Live status indicators on both profile avatars. The dot remains independently tappable. */
+.profile-person-card .score-avatar-wrap>.rudi-online-dot{
+ position:absolute!important;right:-5px!important;bottom:-5px!important;
+ top:auto!important;left:auto!important;width:18px!important;height:18px!important;
+ min-width:18px!important;min-height:18px!important;padding:0!important;
+ border:3px solid var(--surface-strong,#fff)!important;border-radius:50%!important;
+ appearance:none;-webkit-appearance:none;cursor:pointer;touch-action:manipulation;
+ background:#9aa1ac!important;box-shadow:0 1px 4px rgba(0,0,0,.24)!important;
+ pointer-events:auto!important;z-index:30!important;box-sizing:border-box!important;
+ -webkit-tap-highlight-color:transparent;
+}
+.profile-person-card .score-avatar-wrap>.rudi-online-dot.is-online{background:#21c55d!important}
+.profile-person-card .score-avatar-wrap>.rudi-online-dot:focus-visible{outline:2px solid #87bcff;outline-offset:2px}
+/* A normal-flow row under the avatar/header: the card grows instead of covering content. */
+.profile-person-card > .rudi-presence-detail{
+ position:static!important;grid-column:1 / -1!important;grid-row:2!important;
+ display:block!important;box-sizing:border-box!important;width:100%!important;min-width:0!important;
+ margin:0!important;padding:3px 0 0!important;max-height:24px;overflow:hidden;
+ color:var(--muted,#9ba7bc);font-size:11px!important;font-weight:500!important;
+ line-height:19px!important;white-space:nowrap!important;text-align:left!important;
+ font-variant-numeric:tabular-nums;animation:rudi-presence-reveal 160ms ease-out both;
+}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):not(:has(#displayName)).has-presence-detail > .rudi-collapse-body{
+ grid-row:3!important;
+}
+@keyframes rudi-presence-reveal{from{max-height:0;opacity:0}to{max-height:24px;opacity:1}}
+
 /* Identical owner/partner name, mood, and status geometry on both accounts. */
 body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person{
- gap:4px!important;align-self:center!important;justify-content:center!important;
+ gap:3px!important;align-self:center!important;justify-content:center!important;
  min-width:0!important;margin:0!important;padding:0!important;
 }
 body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .profile-name-row{
@@ -32,24 +59,6 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-he
  background:transparent!important;box-shadow:none!important;border:0!important;
  border-radius:0!important;transform:none!important;
 }
-
-/* Presence replaces the work label and graph only on the Home cards. */
-.profile-person-card .rudi-online-dot{display:none!important}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-strip,
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .person>.profile-work-status{display:none!important}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .home-presence-status{
- display:block!important;margin:0!important;padding:0!important;min-height:14px;line-height:14px!important;
- font-size:11px!important;font-weight:500!important;color:var(--muted,#a6afbf)!important;-webkit-text-fill-color:var(--muted,#a6afbf)!important;
- font-variant-numeric:tabular-nums;white-space:normal;overflow-wrap:anywhere;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .home-presence-status.is-online{color:#43c988!important;-webkit-text-fill-color:#43c988!important}
-/* The owner uses a direct emoji; the partner has an extra icon wrapper. */
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .profile-name-row > :is(#moodCurrentButton,#partnerMoodValue) :is(.partner-mood-icon,.mood-emoji){
- position:static!important;inset:auto!important;display:grid!important;place-items:center!important;
- width:100%!important;height:100%!important;min-height:0!important;margin:0!important;padding:0!important;
- font-size:20px!important;line-height:1!important;align-self:center!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .profile-name-row > #partnerMoodValue .partner-mood-icon[hidden]{display:none!important}
 
 /* Persistent opaque canvas prevents white/black seams on iOS resume and tab switches. */
 html{background-color:var(--bg,#0b0d12)!important}

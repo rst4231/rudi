@@ -1,20 +1,17 @@
 {
-  "current": "v4.364",
-  "versionBranch": "feat/profile-presence-layout",
+  "current": "v4.365",
+  "versionBranch": "fix/restore-home-v4363",
   "releaseCommit": "",
-  "deploymentSourceCommit": "33658e2eb4ed9c7ac626463ed20036c525de2608",
+  "deploymentSourceCommit": "4433767002071cabe452dec1670565b6b6e990a8",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.363",
+  "basedOnProduction": "v4.364",
   "notes": [
-    "На главной графики заменены постоянным онлайн-статусом, убраны точки у аватарок.",
-    "Выровнены отступы и эмодзи, увеличены аватарки на главной и в профиле партнёра.",
-    "Исправлена загрузка карточек и виджетов после PIN/Face ID без перезапуска приложения."
+    "Оформление обеих карточек на главной возвращено к v4.363: графики, размеры, отступы и индикаторы.",
+    "Сохранены исправления загрузки после PIN/Face ID и отдельная страница партнёра."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Replace Home energy plots and work labels with shared presence",
-    "Normalize profile spacing and mood emoji, enlarge avatars and hide empty hero summaries",
-    "Hydrate mounted Home nodes and publish actor-ready auth events after unlock"
+    "Restore v4.363 Home profile layout while preserving unlock hydration fixes"
   ]
 }

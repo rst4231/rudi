@@ -93,6 +93,7 @@
  }
  // The profile is assembled by the runtime after page load. Layout must be
  // enforced on those live DOM nodes, not only through the cascading stylesheets.
+ const profileAxisFrames=new WeakMap(),profileAxisObservers=new WeakMap();
  function setImportant(node,styles){
    if(!node)return;
    for(const [key,value] of Object.entries(styles)){
@@ -100,6 +101,27 @@
        node.style.setProperty(key,value,'important');
    }
  }
+ function alignLiveProfileAxis(profileHead,energy){
+   const pendingFrame=profileAxisFrames.get(profileHead);
+   if(pendingFrame)cancelAnimationFrame(pendingFrame);
+   profileAxisFrames.set(profileHead,requestAnimationFrame(()=>{
+     profileAxisFrames.delete(profileHead);
+     if(!profileHead.isConnected||!energy.isConnected)return;
+     const avatar=profileHead.querySelector('.score-avatar-wrap');
+     const row=profileHead.closest('.rudi-home-self-line');
+     if(!avatar||!row)return;
+     // Never compound previous corrections on refresh or orientation change.
+     profileHead.style.setProperty('transform','none','important');
+     const a=avatar.getBoundingClientRect(),r=row.getBoundingClientRect();
+     if(!a.height||!r.height)return;
+     // The owner identity moves together; the phase-caption plot is not the centre.
+     const distance=(r.top+r.height/2)-(a.top+a.height/2);
+     const adjustment=Math.max(-24,Math.min(24,distance));
+     if(Math.abs(adjustment)>0.75)
+       profileHead.style.setProperty('transform','translateY('+adjustment.toFixed(2)+'px)','important');
+   }));
+ }
+
  function layoutLiveSelf(self,main,profileHead,energy){
    // Both account roles must share exactly one profile layout. The former
    // Diana-only two-row layout shifted her avatar into the energy timeline.
@@ -108,21 +130,32 @@
  function layoutLiveRustamV4229(self,main,profileHead,energy){
    self.dataset.rudiSelfLayout='inline';
    setImportant(self,{'display':'flex','flex-direction':'column','justify-content':'center','align-items':'stretch','gap':'0',
-     'min-height':'82px','padding-top':'12px','padding-bottom':'12px'});
-   setImportant(main,{'display':'grid','grid-template-columns':'minmax(0,1fr)','grid-template-rows':'auto','grid-auto-rows':'auto',
-     'align-items':'center','height':'auto','min-height':'52px','max-height':'none','width':'100%','gap':'0','margin':'0','padding':'0'});
+     'min-height':'82px','padding-top':'6px','padding-bottom':'3px'});
+   const narrow=window.innerWidth<=375;
+   setImportant(main,{'display':'grid','grid-template-columns':narrow?'minmax(0,53%) minmax(0,1fr)':'minmax(0,50%) minmax(0,1fr)',
+     'grid-template-rows':'72px','grid-auto-rows':'72px','align-items':'center',
+     'align-content':'center','height':'72px','min-height':'72px','max-height':'72px','width':'100%','gap':'10px',
+     'margin':'0','padding':'0'});
    setImportant(profileHead,{'grid-column':'1','grid-row':'1','display':'flex','align-items':'center',
-     'justify-content':'flex-start','align-self':'center','height':'auto','min-height':'52px','transform':'none','margin':'0','padding':'0','width':'100%'});
-   setImportant(energy,{'display':'none'});
+     'justify-content':'flex-start','align-self':'center','height':'72px','min-height':'72px',
+     'margin':'0','padding':'0'});
+   setImportant(energy,{'grid-column':'2','grid-row':'1','align-self':'center','height':'54px','margin':'0'});
    const identity=profileHead.querySelector('.identity');
-   setImportant(identity,{'display':'grid','grid-template-columns':'52px minmax(0,1fr)','gap':'11px','align-items':'center',
-     'align-self':'center','margin':'0','padding':'0','min-height':'52px','width':'100%'});
+   setImportant(identity,{'display':'grid','align-items':'center','align-self':'center','margin':'0',
+     'padding':'0','min-height':'44px'});
    const avatar=profileHead.querySelector('.score-avatar-wrap');
-   setImportant(avatar,{'align-self':'center','margin':'0','width':'52px','height':'52px','min-width':'52px','min-height':'52px','max-width':'52px','max-height':'52px'});
-   setImportant(avatar?.querySelector('.avatar'),{'width':'52px','height':'52px','min-width':'52px','min-height':'52px','max-width':'52px','max-height':'52px'});
+   setImportant(avatar,{'align-self':'center','margin':'0'});
    const person=identity?.querySelector('.person');
-   setImportant(person,{'display':'flex','flex-direction':'column','justify-content':'flex-start','gap':'4px','min-height':'52px',
-     'align-self':'start','margin':'0','padding':'0'});
+   setImportant(person,{'display':'flex','flex-direction':'column','justify-content':'center',
+     'align-self':'center','margin':'0','padding':'0'});
+   if(!profileAxisObservers.has(main)&&typeof ResizeObserver==='function'){
+     const observer=new ResizeObserver(()=>alignLiveProfileAxis(profileHead,energy));
+     profileAxisObservers.set(main,observer);
+     observer.observe(main);
+     if(identity)observer.observe(identity);
+     observer.observe(energy);
+   }
+   alignLiveProfileAxis(profileHead,energy);
  }
  // Relocate the same native mood buttons, preserving their listeners and live state.
  function placeMoodBadgesByName(){
@@ -277,7 +310,7 @@
        main.append(profileHead,energy);
      layoutLiveSelf(self,main,profileHead,energy);
    }
-   // Give both account roles the same avatar, name and presence geometry.
+   // Give the partner the same identity/graph columns as the current account.
    for(const card of [$('homeRustamTile'),$('homeDianaTile')]){
      if(!card||card===self)continue;
      const partnerHead=card.querySelector('.profile-person-head'),partnerEnergy=card.querySelector('.profile-energy-strip');

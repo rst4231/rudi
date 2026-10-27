@@ -37,7 +37,7 @@ test('presence uses existing authenticated API without extra Vercel function',()
  assert.match(client,/document\.visibilityState/);
  assert.match(client,/homeRustamTile/);
  assert.match(client,/homeDianaTile/);
- assert.match(stylesheet,/\.home-presence-status\.is-online/);
+ assert.match(stylesheet,/\.rudi-online-dot\.is-online/);
  assert.match(html,/presence\.js/);
  assert.match(build,/presence\.css/);
  assert.equal(fs.existsSync(path.join(root,'api/presence.js')),false);
@@ -53,14 +53,16 @@ test('last-seen date is retained when partner is no longer online',async()=>{
   assert.equal(later.lastSeen['Диана'],'2026-10-14T09:00:00.000Z');
   assert.equal(later.lastSeen['Рустам'],new Date(start+ACTIVE_WINDOW_MS+5000).toISOString());
 });
-test('persistent presence replaces the old avatar dot without an overlay or a new request path',()=>{
+test('status dot reveals a compact inline last-seen line without a modal or backdrop',()=>{
   const script=fs.readFileSync(path.join(__dirname,'../public/presence.js'),'utf8');
   const css=fs.readFileSync(path.join(__dirname,'../public/presence.css'),'utf8');
-  assert.match(script,/home-presence-status/);
+  assert.match(script,/rudi-presence-detail/);
+  assert.doesNotMatch(script,/aria-modal|role="dialog"|rudi-presence-overlay|rudi-presence-backdrop/);
+  assert.match(script,/event\.key==='Escape'/);
   assert.match(script,/lastSeen\[actor\]/);
-  assert.doesNotMatch(script,/createElement\('button'\)|aria-modal|rudi-presence-overlay|rudi-presence-backdrop/);
-  assert.equal((script.match(/fetch\(/g)||[]).length,1);
-  assert.match(css,/\.rudi-online-dot\{display:none!important/);
+  assert.match(css,/pointer-events:auto!important/);
+  assert.match(css,/\.rudi-presence-detail/);
+  assert.doesNotMatch(css,/\.rudi-presence-backdrop|\.rudi-presence-overlay/);
 });
 test('role-symmetric mood layout and double-tap navigation without secondary fetches',()=>{
   const script=fs.readFileSync(path.join(__dirname,'../public/rudi-interactions.js'),'utf8');

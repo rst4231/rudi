@@ -11,7 +11,6 @@ class Element{
  appendChild(el){el.parentNode=this;this.children.push(el);return el}
  insertBefore(el,before){if(!before)return this.appendChild(el);el.parentNode=this;this.children.splice(this.children.indexOf(before),0,el);return el}
  remove(){if(this.parentNode)this.parentNode.children=this.parentNode.children.filter(x=>x!==this);this.parentNode=null}
- after(el){const parent=this.parentNode;el.parentNode=parent;parent.children.splice(parent.children.indexOf(this)+1,0,el)}
  contains(el){return this===el||this.children.some(c=>c.contains(el))}
  matches(selector){return selector.startsWith('.')?this.classList.contains(selector.slice(1)):this.tagName===selector}
  closest(selector){for(let el=this;el;el=el.parentNode)if(el.matches(selector))return el;return null}
@@ -28,55 +27,78 @@ function fixture(){
  const body=new Element('body','auth-ok'),tiles={};
  for(const [id,actor] of [['homeRustamTile','Рустам'],['homeDianaTile','Диана']]){
   const tile=new Element('section','profile-person-card'),head=new Element('div','profile-person-head');
-  const person=new Element('div','person');person.appendChild(new Element('div','profile-name-row'));
-  head.appendChild(new Element('div','score-avatar-wrap'));head.appendChild(person);tile.appendChild(head);
+  head.appendChild(new Element('div','score-avatar-wrap'));tile.appendChild(head);
   tile.appendChild(new Element('div','rudi-collapse-body'));tile.dataset.actor=actor;body.appendChild(tile);tiles[id]=tile;
  }
  const events={},document={body,visibilityState:'visible',createElement:tag=>new Element(tag),
   getElementById:id=>tiles[id],addEventListener:(name,handler)=>{events[name]=handler},removeEventListener:name=>{delete events[name]}};
- let clock=Date.parse('2026-10-17T10:20:00Z');
+ const clock=Date.parse('2026-10-17T10:20:00Z');
  const context=vm.createContext({document,navigator:{onLine:true},Date:class extends Date{static now(){return clock}},Intl});
  vm.runInContext(source.slice(source.indexOf(' const ACTORS='),source.indexOf(' async function ping'))+`
   lastResponse=Date.now();lastSeen={'Рустам':'2026-10-17T10:16:00Z','Диана':'2026-10-17T10:16:00Z'};
-  globalThis.api={paint,mountProfile,setOnline(actor,value){status[actor]=value},setSeen(actor,value){lastSeen[actor]=value},
-   expire(){lastResponse=Date.now()-ACTIVE_WINDOW_MS-1}};`,context);
- context.api.paint();return {api:context.api,document,context,events,tiles,advance(ms){clock+=ms}};
+  globalThis.api={open,dismiss,paint,formatDate,onKeyDown,mountProfile,setOnline(actor,value){status[actor]=value},
+   clearSeen(actor){lastSeen[actor]=null},expire(){lastResponse=Date.now()-ACTIVE_WINDOW_MS-1}};`,context);
+ context.api.paint();return {api:context.api,document,events,tiles};
 }
-function line(f,id='homeDianaTile'){return f.tiles[id].querySelector('.home-presence-status')}
-test('both home cards show a persistent last visit without an avatar dot or calendar date',()=>{
+test('each profile reveals one gender-correct Moscow date line inside its own card',()=>{
  const f=fixture();
- assert.equal(line(f,'homeRustamTile')?.textContent,'Был в сети в 13:16');
- assert.equal(line(f)?.textContent,'Была в сети в 13:16');
- for(const tile of Object.values(f.tiles))assert.equal(tile.querySelector('.rudi-online-dot'),null);
+ for(const [actor,id,prefix] of [['Рустам','homeRustamTile','Был'],['Диана','homeDianaTile','Была']]){
+  f.api.open(actor);const line=f.tiles[id].querySelector('.rudi-presence-detail');
+  assert.ok(line);assert.equal(line.textContent,prefix+' в сети 17.10 в 13:16');
+  assert.equal(line.parentNode,f.tiles[id]);assert.equal(line.children.length,0);
+  assert.equal(f.document.body.children.length,2,'No document-wide popup is appended');
+  assert.equal(f.tiles[id].querySelector('.rudi-online-dot').getAttribute('aria-expanded'),'true');
+ }
 });
-test('online label expires and preserves last visit, including when the viewer goes offline',()=>{
- const f=fixture();f.api.setOnline('Диана',true);f.api.paint();
- assert.equal(line(f).textContent,'Онлайн');assert.ok(line(f).classList.contains('is-online'));
- f.api.expire();f.api.paint();assert.equal(line(f).textContent,'Была в сети в 13:16');
- f.api.setOnline('Рустам',true);f.document.body.dataset.offlineMode='1';f.api.paint();
- assert.equal(line(f,'homeRustamTile').classList.contains('is-online'),false);
+test('reclick, Escape and outside pointer dismiss without intercepting Tab',()=>{
+ const f=fixture();f.api.open('Рустам');f.api.open('Рустам');
+ assert.equal(f.tiles.homeRustamTile.querySelector('.rudi-presence-detail'),null);
+ f.api.open('Диана');let prevented=false;
+ f.api.onKeyDown({key:'Tab',preventDefault(){prevented=true}});assert.equal(prevented,false);
+ f.api.onKeyDown({key:'Escape',preventDefault(){prevented=true}});assert.equal(prevented,true);
+ assert.equal(f.tiles.homeDianaTile.querySelector('.rudi-presence-detail'),null);
+ f.api.open('Рустам');f.events.pointerdown({target:f.document.body});
+ assert.equal(f.tiles.homeRustamTile.querySelector('.rudi-presence-detail'),null);
+ assert.equal(f.tiles.homeRustamTile.querySelector('.rudi-online-dot').getAttribute('aria-expanded'),'false');
 });
-test('older visits distinguish yesterday and earlier days without implying a visit today',()=>{
- const f=fixture();f.advance(86400000);f.api.paint();assert.equal(line(f).textContent,'Была в сети вчера в 13:16');
- f.advance(86400000);f.api.paint();assert.equal(line(f).textContent,'Была в сети 2 дн. назад');
- f.api.setSeen('Диана',null);f.api.paint();assert.equal(line(f).textContent,'Не в сети');
- f.api.setSeen('Диана','invalid');f.api.paint();assert.equal(line(f).textContent,'Не в сети');
- f.api.setSeen('Диана','2030-01-01T00:00:00Z');f.api.paint();assert.equal(line(f).textContent,'Не в сети');
+test('unknown visits stay short and stale or offline data never gets an online label',()=>{
+ const f=fixture();f.api.clearSeen('Диана');f.api.open('Диана');
+ assert.equal(f.tiles.homeDianaTile.querySelector('.rudi-presence-detail').textContent,'Нет данных о посещении');
+ f.api.setOnline('Диана',true);f.api.paint();
+ assert.equal(f.tiles.homeDianaTile.querySelector('.rudi-presence-detail').textContent,'Сейчас в сети');
+ f.api.expire();f.api.paint();
+ assert.equal(f.tiles.homeDianaTile.querySelector('.rudi-online-dot').classList.contains('is-online'),false);
+ assert.equal(f.tiles.homeDianaTile.querySelector('.rudi-presence-detail').textContent,'Нет данных о посещении');
 });
-test('repeated paints and replacement of home nodes do not duplicate status lines',()=>{
- const f=fixture();for(let i=0;i<5;i++)f.api.paint();
- const person=f.tiles.homeDianaTile.querySelector('.person');assert.equal(person.children.length,2);
- const old=line(f);old.remove();f.api.paint();assert.ok(line(f));assert.notEqual(line(f),old);
-});
-test('partner page uses the same heartbeat and unmounts without losing the home status',()=>{
- const f=fixture(),person=new Element('div','person');
- const unmount=f.api.mountProfile(person,'Диана'),status=person.querySelector('.partner-presence-status');
- assert.equal(status.textContent,'Была в сети в 13:16');assert.equal(status.getAttribute('role'),'status');
- f.api.setOnline('Диана',true);f.api.paint();assert.equal(status.textContent,'Онлайн');assert.equal(line(f).textContent,'Онлайн');
- unmount();f.api.paint();assert.equal(person.children.length,0);assert.ok(line(f));
-});
-test('late home data uses existing events and exactly one authenticated request path',()=>{
+test('inline disclosure has no focus trap, overlay style or new request path',()=>{
+ const css=fs.readFileSync('public/presence.css','utf8');
+ assert.doesNotMatch(source,/\.focus\(|aria-modal|rudi-presence-backdrop|event\.key==='Tab'/);
+ assert.match(css,/rudi-presence-detail[\s\S]*?position:static/);
+ assert.match(css,/has-presence-detail[\s\S]*?grid-row:3!important/);
+ assert.match(source,/rudi:app-tab-change/);
  assert.equal((source.match(/fetch\(/g)||[]).length,1);
- assert.match(source,/rudi:profile-ready/);assert.match(source,/rudi:home-tiles-ready/);
- assert.doesNotMatch(source,/createElement\('button'\)|aria-modal|rudi-presence-backdrop/);
+});
+test('partner hero shows live status from the shared heartbeat and retains last visit on expiry',()=>{
+ const f=fixture(),person=new Element('div','person');
+ const unmount=f.api.mountProfile(person,'Диана');
+ const line=person.querySelector('.partner-presence-status');
+ assert.ok(line);assert.equal(line.textContent,'Была в сети в 13:16');
+ assert.equal(line.getAttribute('role'),'status');
+ f.api.setOnline('Диана',true);f.api.paint();
+ assert.equal(line.textContent,'Онлайн');assert.ok(line.classList.contains('is-online'));
+ f.api.expire();f.api.paint();
+ assert.equal(line.textContent,'Была в сети в 13:16');
+ assert.equal(line.classList.contains('is-online'),false);
+ unmount();assert.equal(person.querySelector('.partner-presence-status'),null);
+});
+test('partner hero uses the correct actor and clears online status when the viewer loses connection',()=>{
+ const f=fixture(),person=new Element('div','person');
+ const unmount=f.api.mountProfile(person,'Рустам');
+ const line=person.querySelector('.partner-presence-status');
+ assert.equal(line.textContent,'Был в сети в 13:16');
+ f.api.setOnline('Рустам',true);f.api.paint();assert.equal(line.textContent,'Онлайн');
+ f.document.body.dataset.offlineMode='1';f.api.paint();
+ assert.equal(line.classList.contains('is-online'),false);
+ f.api.clearSeen('Рустам');f.api.paint();assert.equal(line.textContent,'Не в сети');
+ unmount();f.api.paint();assert.equal(person.children.length,0);
 });
