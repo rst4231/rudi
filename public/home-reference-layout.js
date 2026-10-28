@@ -370,6 +370,7 @@
    feed.click();
  },true);
  window.addEventListener('rudi-cbt-progress',updateCbtProgress);
+ window.addEventListener('rudi:auth-ready',updateCbtProgress);
  window.addEventListener('storage',e=>{if(e.key?.startsWith('rudi:cbt:v1:'))updateCbtProgress()});
  window.addEventListener('focus',updateCbtProgress);setInterval(updateCbtProgress,60000);
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});

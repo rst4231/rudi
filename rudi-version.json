@@ -1,18 +1,17 @@
 {
-  "current": "v4.371",
-  "versionBranch": "fix/weather-calendar-habit-penalty",
+  "current": "v4.372",
+  "versionBranch": "fix/cbt-home-progress-init",
   "releaseCommit": "",
-  "deploymentSourceCommit": "6a5e2796636d7c897c5c731150b048cea3013573",
+  "deploymentSourceCommit": "e35f9dcb53cb8b79e852ba9f58afd31078f3e657",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.370",
+  "basedOnProduction": "v4.371",
   "notes": [
-    "Прогноз начинается с сегодняшнего дня, два переключателя месяца и блокировка прокрутки фона на iPhone.",
-    "Прогноз выбранного дня под делами в личном и совместном календарях.",
-    "Штраф за невыполненную бонусную привычку −2 звезды; описание и статистика обновлены с сохранением старых списаний."
+    "Ореол прогресса КПТ получает данные при первом входе и после PIN/Face ID без открытия раздела.",
+    "Сохранённый прогресс доступен при сбое сети; ответы предыдущего аккаунта не влияют на текущий."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Weather month navigation, contained modal scrolling, calendar day forecasts, and two-star habit penalties"
+    "Hydrate CBT Home progress on authentication and restore, preserve cached progress and actor isolation"
   ]
 }

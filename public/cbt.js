@@ -41,7 +41,7 @@ async function sync(){
  if(navigator.onLine===false){status();return}
  c.syncing=true;c.error='';status();
  try{
-  if(!c.queue.length){const {res,data}=await request({operation:'state'},c);if(!res.ok||!data.ok)throw Error(res.status===401?'auth':'network');if(c!==ctx)return;c.server=data.state;c.copy=data.copy||null;c.loaded=true;upgradeCalendar();persist();if(!editing())render(false)}
+  if(!c.queue.length){const {res,data}=await request({operation:'state'},c);if(!res.ok||!data.ok)throw Error(res.status===401?'auth':'network');if(c!==ctx)return;c.server=data.state;c.copy=data.copy||null;c.loaded=true;if(page&&!page.hidden)upgradeCalendar();persist();if(!editing())render(false)}
   while(c===ctx&&c.queue.length&&!c.conflict){
    for(const item of c.queue.slice(0,50))item.sent=true;persist();
    const ops=JSON.parse(JSON.stringify(c.queue.slice(0,50)));
@@ -319,7 +319,23 @@ function click(e){const b=e.target.closest('button');if(!b||b.disabled)return;if
 window.addEventListener('online',()=>{retry=0;void sync()});window.addEventListener('rudi-content-network-recovered',()=>void sync());window.addEventListener('popstate',()=>{if(!page?.hidden)close(true)});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ctx&&(ctx.queue.length||!page?.hidden))void sync()});window.addEventListener('pagehide',()=>persist());
 // Merge sibling-tab outboxes without dropping locally pending operations.
 window.addEventListener('storage',e=>{if(!ctx||e.key!==key(ctx.actor)||!e.newValue)return;let other;try{other=JSON.parse(e.newValue)}catch{return}if(!other?.server)return;const ids=new Set(other.server.runs.flatMap(r=>r.applied||[]));const merged=[...other.queue||[],...ctx.queue],superseded=new Set(merged.flatMap(x=>x.supersedes||[]));const queue=merged.filter((v,i,a)=>!ids.has(v.id)&&!superseded.has(v.id)&&a.findIndex(x=>x.id===v.id)===i).map(v=>({...v,sent:merged.some(x=>x.id===v.id&&x.sent)}));ctx.server=other.server;ctx.queue=queue;ctx.backups=[...other.backups||[],...ctx.backups].filter((v,i,a)=>a.findIndex(x=>(x.id||x.at)===(v.id||v.at))===i);if(!editing())render(false);if(queue.length)schedule()});
-new MutationObserver(()=>{if(ctx&&(document.body.dataset.rudiActor!==ctx.actor||!document.body.classList.contains('auth-ok'))){persist();close();ctx=null;clearTimeout(timer)}}).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor','class']});
+function primeHomeProgress(){
+ const actor=document.body.dataset.rudiActor;
+ if(!['Рустам','Диана'].includes(actor)||!document.body.classList.contains('auth-ok'))return;
+ if(ctx?.actor!==actor){
+  if(ctx){persist();close();clearTimeout(timer)}
+  analysisBusy=false;analysisMessage='';ctx=load(actor);recordFilters={query:'',emotion:'',from:'',to:''};exportSelection.clear();
+ }
+ window.dispatchEvent(new Event('rudi-cbt-progress'));
+ void sync();
+}
+window.addEventListener('rudi:auth-ready',primeHomeProgress);
+window.addEventListener('pageshow',primeHomeProgress);
+new MutationObserver(()=>{
+ if(ctx&&(document.body.dataset.rudiActor!==ctx.actor||!document.body.classList.contains('auth-ok'))){persist();close();ctx=null;clearTimeout(timer)}
+ if(!ctx)primeHomeProgress();
+}).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor','class']});
 let clockDay='';setInterval(()=>{if(!ctx||!page||page.hidden)return;const r=run(),c=C.calendar(r),key=r?.id+':'+c?.elapsed;if(key===clockDay)return;if(editing()){if(r?.status==='completed')document.activeElement.blur();else{const note=$('#cbtDayBoundary');if(note&&r?.days[day]?.closedAt)note.textContent='Этот день завершён. Записи можно посмотреть и отредактировать.';return}}clockDay=key;render(false)},1000);
 window.RudiCbt={open,close,progress};
+primeHomeProgress();
 })();
