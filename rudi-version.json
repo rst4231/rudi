@@ -1,17 +1,17 @@
 {
-  "current": "v4.368",
-  "versionBranch": "fix/supplement-course-lifecycle",
+  "current": "v4.369",
+  "versionBranch": "fix/offline-sync-recovery",
   "releaseCommit": "",
-  "deploymentSourceCommit": "9440d9f85b29a81d00db300ad2776547669cc844",
+  "deploymentSourceCommit": "6071394d1209b9b6c9c3b149604445d8ed119d0d",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.367",
+  "basedOnProduction": "v4.368",
   "notes": [
-    "Будущие курсы в конце списка, приём и пропуск недоступны до начала.",
-    "Завершённые курсы с заданной длительностью автоматически отображаются в архиве; бессрочные не архивируются."
+    "Восстановление синхронизации после входа, независимые очереди БАДов, понятные ошибки и подтверждённое разрешение конфликтов.",
+    "Автоархив курсов не изменяет ревизию сохранённых данных."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Apply course lifecycle across online and offline intake and sorting"
+    "Recover queued writes safely and resolve supplement conflicts with explicit comparison"
   ]
 }

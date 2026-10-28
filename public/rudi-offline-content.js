@@ -65,6 +65,50 @@ async function entries(who=actor){
 async function pending(kind,scope='',who=actor){
  return (await entries(who)).filter(row=>row.kind===kind&&(!scope||row.scope===scope));
 }
+function syncErrorMessage(code){
+ const value=String(code||'');
+ if(/session|auth|access-denied/i.test(value))return 'Нужно повторно войти в RUDI';
+ if(/offline-conflict|note-conflict/i.test(value))return 'Конфликт: запись изменилась на другом устройстве';
+ if(/course-inactive/i.test(value))return 'Дата отметки находится вне курса';
+ if(/not-found/i.test(value))return 'Запись больше не найдена на сервере';
+ if(/duplicate|already-taken/i.test(value))return 'На сервере уже есть такая запись или отметка';
+ if(/time-invalid/i.test(value))return 'Не удалось проверить дату изменения';
+ return 'Не удалось отправить изменение ('+value.slice(0,100)+')';
+}
+async function reviseQueued(row,patch){
+ const db=await open();
+ return new Promise((resolve,reject)=>{
+  const tr=db.transaction('outbox','readwrite'),store=tr.objectStore('outbox'),get=store.get(row.id);let changed=false;
+  get.onsuccess=()=>{const current=get.result;if(current?.actor===actor&&current.stamp===row.stamp){store.put({...current,...patch});changed=true}};
+  tr.oncomplete=()=>{db.close();resolve(changed)};
+  tr.onerror=()=>{db.close();reject(tr.error||Error('offline-retry-failed'))};
+ });
+}
+async function retry(area=''){
+ if(flushPromise)await flushPromise;
+ for(const row of await entries())if(row.error&&(!area||row.kind==='wellness'&&row.data?.area===area))await reviseQueued(row,{error:'',errorStatus:0});
+ signal();return flush();
+}
+async function resolveSupplementConflict(id){
+ const row=(await entries()).find(r=>r.id===id&&r.kind==='wellness'&&r.data?.area==='supplements'&&r.data.operation==='update'&&r.error==='supplement-offline-conflict');
+ if(!row)return false;
+ const response=await fetch('/api/supplements',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'list',initData:String(root.Telegram?.WebApp?.initData||'')})});
+ const result=await response.json().catch(()=>null);
+ if(!response.ok||!result?.ok||result.actor!==actor)throw Error(result?.error||'sync-request-failed');
+ const item=result.items?.find(r=>r.id===row.data.payload?.id);if(!item)throw Error('supplement-not-found');
+ const patch=row.data.payload?.patch||{},server=Object.fromEntries(Object.keys(patch).map(k=>[k,item[k]]));
+ const approved=root.confirm('Конфликт: '+item.name+'\n\nНа сервере:\n'+JSON.stringify(server,null,2)+'\n\nТвои изменения:\n'+JSON.stringify(patch,null,2)+'\n\nПрименить твои изменения к показанной версии? Остальные поля сохранятся.');
+ if(!approved)return false;
+ const changed=await reviseQueued(row,{data:{...row.data,payload:{...row.data.payload,expectedUpdatedAt:item.updatedAt}},error:'',errorStatus:0,stamp:makeId()});
+ if(changed)await flush();signal();return changed;
+}
+function syncControls(node,rows,area){
+ if(!root.document?.createElement||!node?.appendChild||syncing||!rows.some(row=>row.error))return;
+ const retryButton=root.document.createElement('button');retryButton.type='button';retryButton.className='rudi-sync-retry';retryButton.textContent='Повторить синхронизацию';
+ retryButton.onclick=()=>{retryButton.disabled=true;void retry(area).catch(()=>signal())};node.appendChild(retryButton);
+ const conflict=rows.find(row=>row.error==='supplement-offline-conflict'&&row.data?.operation==='update');
+ if(conflict){const button=root.document.createElement('button');button.type='button';button.className='rudi-sync-retry';button.textContent='Сравнить и решить конфликт';button.onclick=()=>{button.disabled=true;void resolveSupplementConflict(conflict.id).catch(error=>{root.alert?.(syncErrorMessage(error.message));signal()})};node.appendChild(button)}
+}
 function signal(extra={}){
  if(!actor)return;
  entries(actor).then(rows=>{
@@ -78,7 +122,8 @@ function signal(extra={}){
    const areaPending=rows.filter(row=>row.kind==='wellness'&&row.data?.area===area);
    const active=areaPending.length||connected===false||syncing||lastSynced;
    node.hidden=!active;
-   node.textContent=areaPending.length?(syncing?'Синхронизация…':'Ожидают синхронизации: '+areaPending.length+(areaPending.some(row=>row.error)?' · Ошибка синхронизации':'')):status;
+   node.textContent=areaPending.length?(syncing?'Синхронизация…':'Ожидают синхронизации: '+areaPending.length+(areaPending.some(row=>row.error)?' · '+syncErrorMessage(areaPending.find(row=>row.error).error):'')):status;
+   syncControls(node,areaPending,area);
   }
   const el=root.document?.getElementById('rudiContentSyncStatus');
   if(el){
@@ -253,12 +298,12 @@ async function flush(){
   let sent=0;
   try{
    const blockedGroups=new Set();
-   const group=row=>row.kind==='wellness'?'wellness:'+row.data?.area:
+   const group=row=>row.kind==='wellness'?'wellness:'+row.data?.area+(row.data?.area==='supplements'?':'+String(row.data?.payload?.id||row.id):''):
       ['note','partner-note'].includes(row.kind)?row.kind+':'+row.scope:['note-view','partner-note-view'].includes(row.kind)?row.kind:
       row.kind+':'+row.scope;
    for(const row of await entries(who)){
     if(actor!==who)break;
-    if(row.error){blockedGroups.add(group(row));continue}
+    if(row.error&&!/session|auth|access-denied/i.test(row.error)){blockedGroups.add(group(row));continue}
     if(blockedGroups.has(group(row)))continue;
     try{
      const result=await send(row);
@@ -282,8 +327,9 @@ async function flush(){
      const latest=await tx('outbox','readonly',store=>store.get(row.id));
      if(latest?.stamp===row.stamp){
       const blocked=[400,401,403,404,409,422].includes(error.status);
-      if(blocked)await tx('outbox','readwrite',store=>store.put({...latest,error:String(error.message||error)}));
+      if(blocked)await tx('outbox','readwrite',store=>store.put({...latest,error:String(error.message||error),errorStatus:error.status}));
      }
+     if(error.status===401||error.status===403)break;
      if(!error.status||error.status>=500){connected=false;break}
      blockedGroups.add(group(row));
      // Conflict is preserved, but other independent sections may still sync.
@@ -307,10 +353,10 @@ function scheduled(){
   }).catch(()=>{});
  }
 }
-for(const event of ['online','focus','pageshow','rudi-home-network-recovered'])
+for(const event of ['online','focus','pageshow','rudi-home-network-recovered','rudi:auth-ready'])
  root.addEventListener(event,()=>{if(actor)void flush()});
 root.document?.addEventListener('visibilitychange',()=>{if(root.document.visibilityState==='visible')scheduled()});
 root.addEventListener('rudi-app-pull-refresh',()=>scheduled());
 setInterval(scheduled,15000);
-root.rudiOfflineContent={init,actor:()=>actor,cached,capture,enqueue,discard,commitWellness,pending,entries,rebaseNote,flush,probe,isOffline,signal,isSyncing:()=>syncing};
+root.rudiOfflineContent={init,actor:()=>actor,cached,capture,enqueue,discard,commitWellness,pending,entries,rebaseNote,retry,resolveSupplementConflict,flush,probe,isOffline,signal,isSyncing:()=>syncing};
 })(window);

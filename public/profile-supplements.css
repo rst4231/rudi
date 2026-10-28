@@ -975,3 +975,6 @@ body[data-app-tab="habits"] .personal-habit-day-status.is-notdone{color:#a43f48!
 /* RUDI v4.255: visible recovery action for failed iPhone habit reads. */
 .personal-habits-retry{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;margin:8px 0 0;border:1px solid currentColor;border-radius:12px;background:rgba(255,255,255,.66);color:inherit;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .personal-habits-retry:focus-visible{outline:2px solid #3678ff;outline-offset:2px}
+/* Recovery controls keep pending writes visible without covering the tracker. */
+.rudi-sync-retry{display:inline-block;margin:6px 8px 0 0;padding:6px 10px;border:1px solid var(--line,#d1d5db);border-radius:9px;background:var(--surface,#fff);color:var(--text,#222);font:inherit;font-size:12px;cursor:pointer}
+.rudi-sync-retry:disabled{opacity:.55;cursor:wait}

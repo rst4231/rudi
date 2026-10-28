@@ -5,6 +5,6 @@
  function end(item){const start=item?.course?.startDate,n=Number(item?.course?.durationDays);if(!valid(start)||!Number.isInteger(n)||n<=0||n>3650)return '';return new Date(Date.parse(start+'T00:00:00Z')+(n-1)*86400000).toISOString().slice(0,10)}
  function state(item,date=day()){const start=item?.course?.startDate,finish=end(item);if(valid(start)&&start>date)return 'future';if(finish&&finish<date)return 'ended';return 'current'}
  function canMark(item,date=day()){return state(item,date)==='current'}
- function apply(item,date=day()){if(!item||item.status==='finished'||state(item,date)!=='ended')return item;const at=new Date(Date.parse(end(item)+'T00:00:00Z')+86400000-10800000).toISOString();return {...item,status:'finished',updatedAt:at,statusHistory:[...(item.statusHistory||[]),{status:'finished',at}]}}
+ function apply(item,date=day()){if(!item||item.status==='finished'||state(item,date)!=='ended')return item;const at=new Date(Date.parse(end(item)+'T00:00:00Z')+86400000-10800000).toISOString();return {...item,status:'finished',statusHistory:[...(item.statusHistory||[]),{status:'finished',at}]}}
  const api={day,end,state,canMark,apply};if(typeof module==='object'&&module.exports)module.exports=api;else root.RudiSupplementCourse=api;
 })(typeof window==='object'?window:globalThis);

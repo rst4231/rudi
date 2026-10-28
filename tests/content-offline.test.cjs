@@ -6,7 +6,7 @@ const vm=require('node:vm');
 const source=fs.readFileSync('public/rudi-offline-content.js','utf8');
 function makeHarness(){
  const data=new Map(), requests=[];
- let online=false, dropAnswer=false, ident=0,interceptor=null;
+ let online=false, dropAnswer=false, ident=0,interceptor=null,confirmation=false;
  const idb={open(){
   const request={};
   setImmediate(()=>{
@@ -15,11 +15,11 @@ function makeHarness(){
     createObjectStore:name=>data.set(name,new Map()),
     transaction(name){
      const tx={};
-     tx.objectStore=()=>({
-      get:key=>{const req={result:data.get(name).get(key)};setImmediate(()=>req.onsuccess?.());return req},
-      getAll:()=>({result:[...data.get(name).values()]}),
-      put:row=>{data.get(name).set(row.id||row.key,JSON.parse(JSON.stringify(row)));return {result:row}},
-      delete:key=>{data.get(name).delete(key);return {result:null}},
+     tx.objectStore=(storeName)=>({
+      get:key=>{const req={result:data.get(storeName||name).get(key)};setImmediate(()=>req.onsuccess?.());return req},
+      getAll:()=>({result:[...data.get(storeName||name).values()]}),
+      put:row=>{data.get(storeName||name).set(row.id||row.key,JSON.parse(JSON.stringify(row)));return {result:row}},
+      delete:key=>{data.get(storeName||name).delete(key);return {result:null}},
      });
      setImmediate(()=>setImmediate(()=>tx.oncomplete?.()));
      return tx;
@@ -48,6 +48,7 @@ function makeHarness(){
  };
  function mount(){
   const window={indexedDB:idb,navigator:nav,document,
+   confirm:()=>confirmation,
    Telegram:{WebApp:{initData:'PRIVATE-SESSION'}},
    crypto:{randomUUID:()=>String(++ident)},
    addEventListener(){},dispatchEvent(){}};
@@ -57,7 +58,7 @@ function makeHarness(){
   });
   return window.rudiOfflineContent;
  }
- return {mount,data,requests,online:value=>{online=value},drop:()=>{dropAnswer=true},intercept:fn=>{interceptor=fn},nav,document};
+ return {confirm:value=>{confirmation=value},mount,data,requests,online:value=>{online=value},drop:()=>{dropAnswer=true},intercept:fn=>{interceptor=fn},nav,document};
 }
 
 test('feed stays cached and operations survive restart, isolated by actor',async()=>{
@@ -181,4 +182,38 @@ test('a deletion queued during an in-flight save survives ack and uses saved rev
  let once=false;h.intercept(async body=>{if(!once&&body.operation==='save'){once=true;await api.enqueue('note','home',{id:'home',deleted:true,expectedUpdatedAt:'r0'})}return null});
  h.online(true);assert.equal((await api.flush()).pending,1);const row=(await api.pending('note','home'))[0];assert.equal(row.data.deleted,true);assert.equal(row.data.expectedUpdatedAt,'server-revision');
  assert.equal((await api.flush()).pending,0);assert.equal(h.requests.at(-1).body.operation,'delete');
+});
+
+test('expired login recovers on the next sync without losing queued supplement edits',async()=>{
+ const h=makeHarness(),api=h.mount();api.init('Рустам');h.online(true);let rejected=true;
+ h.intercept(async body=>rejected&&body.operation==='offline-operation'?{ok:false,status:401,json:async()=>({error:'rudi-session-expired'})}:null);
+ await api.commitWellness('supplements','take',{id:'a',at:'2026-10-28T08:00:00Z'},'supplements',{items:[]});
+ await api.flush();assert.equal((await api.entries()).length,1);rejected=false;
+ assert.equal((await api.flush()).pending,0);
+});
+test('one conflicting supplement does not block another item but preserves dependent edits',async()=>{
+ const h=makeHarness(),api=h.mount();api.init('Рустам');h.online(true);
+ h.intercept(async body=>body.id==='a'?{ok:false,status:409,json:async()=>({error:'supplement-offline-conflict'})}:null);
+ for(const id of ['a','a','b'])await api.commitWellness('supplements','update',{id,patch:{goal:'Тест'},at:'2026-10-28T08:00:00Z'},'supplements',{items:[]});
+ const result=await api.flush();assert.equal(result.sent,1);assert.equal(result.pending,2);
+});
+test('manual retry keeps operation identity and stored conflicts until requested',async()=>{
+ const h=makeHarness(),api=h.mount();api.init('Рустам');h.online(true);let fail=true;
+ h.intercept(async body=>fail&&body.operation==='offline-operation'?{ok:false,status:409,json:async()=>({error:'supplement-offline-conflict'})}:null);
+ await api.commitWellness('supplements','update',{id:'a',patch:{goal:'Новая цель'},at:'2026-10-28T08:00:00Z'},'supplements',{items:[]});
+ await api.flush();const id=(await api.entries())[0].id;fail=false;await api.flush();assert.equal((await api.entries()).length,1);
+ await api.retry('supplements');assert.equal((await api.entries()).length,0);assert.equal(h.requests.at(-1).body.offlineOperationId,id);
+});
+test('conflict resolution requires confirmation and uses a fresh guarded server revision',async()=>{
+ const h=makeHarness(),api=h.mount();api.init('Рустам');h.online(true);
+ h.intercept(async body=>{
+  if(body.operation==='list')return{ok:true,json:async()=>({ok:true,actor:'Рустам',items:[{id:'a',name:'Магний',goal:'Сервер',updatedAt:'fresh-revision'}]})};
+  if(body.operation==='offline-operation'&&body.expectedUpdatedAt!=='fresh-revision')return{ok:false,status:409,json:async()=>({error:'supplement-offline-conflict'})};
+  return null;
+ });
+ await api.commitWellness('supplements','update',{id:'a',patch:{goal:'Моя цель'},expectedUpdatedAt:'old',at:'2026-10-28T08:00:00Z'},'supplements',{items:[]});
+ await api.flush();const row=(await api.entries())[0];
+ assert.equal(await api.resolveSupplementConflict(row.id),false);assert.equal((await api.entries())[0].data.payload.expectedUpdatedAt,'old');
+ h.confirm(true);assert.equal(await api.resolveSupplementConflict(row.id),true);assert.equal((await api.entries()).length,0);
+ const body=h.requests.at(-1).body;assert.equal(body.offlineOperationId,row.id);assert.equal(body.expectedUpdatedAt,'fresh-revision');assert.equal(body.patch.goal,'Моя цель');
 });
