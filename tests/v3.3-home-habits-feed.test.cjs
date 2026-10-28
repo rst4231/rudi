@@ -31,7 +31,8 @@ test('v3.3 habit backend awards five stars once per continuous 21-day streak',()
   const rules=read('api/habit-rules.cjs');
   const score=read('api/score-store.cjs');
   assert.match(store,/function habitHistoryStats/);
-  assert.match(store,/lostStars\+=1/);
+  const {habitHistoryStats}=require('../api/habit-tracker-store.cjs');
+  assert.deepEqual(habitHistoryStats({failures:{'2026-10-27':['h'],'2026-10-28':['h']},bonusIdsByDate:{'2026-10-27':['h'],'2026-10-28':['h']},failureStars:{'2026-10-28':{h:2}}},'h','2026-10-28'),{notDone:2,lostStars:3});
   assert.match(rules,/HABIT_STREAK_BONUS_DAYS=21/);
   assert.match(rules,/HABIT_STREAK_BONUS_UNITS=50/);
   assert.match(rules,/score:habit:streak21:/);

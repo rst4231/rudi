@@ -1,17 +1,18 @@
 {
-  "current": "v4.370",
-  "versionBranch": "fix/supplement-resume-course",
+  "current": "v4.371",
+  "versionBranch": "fix/weather-calendar-habit-penalty",
   "releaseCommit": "",
-  "deploymentSourceCommit": "28c3a937a0e2c49964d6e2890f9c6d60c394804b",
+  "deploymentSourceCommit": "6a5e2796636d7c897c5c731150b048cea3013573",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.369",
+  "basedOnProduction": "v4.370",
   "notes": [
-    "Возобновление завершённого курса начинает его с сегодняшнего дня с сохранением длительности, дозировки и истории приёма.",
-    "Одинаковое поведение онлайн и офлайн; отмена восстанавливает прежние даты."
+    "Прогноз начинается с сегодняшнего дня, два переключателя месяца и блокировка прокрутки фона на iPhone.",
+    "Прогноз выбранного дня под делами в личном и совместном календарях.",
+    "Штраф за невыполненную бонусную привычку −2 звезды; описание и статистика обновлены с сохранением старых списаний."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Fix resumed courses immediately returning to archive online and offline"
+    "Weather month navigation, contained modal scrolling, calendar day forecasts, and two-star habit penalties"
   ]
 }

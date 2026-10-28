@@ -6,7 +6,7 @@ const {
 }=require('./score-store.cjs');
 
 const HABIT_REWARD_UNITS=1;
-const HABIT_PENALTY_UNITS=10;
+const HABIT_PENALTY_UNITS=20;
 const HABIT_STREAK_BONUS_DAYS=21;
 const HABIT_STREAK_BONUS_UNITS=50;
 

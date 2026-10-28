@@ -7771,7 +7771,7 @@
               </section>
               <section class="score-rules-group score-rules-spend" aria-label="Когда звёзды уменьшаются">
                 <h3><span class="score-rules-group-symbol">−</span> Звёзды уменьшаются</h3>
-                <div class="score-rules-item"><span class="score-rules-emoji">🔴</span><span>Не выполнил привычку</span><strong>−1 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">🔴</span><span>Не выполнил привычку</span><strong>−2 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🛍️</span><span>Купил награду<small>Снимается столько звёзд, сколько она стоит</small></span><strong>−⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">💝</span><span>Подарил звёзды партнёру<small>Они переходят партнёру</small></span><strong>−⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">↩️</span><span>Отменил действие<small>Выданные за него звёзды могут забрать обратно</small></span><strong>−⭐</strong></div>
@@ -16722,7 +16722,8 @@
             if(details.childElementCount) selected.appendChild(details);
             selected.classList.toggle('calendar-week-view',calendarDisplayMode==='week');
             selected.classList.toggle('is-off',!day.working);
-            selected.hidden=calendarScope==='personal'&&calendarDisplayMode!=='week'&&details.childElementCount===0;
+            void window.RUDI_WEATHER_FORECAST?.renderCalendarDay(selected,day.date);
+            selected.hidden=false;
             if(!selected.hidden)restartRudiMotion(selected,'rudi-data-refresh',360);
             if(withHaptic){
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
@@ -17076,6 +17077,7 @@
 
             copy.append(heading,info);
             selected.replaceChildren(icon,copy);
+            void window.RUDI_WEATHER_FORECAST?.renderCalendarDay(selected,day.date);
             selected.hidden=false;
             restartRudiMotion(selected,'rudi-data-refresh',360);
             if(withHaptic){

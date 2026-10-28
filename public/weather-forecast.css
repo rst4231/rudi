@@ -41,3 +41,13 @@ html[data-theme="dark"] .weather-forecast-controls select,html[data-theme="dark"
 
 html[data-theme="dark"] .weather-forecast-dialog{background:#181c25}
 .weather-forecast-tabs button.is-active{box-shadow:none}
+
+.weather-forecast-month-buttons{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.weather-forecast-month-buttons button{min-height:44px;padding:8px 5px;border:1px solid var(--line,#dce0eb);border-radius:12px;background:var(--soft,#f3f4f8);color:var(--text,#202432);font:600 12px/1.25 system-ui;cursor:pointer}
+.weather-forecast-month-buttons button.is-active{background:#7864d9;color:#fff;border-color:#7864d9}
+.weather-forecast-month-buttons button:focus-visible{outline:2px solid #7864d9;outline-offset:2px}
+.weather-forecast-month-title{margin:2px 2px 8px;font-size:14px;font-weight:650;text-transform:capitalize}
+.calendar-day-weather{grid-column:1/-1;width:100%;min-width:0;box-sizing:border-box;margin-top:12px;padding:14px;border:1px solid var(--line,#dce0eb);border-radius:14px;background:var(--soft,#f3f4f8);color:var(--text,#202432)}
+.calendar-day-weather>strong{display:block;font-size:13px;line-height:1.4}
+.calendar-day-weather-temperature{display:block;margin-top:7px;font-size:21px;line-height:1.3}
+.calendar-day-weather>p{margin:6px 0 0;font-size:12px;line-height:1.5;color:var(--muted,#626b7e)}

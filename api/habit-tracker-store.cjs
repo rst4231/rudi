@@ -71,6 +71,14 @@ function habitArchivedByDate(habit,date){
   return Number.isFinite(stamp)&&moscowDateKey(stamp)<=date;
 }
 function habitActiveByDate(habit,date){return habitCreatedByDate(habit,date)&&!habitArchivedByDate(habit,date)}
+function normalizeFailureStars(value,failures){
+  const result={};
+  for(const [date,ids] of Object.entries(failures)){
+    const row={};for(const id of ids){const stars=Number(value?.[date]?.[id]);if(stars===1||stars===2)row[id]=stars}
+    if(Object.keys(row).length)result[date]=row;
+  }
+  return result;
+}
 function normalizeState(value,actor){
   const who=cleanActor(actor),source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
   const habits=[],seen=new Set();
@@ -84,6 +92,7 @@ function normalizeState(value,actor){
   return{
     initialized:Boolean(source.initialized),version:Math.max(0,Number(source.version||0)),actor:who,habits,completions,failures,
     bonusIdsByDate:normalizeBonusMap(source.bonusIdsByDate),
+    failureStars:normalizeFailureStars(source.failureStars,failures),
     statusUpdatedAt:normalizeStatusMeta(source.statusUpdatedAt,validIds),
     finalizedDates:normalizeDateFlags(source.finalizedDates),
     scoringStartedDate:cleanDate(source.scoringStartedDate)||SCORING_START_DATE,
@@ -133,7 +142,7 @@ function habitHistoryStats(state,id,date){
   for(const [key,ids] of Object.entries(state.failures||{})){
     if(key>date||!Array.isArray(ids)||!ids.includes(id))continue;
     notDone+=1;
-    if(key>=scoringStart&&(state.bonusIdsByDate?.[key]||[]).includes(id))lostStars+=1;
+    if(key>=scoringStart&&(state.bonusIdsByDate?.[key]||[]).includes(id))lostStars+=state.failureStars?.[key]?.[id]||1;
   }
   return{notDone,lostStars};
 }
@@ -198,12 +207,14 @@ async function setHabitStatus(actor,id,status,options={}){
     const now=Number(options.now||Date.now()),date=resolveHabitDate(options.date,now);
     if(nextStatus==='done'&&date===moscowDateKey(now)&&moscowHour(now)<20&&options.allowDoneBefore20!==true)throw new Error('habit-done-too-early');
     const done=new Set(state.completions[date]||[]),failed=new Set(state.failures[date]||[]);
+    const wasFailed=failed.has(safe),failureStars={...state.failureStars,[date]:{...state.failureStars?.[date]}};
+    if(nextStatus==='notdone')failureStars[date][safe]=wasFailed?(failureStars[date][safe]||1):2;else delete failureStars[date][safe];
     done.delete(safe);failed.delete(safe);if(nextStatus==='done')done.add(safe);if(nextStatus==='notdone')failed.add(safe);
     const completions={...state.completions},failures={...state.failures},statusUpdatedAt={...state.statusUpdatedAt};
     if(done.size)completions[date]=[...done];else delete completions[date];
     if(failed.size)failures[date]=[...failed];else delete failures[date];
     statusUpdatedAt[date]={...(statusUpdatedAt[date]||{}),[safe]:new Date(now).toISOString()};
-    return writeHabits(who,{...state,version:state.version+1,completions,failures,statusUpdatedAt},options);
+    return writeHabits(who,{...state,version:state.version+1,completions,failures,failureStars,statusUpdatedAt},options);
   });
 }
 async function setHabitsCollapsed(actor,_collapsed,options={}){

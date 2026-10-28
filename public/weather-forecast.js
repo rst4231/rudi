@@ -1,4 +1,4 @@
-/* Forecast details share the existing weather service; nothing fetches until tap. */
+/* Forecast details and calendar days share the cached weather service. */
 (function(){
 'use strict';
 let modal=null,returnFocus=null,payload=null,view='day',selected='',month='',generation=0,restoreScroll=null;
@@ -24,7 +24,7 @@ function lockBackground(){
  const body=document.body,root=document.documentElement,x=window.scrollX||0,y=window.scrollY||0;
  const before=Object.fromEntries(['position','top','left','width','overflow'].map(key=>[key,body.style[key]]));
  const overflow=root.style.overflow,behavior=root.style.scrollBehavior;
- body.style.overflow='hidden';
+ body.style.position='fixed';body.style.top=-y+'px';body.style.left=-x+'px';body.style.width='100%';body.style.overflow='hidden';root.style.overflow='hidden';
  return ()=>{for(const [key,value] of Object.entries(before))body.style[key]=value;root.style.overflow=overflow;root.style.scrollBehavior='auto';window.scrollTo(x,y);root.style.scrollBehavior=behavior};
 }
 function close(){if(!modal)return;generation++;modal.remove();modal=null;restoreScroll?.();restoreScroll=null;const target=returnFocus?.isConnected?returnFocus:document.querySelector('[data-weather-forecast]');target?.focus?.({preventScroll:true});}
@@ -33,7 +33,7 @@ function render(){
  const content=modal.querySelector('.weather-forecast-content'),controls=modal.querySelector('.weather-forecast-controls'),status=modal.querySelector('.weather-forecast-status');content.replaceChildren();controls.replaceChildren();content.scrollTop=0;
  for(const button of modal.querySelectorAll('[data-forecast-view]')){const active=button.dataset.forecastView===view;button.setAttribute('aria-selected',String(active));button.classList.toggle('is-active',active)}
  if(!payload)return;
- const {days,hours}=model(payload),first=days[0]?.date,last=days.at(-1)?.date;
+ const data=model(payload),days=data.days.filter(day=>day.date>=today()),hours=data.hours,first=days[0]?.date,last=days.at(-1)?.date;
  status.textContent=(payload.stale||navigator.onLine===false?'Сохранённый прогноз · ':'')+'Санкт-Петербург · '+(first&&last?label(first)+' — '+label(last):'Нет данных')+'. За этим горизонтом данных нет.';
  if(view==='day'){
   const select=node('select');select.setAttribute('aria-label','День почасового прогноза');
@@ -56,15 +56,20 @@ function render(){
   for(const day of days.slice(0,7)){const row=node('div',undefined,'weather-forecast-day');row.append(node('strong',label(day.date)),node('b',(Number.isFinite(day.code)?emoji(day.code)+' ':'')+number(day.min,'°')+'…'+number(day.max,'°')),node('span','Осадки '+number(day.rain,' мм')+' · '+number(day.probability,'%')),node('span','Ветер до '+number(day.wind,' км/ч')));list.append(row)}
   content.append(list);return;
  }
- const chooser=node('select');chooser.setAttribute('aria-label','Месяц прогноза');
  const current=today().slice(0,7),nextDate=new Date(current+'-01T12:00:00Z');nextDate.setUTCMonth(nextDate.getUTCMonth()+1);
- for(const key of [current,nextDate.toISOString().slice(0,7)]){const option=node('option',new Date(key+'-01T12:00:00Z').toLocaleDateString('ru-RU',{month:'long',year:'numeric'}));option.value=key;option.selected=key===month;chooser.append(option)}
- chooser.addEventListener('change',()=>{month=chooser.value;render()});controls.append(chooser);content.append(node('p','Прогноз есть только на доступные дни.','weather-forecast-hint'));
+ const chooser=node('div',undefined,'weather-forecast-month-buttons');chooser.setAttribute('role','group');chooser.setAttribute('aria-label','Месяц прогноза');
+ for(const [key,title] of [[current,'Текущий месяц'],[nextDate.toISOString().slice(0,7),'Следующий месяц']]){
+  const button=node('button',title);button.type='button';button.setAttribute('aria-pressed',String(key===month));button.classList.toggle('is-active',key===month);
+  button.addEventListener('click',()=>{month=key;render()});chooser.append(button);
+ }
+ controls.append(chooser);
+ content.append(node('p',new Date(month+'-01T12:00:00Z').toLocaleDateString('ru-RU',{month:'long',year:'numeric',timeZone:'Europe/Moscow'}),'weather-forecast-month-title'));
+ content.append(node('p','Прогноз есть только на доступные дни.','weather-forecast-hint'));
  const grid=node('div',undefined,'weather-forecast-month');grid.setAttribute('aria-label','Прогноз на месяц');
  for(const weekday of ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'])grid.append(node('strong',weekday));
- const start=new Date(month+'-01T12:00:00Z'),offset=(start.getUTCDay()+6)%7,total=new Date(start.getUTCFullYear(),start.getUTCMonth()+1,0).getDate();
+ const firstDate=month===current?today():month+'-01',start=new Date(firstDate+'T12:00:00Z'),offset=(start.getUTCDay()+6)%7,total=new Date(Date.UTC(start.getUTCFullYear(),start.getUTCMonth()+1,0)).getUTCDate();
  for(let i=0;i<offset;i++)grid.append(node('div'));
- for(let day=1;day<=total;day++){
+ for(let day=start.getUTCDate();day<=total;day++){
   const date=month+'-'+String(day).padStart(2,'0'),forecast=days.find(item=>item.date===date),cell=node('div',undefined,'weather-forecast-cell'+(forecast?'':' is-unavailable'));
   if(date===today())cell.classList.add('is-today');
   cell.append(node('b',String(day)));
@@ -76,18 +81,46 @@ function render(){
 async function open(trigger){
  if(modal)return;returnFocus=trigger;view='day';selected=today();month=selected.slice(0,7);payload=null;const revision=++generation;
  modal=node('div',undefined,'weather-forecast-backdrop');modal.innerHTML='<section class="weather-forecast-dialog" role="dialog" aria-modal="true" aria-labelledby="weatherForecastTitle"><header><h2 id="weatherForecastTitle">Прогноз погоды</h2><button type="button" class="weather-forecast-close" aria-label="Закрыть прогноз">×</button></header><div class="weather-forecast-tabs" role="tablist" aria-label="Период прогноза"><button type="button" role="tab" data-forecast-view="day">По часам</button><button type="button" role="tab" data-forecast-view="week">Неделя</button><button type="button" role="tab" data-forecast-view="month">Месяц</button></div><p class="weather-forecast-status" role="status" aria-live="polite">Загружаю прогноз…</p><div class="weather-forecast-controls"></div><div class="weather-forecast-content" tabindex="0"></div><footer>Open-Meteo · время московское</footer></section>';
+ modal.setAttribute('data-no-pull-refresh','true');modal.setAttribute('data-no-swipe-back','true');
  restoreScroll=lockBackground();
  document.body.append(modal);modal.querySelector('.weather-forecast-close').addEventListener('click',close);modal.addEventListener('click',event=>{if(event.target===modal)close()});
- for(const type of ['touchmove','wheel'])modal.addEventListener(type,event=>{if(!event.target.closest?.('.weather-forecast-content'))event.preventDefault()},{passive:false});
+ let touchY=0;
+ modal.addEventListener('touchstart',event=>{touchY=event.touches?.[0]?.clientY||0},{passive:true});
+ for(const type of ['touchmove','wheel'])modal.addEventListener(type,event=>{
+  const scroller=event.target.closest?.('.weather-forecast-content');
+  const y=event.touches?.[0]?.clientY,delta=type==='wheel'?event.deltaY:touchY-y;if(y!==undefined)touchY=y;
+  if(!scroller||scroller.scrollHeight<=scroller.clientHeight||delta<0&&scroller.scrollTop<=0||delta>0&&scroller.scrollTop+scroller.clientHeight>=scroller.scrollHeight-1)event.preventDefault();
+ },{passive:false});
  for(const button of modal.querySelectorAll('[data-forecast-view]'))button.addEventListener('click',()=>{view=button.dataset.forecastView;render()});
  modal.addEventListener('keydown',event=>{
   if(event.key==='Escape'){event.preventDefault();close();return}
   if(event.key==='Tab'){const controls=[...modal.querySelectorAll('button,select,[tabindex="0"]')],first=controls[0],last=controls.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}}
  });
  modal.querySelector('.weather-forecast-close').focus();render();
- try{const data=await window.RUDI_WEATHER.get({forecast:true});if(!modal||generation!==revision)return;payload=data;if(!data.daily?.time?.includes(selected))selected=data.daily?.time?.[0]||selected;render()}
+ try{const data=await window.RUDI_WEATHER.get({forecast:true});if(!modal||generation!==revision)return;payload=data;if(!data.daily?.time?.includes(selected))selected=data.daily?.time?.find(date=>date>=today())||selected;render()}
  catch(_){if(modal&&generation===revision)modal.querySelector('.weather-forecast-status').textContent=navigator.onLine===false?'Офлайн. Свежий прогноз недоступен.':'Не удалось загрузить прогноз. Закрой и попробуй ещё раз.'}
 }
 document.addEventListener('click',event=>{const trigger=event.target.closest?.('[data-weather-forecast]');if(trigger)void open(trigger)});
-window.RUDI_WEATHER_FORECAST={model,open,close,currentHourTime};
+async function renderCalendarDay(target,date){
+ for(const existing of target.querySelectorAll('.calendar-day-weather'))existing.remove();
+ const card=node('section',undefined,'calendar-day-weather');card.dataset.date=date;card.setAttribute('aria-label','Погода на '+label(date));
+ card.append(node('strong','Прогноз на день'),node('p','Загружаю прогноз…'));target.append(card);
+ if(date<today()){card.querySelector('p').textContent='Прогноз на прошедшие даты недоступен.';return}
+ try{
+  const data=await window.RUDI_WEATHER.get(),day=model(data).days.find(item=>item.date===date);
+  if(!card.isConnected)return;
+  card.replaceChildren(node('strong','Прогноз на день'));
+  if(!day||!Number.isFinite(day.min)||!Number.isFinite(day.max)){
+   card.append(node('p','Прогноз на эту дату пока недоступен.'));return;
+  }
+  card.append(node('b',(Number.isFinite(day.code)?emoji(day.code)+' ':'')+number(day.min,'°')+'…'+number(day.max,'°'),'calendar-day-weather-temperature'));
+  const detail=['Санкт-Петербург'];
+  if(Number.isFinite(day.probability))detail.push('Осадки '+number(day.probability,'%'));
+  else if(Number.isFinite(day.rain))detail.push('Осадки '+number(day.rain,' мм'));
+  if(Number.isFinite(day.wind))detail.push('Ветер до '+number(day.wind,' км/ч'));
+  if(data.stale||navigator.onLine===false)detail.push('Сохранённый прогноз');
+  card.append(node('p',detail.join(' · ')));
+ }catch(_){if(card.isConnected)card.querySelector('p').textContent='Не удалось загрузить прогноз.'}
+}
+window.RUDI_WEATHER_FORECAST={model,open,close,currentHourTime,renderCalendarDay};
 })();
