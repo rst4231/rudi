@@ -318,3 +318,25 @@ html[data-theme=dark] .supplement-editor-page{color-scheme:light;--se-bg:#10151d
 .supplement-status-history .supplement-history-row{margin-top:6px}
 .supplement-editor-page .supplement-history-list,.supplement-editor-page .supplement-notes-list{opacity:1;font-size:12px;line-height:1.45;color:var(--se-muted)}
 body.supplement-editor-open #appTabBar{display:none!important}
+
+/* Intake history, inspired by the segmented Health summary. */
+.supplement-history-chart{margin:8px 0 16px;min-width:0;color:var(--text)}
+.supplement-history-periods{display:flex;gap:2px;padding:3px;border-radius:22px;background:var(--surface-strong,#eee);margin-bottom:16px}
+.supplement-history-periods button{flex:1;min-width:0;padding:8px 2px;border:0;border-radius:19px;font:inherit;font-size:12px;color:var(--text);background:none;cursor:pointer}
+.supplement-history-periods button[aria-pressed=true]{background:var(--surface,#fff);box-shadow:0 1px 4px #00000012;font-weight:650}
+.supplement-history-periods button:focus-visible{outline:2px solid #03b9d7;outline-offset:1px}
+.supplement-history-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.supplement-history-stats>div{min-width:0;display:flex;align-items:baseline;flex-wrap:wrap;gap:4px}
+.supplement-history-stats span{width:100%;font-size:10px;color:var(--muted);line-height:1.4}
+.supplement-history-stats span:before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;background:#04bad8}
+.supplement-history-stats .is-skipped span:before{background:#a9dff2}
+.supplement-history-stats strong{font-size:32px;font-weight:500;line-height:1.2}
+.supplement-history-stats small{font-size:11px;color:var(--muted)}
+.supplement-history-range{font-size:12px;color:var(--muted);margin:10px 0!important}
+.supplement-history-chart svg{display:block;width:100%;height:auto;overflow:visible}
+.supplement-history-chart svg text{fill:var(--muted,#999);font:10px system-ui,sans-serif}
+.supplement-history-chart .history-grid{fill:none;stroke:var(--line,#ddd);stroke-width:.6}
+.supplement-history-chart .history-vertical{stroke-dasharray:2 2}
+.supplement-history-chart .history-taken{fill:#04bad8}
+.supplement-history-chart .history-skipped{fill:#a9dff2}
+.supplement-history-caption{font-size:11px;line-height:1.4;color:var(--muted);margin:6px 0!important}

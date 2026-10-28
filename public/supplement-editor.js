@@ -103,8 +103,48 @@ function renderNotes(item){
   if(!notes.length){notesBox.textContent='Заметок пока нет.';return}
   for(const note of notes){const row=document.createElement('div');row.className='supplement-note-row';row.textContent=note.date+' — '+note.text;notesBox.appendChild(row)}
 }
+let historyPeriod='month';
+function supplementHistorySeries(item,period='month',now=new Date()){
+ const dayKey=date=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(date);
+ const today=dayKey(now),end=Date.parse(today+'T00:00:00Z'),day=86400000,monthly=['half','year'].includes(period);
+ const n=period==='day'?24:period==='week'?7:period==='half'?6:period==='year'?12:30;
+ let start=period==='day'?end:end-(n-1)*day;
+ if(monthly){const d=new Date(end);d.setUTCDate(1);d.setUTCMonth(d.getUTCMonth()-n+1);start=d.getTime()}
+ const buckets=Array.from({length:n},(_,i)=>{
+  const d=new Date(start);if(monthly)d.setUTCMonth(d.getUTCMonth()+i);else if(period!=='day')d.setUTCDate(d.getUTCDate()+i);
+  return{key:monthly?d.toISOString().slice(0,7):period==='day'?String(i):d.toISOString().slice(0,10),label:monthly?new Intl.DateTimeFormat('ru-RU',{month:'short',timeZone:'UTC'}).format(d).replace('.',''):period==='day'?String(i).padStart(2,'0'):String(d.getUTCDate()),taken:0,skipped:0};
+ });
+ const byKey=new Map(buckets.map(b=>[b.key,b]));
+ for(const [records,field] of [[item.intakes,'taken'],[item.skips,'skipped']])for(const row of Array.isArray(records)?records:[]){
+  const at=new Date(row.at);if(!Number.isFinite(at.getTime())||at>now)continue;
+  const date=dayKey(at);if(date<new Date(start).toISOString().slice(0,10)||date>today)continue;
+  const key=monthly?date.slice(0,7):period==='day'?String(Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hourCycle:'h23'}).format(at))):date;
+  const bucket=byKey.get(key);if(bucket)bucket[field]++;
+ }
+ const created=Date.parse(item.createdAt||''),createdDay=Number.isFinite(created)?Date.parse(dayKey(new Date(created))+'T00:00:00Z'):start;
+ const days=Math.max(1,Math.round((end-Math.max(start,Math.min(end,createdDay)))/day)+1);
+ return{buckets,days,start:new Date(start).toISOString().slice(0,10),end:today,taken:buckets.reduce((s,b)=>s+b.taken,0),skipped:buckets.reduce((s,b)=>s+b.skipped,0)};
+}
+function renderHistoryChart(item){
+ const model=supplementHistorySeries(item,historyPeriod),root=document.createElement('section');root.className='supplement-history-chart';
+ const tabs=document.createElement('div');tabs.className='supplement-history-periods';tabs.setAttribute('role','group');tabs.setAttribute('aria-label','Период истории приёма');
+ for(const [key,label] of [['day','ДН'],['week','НЕД'],['month','МЕС'],['half','6 МЕС'],['year','ГОД']]){const b=document.createElement('button');b.type='button';b.textContent=label;b.setAttribute('aria-pressed',String(historyPeriod===key));b.onclick=()=>{historyPeriod=key;renderHistory(item);historyBox.querySelectorAll('.supplement-history-periods button')[[ 'day','week','month','half','year'].indexOf(key)]?.focus({preventScroll:true})};tabs.append(b)}
+ root.append(tabs);
+ const stats=document.createElement('div');stats.className='supplement-history-stats';
+ for(const [field,label] of [['taken','Принято'],['skipped','Пропущено']]){const block=document.createElement('div');block.className='is-'+field;const title=document.createElement('span');title.textContent=(historyPeriod==='day'?'':'В среднем за день · ')+label;const value=document.createElement('strong');value.textContent=new Intl.NumberFormat('ru-RU',{maximumFractionDigits:1}).format(model[field]/(historyPeriod==='day'?1:model.days));const unit=document.createElement('small');unit.textContent=historyPeriod==='day'?'отметок':'отметок / день';block.append(title,value,unit);stats.append(block)}
+ root.append(stats);
+ const dates=document.createElement('p');dates.className='supplement-history-range';const fmt=key=>new Date(key+'T12:00:00Z').toLocaleDateString('ru-RU',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});dates.textContent=fmt(model.start)+(model.start===model.end?'':' — '+fmt(model.end));root.append(dates);
+ const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 360 210');svg.setAttribute('role','img');svg.setAttribute('aria-label','История приёма: принято '+model.taken+', отмечено пропусков '+model.skipped);
+ const max=Math.max(2,...model.buckets.map(b=>b.taken+b.skipped)),top=Math.ceil(max/2)*2,plot=320,height=165,step=plot/model.buckets.length;
+ let content='';for(let i=0;i<=3;i++){const y=10+height*i/3;content+='<path class="history-grid" d="M0 '+y+'H320"/><text x="326" y="'+(y+4)+'">'+Math.round(top*(1-i/3))+'</text>'}
+ model.buckets.forEach((b,i)=>{const x=i*step+step*.17,w=step*.66,ht=b.taken/top*height,hs=b.skipped/top*height;content+='<path class="history-grid history-vertical" d="M'+(i*step)+' 10V175"/>';if(ht)content+='<rect class="history-taken" x="'+x+'" y="'+(175-ht)+'" width="'+w+'" height="'+ht+'"><title>'+b.key+': принято '+b.taken+'</title></rect>';if(hs)content+='<rect class="history-skipped" x="'+x+'" y="'+(175-ht-hs)+'" width="'+w+'" height="'+hs+'"><title>'+b.key+': пропущено '+b.skipped+'</title></rect>';if(model.buckets.length<=12||i%Math.ceil(model.buckets.length/6)===0)content+='<text text-anchor="middle" x="'+(i*step+step/2)+'" y="194">'+b.label+'</text>'});
+ svg.innerHTML=content;root.append(svg);
+ const note=document.createElement('p');note.className='supplement-history-caption';note.textContent=model.taken+model.skipped?'Пропуски учитываются только по явным отметкам. Одна отметка — один приём, не количество таблеток.':'За этот период нет отметок приёма или пропуска.';root.append(note);historyBox.append(root);
+}
+
 function renderHistory(item){
   historyBox.replaceChildren();
+  renderHistoryChart(item);
   const sorted=events=>events.filter(event=>Number.isFinite(Date.parse(event.at))).sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
   const makeRow=(event,text)=>{const row=document.createElement('div');row.className='supplement-history-row';row.textContent=new Date(event.at).toLocaleString('ru-RU',{timeZone:'Europe/Moscow'})+' — '+text;return row};
   const intakes=sorted([...(item.intakes||[])]),list=document.createElement('div');list.className='supplement-history-intakes';historyBox.append(list);
@@ -122,7 +162,7 @@ function renderHistory(item){
   if(states.length){const details=document.createElement('details');details.className='supplement-status-history';const summary=document.createElement('summary');summary.textContent='Изменения статуса';details.append(summary);for(const state of states)details.append(makeRow(state,'Статус: '+statusLabel(state.status)));historyBox.append(details)}
 }
 function open(id,{fromHistory=false}={}){
-  build();const item=rows().find(row=>row.id===id);if(!item)return;const entering=modal.hidden;if(entering)previousFocus=document.activeElement;itemId=id;editorActor=app().getActor();
+  build();const item=rows().find(row=>row.id===id);if(!item)return;const entering=modal.hidden;if(entering)previousFocus=document.activeElement;if(itemId!==id)historyPeriod='month';itemId=id;editorActor=app().getActor();
   document.getElementById('supplementEditorTitle').textContent=(app().emojiForSupplement?.(item.name)||'💊')+' '+item.name;
   const e=form.elements;
   e.goal.value=item.goal||'';e.ingredients.value=(item.ingredients||[]).join(', ');e.dosage.value=item.schedule?.dosage||'';e.timesPerDay.value=Math.max(1,Number(item.schedule?.timesPerDay)||1);
@@ -158,5 +198,6 @@ window.addEventListener('popstate',event=>{
 });
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&modal&&!modal.hidden){event.preventDefault();close()}});
 new MutationObserver(()=>{if(modal&&!modal.hidden&&editorActor!==app()?.getActor())close({fromHistory:true})}).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
+document.addEventListener('rudi:supplement-intake-updated',()=>{const item=rows().find(row=>row.id===itemId);if(modal&&!modal.hidden&&item)renderHistory(item)});
 window.RudiSupplementEditor={open,close};
 })();

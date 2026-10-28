@@ -1,16 +1,16 @@
 {
-  "current": "v4.366",
-  "versionBranch": "fix/medicine-reference",
+  "current": "v4.367",
+  "versionBranch": "feat/intake-history-chart",
   "releaseCommit": "",
-  "deploymentSourceCommit": "bb7306dcbb2e155742b6c3aa65471a6bf95d0091",
+  "deploymentSourceCommit": "6b2cc91ee0415ef2fab3f3014e52da48698acc71",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.365",
+  "basedOnProduction": "v4.366",
   "notes": [
-    "Справочник поддерживает БАДы и лекарства, старые отказы обновляются при открытии."
+    "История приёма: периоды, средние показатели и график принятых и явно пропущенных приёмов."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Support medicine references and refresh obsolete supplement-only refusals"
+    "Add segmented intake history chart with recorded-only statistics"
   ]
 }
