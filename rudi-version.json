@@ -1,16 +1,17 @@
 {
-  "current": "v4.367",
-  "versionBranch": "feat/intake-history-chart",
+  "current": "v4.368",
+  "versionBranch": "fix/supplement-course-lifecycle",
   "releaseCommit": "",
-  "deploymentSourceCommit": "6b2cc91ee0415ef2fab3f3014e52da48698acc71",
+  "deploymentSourceCommit": "9440d9f85b29a81d00db300ad2776547669cc844",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.366",
+  "basedOnProduction": "v4.367",
   "notes": [
-    "История приёма: периоды, средние показатели и график принятых и явно пропущенных приёмов."
+    "Будущие курсы в конце списка, приём и пропуск недоступны до начала.",
+    "Завершённые курсы с заданной длительностью автоматически отображаются в архиве; бессрочные не архивируются."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Add segmented intake history chart with recorded-only statistics"
+    "Apply course lifecycle across online and offline intake and sorting"
   ]
 }

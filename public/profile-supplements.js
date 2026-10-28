@@ -87,6 +87,7 @@ function localSupplementMutation(snapshot,command,payload,at,id){
    rows[i]=item;
   }
   if(command==='take'){
+   if(window.RudiSupplementCourse&&!window.RudiSupplementCourse.canMark(existing,date))throw Error('supplement-course-inactive');
    const target=Math.max(1,Math.min(12,Number(existing.schedule?.timesPerDay)||1));
    if(existing.intakes.filter(x=>x.date===date).length<target){
     item={...existing,intakes:[...existing.intakes,{date,at}],
@@ -98,6 +99,7 @@ function localSupplementMutation(snapshot,command,payload,at,id){
    if(intakeIndex>=0){item={...existing,intakes:existing.intakes.filter((_,j)=>j!==intakeIndex),updatedAt:at};rows[i]=item}
   }
   if(command==='skip'){
+   if(window.RudiSupplementCourse&&!window.RudiSupplementCourse.canMark(existing,date))throw Error('supplement-course-inactive');
    if(existing.intakes.some(x=>x.date===date))throw Error('supplement-already-taken');
    if(!existing.skips.some(x=>x.date===date)){
     item={...existing,skips:[...existing.skips,{date,at}],updatedAt:at};rows[i]=item;
@@ -360,7 +362,11 @@ function paintReminderBadge(node,count){
   node.textContent=value>99?'99+':String(value);
   node.hidden=value<=0;
 }
+let courseRenderDay='';
 function updateReminderBadges(){
+  const day=habitDateKey(new Date());
+  const changed=courseRenderDay&&courseRenderDay!==day;courseRenderDay=day;
+  if(changed&&items.length){render();return}
   const supplementCount=overdueSupplementCount();
   const habitCount=pendingHabitCount();
   paintReminderBadge(supplementReminderBadge,supplementCount);
@@ -592,7 +598,7 @@ function prefs(){return readPrefs()}
 function ageText(age){const n=Math.max(0,Math.round(Number(age)||0));const mod100=n%100,mod10=n%10;const word=mod100>=11&&mod100<=14?'лет':mod10===1?'год':mod10>=2&&mod10<=4?'года':'лет';return n+' '+word}
 function emojiForSupplement(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/креатин/.test(value))return'🏋️';if(/теанин|l[-\s]?theanine/.test(value))return'🍵';if(/витамин\s*d|d3|к2|k2/.test(value))return'☀️';if(/магни/.test(value))return'⚡';if(/омега|рыб/.test(value))return'🐟';if(/желез/.test(value))return'🩸';if(/цинк/.test(value))return'🛡️';if(/мелатонин/.test(value))return'🌙';if(/коллаген/.test(value))return'🦴';if(/протеин|белок/.test(value))return'🥛';if(/витамин\s*c|аскорб/.test(value))return'🍊';return'💊'}
 function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в РуДи'}
-function activeSupplementItems(){return items.filter(item=>String(item?.status||'active')==='active')}
+function activeSupplementItems(){return items.filter(item=>String(item?.status||'active')==='active'&&(!window.RudiSupplementCourse||window.RudiSupplementCourse.canMark(item)))}
 function todaySupplementProgress(){const today=habitDateKey(new Date()),active=activeSupplementItems();const taken=active.filter(item=>supplementIntakesOn(item,today)>0).length;return{taken,total:active.length}}
 function todaySupplementCount(){return todaySupplementProgress().taken}
 const SUPPLEMENT_OUTLINE_LENGTH=168+52*Math.PI;
@@ -723,6 +729,7 @@ function applyCollapse(){
 }
 function applyPosition(){}
 function render(){
+  if(window.RudiSupplementCourse)items=items.map(item=>window.RudiSupplementCourse.apply(item));
   if(!list)return;
   renderSupplementSummary();
   list.replaceChildren();

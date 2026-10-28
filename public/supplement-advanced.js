@@ -46,7 +46,7 @@ function streak(item){
   return count;
 }
 function courseText(item){
-  const start=item.course?.startDate,duration=Number(item.course?.durationDays||0);if(!start||duration<=0)return'';
+  const start=item.course?.startDate,duration=Number(item.course?.durationDays||0);if(!start)return'';if(start>today())return 'Начало '+start.split('-').reverse().join('.');if(duration<=0)return'';
   const end=addDays(start,duration-1),left=daysBetween(end,today());
   if(left<0)return'Курс завершён';if(left===0)return'Последний день курса';return'До конца курса '+left+' дн.';
 }
@@ -189,6 +189,8 @@ function applyGrouping(){
     row.visible=sameStatus;
     return row.visible;
   }).sort((a,b)=>{
+    const futureA=window.RudiSupplementCourse?.state(a.item)==='future',futureB=window.RudiSupplementCourse?.state(b.item)==='future';
+    if(futureA!==futureB)return Number(futureA)-Number(futureB);
     const byTaken=selectedStatusTab==='active'?Number(handledToday(a.item))-Number(handledToday(b.item)):0;
     const byTime=supplementTimeKey(a.item).localeCompare(supplementTimeKey(b.item));
     return byTaken||byTime||a.item.name.localeCompare(b.item.name,'ru');
@@ -287,6 +289,7 @@ function enhanceCards(){
         });
       }else actions.classList.add('is-single');
     }
+    if(item.status==='active'&&window.RudiSupplementCourse?.state(item)!=='current'){actions.hidden=true;actions.style.setProperty('display','none','important')}
     card.appendChild(actions);
   }
   if(openActionName==='interactions')renderInteractionChoices();

@@ -10,7 +10,7 @@ const {profileContext}=require('./personal-profile-context.cjs');
 function statusFor(code,error){
   const auth=statusForError(error);if(auth!==500)return auth;
   if(code==='supplement-not-found')return 404;
-  if(code==='supplement-duplicate'||code==='supplement-already-taken'||code==='supplement-offline-conflict')return 409;
+  if(code==='supplement-course-inactive'||code==='supplement-duplicate'||code==='supplement-already-taken'||code==='supplement-offline-conflict')return 409;
   if(code==='supplement-ai-quota')return 429;
   if([
     'supplement-offline-id-invalid','supplement-offline-command-invalid','supplement-offline-time-invalid','supplement-limit','supplement-name-required','supplement-id-required','supplement-restore-invalid',
