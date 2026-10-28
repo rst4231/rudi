@@ -1,17 +1,16 @@
 {
-  "current": "v4.365",
-  "versionBranch": "fix/restore-home-v4363",
+  "current": "v4.366",
+  "versionBranch": "fix/medicine-reference",
   "releaseCommit": "",
-  "deploymentSourceCommit": "4433767002071cabe452dec1670565b6b6e990a8",
+  "deploymentSourceCommit": "bb7306dcbb2e155742b6c3aa65471a6bf95d0091",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.364",
+  "basedOnProduction": "v4.365",
   "notes": [
-    "Оформление обеих карточек на главной возвращено к v4.363: графики, размеры, отступы и индикаторы.",
-    "Сохранены исправления загрузки после PIN/Face ID и отдельная страница партнёра."
+    "Справочник поддерживает БАДы и лекарства, старые отказы обновляются при открытии."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Restore v4.363 Home profile layout while preserving unlock hydration fixes"
+    "Support medicine references and refresh obsolete supplement-only refusals"
   ]
 }

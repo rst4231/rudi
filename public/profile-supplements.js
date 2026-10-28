@@ -683,7 +683,7 @@ async function openSupplementInfo(item){
   supplementInfoBody.textContent='Загружаю описание…';
   supplementInfoModal.hidden=false;document.body.classList.add('habit-info-modal-open');
   let current=item;
-  if(!current?.description||!current?.intakeGuidance){
+  if(!current?.description||!current?.intakeGuidance||/невозможно.{0,50}рассматривать.{0,30}БАД/i.test(current.description)){
     try{
       const data=await request('describe',{id:item.id});
       if(data?.item){
