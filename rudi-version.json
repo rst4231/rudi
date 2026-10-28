@@ -1,17 +1,17 @@
 {
-  "current": "v4.372",
-  "versionBranch": "fix/cbt-home-progress-init",
+  "current": "v4.373",
+  "versionBranch": "feat/habit-history-calendar",
   "releaseCommit": "",
-  "deploymentSourceCommit": "e35f9dcb53cb8b79e852ba9f58afd31078f3e657",
+  "deploymentSourceCommit": "3ee3f0a85f526cc9a47f3a99d71c598313cb65d8",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.371",
+  "basedOnProduction": "v4.372",
   "notes": [
-    "Ореол прогресса КПТ получает данные при первом входе и после PIN/Face ID без открытия раздела.",
-    "Сохранённый прогресс доступен при сбое сети; ответы предыдущего аккаунта не влияют на текущий."
+    "Календарь привычки за последние 30 дней раскрывается по нажатию на иконку или название.",
+    "Зелёные дни — выполнено, красные — не выполнено; дни без отметки и до создания привычки нейтральные."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Hydrate CBT Home progress on authentication and restore, preserve cached progress and actor isolation"
+    "Thirty-day per-habit calendar with icon and title controls and accurate recorded statuses"
   ]
 }

@@ -978,3 +978,21 @@ body[data-app-tab="habits"] .personal-habit-day-status.is-notdone{color:#a43f48!
 /* Recovery controls keep pending writes visible without covering the tracker. */
 .rudi-sync-retry{display:inline-block;margin:6px 8px 0 0;padding:6px 10px;border:1px solid var(--line,#d1d5db);border-radius:9px;background:var(--surface,#fff);color:var(--text,#222);font:inherit;font-size:12px;cursor:pointer}
 .rudi-sync-retry:disabled{opacity:.55;cursor:wait}
+
+.personal-habit-history-trigger{appearance:none;border:0;padding:0;color:inherit;font-family:inherit;line-height:inherit;text-align:left;cursor:pointer}
+.personal-habit-name.personal-habit-history-trigger{display:block;background:transparent}
+.personal-habit-history-trigger:focus-visible{outline:2px solid #3587e5;outline-offset:3px;border-radius:8px}
+.habit-history{margin-top:14px;padding-top:12px;border-top:1px solid var(--line,#dce5df);color:var(--text,#18382f)}
+.habit-history-heading{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 8px;margin-bottom:12px;font-size:13px}
+.habit-history-heading>span{font-size:11px;color:var(--muted,#62776d)}
+.habit-history-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;text-align:center}
+.habit-history-weekday{padding-bottom:3px;font-size:10px;color:var(--muted,#62776d)}
+.habit-history-day{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:44px;border:1px solid transparent;border-radius:9px;background:var(--soft,#eff2f0);color:var(--muted,#62776d);font-size:12px}
+.habit-history-mark{font-size:15px;line-height:1}
+.habit-history-day.is-done{background:#d9f2e2;color:#176a3a;border-color:#a5dbb7}
+.habit-history-day.is-notdone{background:#ffe0e2;color:#a62c3a;border-color:#f2aab1}
+.habit-history-day.is-inactive{opacity:.4}
+.habit-history-day.is-today{outline:2px solid var(--accent,#4578e6);outline-offset:1px}
+.habit-history-legend{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:11px;font-size:10px;color:var(--muted,#62776d)}
+.habit-history-legend>span::before{content:'';display:inline-block;width:7px;height:7px;margin-right:4px;border-radius:50%;background:#a6b0ab}
+.habit-history-legend>.is-done::before{background:#26a45b}.habit-history-legend>.is-notdone::before{background:#df5263}
