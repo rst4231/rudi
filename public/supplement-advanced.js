@@ -206,13 +206,13 @@ function applyGrouping(){
 }
 
 async function updateCardStatus(item,status,message,undoText){
-  const previousStatus=String(item?.status||'active');
+  const previousStatus=String(item?.status||'active'),previousCourse={...item.course};
   const data=await req('update',{id:item.id,patch:{status}});
   setItems(data.items||getItems());setStatus(message||'Статус обновлён.');
   document.dispatchEvent(new CustomEvent('rudi:supplements-settings-updated'));
   if(previousStatus!==status){
     app().showActionUndo?.(undoText||message||'Статус обновлён',async()=>{
-      const restored=await req('update',{id:item.id,patch:{status:previousStatus}});
+      const restored=await req('update',{id:item.id,patch:{status:previousStatus,course:previousCourse}});
       setItems(restored.items||getItems());
       setStatus('Изменение отменено.');
       document.dispatchEvent(new CustomEvent('rudi:supplements-settings-updated'));
@@ -268,7 +268,7 @@ function enhanceCards(){
       });
       skip.addEventListener('click',async event=>{event.stopPropagation();skip.disabled=true;try{const data=await req('skip',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже пропущено сегодня.':'Приём на сегодня пропущен.')}catch(error){skip.disabled=false;setStatus(String(error?.message||'')==='supplement-already-taken'?'Этот БАД уже принят сегодня.':'Не удалось отметить пропуск.',true)}});
     }else{
-      const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent='Возобновить';actions.append(resume);
+      const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent=window.RudiSupplementCourse?.state(item)==='ended'?'Возобновить с сегодняшнего дня':'Возобновить';actions.append(resume);
       resume.addEventListener('click',event=>{event.stopPropagation();resume.disabled=true;updateCardStatus(item,'active','БАД снова в разделе «Принимаю».','БАД возобновлён').catch(()=>{resume.disabled=false;setStatus('Не удалось возобновить.',true)})});
       if(item.status==='finished'){
         actions.classList.add('is-archive');

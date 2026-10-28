@@ -6,5 +6,6 @@
  function state(item,date=day()){const start=item?.course?.startDate,finish=end(item);if(valid(start)&&start>date)return 'future';if(finish&&finish<date)return 'ended';return 'current'}
  function canMark(item,date=day()){return state(item,date)==='current'}
  function apply(item,date=day()){if(!item||item.status==='finished'||state(item,date)!=='ended')return item;const at=new Date(Date.parse(end(item)+'T00:00:00Z')+86400000-10800000).toISOString();return {...item,status:'finished',statusHistory:[...(item.statusHistory||[]),{status:'finished',at}]}}
- const api={day,end,state,canMark,apply};if(typeof module==='object'&&module.exports)module.exports=api;else root.RudiSupplementCourse=api;
+ function forUpdate(item,patch,date=day()){if(patch.course!==undefined)return {...item.course,...patch.course};if(patch.status==='active'&&state(item,date)==='ended')return {...item.course,startDate:date};return item.course}
+ const api={day,end,state,canMark,apply,forUpdate};if(typeof module==='object'&&module.exports)module.exports=api;else root.RudiSupplementCourse=api;
 })(typeof window==='object'?window:globalThis);

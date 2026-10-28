@@ -1,17 +1,17 @@
 {
-  "current": "v4.369",
-  "versionBranch": "fix/offline-sync-recovery",
+  "current": "v4.370",
+  "versionBranch": "fix/supplement-resume-course",
   "releaseCommit": "",
-  "deploymentSourceCommit": "6071394d1209b9b6c9c3b149604445d8ed119d0d",
+  "deploymentSourceCommit": "28c3a937a0e2c49964d6e2890f9c6d60c394804b",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.368",
+  "basedOnProduction": "v4.369",
   "notes": [
-    "Восстановление синхронизации после входа, независимые очереди БАДов, понятные ошибки и подтверждённое разрешение конфликтов.",
-    "Автоархив курсов не изменяет ревизию сохранённых данных."
+    "Возобновление завершённого курса начинает его с сегодняшнего дня с сохранением длительности, дозировки и истории приёма.",
+    "Одинаковое поведение онлайн и офлайн; отмена восстанавливает прежние даты."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Recover queued writes safely and resolve supplement conflicts with explicit comparison"
+    "Fix resumed courses immediately returning to archive online and offline"
   ]
 }

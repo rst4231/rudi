@@ -152,7 +152,7 @@ async function updateSupplement(actor,id,patch,o={}){
       goal:source.goal===undefined?current.goal:source.goal,
       ingredients:source.ingredients===undefined?current.ingredients:source.ingredients,
       schedule:source.schedule===undefined?current.schedule:{...current.schedule,...source.schedule},
-      course:source.course===undefined?current.course:{...current.course,...source.course},
+      course:Course.forUpdate(current,source,moscowDateKey(o.now||Date.now())),
       status,
       expirationDate:source.expirationDate===undefined?current.expirationDate:source.expirationDate,
       updatedAt:now,
@@ -258,7 +258,7 @@ async function applyOfflineOperation(actor,opId,command,payload={},o={}){
       goal:patch.goal===undefined?old.goal:patch.goal,
       ingredients:patch.ingredients===undefined?old.ingredients:patch.ingredients,
       schedule:patch.schedule===undefined?old.schedule:{...old.schedule,...patch.schedule},
-      course:patch.course===undefined?old.course:{...old.course,...patch.course},
+      course:Course.forUpdate(old,patch,date),
       expirationDate:patch.expirationDate===undefined?old.expirationDate:patch.expirationDate,
       status:nextStatus,updatedAt:timestamp,
       statusHistory:nextStatus!==old.status?[...old.statusHistory,{status:nextStatus,at:timestamp}]:old.statusHistory});

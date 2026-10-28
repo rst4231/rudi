@@ -82,7 +82,7 @@ function localSupplementMutation(snapshot,command,payload,at,id){
    item={...existing,goal:patch.goal??existing.goal,ingredients:patch.ingredients??existing.ingredients,
     status,expirationDate:patch.expirationDate??existing.expirationDate,
     schedule:{...existing.schedule,...patch.schedule},
-    course:{...existing.course,...patch.course},updatedAt:at,
+    course:window.RudiSupplementCourse?.forUpdate(existing,patch,date)||{...existing.course,...patch.course},updatedAt:at,
     statusHistory:status!==existing.status?[...(existing.statusHistory||[]),{status,at}]:existing.statusHistory};
    rows[i]=item;
   }
