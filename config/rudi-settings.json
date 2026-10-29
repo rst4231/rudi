@@ -19,7 +19,7 @@
       "publishToTelegram": false
     },
     "clients": {
-      "enabled": true,
+      "enabled": false,
       "topicId": 126,
       "publishToTelegram": false
     },
@@ -28,7 +28,7 @@
       "publishToTelegram": false
     },
     "labor": {
-      "enabled": true,
+      "enabled": false,
       "publishToTelegram": false
     }
   },

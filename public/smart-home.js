@@ -153,8 +153,6 @@
       summary.textContent=!state.data?'Нет данных об устройствах':(stale?'Последние данные · ':'Обновлено · ')+time;
       const pageUpdated=document.getElementById('smartHomePageUpdated');
       if(pageUpdated)pageUpdated.textContent=summary.textContent;
-      const label=document.getElementById('smartHomeActiveLabel');
-      if(label)label.textContent=stale&&state.data?'Были включены':'Сейчас включены';
       if(state.data&&!stale)state.staleTimer=setTimeout(setUpdated,Math.max(1,HOME_STALE_MS-age));
     }
   }
@@ -163,20 +161,18 @@
     window.RUDI_NAVIGATE_TO_TAB?.('smart-home',{scroll:true});
   }
 
-  function summaryChip(device,{battery=false,power=false}={}){
+  function summaryChip(device,{battery=false,active=false}={}){
     const chip=document.createElement('span');
-    chip.className='smart-home-summary-chip'+(battery?' is-battery':'');
+    chip.className='smart-home-summary-chip'+(battery?' is-battery':'')+(active?' is-active':'');
     const name=document.createElement('span');
     name.textContent=String(device.name||'Устройство')+(battery?' · '+Math.round(batteryLevel(device))+'%':'');
     chip.appendChild(name);
-    const cap=onOff(device);
-    if(power&&cap&&/light|socket/.test(String(device.type||''))){
-      const button=document.createElement('button');
-      button.type='button';button.className='smart-home-quick-power';
-      button.setAttribute('aria-label',(cap.state.value?'Выключить ':'Включить ')+(device.name||'устройство'));
-      button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9"/><path d="M6.6 6.6a7 7 0 1 0 10.8 0"/></svg>';
-      button.addEventListener('click',event=>{event.stopPropagation();void toggleDevice(device,button,cap)});
-      chip.appendChild(lockOfflineControl(button));
+    if(active){
+      const dot=document.createElement('span');
+      dot.className='smart-home-summary-dot';
+      dot.setAttribute('role','img');
+      dot.setAttribute('aria-label','Включено');
+      chip.appendChild(dot);
     }
     return chip;
   }
@@ -190,8 +186,9 @@
       items.slice(0,3).forEach(device=>root.appendChild(summaryChip(device,options)));
       if(items.length>3){const more=document.createElement('button');more.type='button';more.className='smart-home-summary-more';more.textContent='Ещё '+(items.length-3);more.addEventListener('click',openSmartHome);root.appendChild(more)}
     };
-    fill('smartHomeActiveDevices',active,{power:true});
-    if(data&&!active.length){const empty=document.createElement('span');empty.className='smart-home-summary-empty';empty.textContent='Нет включённых устройств';document.getElementById('smartHomeActiveDevices')?.appendChild(empty)}
+    fill('smartHomeActiveDevices',active,{active:true});
+    const activeRow=document.getElementById('smartHomeActiveRow');
+    if(activeRow)activeRow.hidden=!active.length;
     fill('smartHomeLowBattery',low,{battery:true});fill('smartHomeUnavailable',unavailable,{});
     for(const [id,items] of [['smartHomeLowBatteryRow',low],['smartHomeUnavailableRow',unavailable],['smartHomeAttention',low]]){
       const node=document.getElementById(id);if(node)node.hidden=!items.length;

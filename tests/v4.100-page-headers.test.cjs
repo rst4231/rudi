@@ -8,13 +8,13 @@ const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const expectedButtons = [
   'habitBackButton', 'supplementBackButton', 'financeBackButton',
   'carPageBack', 'workCalendarBack', 'smartSavesBackButton',
-  'wishlistBackButton', 'fastingBackButton', 'datesBackButton', 'forDiBackButton', 'smartHomePageBack'
+  'wishlistBackButton', 'fastingBackButton', 'smartHomePageBack'
 ];
 
 test('all RUDI section headers use the same opt-in header and back control', () => {
   const html = read('public/index.html');
-  assert.equal((html.match(/class="[^"]*\brudi-app-page-head\b[^"]*"/g) || []).length, 11);
-  assert.equal((html.match(/class="[^"]*\brudi-app-page-back\b[^"]*"/g) || []).length, 11);
+  assert.equal((html.match(/class="[^"]*\brudi-app-page-head\b[^"]*"/g) || []).length, 9);
+  assert.equal((html.match(/class="[^"]*\brudi-app-page-back\b[^"]*"/g) || []).length, 9);
   for (const id of expectedButtons) {
     const button = html.match(new RegExp('<button\\b[^>]*\\bid="' + id + '"[^>]*>'))?.[0] || '';
     assert.ok(button, id + ' must retain its original ID');
@@ -29,8 +29,7 @@ test('responsive header design keeps shared geometry, theme coloring and safe ar
     '--rudi-page-head-control:48px', '--rudi-page-head-control:44px',
     '--rudi-page-head-title:25px', '--rudi-page-head-title:23px',
     '--rudi-page-head-height:76px', '--rudi-page-head-height:72px',
-    'var(--tg-content-safe-area-inset-top,0px)', 'body[data-app-tab="schedule"] .work-page',
-    '.for-di-page-head.rudi-app-page-head'
+    'var(--tg-content-safe-area-inset-top,0px)', 'body[data-app-tab="schedule"] .work-page'
   ]) assert.ok(css.includes(token), token);
   assert.match(css, /@media\(max-width:430px\)/);
   assert.match(css, /font-size:var\(--rudi-page-head-title\)!important/);

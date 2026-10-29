@@ -29,9 +29,10 @@ test('home summary excludes unavailable devices and shows only valid low batteri
  assert.equal(t.calls.filter(x=>x.operation==='list').length,1);
  }finally{t.close()}
 });
-test('quick power control updates both views with one command and locks offline',async()=>{
+test('page power control updates the compact summary and locks offline',async()=>{
  const t=await setup();try{
- const control=t.d.querySelector('#smartHomeActiveDevices button[aria-label="Выключить Торшер"]');assert.ok(control,'direct power control');control.click();await new Promise(r=>setTimeout(r,20));
+ assert.equal(t.d.querySelectorAll('#smartHomeActiveDevices button').length,0);assert.equal(t.d.querySelectorAll('#smartHomeActiveDevices .smart-home-summary-dot').length,2);
+ const control=t.d.querySelector('#smartHomeRooms button[aria-label="Выключить Торшер"]');assert.ok(control,'page power control');control.click();await new Promise(r=>setTimeout(r,20));
  assert.equal(t.calls.filter(x=>x.operation==='switch').length,1);assert.doesNotMatch(t.d.getElementById('smartHomeActiveDevices').textContent,/Торшер/);
  assert.ok(t.d.querySelector('#smartHomeRooms button[aria-label="Включить Торшер"]'));
  t.d.body.dataset.offlineMode='1';t.w.dispatchEvent(new t.w.Event('offline'));
@@ -51,14 +52,14 @@ test('elapsed freshness updates on navigation and on both screens without anothe
  const t=await setup();try{
  const now=t.w.Date.now();t.w.Date.now=()=>now+6*60*1000;
  t.w.dispatchEvent(new t.w.CustomEvent('rudi:app-tab-change',{detail:{tab:'smart-home'}}));
- assert.match(t.d.getElementById('smartHomeActiveLabel').textContent,/Были включены/);
+ assert.equal(t.d.getElementById('smartHomeActiveLabel'),null);
  assert.match(t.d.getElementById('smartHomePageUpdated')?.textContent||'',/Последние данные/);
  assert.equal(t.calls.filter(x=>x.operation==='list').length,1);
  }finally{t.close()}
 });
-test('a failed quick command reports the error on home and keeps the actual power state',async()=>{
+test('a failed page command preserves the overview power state and shared feedback',async()=>{
  const t=await setup();try{
- t.setFail(true);t.d.querySelector('#smartHomeActiveDevices button[aria-label="Выключить Торшер"]').click();
+ t.setFail(true);t.d.querySelector('#smartHomeRooms button[aria-label="Выключить Торшер"]').click();
  await new Promise(r=>setTimeout(r,20));
  const status=t.d.getElementById('smartHomeSummaryStatus');assert.ok(status,'home action feedback exists');
  assert.equal(status.hidden,false);assert.match(status.textContent,/Не удалось изменить состояние Торшер/);

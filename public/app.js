@@ -145,10 +145,10 @@
         partnerFinance:null,
         personalPush:[]
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home','nearest','car','habits','supplements','new','partner','daily-question','smart-saves','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','priority','recommendations','note','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
+        return ['dashboard',...people,'lulu','priority','recommendations','note','smart-home','nearest','car','habits','supplements','new','partner','daily-question','smart-saves','markets'];
       }
       function homePrimaryBlocksMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -227,7 +227,7 @@
         if(quickIndex>=0&&luluIndex>=0){
           source.splice(quickIndex,1);
           const nextLuluIndex=source.indexOf('lulu');
-          source.splice(nextLuluIndex+1,0,'quick-access');
+          source.splice(nextLuluIndex+1,0);
         }
         try{localStorage.setItem(quickAccessAfterLuluMigrationKey(),'1')}catch(_){}
         return source;
@@ -252,7 +252,7 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0,car:0,'smart-home':0,settings:0,habits:0,finances:0,supplements:0,score:0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,'smart-saves':0,car:0,'smart-home':0,settings:0,habits:0,finances:0,supplements:0,score:0};
       const APP_TAB_SCROLL_SESSION_KEY='rudi:tab-scroll:v1';
       try{
         const saved=JSON.parse(sessionStorage.getItem(APP_TAB_SCROLL_SESSION_KEY)||'{}');
@@ -914,10 +914,6 @@
         const legacy={
           'products-history':productsHistoryCollapsedStorageKey(),
           'fasting-history':fastingHistoryCollapsedStorageKey(),
-          'for-di:labor':'rudi:for-di:collapsed:v1:'+actor+':labor',
-          'for-di:saved':'rudi:for-di:collapsed:v1:'+actor+':saved',
-          'for-di:stylist':'rudi:for-di:collapsed:v1:'+actor+':stylist',
-          'saves:date':'rudi:saves:collapsed:v1:'+actor+':date',
           'saves:recipe':'rudi:saves:collapsed:v1:'+actor+':recipe'
         };
         for(const [key,storageKey] of Object.entries(legacy)){
@@ -2151,9 +2147,9 @@
         setTimeout(()=>section.classList.remove(className),560);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','dates','for-di','score','settings','smart-saves','car','smart-home'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','score','settings','smart-saves','car','smart-home'];
       const PRIMARY_NAV_TABS=new Set(['home','feed','schedule','products','photos']);
-      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','smart-home','wishlist','dates','for-di','smart-saves']);
+      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','smart-home','wishlist','smart-saves']);
       const STARTUP_TABS=['home','finances','supplements','habits','car','schedule','feed','products','photos','fasting'];
       function startupTabStorageKey(){
         return 'rudi:startup-tab:v1:'+(currentActor==='Диана'?'diana':'rustam');
@@ -2189,7 +2185,7 @@
         try{
           const params=new URLSearchParams(window.location.search);
           const rawTab=String(params.get('tab')||'home').trim();
-          const tab=rawTab==='saves'?'dates':rawTab;
+          const tab=rawTab==='saves'?'products':rawTab;
           if(rawTab!=='home'&&!APP_TABS.includes(tab)){
             const clean=new URL(window.location.href);
             clean.searchParams.delete('tab');
@@ -2234,7 +2230,7 @@
           const url=new URL(window.location.href);
           if(next==='home') url.searchParams.delete('tab');
           else url.searchParams.set('tab',next);
-          if(item&&['home','wishlist','products','dates','for-di','schedule','score','smart-saves'].includes(next)) url.searchParams.set('item',String(item));
+          if(item&&['home','wishlist','products','schedule','score','smart-saves'].includes(next)) url.searchParams.set('item',String(item));
           else url.searchParams.delete('item');
           const target=url.pathname+(url.search||'')+(url.hash||'');
           const current=window.location.pathname+window.location.search+window.location.hash;
@@ -2272,7 +2268,7 @@
           }else if(tab==='schedule'){
             const selector=scheduleSelectors[id];
             if(selector) target=document.querySelector(selector);
-          }else if(['wishlist','products','dates','for-di','smart-saves'].includes(tab)){
+          }else if(['wishlist','products','smart-saves'].includes(tab)){
             target=[...document.querySelectorAll('[data-rudi-item-id]')]
               .find(node=>String(node.dataset.rudiItemId||'')===id)||null;
           }
@@ -5778,6 +5774,16 @@
         document.addEventListener('rudi-finance-plan-saved',()=>loadFinances({silent:true}).catch(()=>{}));
         const personalMonth=document.getElementById('financePersonalMonthInput');
         if(personalMonth)personalMonth.value=financeCurrentMonthKey();
+        if(!window.__rudiFinancePeriodWatcher){
+          const setMonth=input=>value=>{input.value=value;input.dispatchEvent(new Event('change',{bubbles:true}))};
+          const controls=[{get:()=>month.value,set:setMonth(month),canChange:()=>{
+            const row=financeRowForMonth(month.value);
+            return Number(rent?.value||0)===Number(row?.rent||0)&&Number(utilities?.value||0)===Number(row?.utilities||0)&&financeSharedItemsEqual(row?.items,financeSharedItemsFromInputs());
+          }}];
+          if(personalMonth)controls.push({get:()=>personalMonth.value,set:setMonth(personalMonth)});
+          window.__rudiFinancePeriodWatcher=window.RudiFinancePeriod.start({controls});
+        }
+
         applyFinancePermissions();setFinanceTab('personal');
         document.getElementById('financeOrderEditToggle')?.addEventListener('click',()=>{
           setFinanceOrderEditMode(!(financeWalletEditMode&&financeCategoryEditMode));
@@ -6270,8 +6276,6 @@
           }).catch(()=>{});
         }
         if(tab==='photos') loadSharedAlbum();
-        if(tab==='dates') Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('dates',item));
-        if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
         if(tab==='settings') refreshSettingsPageUi();
         if(tab==='finances'){
           const financeShortcut=pendingFinanceShortcut;
@@ -9044,7 +9048,7 @@
               const url=new URL(String(row.url||'/'),location.origin);
               if(url.origin===location.origin){
                 const value=String(url.searchParams.get('tab')||'').trim();
-                if(['home','feed','schedule','wishlist','photos','products','saves','smart-saves','score','messenger','fasting','dates','car'].includes(value))targetTab=value;
+                if(['home','feed','schedule','wishlist','photos','products','saves','smart-saves','score','messenger','fasting','car'].includes(value))targetTab=value;
                 targetItem=String(url.searchParams.get('item')||'').slice(0,120);
               }
             }catch(_){}
@@ -20490,18 +20494,14 @@
       let fastingOverviewState={'Рустам':null,'Диана':null};
       let selectedFastingGoal=16;
       let fastingReturnTab='products';
+      let fastingHistoryView={actor:''};
 
       function fastingPad(value){
         return String(Math.max(0,Math.floor(value))).padStart(2,'0');
       }
 
       function fastingDurationLabel(minutes){
-        const total=Math.max(0,Math.round(Number(minutes)||0));
-        const hours=Math.floor(total/60);
-        const mins=total%60;
-        if(!hours) return mins+' мин';
-        if(!mins) return hours+' ч';
-        return hours+' ч '+mins+' мин';
+        return window.RudiFastingHistory.durationLabel(minutes);
       }
 
       function fastingDateTimeLabel(value){
@@ -21059,45 +21059,19 @@
             (sum,row)=>sum+fastingMinutesInYear(row,currentYear),
             0
           );
-          const totalHours=Math.round((totalMinutes/60)*10)/10;
-          const hoursLabel=Number.isInteger(totalHours)?String(totalHours):String(totalHours).replace('.',',');
+          const timeLabel=fastingDurationLabel(totalMinutes);
           const totalStars=rows.reduce((sum,row)=>{
             const ended=new Date(String(row?.endedAt||''));
             if(Number.isNaN(ended.getTime())||ended.getFullYear()!==currentYear) return sum;
             return sum+Math.max(0,Number(row?.earnedStars)||0);
           },0);
           const starsLabel=Number.isInteger(totalStars)?String(totalStars):String(totalStars).replace('.',',');
-          historyTitle.textContent='История · '+hoursLabel+' ч · '+starsLabel+' ⭐ за '+currentYear;
+          historyTitle.textContent='История · '+timeLabel+' · '+starsLabel+' ⭐ за '+currentYear;
         }
 
         if(history){
-          history.replaceChildren();
-          rows.forEach(row=>{
-            const item=document.createElement('article');
-            item.className='fasting-history-item';
-
-            const copy=document.createElement('div');
-            copy.className='fasting-history-copy';
-
-            const duration=document.createElement('strong');
-            duration.textContent=fastingDurationLabel(row.durationMinutes);
-
-            const meta=document.createElement('span');
-            meta.textContent=fastingDateTimeLabel(row.startedAt)+' → '+fastingDateTimeLabel(row.endedAt);
-
-            const stars=document.createElement('span');
-            stars.className='fasting-history-stars';
-            const earnedStars=Math.max(0,Number(row?.earnedStars)||0);
-            stars.textContent=(Number.isInteger(earnedStars)?String(earnedStars):String(earnedStars).replace('.',','))+' ⭐ получено';
-
-            const goal=document.createElement('span');
-            goal.className='fasting-history-goal'+(row.goalReached?' is-reached':'');
-            goal.textContent=(row.goalReached?'✓ ':'')+String(row.goalHours||16)+' ч';
-
-            copy.append(duration,meta,stars);
-            item.append(copy,goal);
-            history.appendChild(item);
-          });
+          if(fastingHistoryView.actor!==currentActor)fastingHistoryView={actor:currentActor};
+          history.replaceChildren(window.RudiFastingHistory.render({history:rows,view:fastingHistoryView}));
         }
 
         const historyToggle=document.getElementById('fastingHistoryToggle');
@@ -22163,288 +22137,6 @@
       }
 
 
-      const DATE_IDEAS_CACHE_PREFIX='rudi:date-ideas:v1:';
-      const DATE_IDEAS_EXPANDED_PREFIX='rudi:date-ideas-expanded:v1:';
-      let currentDateGenerationQuota=null;
-      let dateQuotaRefreshTimer=0;
-
-      function dateIdeasCacheKey(){
-        return DATE_IDEAS_CACHE_PREFIX+(currentActor==='Диана'?'diana':'rustam');
-      }
-
-      function dateIdeasExpandedKey(){
-        return DATE_IDEAS_EXPANDED_PREFIX+(currentActor==='Диана'?'diana':'rustam');
-      }
-
-      function readDateIdeasExpanded(hasIdeas=false){
-        let fallback=Boolean(hasIdeas);
-        try{
-          const saved=localStorage.getItem(dateIdeasExpandedKey());
-          if(saved==='1') fallback=true;
-          if(saved==='0') fallback=false;
-        }catch(_){}
-        return uiViewState('date-ideas-expanded',fallback);
-      }
-
-      function writeDateIdeasExpanded(expanded){
-        const value=Boolean(expanded);
-        try{localStorage.setItem(dateIdeasExpandedKey(),value?'1':'0')}catch(_){}
-        setUiViewState('date-ideas-expanded',value);
-      }
-
-      function normalizeDateIdeasCache(value){
-        const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
-        const ideas=(Array.isArray(source.ideas)?source.ideas:[])
-          .map((idea,index)=>({
-            id:String(idea?.id||('date-'+(index+1))).slice(0,80),
-            title:String(idea?.title||'').trim().slice(0,140),
-            description:String(idea?.description||'').trim().slice(0,700),
-            duration:String(idea?.duration||'').trim().slice(0,80)
-          }))
-          .filter(idea=>idea.title&&idea.description)
-          .slice(0,3);
-        if(ideas.length!==3) return null;
-        const period=['morning','day','evening'].includes(String(source.period||''))?String(source.period):'';
-        return {period,ideas,generatedAt:String(source.generatedAt||'')};
-      }
-
-      function readDateIdeasCache(){
-        try{return normalizeDateIdeasCache(JSON.parse(localStorage.getItem(dateIdeasCacheKey())||'null'))}
-        catch(_){return null}
-      }
-
-      function writeDateIdeasCache(value){
-        const normalized=normalizeDateIdeasCache(value);
-        if(!normalized) return;
-        try{localStorage.setItem(dateIdeasCacheKey(),JSON.stringify(normalized))}catch(_){}
-      }
-
-      function datePeriodLabel(period){
-        return period==='morning'?'Утро':period==='day'?'День':period==='evening'?'Вечер':'';
-      }
-
-      function setDateIdeasExpanded(_expanded,{persist=false}={}){
-        const choices=document.getElementById('dateTimeChoices');
-        const results=document.getElementById('dateIdeaResults');
-        const status=document.getElementById('dateIdeaStatus');
-        const hasIdeas=Boolean(readDateIdeasCache());
-        if(!choices||!results) return;
-
-        choices.hidden=false;
-        results.hidden=!hasIdeas;
-        if(status) status.hidden=false;
-        if(persist) writeDateIdeasExpanded(true);
-      }
-
-      function renderDateIdeas(payload){
-        const host=document.getElementById('dateIdeaResults');
-        const normalized=normalizeDateIdeasCache(payload);
-        if(!host||!normalized) return false;
-        host.replaceChildren();
-        const head=document.createElement('div');
-        head.className='date-idea-results-head';
-        const title=document.createElement('strong');
-        title.textContent='Идеи на '+datePeriodLabel(normalized.period).toLowerCase();
-        const meta=document.createElement('span');
-        meta.textContent='3 варианта';
-        head.append(title,meta);
-        host.appendChild(head);
-        normalized.ideas.forEach((idea,index)=>{
-          const card=document.createElement('article');
-          card.className='date-idea-card';
-          const number=document.createElement('span');
-          number.className='date-idea-number';
-          number.textContent=String(index+1);
-          const copy=document.createElement('div');
-          copy.className='date-idea-copy';
-          const heading=document.createElement('strong');
-          heading.textContent=idea.title;
-          const description=document.createElement('p');
-          description.textContent=idea.description;
-          copy.append(heading,description);
-          if(idea.duration){
-            const duration=document.createElement('small');
-            duration.textContent=idea.duration;
-            copy.appendChild(duration);
-          }
-          const save=document.createElement('button');
-          save.type='button';
-          save.className='date-idea-save';
-          save.setAttribute('aria-label','Сохранить идею свидания');
-          save.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 19h14"/></svg><span>Сохранить</span>';
-          save.addEventListener('click',async()=>{
-            if(save.disabled) return;
-            save.disabled=true;
-            try{
-              await window.RUDI_SAVES?.save?.('date',{
-                title:idea.title,
-                description:idea.description,
-                duration:idea.duration,
-                period:normalized.period
-              },save);
-              setTimeout(()=>loadActivityJournal({silent:true}),120);
-              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-            }catch(_){
-              save.disabled=false;
-              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-            }
-          });
-          card.append(number,copy,save);
-          host.appendChild(card);
-        });
-        host.hidden=false;
-        return true;
-      }
-
-      function formatDateQuotaTime(value){
-        const parsed=new Date(String(value||''));
-        if(Number.isNaN(parsed.getTime())) return '';
-        return new Intl.DateTimeFormat('ru-RU',{
-          day:'numeric',
-          month:'short',
-          hour:'2-digit',
-          minute:'2-digit',
-          timeZone:TZ
-        }).format(parsed).replace(',', ' в');
-      }
-
-      function dateQuotaText(quota){
-        if(quota?.unlimited===true) return 'Без лимита';
-        const available=Math.max(0,Number(quota?.available??10));
-        const max=Math.max(1,Number(quota?.max||10));
-        const nextAt=formatDateQuotaTime(quota?.nextRefillAt||quota?.blockedUntil);
-        if(available<=0){
-          return nextAt
-            ? 'Все '+max+' генераций использованы · ещё одна станет доступна '+nextAt
-            : 'Все '+max+' генераций использованы';
-        }
-        const base='Осталось '+available+' из '+max+' генераций';
-        return nextAt&&available<max ? base+' · ещё 1 вернётся '+nextAt : base;
-      }
-
-      function syncDateChoiceAvailability(){
-        const blocked=currentDateGenerationQuota?.unlimited!==true&&Number(currentDateGenerationQuota?.available??1)<=0;
-        document.querySelectorAll('#dateTimeChoices [data-date-period]').forEach(button=>{
-          button.disabled=blocked;
-        });
-      }
-
-      function scheduleDateQuotaRefresh(){
-        clearTimeout(dateQuotaRefreshTimer);
-        if(currentDateGenerationQuota?.unlimited===true) return;
-        const nextAt=new Date(String(currentDateGenerationQuota?.nextRefillAt||'')).getTime();
-        const delay=nextAt-Date.now();
-        if(!Number.isFinite(nextAt)||delay<=0) return;
-        dateQuotaRefreshTimer=setTimeout(()=>loadDateGenerationStatus(),Math.min(delay+1200,2147483000));
-      }
-
-      async function dateIdeasRequest({operation='generate',period='',exclude=[]}={}){
-        const response=await fetch('/api/partner-message?rudiAction=dates',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',operation,period,exclude}),
-          cache:'no-store'
-        });
-        const data=await response.json().catch(()=>({}));
-        if(!response.ok||!data.ok){
-          const error=new Error(data.error||'date-request-failed');
-          error.status=response.status;
-          error.payload=data;
-          throw error;
-        }
-        return data;
-      }
-
-      async function loadDateGenerationStatus(){
-        const status=document.getElementById('dateIdeaStatus');
-        try{
-          const data=await dateIdeasRequest({operation:'status'});
-          currentDateGenerationQuota=data.quota||null;
-          syncDateChoiceAvailability();
-          scheduleDateQuotaRefresh();
-          if(status) status.textContent=dateQuotaText(currentDateGenerationQuota);
-          return currentDateGenerationQuota;
-        }catch(_){
-          return currentDateGenerationQuota;
-        }
-      }
-
-      function dateIdeaErrorText(error){
-        const code=String(error?.message||'');
-        const quota=error?.payload?.quota||error?.quota||currentDateGenerationQuota;
-        if(code==='date-generation-limit'){
-          currentDateGenerationQuota=quota||currentDateGenerationQuota;
-          syncDateChoiceAvailability();
-          scheduleDateQuotaRefresh();
-          return dateQuotaText(currentDateGenerationQuota)+'. Последние идеи сохранены.';
-        }
-        if(code==='date-ai-quota'||Number(error?.status)===429) return 'Лимит AI-провайдера временно исчерпан. Попробуй позже — последние идеи сохранены.';
-        if(code==='groq-api-key-missing') return 'ИИ временно недоступен. Последние идеи сохранены.';
-        if(code==='date-ai-timeout') return 'ИИ отвечает слишком долго. Попробуй ещё раз — прошлые идеи не пропали.';
-        return 'Не удалось придумать новые варианты. Последние идеи сохранены.';
-      }
-
-      function setupQuickAccess(){
-        const dates=document.getElementById('quickDateButton');
-        const forDi=document.getElementById('quickForDiButton');
-        const photoSession=document.getElementById('quickPhotoSessionButton');
-        const choices=document.getElementById('dateTimeChoices');
-        const status=document.getElementById('dateIdeaStatus');
-        if(!dates||!forDi||!photoSession||!choices||choices.dataset.dateBound==='1') return;
-        choices.dataset.dateBound='1';
-
-        dates.addEventListener('click',()=>{
-          navigateToAppTab('dates',{scroll:true});
-          window.RUDI_SAVES?.load?.();
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
-        forDi.addEventListener('click',()=>{
-          navigateToAppTab('for-di',{scroll:true});
-          window.RUDI_FOR_DI?.load?.();
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
-        photoSession.addEventListener('click',()=>{
-          const link=document.querySelector('.shared-album-create');
-          if(link) link.click();
-          else if(tg?.openLink) tg.openLink('https://gemini.google.com/share/41a7861ea171');
-          else window.open('https://gemini.google.com/share/41a7861ea171','_blank','noopener,noreferrer');
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
-
-        const cachedIdeas=readDateIdeasCache();
-        if(cachedIdeas) renderDateIdeas(cachedIdeas);
-        setDateIdeasExpanded(true,{persist:false});
-        loadDateGenerationStatus();
-
-        choices.querySelectorAll('[data-date-period]').forEach(button=>{
-          button.addEventListener('click',async()=>{
-            const period=String(button.dataset.datePeriod||'');
-            if(!['morning','day','evening'].includes(period)) return;
-            const previous=readDateIdeasCache();
-            const exclude=previous?.ideas?.map(idea=>idea.title).filter(Boolean)||[];
-            choices.querySelectorAll('button').forEach(item=>item.disabled=true);
-            if(status) status.textContent='Придумываю 3 необычных варианта на '+datePeriodLabel(period).toLowerCase()+'…';
-            try{
-              const data=await dateIdeasRequest({period,exclude});
-              const next={period,ideas:data.ideas,generatedAt:new Date().toISOString()};
-              if(!renderDateIdeas(next)) throw new Error('date-ai-no-ideas');
-              writeDateIdeasCache(next);
-              setDateIdeasExpanded(true);
-              currentDateGenerationQuota=data.quota||currentDateGenerationQuota;
-              scheduleDateQuotaRefresh();
-              if(status) status.textContent='Готово · '+dateQuotaText(currentDateGenerationQuota);
-              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-            }catch(error){
-              if(previous) renderDateIdeas(previous);
-              if(status) status.textContent=dateIdeaErrorText(error);
-              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-            }finally{
-              syncDateChoiceAvailability();
-            }
-          });
-        });
-      }
-
       function setupRecipeGenerator(){
         const input=document.getElementById('recipeIngredients');
         const generate=document.getElementById('recipeGenerate');
@@ -22610,7 +22302,6 @@
         setupExtendedSettings();
         setupUndoSnackbar();
         setupAppTabs();
-        setupQuickAccess();
         ensureAppSurface({restoreTab:true});
         const config=await configPromise;
         currentConfig=config;

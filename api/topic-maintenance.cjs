@@ -17,7 +17,6 @@ const { applySectionControlToTelegramRequest, currentPublicationContext, topicSe
 const { buildFeedbackMarkup, incrementSectionMetric } = require('./feedback-analytics.cjs');
 const { rememberFingerprints } = require('./content-fingerprint.cjs');
 const { moscowDateKey } = require('./preview-date.cjs');
-const { queueForDiTelegramRequest } = require('./for-di-private.cjs');
 
 const POSTER_PROXY_BASE = 'https://spb-daily-guide-bot.vercel.app/api/poster-proxy';
 const PROXIED_POSTER_HOST = /^(?:cdn\.mirage\.ru|s\d+ru1\.kinoplan24\.ru)$/iu;
@@ -124,6 +123,11 @@ function manualControlResult(init, settings) {
 
 function wrapFetch(fetchImpl, options = {}) {
   return async (input, init = {}) => {
+    const endpoint=base.telegramEndpoint(input);
+    const payload=base.parseRequestPayload(init);
+    if(endpoint&&/^send/.test(endpoint.method)&&Number(payload?.message_thread_id)===base.CLIENTS_TOPIC_ID){
+      return new Response(JSON.stringify({ok:true,result:{message_id:0,message_thread_id:base.CLIENTS_TOPIC_ID,retired:true}}),{status:200,headers:{'content-type':'application/json'}});
+    }
     const settings = await resolveSettings(options);
     const controlCache = resolveControlCache(options);
     const publicationDate = options.publicationDate || currentPublicationContext()?.date || moscowDateKey(options.now || new Date());
@@ -162,20 +166,7 @@ function wrapFetch(fetchImpl, options = {}) {
       });
       dailyContentFetch = wrapDailyContentDedupe(fetchImpl, { cache: resolveDailyContentCache(options), catalog, alwaysReplace: true, now: options.now });
     }
-    let response;
-    if (topicId === base.CLIENTS_TOPIC_ID) {
-      await queueForDiTelegramRequest(input, rewritten, {
-        now: options.now,
-        dateKey: publicationDate,
-        forDiCache: options.forDiCache,
-      });
-      response = new Response(JSON.stringify({
-        ok: true,
-        result: { message_id: 0, message_thread_id: base.CLIENTS_TOPIC_ID, queued_for_private_delivery: true },
-      }), { status: 200, headers: { 'content-type': 'application/json' } });
-    } else {
-      response = await terminalSuccessResponse(input, await dailyContentFetch(input, rewritten));
-    }
+    const response = await terminalSuccessResponse(input, await dailyContentFetch(input, rewritten));
     if (response?.ok && clientSelection?.fingerprint) {
       try {
         await rememberFingerprints('clients', [clientSelection.fingerprint], settings.dedupe?.clientsDays || 45, { cache: controlCache, now: options.now });

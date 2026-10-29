@@ -68,15 +68,12 @@ const { readDailyMood, setDailyMood, setDailyMoodReason, moodView, restoreDailyM
 const { readLatestMoodAnalysisCache, writeMoodAnalysisCache, normalizeWindowDays, readMoodFeedback, saveMoodFeedback, readMoodAnalysisQuota, recordSuccessfulMoodAnalysis } = require('./mood-analysis-store.cjs');
 const { readHabits, viewHabits, habitCreatedByDate } = require('./habit-tracker-store.cjs');
 const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai.cjs');
-const { generateDateIdeas, buildDateWeatherContext } = require('./date-ai.cjs');
-const { readDateGenerationQuota, readDateGenerationHistory, recordSuccessfulDateGeneration } = require('./date-generation-limit-store.cjs');
 const { readDailyQuestion, readDailyQuestionCached, answerDailyQuestion } = require('./daily-question-store.cjs');
 const { generateMoodMessage } = require('./mood-notification-ai.cjs');
 const { generateMoodAnalysis } = require('./mood-analysis-ai.cjs');
 const { getWeather } = require('./weather.cjs');
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
 const { readSmartSaves, addSmartSave, removeSmartSave, restoreSmartSave } = require('./smart-saves-store.cjs');
-const { readForDiFeed, toggleForDiLike, saveForDiItem, removeForDiSaved } = require('./for-di-feed-store.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, recordCycleEnd, normalizeCycleState, cycleViewForDate, cycleStateWithStart, cycleStateWithEnd, writeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState, mergeReactionStates } = require('./reactions-store.cjs');
 const {
@@ -128,7 +125,7 @@ const {
   removeSharedTaskMeta,
 } = require('./shared-task-meta-store.cjs');
 const { createStateBackup, restoreStateBackup, openSnapshot, sealSnapshot, mergeUiPreferences, normalizeUiPreferences } = require('./rudi-backup.cjs');
-const { getCinemaPremieresCache, getTopicMaintenanceCache, getLaborCache, getControlPlaneCache } = require('./stateful-cache.cjs');
+const { getCinemaPremieresCache, getTopicMaintenanceCache, getControlPlaneCache } = require('./stateful-cache.cjs');
 const { getDailyCronState } = require('./daily-cron-state.cjs');
 const { readSummaryState } = require('./morning-summary-store.cjs');
 const { resolveCinemaTopicId } = require('./cinema-topic.cjs');
@@ -4466,95 +4463,7 @@ async function handleRudiAction(req, res, action, options = {}) {
 
 
 
-  if (action === 'for-di-feed') {
-    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
-    try {
-      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeRequest(req, body.initData, options);
-      const operation = String(body.operation || 'list').trim();
-      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
-
-      if (previousSnapshot?.forDiFeed?.initialized) {
-        const liveBefore = await readForDiFeed(options).catch(() => ({ initialized:false, version:0, items:[] }));
-        if (!liveBefore?.initialized || !(liveBefore.items || []).length) {
-          await restoreStateBackup(body.backupToken, {
-            ...options,
-            cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
-          }).catch(() => null);
-        }
-      }
-
-      if (operation === 'list') {
-        let live = await readForDiFeed(options).catch(() => ({ initialized:false, version:0, items:[] }));
-        const todayKey=moscowDateKey(options.now||Date.now());
-        const hasTodayLabor=(live.items||[]).some(item=>String(item?.source||'')==='labor'&&String(item?.dateKey||'')===todayKey);
-        if(!hasTodayLabor){
-          try{
-            const { publishLaborArticle }=require('./labor-code.cjs');
-            const { publishForDiToRudi }=require('./for-di-private.cjs');
-            const now=new Date(options.now||Date.now());
-            await publishLaborArticle({queueOnly:true,force:true,now,cache:getLaborCache(),fetchImpl:options.fetch||globalThis.fetch});
-            await publishForDiToRudi({now,cacheOptions:options.cacheOptions});
-            live=await readForDiFeed(options).catch(()=>live);
-          }catch(error){
-            console.warn('RUDI_FOR_DI_LABOR_SELF_HEAL_WARN',String(error?.message||error));
-          }
-        }
-        const saved = previousSnapshot?.forDiFeed;
-        const state = live?.initialized ? live : (saved?.initialized ? saved : live);
-        return res.status(200).json({ ok:true, actor, ...state });
-      }
-
-      if (operation === 'save') {
-        const result = await saveForDiItem(body.id, actor, options);
-        const backupToken = await refreshBackupToken(previousSnapshot, options);
-        return res.status(200).json({
-          ok:true,
-          actor,
-          ...result.state,
-          item:result.item,
-          duplicate:result.duplicate,
-          backupToken,
-        });
-      }
-
-      if (operation === 'remove-saved') {
-        const result = await removeForDiSaved(body.id, actor, options);
-        const backupToken = await refreshBackupToken(previousSnapshot, options);
-        return res.status(200).json({
-          ok:true,
-          actor,
-          ...result.state,
-          item:result.item,
-          backupToken,
-        });
-      }
-
-      if (operation === 'toggle-like') {
-        const result = await toggleForDiLike(body.id, actor, options);
-        const backupToken = await refreshBackupToken(previousSnapshot, options);
-        await recordLikeActivity({ type:'feed', key:'for-di:' + String(body.id || '') }, actor, options).catch(() => null);
-        return res.status(200).json({
-          ok:true,
-          actor,
-          ...result.state,
-          item:result.item,
-          backupToken,
-        });
-      }
-
-      return res.status(400).json({ ok:false, error:'for-di-operation-invalid' });
-    } catch (error) {
-      const code = String(error?.message || error);
-      const authStatus = statusForError(error);
-      const status = authStatus !== 500 ? authStatus
-        : code === 'for-di-item-not-found' ? 404
-        : code.startsWith('for-di-') ? 400
-        : 500;
-      if (status === 500) console.error('RUDI_FOR_DI_FEED_ERROR', code);
-      return res.status(status).json({ ok:false, error:code });
-    }
-  }
+  if (action === 'for-di-feed') return res.status(410).json({ ok:false, error:'feature-removed' });
 
   if (action === 'saves') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
@@ -4581,18 +4490,19 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, actor, ...state });
       }
       if (operation === 'add') {
+        if(body.type!=='recipe')return res.status(410).json({ok:false,error:'feature-removed'});
         const result = await addSavedItem(body.type, body.payload, actor, options);
         if (!result.duplicate && result.item) {
           const type = String(result.item.type || body.type || '').trim();
           const title = String(result.item.payload?.title || body.payload?.title || '').replace(/\s+/g, ' ').trim();
-          const savedLabel = type === 'recipe' ? 'рецепт' : type === 'date' ? 'свидание' : 'сохранение';
+          const savedLabel = 'рецепт';
           const savedVerb = activityVerb(actor, 'сохранил', 'сохранила');
           await recordActivity({
-            type: type === 'recipe' ? 'saved-recipe' : type === 'date' ? 'saved-date' : 'saved-item',
+            type: 'saved-recipe',
             actor,
             text: actor + ' ' + savedVerb + ' ' + savedLabel + (title ? ': ' + title : ''),
-            icon: type === 'recipe' ? '🍳' : type === 'date' ? '💞' : '🔖',
-            targetTab: type === 'recipe' ? 'products' : type === 'date' ? 'dates' : 'home',
+            icon: '🍳',
+            targetTab: 'products',
             dedupeKey: 'saved:' + String(result.item.id || activityDigest(result.item)),
           }, options);
         }
@@ -4635,57 +4545,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
-  if (action === 'dates') {
-    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
-    try {
-      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeRequest(req, body.initData, options);
-      const operation = String(body.operation || 'generate').trim();
-
-      if (operation === 'status') {
-        const quota = await readDateGenerationQuota(actor, options);
-        return res.status(200).json({ ok: true, actor, operation, quota });
-      }
-
-      const quotaBefore = await readDateGenerationQuota(actor, options);
-      if (quotaBefore?.unlimited !== true && quotaBefore.available <= 0) {
-        return res.status(429).json({ ok: false, error: 'date-generation-limit', quota: quotaBefore });
-      }
-
-      const [history, weatherRaw] = await Promise.all([
-        readDateGenerationHistory(actor, options).catch(() => []),
-        Promise.resolve().then(() => (options.getWeather || getWeather)()).catch(() => null),
-      ]);
-      const result = await generateDateIdeas({
-        period: body.period,
-        exclude: body.exclude,
-        history,
-        weather: buildDateWeatherContext(weatherRaw),
-      }, {
-        env: options.env || process.env,
-        fetch: options.fetch || global.fetch,
-      });
-      const quota = await recordSuccessfulDateGeneration(actor, { ...options, ideas: result.ideas });
-      return res.status(200).json({
-        ok: true,
-        actor,
-        operation: 'generate',
-        period: String(body.period || ''),
-        quota,
-        ...result,
-      });
-    } catch (error) {
-      const code = String(error?.message || error);
-      const authStatus = statusForError(error);
-      const status = authStatus !== 500 ? authStatus
-        : code === 'date-period-invalid' ? 400
-        : code === 'date-ai-quota' || code === 'date-generation-limit' ? 429
-        : code === 'groq-api-key-missing' ? 503
-        : 502;
-      if (status >= 500) console.error('RUDI_DATE_AI_ERROR', code);
-      return res.status(status).json({ ok: false, error: code, quota: error?.quota || null });
-    }
-  }
+  if (action === 'dates') return res.status(410).json({ ok:false, error:'feature-removed' });
 
   if (action === 'recipes') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });

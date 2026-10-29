@@ -7,6 +7,7 @@ const WEB_ASSETS = ['habit-history.js', 'supplement-course.js', 'task-completion
 
 WEB_ASSETS.push('viewport.js','positive-emotion-chart.js','partner-profile.js','partner-profile.css');
 
+WEB_ASSETS.push('fasting-history.js','finance-month-rollover.js');
 WEB_ASSETS.push('cbt-content.js','cbt-core.js','cbt.js','cbt.css');
 
 WEB_ASSETS.push('mood-catalog.js','mood-picker.js','mood-picker.css');
@@ -98,6 +99,8 @@ function patchRetiredRuntime(source) {
     'retired recipe generation',
   );
   next = next.replace(/sections\.has\(\s*(["'])facts\1\s*\)/g, 'false');
+  next = replaceOnce(next, ' await run("clients",()=>runClientDigest({dateKey,dryRun}));', '', 'retired For Di daily generation');
+
   return next;
 }
 

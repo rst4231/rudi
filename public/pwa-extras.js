@@ -15,7 +15,7 @@
       const url=new URL(window.location.href);
       if(tab&&tab!=='home') url.searchParams.set('tab',tab);
       else url.searchParams.delete('tab');
-      if(item&&['wishlist','products','saves','for-di','schedule'].includes(tab)) url.searchParams.set('item',String(item));
+      if(item&&['wishlist','products','saves','schedule'].includes(tab)) url.searchParams.set('item',String(item));
       else url.searchParams.delete('item');
       const target=url.pathname+(url.search||'')+(url.hash||'');
       const current=window.location.pathname+window.location.search+window.location.hash;
@@ -346,7 +346,7 @@
       queue=false;
     }else if(url.pathname==='/api/mood'||action==='mood'){
       queue=operation==='set'||operation==='reason';
-    }else if(action==='for-di-feed'||action==='reactions'||action==='cycle'){
+    }else if(action==='reactions'||action==='cycle'){
       queue=!readOps.has(operation||'get');
     }
     if(!queue) return null;
@@ -961,11 +961,10 @@
     document.querySelectorAll('.calendar-day-cell').forEach(node=>{
       add({tab:'schedule',kind:'Календарь',title:node.getAttribute('aria-label')||node.title||'Дата',text:node.title||'',node});
     });
-    document.querySelectorAll('.saved-item').forEach(node=>{
-      const isRecipe=node.classList.contains('saved-recipe-item');
+    document.querySelectorAll('.saved-recipe-item').forEach(node=>{
       add({
-        tab:isRecipe?'products':'saves',
-        kind:isRecipe?'Рецепт':'Свидание',
+        tab:'products',
+        kind:'Рецепт',
         title:node.querySelector('.saved-item-head > strong')?.textContent||'Сохранение',
         text:node.textContent||'',
         node
@@ -1383,7 +1382,7 @@
   function applySavesCategoryState(type,collapsed){
     const section=document.querySelector('[data-saves-category="'+type+'"]');
     const toggle=document.querySelector('[data-saves-toggle="'+type+'"]');
-    const body=byId(type==='date'?'savedDatesBody':'savedRecipesBody');
+    const body=byId('savedRecipesBody');
     if(!section||!toggle||!body) return;
     section.classList.toggle('is-collapsed',Boolean(collapsed));
     toggle.setAttribute('aria-expanded',collapsed?'false':'true');
@@ -1393,8 +1392,7 @@
   function restoreSavesCategoryState(type){
     let stored=null;
     try{stored=localStorage.getItem(savesCollapseKey(type))}catch(_){}
-    const dateCount=savesState.filter(item=>item?.type==='date').length;
-    const fallback=stored===null ? (type==='date'&&dateCount>3) : stored==='1';
+    const fallback=stored==='1';
     const collapsed=window.RUDI_UI_PREFERENCES?.getViewState?.('saves:'+type,fallback)??fallback;
     applySavesCategoryState(type,collapsed);
   }
@@ -1415,10 +1413,6 @@
     return new Intl.DateTimeFormat('ru-RU',{
       day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'
     }).format(date).replace(',',' ·');
-  }
-
-  function datePeriodText(value){
-    return value==='morning'?'Утро':value==='day'?'День':value==='evening'?'Вечер':'';
   }
 
   function savedDeleteButton(id){
@@ -1447,43 +1441,12 @@
 
   function savedMeta(item){
     const bits=[];
-    if(item.type==='date'){
-      const period=datePeriodText(item.payload?.period);
-      if(period) bits.push(period);
-      if(item.payload?.duration) bits.push(String(item.payload.duration));
-    }else{
-      if(item.payload?.timeMinutes) bits.push('≈ '+item.payload.timeMinutes+' мин');
-      if(item.payload?.difficulty) bits.push(String(item.payload.difficulty));
-    }
+    if(item.payload?.timeMinutes) bits.push('≈ '+item.payload.timeMinutes+' мин');
+    if(item.payload?.difficulty) bits.push(String(item.payload.difficulty));
     if(item.savedBy) bits.push('Сохранил'+(item.savedBy==='Диана'?'а ':' ')+item.savedBy);
     const when=formatSavedDate(item.createdAt);
     if(when) bits.push(when);
     return bits.join(' · ');
-  }
-
-  function renderSavedDateItem(item){
-    const card=document.createElement('article');
-    card.className='saved-item saved-date-item';
-    card.dataset.savedId=String(item.id||'');
-    card.dataset.rudiItemId=String(item.id||'');
-
-    const top=document.createElement('div');
-    top.className='saved-item-head';
-    const title=document.createElement('strong');
-    title.textContent=String(item.payload?.title||'Свидание');
-    top.appendChild(title);
-    if(String(item.savedBy||'')===String(savesActor||'')) top.appendChild(savedDeleteButton(item.id));
-
-    const meta=document.createElement('div');
-    meta.className='saved-item-meta';
-    meta.textContent=savedMeta(item);
-
-    const description=document.createElement('p');
-    description.className='saved-item-description';
-    description.textContent=String(item.payload?.description||'');
-
-    card.append(top,meta,description);
-    return card;
   }
 
   function recipeDetailSection(titleText){
@@ -1600,25 +1563,12 @@
   }
 
   function renderSaves(){
-    const dates=savesState.filter(item=>item?.type==='date');
     const recipes=savesState.filter(item=>item?.type==='recipe');
-    const datesList=byId('savedDatesList');
-    const recipesList=byId('savedRecipesList');
-    const datesEmpty=byId('savedDatesEmpty');
-    const recipesEmpty=byId('savedRecipesEmpty');
-    if(!datesList||!recipesList) return;
-
-    datesList.replaceChildren(...dates.map(renderSavedDateItem));
-    recipesList.replaceChildren(...recipes.map(renderSavedRecipeItem));
-
-    if(datesEmpty) datesEmpty.hidden=dates.length>0;
-    if(recipesEmpty) recipesEmpty.hidden=recipes.length>0;
-    if(byId('savedDatesCount')) byId('savedDatesCount').textContent=String(dates.length);
-    if(byId('savedRecipesCount')) byId('savedRecipesCount').textContent=String(recipes.length);
-    if(byId('savesTotalCount')) byId('savesTotalCount').textContent=dates.length?String(dates.length):'';
-
-    const status=byId('savesStatus');
-    if(status) status.textContent=dates.length?'Сохранённые идеи свиданий Рустама и Дианы':'Сохраняйте сюда понравившиеся идеи свиданий';
+    const list=byId('savedRecipesList');
+    if(!list)return;
+    list.replaceChildren(...recipes.map(renderSavedRecipeItem));
+    const empty=byId('savedRecipesEmpty');if(empty)empty.hidden=recipes.length>0;
+    const count=byId('savedRecipesCount');if(count)count.textContent=String(recipes.length);
   }
 
   async function loadSaves(){
@@ -1640,7 +1590,6 @@
         savesActor=String(data.actor||savesActor);
         savesState=Array.isArray(data.items)?data.items:[];
         renderSaves();
-        restoreSavesCategoryState('date');
         restoreSavesCategoryState('recipe');
         return savesState;
       }catch(error){
@@ -1680,11 +1629,6 @@
       button.dataset.savesBound='1';
       button.addEventListener('click',()=>toggleSavesCategory(String(button.dataset.savesToggle||'')));
     });
-    const back=byId('datesBackButton');
-    if(back&&back.dataset.bound!=='1'){
-      back.dataset.bound='1';
-      back.addEventListener('click',()=>{if(typeof window.RUDI_GO_BACK==='function')window.RUDI_GO_BACK();else routeTo('home');});
-    }
     if(document.body.dataset.appTab==='products'&&!savesKitchenInitialLoadStarted){
       savesKitchenInitialLoadStarted=true;
       loadSaves().catch(()=>{});
@@ -1692,7 +1636,7 @@
   }
 
   window.addEventListener('rudi-saves-synced',()=>{
-    if(['dates','products'].includes(String(document.body?.dataset?.appTab||'')))
+    if(['products'].includes(String(document.body?.dataset?.appTab||'')))
       void loadSaves().catch(()=>{});
   });
   window.RUDI_SAVES={
@@ -1704,327 +1648,6 @@
       renderSaves();
       return data;
     }
-  };
-
-
-  let forDiState=[];
-  let forDiActor='';
-  let forDiLoadPromise=null;
-
-  async function forDiRequest(operation,payload={}){
-    const response=await fetch('/api/partner-message?rudiAction=for-di-feed',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        initData:window.Telegram?.WebApp?.initData||'',
-        backupToken:window.RUDI_STATE_BACKUP?.getToken?.()||'',
-        operation,
-        ...payload
-      }),
-      cache:'no-store'
-    });
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok||!data.ok){
-      const error=new Error(data.error||'for-di-request-failed');
-      error.status=response.status;
-      throw error;
-    }
-    if(data.backupToken) await window.RUDI_STATE_BACKUP?.storeToken?.(data.backupToken);
-    return data;
-  }
-
-  function forDiDateLabel(value){
-    const match=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if(!match) return String(value||'');
-    const date=new Date(Number(match[1]),Number(match[2])-1,Number(match[3]));
-    if(Number.isNaN(date.getTime())) return String(value||'');
-    return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',year:'numeric'}).format(date);
-  }
-
-  function forDiTimeLabel(value){
-    const date=new Date(String(value||''));
-    if(Number.isNaN(date.getTime())) return '';
-    return new Intl.DateTimeFormat('ru-RU',{hour:'2-digit',minute:'2-digit'}).format(date);
-  }
-
-  function forDiSourceLabel(value){
-    const source=String(value||'').trim();
-    if(source==='labor') return 'Трудовой кодекс';
-    if(source==='stylist-leads') return 'Клиенты для стилиста';
-    if(source==='clients-advice') return 'Работа с клиентами';
-    return source ? source : 'Для Ди';
-  }
-
-  const FOR_DI_LABOR_RETENTION_MS=7*24*60*60*1000;
-
-  function forDiItemExpired(item){
-    if(String(item?.source||'').trim()!=='labor') return false;
-    let created=Date.parse(String(item?.createdAt||''));
-    if(!Number.isFinite(created)){
-      const dateKey=String(item?.dateKey||'').trim();
-      created=/^\d{4}-\d{2}-\d{2}$/.test(dateKey)?Date.parse(dateKey+'T00:00:00+03:00'):NaN;
-    }
-    return Number.isFinite(created)&&created<Date.now()-FOR_DI_LABOR_RETENTION_MS;
-  }
-
-  function forDiDisplayText(item){
-    let text=String(item?.text||'');
-    if(String(item?.source||'').trim()==='labor'){
-      text=text
-        .replace(/^\s*(?:⚖️\s*)?Трудовой кодекс\s*(?:\r?\n)+/iu,'')
-        .replace(/(?:\r?\n)?\s*Актуальная редакция ТК РФ\s*(?:→|:|-)?\s*(?=https?:\/\/)/giu,'\n');
-    }
-    return text.trim();
-  }
-
-  function appendForDiLinkedText(host,value,{linkLabel=''}={}){
-    const text=String(value||'');
-    const pattern=/(https?:\/\/[^\s]+)/giu;
-    let last=0;
-    for(const match of text.matchAll(pattern)){
-      const index=Number(match.index||0);
-      if(index>last) host.appendChild(document.createTextNode(text.slice(last,index)));
-      let url=String(match[0]||'');
-      let trailing='';
-      while(url&&/[),.;!?]$/.test(url)){
-        trailing=url.slice(-1)+trailing;
-        url=url.slice(0,-1);
-      }
-      if(url){
-        const link=document.createElement('a');
-        link.href=url;
-        link.target='_blank';
-        link.rel='noopener noreferrer';
-        link.textContent=linkLabel||url;
-        host.appendChild(link);
-      }
-      if(trailing) host.appendChild(document.createTextNode(trailing));
-      last=index+String(match[0]||'').length;
-    }
-    if(last<text.length) host.appendChild(document.createTextNode(text.slice(last)));
-  }
-
-  function renderForDiSaveButton(item,{savedView=false}={}){
-    const button=document.createElement('button');
-    button.type='button';
-    button.className='for-di-save'+(item?.saved&&!savedView?' is-saved':'');
-    button.setAttribute('aria-label',savedView?'Убрать из сохранённых':item?.saved?'Сохранено':'Сохранить');
-    button.innerHTML=savedView
-      ?'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></svg><span>Убрать</span>'
-      :'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4.5h12a1.5 1.5 0 0 1 1.5 1.5v14l-7.5-4-7.5 4V6A1.5 1.5 0 0 1 6 4.5Z"/></svg><span>'+(item?.saved?'Сохранено':'Сохранить')+'</span>';
-    if(item?.saved&&!savedView) button.disabled=true;
-    button.addEventListener('click',async()=>{
-      if(button.disabled) return;
-      button.disabled=true;
-      try{
-        const operation=savedView?'remove-saved':'save';
-        const data=await forDiRequest(operation,{id:item.id});
-        forDiActor=String(data.actor||forDiActor);
-        forDiState=Array.isArray(data.items)?data.items:forDiState;
-        renderForDi();
-        showMiniToast(savedView?'Убрано из сохранённых':(data.duplicate?'Уже сохранено':'Сохранено'));
-        try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
-      }catch(_){
-        button.disabled=false;
-        showMiniToast(savedView?'Не удалось убрать':'Не удалось сохранить');
-        try{window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-      }
-    });
-    return button;
-  }
-
-  function forDiCollapseKey(type){
-    const actor=forDiActor==='Диана'?'diana':'rustam';
-    return 'rudi:for-di:collapsed:v1:'+actor+':'+type;
-  }
-
-  function applyForDiCategoryState(type,collapsed){
-    const section=document.querySelector('[data-for-di-category="'+type+'"]');
-    const toggle=document.querySelector('[data-for-di-toggle="'+type+'"]');
-    const bodyId={labor:'forDiLaborBody',saved:'forDiSavedBody',stylist:'forDiStylistBody'}[type];
-    const body=bodyId?byId(bodyId):null;
-    if(!section||!toggle||!body) return;
-    section.classList.toggle('is-collapsed',Boolean(collapsed));
-    toggle.setAttribute('aria-expanded',collapsed?'false':'true');
-    body.hidden=Boolean(collapsed);
-  }
-
-  const FOR_DI_CATEGORY_TYPES=['labor','saved','stylist'];
-
-  function restoreForDiCategoryState(type){
-    let stored=null;
-    try{stored=localStorage.getItem(forDiCollapseKey(type))}catch(_){}
-    const fallback=stored===null?true:stored==='1';
-    const collapsed=window.RUDI_UI_PREFERENCES?.getViewState?.('for-di:'+type,fallback)??fallback;
-    if(!collapsed){
-      FOR_DI_CATEGORY_TYPES.filter(other=>other!==type).forEach(other=>applyForDiCategoryState(other,true));
-    }
-    applyForDiCategoryState(type,collapsed);
-  }
-
-  function toggleForDiCategory(type){
-    const section=document.querySelector('[data-for-di-category="'+type+'"]');
-    if(!section) return;
-    const collapsed=!section.classList.contains('is-collapsed');
-    if(!collapsed){
-      FOR_DI_CATEGORY_TYPES.filter(other=>other!==type).forEach(other=>{
-        applyForDiCategoryState(other,true);
-        try{localStorage.setItem(forDiCollapseKey(other),'1')}catch(_){}
-        window.RUDI_UI_PREFERENCES?.setViewState?.('for-di:'+other,true);
-      });
-    }
-    applyForDiCategoryState(type,collapsed);
-    try{localStorage.setItem(forDiCollapseKey(type),collapsed?'1':'0')}catch(_){}
-    window.RUDI_UI_PREFERENCES?.setViewState?.('for-di:'+type,collapsed);
-    try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
-  }
-
-  function renderForDiRows(host,rows,{savedView=false}={}){
-    if(!host) return;
-    host.replaceChildren();
-    const groups=new Map();
-    rows.forEach(item=>{
-      const key=String(item?.dateKey||'').trim()||'Без даты';
-      if(!groups.has(key)) groups.set(key,[]);
-      groups.get(key).push(item);
-    });
-
-    groups.forEach((items,dateKey)=>{
-      const group=document.createElement('section');
-      group.className='for-di-day';
-      const heading=document.createElement('div');
-      heading.className='for-di-day-title';
-      heading.textContent=forDiDateLabel(dateKey);
-      group.appendChild(heading);
-
-      const stack=document.createElement('div');
-      stack.className='for-di-day-items';
-      items.forEach(item=>{
-        const card=document.createElement('article');
-        card.className='for-di-card';
-        card.dataset.rudiItemId=String(item.id||'');
-
-        const meta=document.createElement('div');
-        meta.className='for-di-card-meta';
-        const source=document.createElement('span');
-        source.className='for-di-source';
-        source.textContent=forDiSourceLabel(item.source);
-        const time=document.createElement('time');
-        time.textContent=forDiTimeLabel(item.createdAt);
-        meta.append(source,time);
-
-        const body=document.createElement('div');
-        body.className='for-di-card-text';
-        const laborItem=String(item?.source||'').trim()==='labor';
-        appendForDiLinkedText(body,forDiDisplayText(item),{linkLabel:laborItem?'Подробнее':''});
-
-        const footer=document.createElement('div');
-        footer.className='for-di-card-footer';
-        footer.appendChild(renderForDiSaveButton(item,{savedView}));
-
-        card.append(meta,body,footer);
-        stack.appendChild(card);
-      });
-      group.appendChild(stack);
-      host.appendChild(group);
-    });
-  }
-
-  function renderForDi(){
-    const laborList=byId('forDiLaborList');
-    const savedList=byId('forDiSavedList');
-    const stylistList=byId('forDiStylistList');
-    const laborEmpty=byId('forDiLaborEmpty');
-    const savedEmpty=byId('forDiSavedEmpty');
-    const stylistEmpty=byId('forDiStylistEmpty');
-    const laborCount=byId('forDiLaborCount');
-    const savedCount=byId('forDiSavedCount');
-    const stylistCount=byId('forDiStylistCount');
-    const totalCount=byId('forDiTotalCount');
-    const status=byId('forDiStatus');
-    if(!laborList||!savedList||!stylistList) return;
-
-    const laborRows=[...forDiState]
-      .filter(item=>String(item?.source||'').trim()==='labor'&&!forDiItemExpired(item))
-      .sort((a,b)=>{
-        const at=Date.parse(String(a?.createdAt||''))||0;
-        const bt=Date.parse(String(b?.createdAt||''))||0;
-        return bt-at;
-      });
-
-    const savedRows=[...forDiState]
-      .filter(item=>Boolean(item?.saved))
-      .sort((a,b)=>{
-        const at=Date.parse(String(a?.savedAt||a?.createdAt||''))||0;
-        const bt=Date.parse(String(b?.savedAt||b?.createdAt||''))||0;
-        return bt-at;
-      });
-    const stylistRows=[];
-
-    renderForDiRows(laborList,laborRows);
-    renderForDiRows(savedList,savedRows,{savedView:true});
-    stylistList.replaceChildren();
-
-    if(laborEmpty) laborEmpty.hidden=laborRows.length>0;
-    if(savedEmpty) savedEmpty.hidden=savedRows.length>0;
-    if(stylistEmpty) stylistEmpty.hidden=stylistRows.length>0;
-    if(laborCount) laborCount.textContent=String(laborRows.length);
-    if(savedCount) savedCount.textContent=String(savedRows.length);
-    if(stylistCount) stylistCount.textContent='0';
-    if(totalCount) totalCount.textContent=laborRows.length?String(laborRows.length):'';
-
-    if(status){
-      status.textContent='';
-      status.hidden=true;
-    }
-
-    restoreForDiCategoryState('labor');
-    restoreForDiCategoryState('saved');
-    restoreForDiCategoryState('stylist');
-  }
-
-  async function loadForDi(){
-    if(forDiLoadPromise) return forDiLoadPromise;
-    const status=byId('forDiStatus');
-    if(status&&!forDiState.length){ status.hidden=false; status.textContent='Загружаю материалы…'; }
-    forDiLoadPromise=(async()=>{
-      try{
-        const data=await forDiRequest('list');
-        forDiActor=String(data.actor||forDiActor);
-        forDiState=Array.isArray(data.items)?data.items:[];
-        renderForDi();
-        return forDiState;
-      }catch(error){
-        if(status){
-          status.hidden=false;
-          status.textContent=navigator.onLine===false
-            ?'Нет сети. Материалы будут доступны после подключения.'
-            :'Не удалось загрузить материалы';
-        }
-        throw error;
-      }finally{
-        forDiLoadPromise=null;
-      }
-    })();
-    return forDiLoadPromise;
-  }
-
-  function setupForDiPage(){
-    const back=byId('forDiBackButton');
-    if(back&&back.dataset.bound!=='1'){
-      back.dataset.bound='1';
-      back.addEventListener('click',()=>{if(typeof window.RUDI_GO_BACK==='function')window.RUDI_GO_BACK();else routeTo('home');});
-    }
-    document.querySelectorAll('[data-for-di-toggle]').forEach(button=>{
-      if(button.dataset.forDiBound==='1') return;
-      button.dataset.forDiBound='1';
-      button.addEventListener('click',()=>toggleForDiCategory(String(button.dataset.forDiToggle||'')));
-    });
-  }
-
-  window.RUDI_FOR_DI={
-    load:loadForDi,
-    refresh:loadForDi
   };
 
 
@@ -2088,7 +1711,6 @@
     installOfflineQueueSettings();
     removeRetiredQuickAdd();
     setupSavesPage();
-    setupForDiPage();
     setupRecipeWakeLock();
   }
 
@@ -2105,8 +1727,7 @@
   observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['data-rudi-actor']});
 
   window.addEventListener('rudi:ui-preferences-applied',()=>{
-    try{FOR_DI_CATEGORY_TYPES.forEach(type=>restoreForDiCategoryState(type))}catch(_){}
-    try{['date','recipe'].forEach(type=>restoreSavesCategoryState(type))}catch(_){}
+    try{['recipe'].forEach(type=>restoreSavesCategoryState(type))}catch(_){}
   });
 
 })();

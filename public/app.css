@@ -1191,7 +1191,7 @@
       .card{min-height:72px}
     }
 
-  
+
     .ticktick-toggle{outline:none;-webkit-tap-highlight-color:transparent}
     .ticktick-panel.expandable .ticktick-toggle{cursor:pointer}
     .ticktick-panel.expandable .ticktick-toggle:focus-visible{
@@ -1309,7 +1309,7 @@
     .watch-card::after{background:rgba(85,168,255,.15)}
     .watch-card .daily-icon{background:rgba(85,168,255,.13);color:#3e8edb}
 
-  
+
     .holiday-trigger{
       grid-column:1/-1;
       width:100%;
@@ -1541,7 +1541,7 @@
       }
     }
 
-  
+
     .mood-message{
       max-height:0;
       opacity:0;
@@ -1585,7 +1585,7 @@
       background:linear-gradient(135deg,rgba(240,184,75,.11),transparent 72%),var(--soft);
     }
 
-  
+
     .holiday-item-content{min-width:0;display:grid;gap:6px}
     .holiday-item-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0}
     .holiday-item.partner-relevant{
@@ -1618,7 +1618,7 @@
       font-weight:690;
     }
 
-  
+
     :root{--tg-content-safe-top:0px}
     body{
       padding-top:max(
@@ -1837,7 +1837,7 @@
       .weather-rays,.weather-sun,.weather-cloud,.rain-drop,.snow-dot,.weather-fog,.weather-bolt,.work-calendar-skeleton{animation:none!important}
     }
 
-  
+
     .updates-card{padding:0;border-radius:22px;overflow:hidden}
     .updates-toggle{
       width:100%;display:grid;grid-template-columns:38px minmax(0,1fr) 30px;align-items:center;gap:11px;
@@ -1931,7 +1931,7 @@
       .work-calendar-toggle-title{font-size:18px}
     }
 
-  
+
     .work-calendar-ranges{
       display:grid;
       grid-template-columns:.72fr 1fr 1.2fr;
@@ -1970,7 +1970,7 @@
       .work-range-button{padding:7px 5px;font-size:9.8px}
     }
 
-  
+
     .daily-grid{gap:8px}
     .daily-card.suggestion{
       padding:12px 13px;
@@ -2014,7 +2014,7 @@
       .daily-card .suggestion-value{font-size:12px}
     }
 
-  
+
     /* Compact top profile */
     .profile{
       padding:10px 12px !important;
@@ -2280,7 +2280,7 @@
     }
     .profile .profile-mood .block-collapse-button svg{width:12px;height:12px}
 
-  
+
     .profile .profile-mood{
       display:grid !important;
       grid-template-columns:auto auto auto;
@@ -2323,7 +2323,7 @@
       .mood-prompt{font-size:7px;padding:3px 4px}
     }
 
-  
+
     /* Dark premium profile header */
     .profile{
       border:1px solid rgba(255,255,255,.10) !important;
@@ -2399,7 +2399,7 @@
       box-shadow:0 9px 22px rgba(0,0,0,.30),0 0 0 1px rgba(255,255,255,.04) !important;
     }
 
-  
+
     /* Clean mood strip */
     .profile .identity{
       grid-template-columns:auto minmax(0,1fr) !important;
@@ -2510,7 +2510,7 @@
       .profile .partner-mood-value{width:27px!important;height:27px!important}
     }
 
-  
+
     /* Fix partner mood alignment */
     .profile .partner-mood{
       display:grid !important;
@@ -2548,7 +2548,7 @@
       overscroll-behavior-x:none;
     }
 
-  
+
     /* Partner mood alignment fix */
     .profile .partner-mood-icon[hidden]{display:none !important}
     .profile .partner-mood-empty[hidden]{display:none !important}
@@ -2577,7 +2577,7 @@
       place-items:center;
     }
 
-  
+
     /* iOS-style bottom tab navigation */
     .shell{
       padding-bottom:calc(94px + env(safe-area-inset-bottom)) !important;
@@ -2687,7 +2687,7 @@
       .shell{padding-bottom:calc(90px + env(safe-area-inset-bottom)) !important}
     }
 
-  
+
     body.auth-pending .app-tabbar,
     body.auth-denied .app-tabbar,
     body.auth-login .app-tabbar{
@@ -2697,7 +2697,7 @@
     }
     body.auth-ok .app-tabbar{visibility:visible}
 
-  
+
     .app-tabbar{
       bottom:max(8px,env(safe-area-inset-bottom),var(--tg-content-safe-area-inset-bottom,0px));
     }
@@ -2757,13 +2757,6 @@
     .shared-album-photo,.shared-album-placeholder{border-radius:9px!important}
     .shared-album-open{min-height:34px!important;margin-top:7px!important;padding:7px 9px!important}
 
-
-
-
-
-
-
-
     .updates-static{padding:11px!important;border-radius:18px!important}
     .updates-static-head{
       display:grid;
@@ -2789,9 +2782,6 @@
       .app-tab-button{font-size:7.6px!important;padding-left:1px!important;padding-right:1px!important}
       .app-tab-icon{width:23px!important;height:23px!important}
       .app-tab-icon svg{width:19px!important;height:19px!important}
-
-
-
 
     }
 
@@ -2867,9 +2857,6 @@
     }
     .wishlist-page .wishlist-column-head{margin-bottom:8px!important}
     @media(max-width:370px){
-
-
-
 
     }
 
@@ -6562,8 +6549,6 @@ body.home-layout-editing .market-ticker-tile{min-height:38px}
 }
 /* end RUDI v1.11.0 market ticker */
 
-
-
     /* Kitchen section switcher */
     .kitchen-switcher{
       display:grid;
@@ -7558,94 +7543,6 @@ html[data-theme="dark"] .partner-message .partner-edit{
 
 
 /* RUDI v1.14.0 — quick access + five-tab navigation */
-.quick-access-tile{
-  display:grid;
-  gap:12px;
-  padding:16px;
-  overflow:hidden;
-  background:
-    radial-gradient(circle at 100% 0%,color-mix(in srgb,var(--accent) 10%,transparent),transparent 42%),
-    var(--surface);
-}
-.quick-access-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.quick-access-head h2{margin:2px 0 0;font-size:19px;line-height:1.12;letter-spacing:-.025em}
-.quick-access-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.quick-access-actions>.quick-access-button:last-child:nth-child(odd){grid-column:1/-1}
-.quick-access-button{
-  min-width:0;
-  min-height:72px;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  padding:11px 12px;
-  border:1px solid color-mix(in srgb,var(--line) 78%,transparent);
-  border-radius:17px;
-  background:color-mix(in srgb,var(--surface-strong) 91%,transparent);
-  color:var(--text);
-  font:inherit;
-  text-align:left;
-  cursor:pointer;
-  -webkit-tap-highlight-color:transparent;
-  transition:transform .16s ease,border-color .18s ease,background-color .18s ease;
-}
-.quick-access-button:active{transform:scale(.975)}
-.quick-access-button.is-wishlist{background:linear-gradient(145deg,color-mix(in srgb,var(--love-soft) 68%,var(--surface-strong)),var(--surface-strong))}
-.quick-access-button.is-date{background:linear-gradient(145deg,color-mix(in srgb,var(--accent-soft) 64%,var(--surface-strong)),var(--surface-strong))}
-.quick-access-button.is-fasting{
-  background:linear-gradient(145deg,color-mix(in srgb,var(--green-soft) 58%,var(--surface-strong)),var(--surface-strong));
-}
-.quick-access-button.is-calendar{background:linear-gradient(145deg,color-mix(in srgb,var(--accent-soft) 58%,var(--surface-strong)),var(--surface-strong))}
-.quick-access-icon{
-  width:34px;height:34px;flex:0 0 34px;display:grid;place-items:center;border-radius:11px;
-  background:color-mix(in srgb,var(--surface) 80%,transparent);
-}
-.quick-access-icon svg{width:21px;height:21px}
-.quick-access-copy{min-width:0;display:grid;gap:3px}
-.quick-access-copy strong{font-size:12.5px;line-height:1.18;font-weight:800}
-.quick-access-copy small{color:var(--muted);font-size:9.5px;line-height:1.2;font-weight:600}
-.date-time-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
-.date-time-choices[hidden]{display:none!important}
-.date-time-choices button{
-  min-height:38px;
-  padding:8px;
-  border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));
-  border-radius:12px;
-  background:color-mix(in srgb,var(--accent-soft) 50%,var(--surface));
-  color:var(--text);
-  font:inherit;
-  font-size:11px;
-  font-weight:780;
-  cursor:pointer;
-}
-.date-time-choices button:active{transform:scale(.97)}
-.date-time-choices button:disabled{opacity:.55;cursor:wait}
-.date-idea-status{min-height:0;color:var(--muted);font-size:10.5px;line-height:1.35}
-.date-idea-status:empty{display:none}
-.date-idea-results{display:grid;gap:8px}
-.date-idea-results[hidden]{display:none!important}
-.date-idea-results-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:2px}
-.date-idea-results-head strong{font-size:12px;font-weight:800}
-.date-idea-results-head span{color:var(--muted);font-size:9.5px;font-weight:680}
-.date-idea-card{
-  display:grid;
-  grid-template-columns:28px minmax(0,1fr);
-  gap:10px;
-  padding:11px 12px;
-  border:1px solid color-mix(in srgb,var(--line) 74%,transparent);
-  border-radius:15px;
-  background:color-mix(in srgb,var(--surface-strong) 90%,transparent);
-}
-.date-idea-number{
-  width:28px;height:28px;display:grid;place-items:center;border-radius:9px;
-  background:color-mix(in srgb,var(--accent-soft) 78%,transparent);
-  color:var(--accent);
-  font-size:10px;
-  font-weight:850;
-}
-.date-idea-copy{min-width:0;display:grid;gap:4px}
-.date-idea-copy strong{font-size:12.5px;line-height:1.22;font-weight:800}
-.date-idea-copy p{margin:0;color:var(--text);font-size:11px;line-height:1.42}
-.date-idea-copy small{color:var(--muted);font-size:9.5px;font-weight:650}
 
 .app-tabbar{
   grid-template-columns:repeat(5,minmax(0,1fr))!important;
@@ -7666,17 +7563,15 @@ html[data-theme="dark"] .partner-message .partner-edit{
 .app-tab-icon{width:29px;height:29px;border-radius:10px}
 .app-tab-icon svg{width:22px;height:22px}
 @media(max-width:430px){
-  .quick-access-actions{gap:7px}
-  .quick-access-button{min-height:68px;padding:10px}
-  .quick-access-copy strong{font-size:11.5px}
+
   .app-tabbar{width:calc(100% - 16px);min-height:68px;padding:5px 6px;gap:4px}
   .app-tab-button{min-height:55px;font-size:9.3px!important}
   .app-tab-icon{width:28px;height:28px}
   .app-tab-icon svg{width:21px;height:21px}
 }
 @media(max-width:350px){
-  .quick-access-actions{grid-template-columns:1fr}
-  .quick-access-button{min-height:60px}
+
+
   .app-tab-button{font-size:8.7px!important;padding-inline:2px}
 }
 
@@ -9071,18 +8966,7 @@ html[data-theme="light"] .profile-supplement-intakes-empty{color:rgba(48,54,68,.
 
 
 /* RUDI v2.28 — dedicated Dates page */
-.dates-page{display:grid;gap:12px;width:100%;max-width:720px;margin:0 auto;padding:6px 0 18px}
-.dates-page[hidden]{display:none!important}
-.dates-page-head{display:grid;grid-template-columns:42px minmax(0,1fr);gap:10px;align-items:center;padding:4px 2px 2px}
-.dates-page-head h1{margin:2px 0 0;font-size:25px;line-height:1.05;letter-spacing:-.035em}
-.dates-back-button{
-  width:42px;height:42px;display:grid;place-items:center;padding:0;border:1px solid var(--line);
-  border-radius:14px;background:var(--surface);color:var(--text);cursor:pointer
-}
-.dates-back-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.dates-generator{display:grid;gap:11px;padding:15px;border-radius:20px}
-.dates-generator-head h2,.dates-saves-head h2{margin:2px 0 0;font-size:18px;line-height:1.15}
-.dates-generator-head p{margin:5px 0 0;color:var(--muted);font-size:10.5px;line-height:1.4}
+
 .dates-generate-button{
   width:100%;display:grid;grid-template-columns:38px minmax(0,1fr) 20px;align-items:center;gap:10px;
   min-height:62px;padding:11px 12px;border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));
@@ -9096,10 +8980,6 @@ html[data-theme="light"] .profile-supplement-intakes-empty{color:rgba(48,54,68,.
 .dates-generate-copy small{color:var(--muted);font-size:9.5px}
 .dates-generate-chevron{width:18px;height:18px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .18s ease}
 .dates-generate-button[aria-expanded="true"] .dates-generate-chevron{transform:rotate(180deg)}
-.dates-saves{display:grid;gap:8px}
-.dates-saves-head{display:flex;align-items:end;justify-content:space-between;gap:12px;padding:4px 2px 0}
-.dates-saved-category{margin-top:2px}
-
 
 /* RUDI v2.29 — reactions belong to individual Feed items */
 .feed-item-reaction{
@@ -10093,11 +9973,6 @@ html[data-theme="dark"] .app-tab-button.active .app-tab-icon{
 
 
 /* RUDI v2.45 — date generator numbered steps */
-.date-idea-copy p,
-.saved-date-item .saved-item-description{
-  white-space:pre-line;
-}
-
 
 /* RUDI v2.46 — current moon phase under home date */
 .home-dashboard-moon,
@@ -10150,25 +10025,7 @@ body[data-app-tab="home"] .daily-question-card{
   padding:15px!important;
   border-radius:22px!important;
 }
-body[data-app-tab="home"] .quick-access-tile{
-  gap:9px!important;
-  padding:13px!important;
-  border-radius:22px!important;
-}
-body[data-app-tab="home"] .quick-access-head h2{font-size:18px}
-body[data-app-tab="home"] .quick-access-actions{gap:7px}
-body[data-app-tab="home"] .quick-access-button{
-  min-height:54px!important;
-  gap:8px!important;
-  padding:8px 10px!important;
-  border-radius:15px!important;
-}
-body[data-app-tab="home"] .quick-access-icon{
-  width:30px;
-  height:30px;
-  flex-basis:30px;
-  border-radius:10px;
-}
+
 body[data-app-tab="home"] .daily-question-card.is-waiting{
   padding:13px 15px!important;
 }
@@ -10204,8 +10061,8 @@ body[data-app-tab="home"] .daily-question-card.is-waiting .daily-question-status
   body[data-app-tab="home"] .profile{padding:14px 15px!important}
   body[data-app-tab="home"] .partner-message{padding:15px!important}
   body[data-app-tab="home"] .daily-question-card{padding:14px!important}
-  body[data-app-tab="home"] .quick-access-tile{padding:12px!important}
-  body[data-app-tab="home"] .quick-access-button{min-height:52px!important}
+
+
 }
 
 
@@ -10274,12 +10131,7 @@ body[data-app-tab="fasting"] .fasting-history-toggle{
   cursor:pointer;
 }
 body[data-app-tab="fasting"] .fasting-history-card.is-collapsed .fasting-card-heading{margin-bottom:0}
-body[data-app-tab="dates"] .dates-page{gap:10px}
-body[data-app-tab="dates"] .dates-page-head h1{font-size:23px}
-body[data-app-tab="dates"] .dates-generator{
-  gap:10px;
-  padding:13px 14px;
-}
+
 @media(max-width:430px){
   body[data-app-tab="feed"] .feed-today{padding:11px 11px 13px}
   body[data-app-tab="wishlist"] .wishlist-url-toggle{min-height:22px}
@@ -10296,24 +10148,7 @@ body[data-app-tab="dates"] .dates-generator{
   --rudi-motion-ease:cubic-bezier(.2,.82,.2,1);
   --rudi-motion-press:cubic-bezier(.22,.75,.24,1);
 }
-.app-tabbar .app-tab-button,
-.app-tabbar .app-tab-icon,
-.quick-access-button,
-.home-new-item,
-.block-collapse-button,
-.block-collapse-button svg,
-.home-order-controls,
-.home-order-button,
-.settings-theme-option,
-.settings-segmented button,
-.market-ticker-toggle,
-.fasting-history-toggle,
-.wishlist-url-toggle,
-.partner-action,
-.products-bought-all,
-.products-clear,
-.fasting-start-button,
-.fasting-stop-button{
+.app-tabbar .app-tab-button,.app-tabbar .app-tab-icon,.home-new-item,.block-collapse-button,.block-collapse-button svg,.home-order-controls,.home-order-button,.settings-theme-option,.settings-segmented button,.market-ticker-toggle,.fasting-history-toggle,.wishlist-url-toggle,.partner-action,.products-bought-all,.products-clear,.fasting-start-button,.fasting-stop-button{
   transition:
     transform var(--rudi-motion-fast) var(--rudi-motion-press),
     opacity var(--rudi-motion-base) ease,
@@ -10322,18 +10157,7 @@ body[data-app-tab="dates"] .dates-generator{
     border-color var(--rudi-motion-base) ease,
     box-shadow var(--rudi-motion-base) ease;
 }
-.quick-access-button:active,
-.home-new-item:active,
-.block-collapse-button:active,
-.home-order-button:active:not(:disabled),
-.fasting-history-toggle:active,
-.settings-theme-option:active,
-.settings-segmented button:active,
-.partner-action:active,
-.products-bought-all:active:not(:disabled),
-.products-clear:active:not(:disabled),
-.fasting-start-button:active:not(:disabled),
-.fasting-stop-button:active:not(:disabled){
+.home-new-item:active,.block-collapse-button:active,.home-order-button:active:not(:disabled),.fasting-history-toggle:active,.settings-theme-option:active,.settings-segmented button:active,.partner-action:active,.products-bought-all:active:not(:disabled),.products-clear:active:not(:disabled),.fasting-start-button:active:not(:disabled),.fasting-stop-button:active:not(:disabled){
   transform:scale(.94);
 }
 .app-tabbar .app-tab-button.active .app-tab-icon{
@@ -10370,10 +10194,7 @@ body.home-layout-editing [data-home-tile] > .home-order-controls{
   to{opacity:1;transform:none}
 }
 @media(hover:hover) and (pointer:fine){
-  .quick-access-button:hover,
-  .feed-card:hover,
-  .wish-item:hover,
-  .product-item:hover{
+  .feed-card:hover,.wish-item:hover,.product-item:hover{
     transform:translateY(-2px);
   }
   .block-collapse-button:hover,
@@ -10382,24 +10203,7 @@ body.home-layout-editing [data-home-tile] > .home-order-controls{
   }
 }
 @media(prefers-reduced-motion:reduce){
-  .app-tabbar .app-tab-button,
-  .app-tabbar .app-tab-icon,
-  .quick-access-button,
-  .home-new-item,
-  .block-collapse-button,
-  .block-collapse-button svg,
-  .home-order-controls,
-  .home-order-button,
-  .settings-theme-option,
-  .settings-segmented button,
-  .market-ticker-toggle,
-  .fasting-history-toggle,
-  .wishlist-url-toggle,
-  .partner-action,
-  .products-bought-all,
-  .products-clear,
-  .fasting-start-button,
-  .fasting-stop-button{
+  .app-tabbar .app-tab-button,.app-tabbar .app-tab-icon,.home-new-item,.block-collapse-button,.block-collapse-button svg,.home-order-controls,.home-order-button,.settings-theme-option,.settings-segmented button,.market-ticker-toggle,.fasting-history-toggle,.wishlist-url-toggle,.partner-action,.products-bought-all,.products-clear,.fasting-start-button,.fasting-stop-button{
     transition:none!important;
   }
   body.home-layout-editing [data-home-tile] > .home-order-controls,
@@ -10433,16 +10237,7 @@ html[data-theme="dark"]{
 }
 
 /* Common surface geometry */
-body[data-app-tab="home"] .partner-message,
-body[data-app-tab="home"] .daily-question-card,
-body[data-app-tab="home"] .quick-access-tile,
-body[data-app-tab="schedule"] .calendar-disclosure-card,
-body[data-app-tab="wishlist"] .wishlist-card,
-body[data-app-tab="products"] .products-card,
-body[data-app-tab="products"] .kitchen-recipes-card,
-body[data-app-tab="fasting"] .fasting-start-card,
-body[data-app-tab="fasting"] .fasting-history-card,
-body[data-app-tab="dates"] .dates-generator{
+body[data-app-tab="home"] .partner-message,body[data-app-tab="home"] .daily-question-card,body[data-app-tab="schedule"] .calendar-disclosure-card,body[data-app-tab="wishlist"] .wishlist-card,body[data-app-tab="products"] .products-card,body[data-app-tab="products"] .kitchen-recipes-card,body[data-app-tab="fasting"] .fasting-start-card,body[data-app-tab="fasting"] .fasting-history-card{
   border-radius:var(--rudi-radius-lg)!important;
   border-color:var(--rudi-surface-border)!important;
   box-shadow:var(--rudi-shadow-2)!important;
@@ -12669,8 +12464,6 @@ html[data-theme="light"] .profile-tool-reminder-badge{border-color:#fff}
 }
 /* end RUDI v3.72 */
 
-
-
 /* RUDI v3.79 — recipe cooking mode */
 .recipe-action-bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0}
 .recipe-portions{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:3px;border:1px solid var(--line);border-radius:13px;background:var(--surface)}
@@ -14792,8 +14585,6 @@ html[data-theme="dark"] .finance-literacy-card{
   .finance-literacy-card h2{font-size:20px}
   .finance-literacy-body p{font-size:11.8px}
 }
-
-
 
 .finance-wallet-history-delete{
   width:24px;
@@ -17296,9 +17087,6 @@ body.finance-month-dialog-open{overflow:hidden!important}
   margin-top:0
 }
 
-
-
-
 /* RUDI v4.75 — finance copy cleanup: remove gaps left by deleted helper labels */
 .finance-page[data-finance-tone="personal"] .finance-wallet-section>.finance-coin-section-head h2,
 .finance-goal-card-compact .finance-history-head h2,
@@ -18528,3 +18316,24 @@ body.auth-pending [data-app-tab-section="home"]{display:none!important}
 .app-startup-card.person{grid-template-columns:48px minmax(0,1fr);align-items:center}
 .app-startup-card.person>div{display:grid;gap:12px}
 .app-startup-avatar{width:48px;height:48px;border-radius:50%;background:var(--line)}
+
+/* Monthly fasting history, using the habit calendar geometry. */
+.fasting-history-calendar{min-width:0;display:grid;gap:12px}
+.fasting-calendar-head{display:grid;grid-template-columns:32px minmax(0,1fr) 32px;align-items:center;gap:8px}
+.fasting-calendar-heading{min-width:0;text-align:center;display:grid;gap:4px}
+.fasting-calendar-title{font-size:14px;color:var(--text);line-height:1.2}
+.fasting-calendar-total{font-size:10px;color:var(--muted);line-height:1.3}
+.fasting-calendar-nav{width:32px;height:32px;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--surface-strong);color:var(--text);font:inherit;font-size:23px;line-height:1}
+.fasting-calendar-nav:disabled{opacity:.3}
+.fasting-calendar-grid{gap:5px}
+.fasting-calendar-day{padding:5px 0;font:inherit;min-width:0;min-height:43px;cursor:pointer}
+.fasting-calendar-day b{font-size:12px}
+.fasting-calendar-day:disabled{cursor:default}
+.fasting-calendar-day.is-partial{background:color-mix(in srgb,#a59af9 18%,var(--surface));border-color:color-mix(in srgb,#a59af9 35%,var(--line));color:var(--text)}
+.fasting-calendar-day.is-selected{box-shadow:inset 0 0 0 2px var(--accent);opacity:1}
+.fasting-calendar-day.is-today{outline-offset:0}
+.fasting-calendar-details{min-width:0}
+.fasting-calendar-selected-date{display:block;margin-top:3px;color:var(--text);font-size:12px}
+.fasting-calendar-hint{display:block;color:var(--muted);font-size:10px;text-align:center;line-height:1.4}
+.fasting-calendar-day:focus-visible,.fasting-calendar-nav:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media(max-width:360px){.fasting-calendar-grid{gap:3px}.fasting-calendar-day{min-height:39px}.fasting-calendar-title{font-size:13px}}

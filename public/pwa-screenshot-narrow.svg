@@ -15,7 +15,7 @@
   <text x="60" y="475" font-family="Arial,sans-serif" font-size="14" fill="#7b818c">ДЛЯ НАС</text>
   <text x="60" y="512" font-family="Arial,sans-serif" font-size="24" font-weight="700" fill="#15171c">Быстрый доступ</text>
   <rect x="60" y="535" width="300" height="46" rx="15" fill="#fff1f7"/><text x="82" y="565" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#15171c">♡  Вишлист</text>
-  <rect x="390" y="535" width="298" height="46" rx="15" fill="#eef1ff"/><text x="412" y="565" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#15171c">⌁  Свидание</text>
+  <rect x="390" y="535" width="298" height="46" rx="15" fill="#eef1ff"/><text x="412" y="565" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#15171c">⌁  Фото</text>
   <rect x="32" y="626" width="686" height="282" rx="30" fill="#fff" stroke="#dfe3eb"/>
   <text x="60" y="676" font-family="Arial,sans-serif" font-size="21" font-weight="700" fill="#15171c">Ближайшее</text>
   <rect x="60" y="708" width="630" height="58" rx="17" fill="#f5f6f9"/><text x="82" y="744" font-family="Arial,sans-serif" font-size="15" fill="#15171c">📅 Совместные дела на сегодня</text>

@@ -1,4 +1,3 @@
-const fs = require('node:fs');
 const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
 const handleHomeNote = require('./home-note.cjs');
 const { handleWalletLogo } = require('./wallet-logo.cjs');
@@ -12,7 +11,6 @@ const {
   handleTelegramTopicRequest,
   isRemovedCoupleTopicUpdate,
   sanitizeHealthPayload,
-  getKnownForumChatId,
 } = require('./topic-maintenance.cjs');
 const { isAliceShoppingLaunch, buildAliceShoppingLaunchResponse } = require('./alice-shopping-response.cjs');
 const { shouldIgnorePassiveTelegramMessage, isEmptyAliceShoppingRequest, isAliceClearIntent, markProductsRuntimeStale } = require('./products-state.cjs');
@@ -21,12 +19,9 @@ const {
   isAliceProductListQuery, buildAliceProductListResponse,
   buildAliceProductAddedResponse, buildAliceProductDeletedResponse, buildAliceNoSharedListResponse,
 } = require('./products-chat.cjs');
-const { publishLaborArticle } = require('./labor-code.cjs');
-const { withLaborPublicationLease } = require('./labor-publication-lock.cjs');
-const { resolveForumChatId, rememberForumChatId } = require('./forum-chat-id.cjs');
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { isGitHubActionsRequestAuthorized } = require('./github-actions-oidc.cjs');
-const { getTopicMaintenanceCache, getLaborCache, getLaborLeaseCache } = require('./stateful-cache.cjs');
+const { getTopicMaintenanceCache } = require('./stateful-cache.cjs');
 const { buildHealthPayload } = require('./control-plane-health.cjs');
 const { createRudiStateClient } = require('./rudi-state-client.cjs');
 const handlePersonalCenter = require('./personal-center-handler.cjs');
@@ -62,7 +57,6 @@ const {
 } = require('./product-list-store.cjs');
 
 let runtimeHandler;
-let laborPublicationFlight = null;
 
 function sanitizeStagePriceText(text) {
   return stripStagePriceLines(text);
@@ -128,28 +122,6 @@ async function runHealthWithoutCouple(req, res) {
   try { return await runRuntime(req, res); } finally { res.json = originalJson; }
 }
 
-function readGeneratedRuntimeSource() { try { return fs.readFileSync(require.resolve('../runtime/generated-runtime.cjs'), 'utf8'); } catch { return ''; } }
-
-async function publishDailyLaborArticle(options = {}) {
-  if (laborPublicationFlight) return laborPublicationFlight;
-  const run = withLaborPublicationLease(async () => {
-    if (options.queueOnly === true) {
-      return publishLaborArticle({
-        ...options,
-        cache: getLaborCache(),
-        fetchImpl: nativeFetch,
-      });
-    }
-    const token = resolveTelegramBotToken(process.env); const cachedChatId = await getKnownForumChatId();
-    const chatId = resolveForumChatId({ cached: cachedChatId, env: process.env, runtimeSource: cachedChatId === null ? readGeneratedRuntimeSource() : '' });
-    if (chatId === null) { console.error('RUDI_LABOR_ARTICLE_ERROR', new Error('Telegram forum chat id could not be resolved')); return null; }
-    const labor = await publishLaborArticle({ ...options, token, chatId, cache: getLaborCache(), fetchImpl: nativeFetch });
-    if (cachedChatId === null && labor?.topicId) await rememberForumChatId(getTopicMaintenanceCache(), chatId);
-    return labor;
-  }, { cache: getLaborLeaseCache() });
-  laborPublicationFlight = run;
-  try { return await run; } finally { if (laborPublicationFlight === run) laborPublicationFlight = null; }
-}
 
 async function handler(req, res) {
   try {
@@ -362,7 +334,6 @@ async function handler(req, res) {
     if (req.query?.route === 'daily') {
       if (!isCronRequestAuthorized(req)) return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
       let runtimeResult; try { runtimeResult = await runRuntime(req, res); } finally { markProductsRuntimeStale(); }
-      try { const labor = await publishDailyLaborArticle({ queueOnly: true }); if (labor) console.log('RUDI_LABOR_ARTICLE_RESULT', labor); } catch (error) { console.error('RUDI_LABOR_ARTICLE_ERROR', error); }
       return runtimeResult;
     }
     if (req.query?.route === 'storage-migrate') {
@@ -416,5 +387,4 @@ async function handler(req, res) {
 module.exports = withD1ReadCoalescing(handler);
 module.exports.runRuntime = runRuntime;
 module.exports.runHealthWithoutCouple = runHealthWithoutCouple;
-module.exports.publishDailyLaborArticle = publishDailyLaborArticle;
 module.exports.sanitizeStagePriceText = sanitizeStagePriceText;
