@@ -8,13 +8,13 @@ const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 const expectedButtons = [
   'habitBackButton', 'supplementBackButton', 'financeBackButton',
   'carPageBack', 'workCalendarBack', 'smartSavesBackButton',
-  'wishlistBackButton', 'fastingBackButton', 'datesBackButton', 'forDiBackButton'
+  'wishlistBackButton', 'fastingBackButton', 'datesBackButton', 'forDiBackButton', 'smartHomePageBack'
 ];
 
-test('ten RUDI section headers use the same opt-in header and back control', () => {
+test('all RUDI section headers use the same opt-in header and back control', () => {
   const html = read('public/index.html');
-  assert.equal((html.match(/class="[^"]*\brudi-app-page-head\b[^"]*"/g) || []).length, 10);
-  assert.equal((html.match(/class="[^"]*\brudi-app-page-back\b[^"]*"/g) || []).length, 10);
+  assert.equal((html.match(/class="[^"]*\brudi-app-page-head\b[^"]*"/g) || []).length, 11);
+  assert.equal((html.match(/class="[^"]*\brudi-app-page-back\b[^"]*"/g) || []).length, 11);
   for (const id of expectedButtons) {
     const button = html.match(new RegExp('<button\\b[^>]*\\bid="' + id + '"[^>]*>'))?.[0] || '';
     assert.ok(button, id + ' must retain its original ID');

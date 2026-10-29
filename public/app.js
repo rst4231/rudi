@@ -252,7 +252,7 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0,car:0,settings:0,habits:0,finances:0,supplements:0,score:0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0,car:0,'smart-home':0,settings:0,habits:0,finances:0,supplements:0,score:0};
       const APP_TAB_SCROLL_SESSION_KEY='rudi:tab-scroll:v1';
       try{
         const saved=JSON.parse(sessionStorage.getItem(APP_TAB_SCROLL_SESSION_KEY)||'{}');
@@ -2151,9 +2151,9 @@
         setTimeout(()=>section.classList.remove(className),560);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','dates','for-di','score','settings','smart-saves','car'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','dates','for-di','score','settings','smart-saves','car','smart-home'];
       const PRIMARY_NAV_TABS=new Set(['home','feed','schedule','products','photos']);
-      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','wishlist','dates','for-di','smart-saves']);
+      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','smart-home','wishlist','dates','for-di','smart-saves']);
       const STARTUP_TABS=['home','finances','supplements','habits','car','schedule','feed','products','photos','fasting'];
       function startupTabStorageKey(){
         return 'rudi:startup-tab:v1:'+(currentActor==='Диана'?'diana':'rustam');
@@ -10752,13 +10752,6 @@
           defaultCollapsed:true,
           resetCollapsedOnInit:true,
           persist:false
-        });
-        setupPersistentCollapsible({
-          selector:'#smartHomeTile',key:'smart-home',
-          bodySelectors:['#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'],
-          hostSelector:'.smart-home-head',
-          defaultCollapsed:true,
-          resetCollapsedOnInit:true
         });
         setupPersistentCollapsible({
           selector:'#dailyQuestionTile',key:'daily-question',

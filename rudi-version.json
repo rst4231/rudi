@@ -1,18 +1,20 @@
 {
-  "current": "v4.374",
-  "versionBranch": "feat/habit-history-calendar",
+  "current": "v4.375",
+  "versionBranch": "feat/smart-home-page-20261029",
   "releaseCommit": "",
-  "deploymentSourceCommit": "74d536fdd7e365ac4d88ed9c7bce09a250983cc8",
+  "deploymentSourceCommit": "0c08697774be0ac028719991756ddad9f6d3fea0",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-29",
-  "basedOnProduction": "v4.373",
+  "basedOnProduction": "v4.374",
   "notes": [
-    "Исправлена белая подложка под кнопками «Отмена» и «Сохранить» в редакторе личных дел.",
-    "Обновлён PWA-кэш до v4.374, чтобы исправленный стиль подхватился после обновления."
+    "Отдельная страница умного дома вместо раскрывающегося списка.",
+    "На главной видны включённые устройства, низкий заряд и недоступные устройства; быстрое управление светом и розетками.",
+    "Сохранены ограничения доступа и блокировка управления офлайн."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Personal task editor footer has transparent surface matching the sheet",
-    "Refresh cached shell and asset query strings without changing behavior"
+    "Dedicated smart-home route with existing app history and back navigation",
+    "Shared device overview and battery warnings; no duplicate list request",
+    "Explicit unavailable devices and stale snapshot labels"
   ]
 }

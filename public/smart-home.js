@@ -2,7 +2,7 @@
   const tg = window.Telegram?.WebApp;
   const API = '/api/index?route=smart-home';
   const HOME_STALE_MS = 5 * 60 * 1000;
-  const state = { loading:false, lastLoadedAt:0, data:null, actor:'', expandedVacuumIds:new Set() };
+  const state = { loading:false, lastLoadedAt:0, data:null, actor:'', expandedVacuumIds:new Set(), pendingIds:new Set() };
   const controlsOffline=()=>window.__rudiNetworkReachable===true?false:
     navigator.onLine===false||document.body?.dataset?.offlineMode==='1';
   const offlineControlMessage='Офлайн-режим: показаны последние данные, управление недоступно';
@@ -29,6 +29,7 @@
       renderScenarios(state.data);
     }
     if(offline)setStatus(offlineControlMessage,'offline');
+    setUpdated();
   }
 
 
@@ -78,6 +79,12 @@
     node.textContent=String(text||'');
     node.className='smart-home-status'+(kind?' is-'+kind:'');
     node.hidden=!node.textContent;
+    const summaryStatus=document.getElementById('smartHomeSummaryStatus');
+    if(summaryStatus){
+      summaryStatus.textContent=['error','offline'].includes(kind)?node.textContent:'';
+      summaryStatus.hidden=!summaryStatus.textContent;
+    }
+    setUpdated();
   }
 
   function isAudioDevice(device){
@@ -98,13 +105,22 @@
     return (Array.isArray(data?.devices)?data.devices:[]).filter(device=>!isHiddenForActor(device,data));
   }
 
+  function deviceUnavailable(device){
+    return device?.online===false||device?.reachable===false||device?.state==='offline'||device?.status==='offline'
+      ||device?.state?.online===false||Boolean(device?.error_code||device?.errorCode||device?.state?.error_code||device?.state?.errorCode)
+      ||(device?.capabilities||[]).some(cap=>Boolean(cap?.state?.error_code||cap?.state?.errorCode));
+  }
+
+  function batteryLevel(device){
+    const raw=property(device,'battery_level');
+    if(raw===null||raw===undefined||raw===''||typeof raw==='boolean')return null;
+    const n=Number(raw);
+    return Number.isFinite(n)&&n>=0&&n<=100?n:null;
+  }
+
   function lowBatteryDevices(data){
-    return visibleDevices(data).filter(device=>{
-      const raw=property(device,'battery_level');
-      if(raw===null||raw===undefined||raw==='')return false;
-      const value=Number(raw);
-      return Number.isFinite(value)&&value>=0&&value<10;
-    });
+    return visibleDevices(data).filter(device=>batteryLevel(device)!==null&&batteryLevel(device)<10)
+      .sort((a,b)=>batteryLevel(a)-batteryLevel(b));
   }
   function syncSmartHomeBatteryBadge(data){
     const title=document.getElementById('smartHomeTitle');
@@ -125,8 +141,64 @@
   }
 
   function setUpdated(){
+    clearTimeout(state.staleTimer);
     const node=document.getElementById('smartHomeUpdated');
     if(node){const count=visibleDevices(state.data).length,mod10=count%10,mod100=count%100,word=mod10===1&&mod100!==11?'устройство':mod10>=2&&mod10<=4&&(mod100<12||mod100>14)?'устройства':'устройств';node.textContent=count+' '+word+' · Обновлено только что';}
+    const summary=document.getElementById('smartHomeSummaryUpdated');
+    if(summary){
+      const age=Date.now()-state.lastLoadedAt;
+      const failed=document.getElementById('smartHomeStatus')?.classList.contains('is-error');
+      const stale=controlsOffline()||failed||age>=HOME_STALE_MS;
+      const time=state.lastLoadedAt?new Date(state.lastLoadedAt).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'';
+      summary.textContent=!state.data?'Нет данных об устройствах':(stale?'Последние данные · ':'Обновлено · ')+time;
+      const pageUpdated=document.getElementById('smartHomePageUpdated');
+      if(pageUpdated)pageUpdated.textContent=summary.textContent;
+      const label=document.getElementById('smartHomeActiveLabel');
+      if(label)label.textContent=stale&&state.data?'Были включены':'Сейчас включены';
+      if(state.data&&!stale)state.staleTimer=setTimeout(setUpdated,Math.max(1,HOME_STALE_MS-age));
+    }
+  }
+
+  function openSmartHome(){
+    window.RUDI_NAVIGATE_TO_TAB?.('smart-home',{scroll:true});
+  }
+
+  function summaryChip(device,{battery=false,power=false}={}){
+    const chip=document.createElement('span');
+    chip.className='smart-home-summary-chip'+(battery?' is-battery':'');
+    const name=document.createElement('span');
+    name.textContent=String(device.name||'Устройство')+(battery?' · '+Math.round(batteryLevel(device))+'%':'');
+    chip.appendChild(name);
+    const cap=onOff(device);
+    if(power&&cap&&/light|socket/.test(String(device.type||''))){
+      const button=document.createElement('button');
+      button.type='button';button.className='smart-home-quick-power';
+      button.setAttribute('aria-label',(cap.state.value?'Выключить ':'Включить ')+(device.name||'устройство'));
+      button.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v9"/><path d="M6.6 6.6a7 7 0 1 0 10.8 0"/></svg>';
+      button.addEventListener('click',event=>{event.stopPropagation();void toggleDevice(device,button,cap)});
+      chip.appendChild(lockOfflineControl(button));
+    }
+    return chip;
+  }
+
+  function renderSummary(data){
+    const visible=visibleDevices(data),active=visible.filter(device=>!deviceUnavailable(device)&&onOff(device)?.state?.value===true);
+    const low=lowBatteryDevices(data),unavailable=visible.filter(deviceUnavailable);
+    const fill=(id,items,options)=>{
+      const root=document.getElementById(id);if(!root)return;
+      root.replaceChildren();
+      items.slice(0,3).forEach(device=>root.appendChild(summaryChip(device,options)));
+      if(items.length>3){const more=document.createElement('button');more.type='button';more.className='smart-home-summary-more';more.textContent='Ещё '+(items.length-3);more.addEventListener('click',openSmartHome);root.appendChild(more)}
+    };
+    fill('smartHomeActiveDevices',active,{power:true});
+    if(data&&!active.length){const empty=document.createElement('span');empty.className='smart-home-summary-empty';empty.textContent='Нет включённых устройств';document.getElementById('smartHomeActiveDevices')?.appendChild(empty)}
+    fill('smartHomeLowBattery',low,{battery:true});fill('smartHomeUnavailable',unavailable,{});
+    for(const [id,items] of [['smartHomeLowBatteryRow',low],['smartHomeUnavailableRow',unavailable],['smartHomeAttention',low]]){
+      const node=document.getElementById(id);if(node)node.hidden=!items.length;
+    }
+    const attention=document.getElementById('smartHomeAttentionList');
+    if(attention){attention.replaceChildren();low.forEach(device=>attention.appendChild(summaryChip(device,{battery:true})))}
+    setUpdated();
   }
 
   function roomGroups(data){
@@ -183,7 +255,8 @@
   async function toggleDevice(device,button,cap){
     const next=!Boolean(cap.state.value);
     if(controlsOffline()){updateOfflineControls();return}
-    if(button.disabled)return;
+    if(button.disabled||deviceUnavailable(device)||state.pendingIds.has(device.id))return;
+    state.pendingIds.add(device.id);
     button.disabled=true;
     button.classList.add('is-busy');
 
@@ -205,12 +278,14 @@
       button.classList.remove('is-busy');
       setStatus('Не удалось изменить состояние '+device.name,'error');
       try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
+    }finally{
+      state.pendingIds.delete(device.id);
     }
   }
 
   async function runCapability(device,cap,value,control){
     if(controlsOffline()){updateOfflineControls();return}
-    if(!cap||control?.disabled)return;
+    if(!cap||control?.disabled||deviceUnavailable(device))return;
     if(control){
       control.disabled=true;
       control.classList.add('is-busy');
@@ -275,7 +350,8 @@
     if(Number.isFinite(Number(temp))) parts.push(Number(temp).toFixed(1)+'°C');
     if(Number.isFinite(Number(humidity))) parts.push(Math.round(Number(humidity))+'%');
 
-    if(power){
+    if(deviceUnavailable(device))parts.push('Нет связи');
+    else if(power){
       if(/камера/.test(name)) parts.push(power.state.value?'Онлайн':'Выключено');
       else if(/пылесос/.test(name)) parts.push(power.state.value?'Включён':'Выключен');
       else parts.push(power.state.value?'Включено':'Выключено');
@@ -288,6 +364,8 @@
   function deviceCard(device){
     const card=document.createElement('article');
     card.className='smart-home-device-card';
+    const unavailable=deviceUnavailable(device);
+    card.classList.toggle('is-unavailable',unavailable);
     if(lowBatteryDevices({devices:[device]}).length){
       card.classList.add('is-battery-low');
       card.setAttribute('aria-label',(device.name||'Устройство')+': низкий заряд батареи');
@@ -325,9 +403,9 @@
     const power=onOff(device);
     if(power){
       const indicator=document.createElement('span');
-      indicator.className='smart-home-state-dot '+(power.state.value?'is-on':'is-off');
-      indicator.setAttribute('aria-label',power.state.value?'Включено':'Выключено');
-      indicator.title=power.state.value?'Включено':'Выключено';
+      indicator.className='smart-home-state-dot '+(unavailable?'is-unavailable':power.state.value?'is-on':'is-off');
+      indicator.setAttribute('aria-label',unavailable?'Нет связи':power.state.value?'Включено':'Выключено');
+      indicator.title=unavailable?'Нет связи':power.state.value?'Включено':'Выключено';
       titleRow.appendChild(indicator);
     }
 
@@ -426,6 +504,7 @@
       });
     }
 
+    if(unavailable)card.querySelectorAll('button').forEach(button=>{button.disabled=true;button.title='Устройство недоступно'});
     return card;
   }
 
@@ -445,6 +524,7 @@
   }
 
   function renderDevices(data){
+    renderSummary(data);
     const root=document.getElementById('smartHomeRooms');
     if(!root)return;
     root.replaceChildren();
@@ -478,7 +558,7 @@
 
       const list=document.createElement('div');
       list.className='smart-home-device-list';
-      const sorted=devices.slice().sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'ru'));
+      const sorted=devices.slice().sort((a,b)=>Number(lowBatteryDevices({devices:[b]}).length>0)-Number(lowBatteryDevices({devices:[a]}).length>0)||String(a.name||'').localeCompare(String(b.name||''),'ru'));
       sorted.forEach(device=>list.appendChild(deviceCard(device)));
       if(canShowCloudCam){
         const cameraIndex=sorted.findIndex(device=>String(device?.name||'').trim().toLocaleLowerCase('ru-RU')==='камера');
@@ -554,6 +634,10 @@
     if(humidityHint)humidityHint.textContent='Влажность';
     renderIndoorClimateAssessment('smartHomeTemperatureAssessment',assessIndoorClimate('temperature',validTemp));
     renderIndoorClimateAssessment('smartHomeHumidityAssessment',assessIndoorClimate('humidity',validHumidity));
+    for(const name of ['Temperature','Humidity','TemperatureAssessment','HumidityAssessment']){
+      const source=document.getElementById('smartHome'+name),target=document.getElementById('smartHomePage'+name);
+      if(source&&target){target.textContent=source.textContent;target.className=source.className;target.hidden=source.hidden}
+    }
   }
 
   async function runScenario(scenario,button){
@@ -602,6 +686,10 @@
     const text=document.getElementById('smartHomeWeatherText');
     if(weather)weather.textContent=value?.temperature!=null?Math.round(Number(value.temperature))+'°C':'—';
     if(text)text.textContent=value?.text||'Погода недоступна';
+    for(const name of ['Weather','WeatherText']){
+      const source=document.getElementById('smartHome'+name),target=document.getElementById('smartHomePage'+name);
+      if(source&&target)target.textContent=source.textContent;
+    }
   }
 
   async function loadWeather(){
@@ -632,6 +720,7 @@
     if(!['Рустам','Диана'].includes(actor))return;
     if(state.actor!==actor){
       state.actor=actor;state.data=null;state.lastLoadedAt=0;
+      renderSummary(null);renderClimate(null);syncSmartHomeBatteryBadge(null);
       document.getElementById('smartHomeRooms')?.replaceChildren();
       document.getElementById('smartHomeScenarioList')?.replaceChildren();
     }
@@ -643,8 +732,8 @@
     }
 
     state.loading=true;
-    const refresh=document.getElementById('smartHomeRefresh');
-    if(refresh)refresh.classList.add('is-loading');
+    const refreshButtons=['smartHomeRefresh','smartHomePageRefresh'].map(id=>document.getElementById(id)).filter(Boolean);
+    refreshButtons.forEach(button=>{button.classList.add('is-loading');button.disabled=true});
     if(!silent)setStatus('Обновляю устройства…');
 
     try{
@@ -658,6 +747,7 @@
       setUpdated();
       setStatus('');
     }catch(error){
+      if(actor!==String(document.body?.dataset?.rudiActor||''))return;
       // Keep the last known devices and readings visible after a network failure.
       if(state.data){
         renderClimate(state.data);
@@ -673,12 +763,16 @@
       }
     }finally{
       state.loading=false;
-      if(refresh)refresh.classList.remove('is-loading');
+      refreshButtons.forEach(button=>{button.classList.remove('is-loading');button.disabled=false});
     }
   }
 
   function start(){
+    if(state.started)return;state.started=true;
     document.getElementById('smartHomeRefresh')?.addEventListener('click',()=>loadHome({force:true}));
+    document.getElementById('smartHomePageRefresh')?.addEventListener('click',()=>loadHome({force:true}));
+    document.getElementById('smartHomePageOpen')?.addEventListener('click',openSmartHome);
+    document.getElementById('smartHomePageBack')?.addEventListener('click',()=>window.RUDI_GO_BACK?.('home'));
     loadWeather();
 
     let attempts=0;
@@ -707,6 +801,7 @@
   }
 
   window.addEventListener('offline',updateOfflineControls);
+  window.addEventListener('rudi:app-tab-change',setUpdated);
   window.addEventListener('online',()=>{
     updateOfflineControls();
     if(!controlsOffline())void loadHome({force:true,silent:true});
