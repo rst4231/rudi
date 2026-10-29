@@ -84,6 +84,8 @@
 .rudi-personal-task-modal .ticktick-task-modal-head{flex:none;margin-bottom:12px}
 .rudi-personal-task-modal .ticktick-task-form{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;gap:10px;padding:3px 3px 0;scroll-padding-block:10px 65px}
 .rudi-personal-task-modal .ticktick-task-field textarea{min-height:72px;max-height:96px;resize:none}
-.rudi-personal-task-modal .ticktick-task-form-actions{position:sticky;bottom:0;padding:9px 0 2px;margin:0;background:var(--surface);z-index:1}
+/* The sheet already supplies a translucent background. Layering another surface
+   here creates a bright rectangular patch behind the footer buttons. */
+.rudi-personal-task-modal .ticktick-task-form-actions{position:sticky;bottom:0;padding:9px 0 2px;margin:0;background:transparent;z-index:1}
 .rudi-personal-task-modal #rudiPersonalTaskHeading:focus{outline:none}
 @media(max-width:430px){.rudi-personal-task-modal .ticktick-task-field :is(input,select,textarea){font-size:16px}}

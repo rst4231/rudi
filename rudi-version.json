@@ -1,17 +1,18 @@
 {
-  "current": "v4.373",
+  "current": "v4.374",
   "versionBranch": "feat/habit-history-calendar",
   "releaseCommit": "",
-  "deploymentSourceCommit": "3ee3f0a85f526cc9a47f3a99d71c598313cb65d8",
+  "deploymentSourceCommit": "74d536fdd7e365ac4d88ed9c7bce09a250983cc8",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-10-27",
-  "basedOnProduction": "v4.372",
+  "createdAt": "2026-10-29",
+  "basedOnProduction": "v4.373",
   "notes": [
-    "Календарь привычки за последние 30 дней раскрывается по нажатию на иконку или название.",
-    "Зелёные дни — выполнено, красные — не выполнено; дни без отметки и до создания привычки нейтральные."
+    "Исправлена белая подложка под кнопками «Отмена» и «Сохранить» в редакторе личных дел.",
+    "Обновлён PWA-кэш до v4.374, чтобы исправленный стиль подхватился после обновления."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Thirty-day per-habit calendar with icon and title controls and accurate recorded statuses"
+    "Personal task editor footer has transparent surface matching the sheet",
+    "Refresh cached shell and asset query strings without changing behavior"
   ]
 }
