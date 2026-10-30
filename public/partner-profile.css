@@ -637,6 +637,7 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-mood-cbt{color:#784
 .partner-finance-track[data-level="mid"]>i{background:#e0aa2f}
 .partner-finance-track[data-level="full"]>i{background:#d94b55}
 .partner-finances [hidden]{display:none!important}
+.partner-finances p.partner-finance-limit{margin:0;color:#d94b55;font-weight:650}
 
 /* Compact overview: equal outer insets, with no empty summary grid row. */
 .partner-profile-page .partner-hero{

@@ -88,6 +88,11 @@
  function renderFinances(page,data,actor){
   const card=page.querySelector('.partner-finances');if(!card)return;
   if(data?.partner&&data.partner!==actor)return;
+  let limitStatus=card.querySelector('.partner-finance-limit');
+  if(!limitStatus){limitStatus=document.createElement('p');limitStatus.className='partner-finance-limit';limitStatus.setAttribute('role','status');card.querySelector('h2').after(limitStatus)}
+  const planned=Number(data?.budget?.plannedLimit),spent=Number(data?.budget?.actualSpent);
+  limitStatus.textContent='Лимит исчерпан';
+  limitStatus.hidden=!(Number.isFinite(planned)&&planned>0&&Number.isFinite(spent)&&spent>=planned);
   const money=(amount,currency='RUB')=>new Intl.NumberFormat('ru-RU',{style:'currency',currency,maximumFractionDigits:2}).format(Number(amount)||0);
   const expense=card.querySelector('.home-partner-last-expense');
   const last=card.querySelector('.partner-finance-last');
