@@ -29,7 +29,7 @@ test('v2.61 restores an exactly canceled Lulu walk',async()=>{
   assert.equal(restored.lastWalk.actor,'Рустам');
   assert.equal(restored.lastWalk.peed,true);
   assert.equal(restored.lastWalk.pooped,false);
-  assert.equal((await readLuluState({luluCache:cache})).lastPeeAt,original.walkedAt);
+  assert.equal((await readLuluState({luluCache:cache,now:Date.parse('2026-09-27T07:02:00Z')})).lastPeeAt,original.walkedAt);
 });
 
 test('v2.61 rejects restoring a walk from another Moscow day',async()=>{

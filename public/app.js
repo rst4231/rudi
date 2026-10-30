@@ -6473,6 +6473,7 @@
 
       window.RUDI_NAVIGATE_TO_TAB=(tab,options={})=>navigateToAppTab(tab,options);
       function navigateBackInApp(fallback='home'){
+        if(luluProfilePage){closeLuluProfile();return}
         const depth=Number(history.state?.rudiNavDepth);
         if(Number.isInteger(depth)&&depth>0){
           history.back();
@@ -8290,7 +8291,7 @@
             const toilet=[row.peed?'💧':'',row.pooped?'💩':''].filter(Boolean).join(' ');
             const text=document.createElement('div');
             text.className='lulu-walk-history-text';
-            text.textContent=time+' · с '+companion+(toilet?' · '+toilet:'');
+            text.textContent=time+' · с '+companion+(toilet?' · '+toilet:'')+(row.pooped?' · '+luluStoolLabel(row.stool):'');
             item.appendChild(text);
             if(actor===currentActor){
               const cancel=document.createElement('button');
@@ -8306,20 +8307,185 @@
         }
       }
 
-      function toggleLuluWalkHistory(){
-        const panel=document.getElementById('luluWalkHistory');
-        const toggle=document.getElementById('luluWalkHistoryToggle');
-        if(!panel||!toggle) return;
-        const open=!panel.classList.contains('is-open');
-        panel.classList.toggle('is-open',open);
-        panel.setAttribute('aria-hidden',open?'false':'true');
-        toggle.setAttribute('aria-expanded',open?'true':'false');
-        toggle.setAttribute('aria-label',open?'Лулу, скрыть историю прогулок':'Лулу, показать историю прогулок');
+      let luluHealthData=null,luluHealthActor='';
+      function renderLuluHealth(value,status=''){
+        const panel=luluProfilePage?.querySelector('.lulu-profile-health');if(!panel)return;
+        const input=panel.querySelector('textarea');
+        if(!input.dataset.dirty)input.value=String(value?.text||'');
+        panel.querySelector('.lulu-health-status').textContent=status||(!value?.text?'Пока проблем не указано':value.actor?(value.actor==='Диана'?'Обновила Диана':'Обновил Рустам'):'');
+        panel.querySelector('.lulu-health-save').disabled=false;
       }
+      async function loadLuluHealth(){
+        const actor=currentActor,page=luluProfilePage;
+        if(luluHealthActor!==actor){luluHealthData=null;luluHealthActor=actor}
+        try{
+          const [cached,pending]=await Promise.all([window.rudiOfflineContent?.cached?.('lulu-health',actor),window.rudiOfflineContent?.pending?.('lulu','health',actor)]);
+          if(currentActor!==actor||page!==luluProfilePage)return;
+          if(cached)luluHealthData=cached;
+          if(pending?.length){
+            const row=pending.at(-1);luluHealthData={...luluHealthData,text:row.data.text,updatedAt:row.data.expectedUpdatedAt};
+            renderLuluHealth(luluHealthData,'Сохранено на устройстве · ожидает синхронизации');
+            if(row.error==='lulu-health-conflict'){
+              const latest=await luluRequest('health-get');if(currentActor!==actor||page!==luluProfilePage)return;
+              luluHealthData=latest.health||{text:'',updatedAt:''};
+              page.querySelector('#luluHealthText').dataset.dirty='1';
+              renderLuluHealth(luluHealthData,'На другом устройстве записано: '+(luluHealthData.text||'проблем нет')+'. Сверь свой текст и нажми Сохранить.');
+            }
+            return;
+          }
+          renderLuluHealth(luluHealthData);
+          const data=await luluRequest('health-get');
+          if(currentActor!==actor||page!==luluProfilePage)return;
+          luluHealthData=data.health||{text:'',updatedAt:''};
+          await window.rudiOfflineContent?.capture?.('lulu-health',luluHealthData,actor);
+          renderLuluHealth(luluHealthData);
+        }catch(_){if(currentActor===actor&&page===luluProfilePage)renderLuluHealth(luluHealthData,luluHealthData?'Офлайн · показана сохранённая запись':'Не удалось загрузить. Можно записать проблемы на устройстве.')}
+      }
+      async function saveLuluHealthFromProfile(){
+        const panel=luluProfilePage?.querySelector('.lulu-profile-health');if(!panel)return;
+        const actor=currentActor,input=panel.querySelector('textarea'),button=panel.querySelector('.lulu-health-save');if(button.disabled)return;
+        const detail={operation:'health-save',text:input.value.trim(),expectedUpdatedAt:luluHealthData?.updatedAt||''};
+        button.disabled=true;panel.querySelector('.lulu-health-status').textContent='Сохраняю…';
+        try{
+          let data;
+          if(window.rudiOfflineContent?.isOffline?.())throw new TypeError('offline');
+          data=await luluRequest('health-save',detail);
+          if(currentActor!==actor)return;
+          luluHealthData=data.health;luluHealthActor=actor;delete input.dataset.dirty;
+          await window.rudiOfflineContent?.capture?.('lulu-health',luluHealthData,actor);
+          const pending=await window.rudiOfflineContent?.pending?.('lulu','health',actor);
+          for(const row of pending||[])await window.rudiOfflineContent?.discard?.(row.id,actor);
+          renderLuluHealth(luluHealthData,'Сохранено');
+        }catch(error){
+          if(currentActor!==actor)return;
+          const network=['TypeError','AbortError'].includes(error?.name)||/network|fetch|offline|timeout/i.test(error?.message||'');
+          if(network&&window.rudiOfflineContent?.enqueue){
+            try{
+              const pending=await window.rudiOfflineContent.pending('lulu','health',actor);
+              if(pending.some(row=>row.error==='lulu-health-conflict'))await window.rudiOfflineContent.rebaseNote(detail.expectedUpdatedAt,actor,'health','lulu');
+              await window.rudiOfflineContent.enqueue('lulu','health',detail,actor);
+              luluHealthData={text:detail.text,updatedAt:detail.expectedUpdatedAt,actor};luluHealthActor=actor;delete input.dataset.dirty;
+              await window.rudiOfflineContent.capture('lulu-health',luluHealthData,actor);
+              renderLuluHealth(luluHealthData,'Сохранено на устройстве · ожидает синхронизации');
+            }catch(_){panel.querySelector('.lulu-health-status').textContent='Не удалось сохранить. Текст остался в поле.'}
+          }else panel.querySelector('.lulu-health-status').textContent=error?.message==='lulu-health-conflict'?'Запись изменена на другом устройстве. Скопируй свой текст и открой страницу заново.':'Не удалось сохранить. Попробуй ещё раз.';
+        }finally{if(panel.isConnected)button.disabled=false}
+      }
+
+      let luluFinanceData=null,luluFinancePromise=null,luluFinanceLoadedAt=0,luluFinanceActor='';
+      function renderLuluFinances(){
+        const card=luluProfilePage?.querySelector('.lulu-profile-finances');if(!card)return;
+        const month=sharedAlbumDateKey(new Date()).slice(0,7);
+        const data=luluFinanceActor===currentActor&&luluFinanceData?.month===month?luluFinanceData:null;
+        const status=card.querySelector('.lulu-food-total'),list=card.querySelector('.lulu-food-transactions');list.replaceChildren();
+        if(!data){card.querySelector('.lulu-finance-breakdown').textContent='';status.textContent='Нет данных';card.querySelector('.lulu-food-status').textContent='Не удалось обновить расходы. Открой страницу при подключении к интернету.';return}
+        const money=amount=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:2}).format(amount);
+        status.textContent=money(data.totalRub);
+        card.querySelector('.lulu-finance-breakdown').textContent='Корм: '+money(data.foodRub||0)+' · Ветеринария: '+money(data.vetRub||0);
+        card.querySelector('.lulu-food-status').textContent='Диана · расходы на Лулу за текущий месяц';
+        for(const row of data.transactions||[]){
+          const item=document.createElement('div');item.className='lulu-food-transaction';
+          const copy=document.createElement('div'),note=document.createElement('span'),date=document.createElement('small'),amount=document.createElement('strong');
+          note.textContent=row.note|| (row.kind==='vet'?'Ветеринария':'Корм для Лулу');const stamp=new Date(row.occurredAt);
+          date.textContent=Number.isNaN(stamp.getTime())?'':new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,day:'numeric',month:'short'}).format(stamp);
+          amount.textContent=money(row.rubAmount);copy.append(note,date);item.append(copy,amount);list.append(item);
+        }
+        if(!data.transactions?.length){const empty=document.createElement('p');empty.textContent='Расходов на корм и ветеринарию в этом месяце пока нет';list.append(empty)}
+      }
+      async function loadLuluFinances({force=false}={}){
+        const month=sharedAlbumDateKey(new Date()).slice(0,7),actor=currentActor;
+        if(!force&&luluFinanceActor===actor&&luluFinanceData?.month===month&&Date.now()-luluFinanceLoadedAt<60000){renderLuluFinances();return}
+        if(luluFinancePromise)return luluFinancePromise;
+        luluFinancePromise=(async()=>{
+          try{
+            const saved=await window.rudiOfflineContent?.cached?.('lulu-finances',actor);
+            if(currentActor===actor&&saved?.month===month){luluFinanceData=saved;luluFinanceActor=actor;renderLuluFinances()}
+            const data=await financeRequest('lulu-food-summary');
+            if(currentActor!==actor||data.month!==sharedAlbumDateKey(new Date()).slice(0,7))return;
+            luluFinanceData=data;luluFinanceActor=actor;luluFinanceLoadedAt=Date.now();
+            await window.rudiOfflineContent?.capture?.('lulu-finances',data,actor);
+          }catch(_){}finally{luluFinancePromise=null;renderLuluFinances()}
+        })();
+        return luluFinancePromise;
+      }
+      document.addEventListener('rudi-finances-updated',()=>{luluFinanceLoadedAt=0;if(luluProfilePage)void loadLuluFinances({force:true})});
+
+      function luluStoolLabel(value){
+        return ({hard:'Твёрдый',formed:'Оформленный',soft:'Мягкий',mushy:'Кашицеобразный',liquid:'Жидкий'})[value]||'Не указан';
+      }
+
+      function luluMonthWalks(state){
+        const month=sharedAlbumDateKey(new Date()).slice(0,7),rows=new Map();
+        for(const row of [...(state?.walksMonth||[]),...(state?.walksToday||[]),state?.lastWalk]){
+          const date=new Date(String(row?.walkedAt||''));
+          if(row&&['Рустам','Диана'].includes(row.actor)&&!Number.isNaN(date.getTime())&&sharedAlbumDateKey(date).slice(0,7)===month)
+            rows.set(row.walkedAt,row);
+        }
+        return [...rows.values()].sort((a,b)=>Date.parse(a.walkedAt)-Date.parse(b.walkedAt));
+      }
+
+      let luluProfilePage=null,luluProfileTrigger=null,luluProfileTimer=null;
+      function renderLuluProfile(){
+        if(!luluProfilePage)return;
+        renderLuluFinances();
+        const rows=luluMonthWalks(homeDashboardState.lulu),today=sharedAlbumDateKey(new Date());
+        luluProfilePage.querySelector('.lulu-profile-month').textContent=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,month:'long',year:'numeric'}).format(new Date());
+        for(const actor of ['Диана','Рустам'])luluProfilePage.querySelector('[data-lulu-count="'+actor+'"]').textContent=String(rows.filter(row=>row.actor===actor).length);
+        const list=luluProfilePage.querySelector('.lulu-profile-history');list.replaceChildren();
+        if(!rows.length){const empty=document.createElement('p');empty.textContent='В этом месяце прогулок пока нет';list.append(empty);return}
+        let day='';
+        for(const row of rows.slice().reverse()){
+          const date=new Date(row.walkedAt),key=sharedAlbumDateKey(date);
+          if(day!==key){day=key;const heading=document.createElement('h3');heading.textContent=key===today?'Сегодня':new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,day:'numeric',month:'long'}).format(date);list.append(heading)}
+          const item=document.createElement('article');item.className='lulu-profile-walk';
+          const copy=document.createElement('div'),title=document.createElement('strong'),detail=document.createElement('p');
+          title.textContent=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(date)+' · '+row.actor;
+          detail.textContent=(row.peed?'💧 Писала':'Не писала')+' · '+(row.pooped?'💩 Какала · Стул: '+luluStoolLabel(row.stool):'Не какала')+(row.offlinePending?' · Ожидает синхронизации':'');
+          copy.append(title,detail);item.append(copy);
+          if(key===today&&row.actor===currentActor){
+            const cancel=document.createElement('button');cancel.type='button';cancel.className='lulu-walk-history-cancel';cancel.textContent='Отменить';
+            cancel.addEventListener('click',()=>cancelLuluWalkEntry(row,cancel));item.append(cancel);
+          }
+          list.append(item);
+        }
+      }
+
+      function closeLuluProfile(fromHistory=false){
+        if(!luluProfilePage)return;
+        luluProfilePage.remove();luluProfilePage=null;clearInterval(luluProfileTimer);
+        document.body.classList.remove('lulu-profile-open');
+        if(!fromHistory&&history.state?.rudiLuluProfile)history.back();
+        luluProfileTrigger?.focus?.({preventScroll:true});
+      }
+
+      function openLuluProfile(event){
+        if(luluProfilePage)return;
+        luluProfileTrigger=event?.currentTarget||document.getElementById('luluWalkHistoryToggle');
+        const page=document.createElement('section');page.className='rudi-meditation-page partner-profile-page lulu-profile-page';
+        page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';page.setAttribute('aria-label','Профиль Лулу');
+        page.innerHTML='<header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head partner-profile-bar"><button type="button" class="fasting-back-button rudi-app-page-back lulu-profile-back" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="fasting-page-title"><h1>Лулу</h1></div></header><div class="partner-profile-content"><div class="partner-profile-layout"><section class="lulu-profile-hero"><img src="/lulu-normal.webp?v=2.118" width="72" height="72" alt="Лулу"><div><small class="lulu-profile-eyebrow">🐾 Моя собачья жизнь</small><h2>Лулу</h2><p>Французский бульдог · '+luluAgeLabel()+'</p></div></section><section class="lulu-profile-summary"><h2>Прогулки за месяц</h2><p class="lulu-profile-month"></p><div class="lulu-profile-counts"><div><span>Диана</span><strong data-lulu-count="Диана">0</strong></div><div><span>Рустам</span><strong data-lulu-count="Рустам">0</strong></div></div></section><section class="lulu-profile-health"><h2>Здоровье</h2><label for="luluHealthText">Текущие проблемы</label><textarea id="luluHealthText" rows="4" maxlength="2000" placeholder="Укажи, что сейчас беспокоит Лулу. Каждую проблему можно написать с новой строки."></textarea><div class="lulu-health-actions"><button type="button" class="lulu-health-save" disabled>Сохранить</button><span class="lulu-health-status" role="status">Загружаю…</span></div></section><section class="lulu-profile-finances"><h2>Финансы</h2><strong class="lulu-food-total">Загружаю…</strong><p class="lulu-food-status">Диана · расходы на Лулу за текущий месяц</p><div class="lulu-finance-breakdown"></div><div class="lulu-food-transactions"></div></section><section class="lulu-profile-journal"><h2>История прогулок</h2><p class="lulu-profile-retention">Храним только текущий месяц. Отменить свою прогулку можно в день записи.</p><div class="lulu-profile-history"></div></section></div></div>';
+        luluProfilePage=page;document.body.append(page);document.body.classList.add('lulu-profile-open');
+        history.pushState({...history.state,rudiLuluProfile:true},'','#lulu');
+        page.querySelector('.lulu-profile-back').onclick=()=>closeLuluProfile();
+        page.querySelector('.lulu-health-save').onclick=saveLuluHealthFromProfile;
+        page.querySelector('#luluHealthText').oninput=event=>{event.target.dataset.dirty='1'};
+        renderLuluProfile();void loadLuluFinances();void loadLuluHealth();page.querySelector('.lulu-profile-back').focus({preventScroll:true});
+        luluProfileTimer=setInterval(()=>{renderLuluProfile();if(luluFinanceData?.month!==sharedAlbumDateKey(new Date()).slice(0,7))void loadLuluFinances()},60000);
+        window.RudiViewport?.sync?.();
+      }
+      window.addEventListener('popstate',()=>{if(luluProfilePage&&!history.state?.rudiLuluProfile)closeLuluProfile(true)});
+      window.addEventListener('focus',()=>{renderLuluProfile();if(luluProfilePage)void loadLuluFinances()});
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden){renderLuluProfile();if(luluProfilePage)void loadLuluFinances()}});
+      window.addEventListener('rudi:app-tab-change',()=>closeLuluProfile(true));
+      document.addEventListener('keydown',event=>{if(event.key==='Escape'&&luluProfilePage)closeLuluProfile()});
 
       function renderLulu(value){
         const state=value&&typeof value==='object'?value:{};
+        state.walksMonth=luluMonthWalks(state);
+        state.walksToday=state.walksMonth.filter(row=>sharedAlbumDateKey(new Date(row.walkedAt))===sharedAlbumDateKey(new Date()));
+        state.lastWalk=state.walksMonth.at(-1)||null;
         homeDashboardState.lulu=state;
+        renderLuluProfile();
         syncLuluToiletStatus();
         renderLuluWalkHistory(state);
         const status=document.getElementById('luluWalkStatus');
@@ -8354,6 +8520,7 @@
               '<button type="button" data-lulu-toilet="peed" aria-pressed="false"><span>💧</span><strong>Писала</strong></button>'+
               '<button type="button" data-lulu-toilet="pooped" aria-pressed="false"><span>💩</span><strong>Какала</strong></button>'+
             '</div>'+
+            '<fieldset class="lulu-stool-picker" hidden><legend>Какой стул?</legend><div>'+['hard','formed','soft','mushy','liquid'].map(value=>'<button type="button" data-lulu-stool="'+value+'" aria-pressed="false">'+luluStoolLabel(value)+'</button>').join('')+'</div></fieldset>'+
             '<button class="lulu-walk-modal-confirm" type="button" disabled>Сохранить прогулку</button>'+
           '</section>';
         document.body.appendChild(modal);
@@ -8363,6 +8530,9 @@
         const sync=()=>{
           const active=[...modal.querySelectorAll('[data-lulu-toilet][aria-pressed="true"]')];
           modal.querySelector('.lulu-walk-modal-confirm').disabled=!active.length;
+          const pooped=modal.querySelector('[data-lulu-toilet="pooped"]')?.getAttribute('aria-pressed')==='true';
+          modal.querySelector('.lulu-stool-picker').hidden=!pooped;
+          if(!pooped)modal.querySelectorAll('[data-lulu-stool]').forEach(button=>button.setAttribute('aria-pressed','false'));
         };
         modal.querySelectorAll('[data-lulu-toilet]').forEach(button=>{
           button.addEventListener('click',()=>{
@@ -8372,6 +8542,11 @@
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         });
+        modal.querySelectorAll('[data-lulu-stool]').forEach(button=>button.addEventListener('click',()=>{
+          const selected=button.getAttribute('aria-pressed')==='true';
+          modal.querySelectorAll('[data-lulu-stool]').forEach(item=>item.setAttribute('aria-pressed','false'));
+          button.setAttribute('aria-pressed',selected?'false':'true');
+        }));
         modal.querySelector('.lulu-walk-modal-confirm')?.addEventListener('click',async()=>{
           const confirm=modal.querySelector('.lulu-walk-modal-confirm');
           if(confirm.disabled) return;
@@ -8380,7 +8555,7 @@
           const pooped=modal.querySelector('[data-lulu-toilet="pooped"]')?.getAttribute('aria-pressed')==='true';
           confirm.disabled=true;
           try{
-            await saveLuluWalk({peed,pooped});
+            await saveLuluWalk({peed,pooped,stool:pooped?modal.querySelector('[data-lulu-stool][aria-pressed="true"]')?.dataset.luluStool||'':''});
             close();
           }catch(error){
             console.warn('RUDI_LULU_SAVE_WARN',String(error?.message||error));
@@ -8393,6 +8568,8 @@
       function openLuluWalkModal(){
         const modal=ensureLuluWalkModal();
         modal.querySelectorAll('[data-lulu-toilet]').forEach(button=>button.setAttribute('aria-pressed','false'));
+        modal.querySelectorAll('[data-lulu-stool]').forEach(button=>button.setAttribute('aria-pressed','false'));
+        modal.querySelector('.lulu-stool-picker').hidden=true;
         modal.querySelector('.lulu-walk-modal-confirm').disabled=true;
         modal.querySelector('.lulu-walk-modal-confirm').textContent='Сохранить прогулку';
         modal.hidden=false;
@@ -8401,7 +8578,7 @@
 
       async function luluRequest(operation,payload={}){
         const backupContext=backupRequestContext();
-        const controller=operation==='walk'?new AbortController():null;
+        const controller=['walk','health-get','health-save'].includes(operation)?new AbortController():null;
         const timer=controller?setTimeout(()=>controller.abort(),6000):null;
         let response;
         try{
@@ -8422,7 +8599,7 @@
       async function cancelLuluWalkEntry(row,button){
         const walkedAt=String(row?.walkedAt||'').trim();
         const owner=String(row?.actor||'').trim();
-        if(!walkedAt||owner!==currentActor||button?.disabled) return;
+        if(!walkedAt||owner!==currentActor||button?.disabled||sharedAlbumDateKey(new Date(walkedAt))!==sharedAlbumDateKey(new Date())) return;
         if(row?.offlinePending&&row?.offlineOperationId){
           const removed=await window.rudiOfflineContent?.discard?.(row.offlineOperationId,currentActor).catch(()=>false);
           if(removed){
@@ -8465,10 +8642,13 @@
         const date=new Date(walkedAt);
         if(!row||Number.isNaN(date.getTime()))return state;
         const walk={actor:row.actor,walkedAt,peed:row.data.peed===true,pooped:row.data.pooped===true,
+          stool:row.data.pooped===true?String(row.data.stool||''):'',
           offlinePending:true,offlineOperationId:row.id};
         const today=sharedAlbumDateKey(new Date());
+        if(sharedAlbumDateKey(date).slice(0,7)!==today.slice(0,7))return state;
+        state.walksMonth=[...luluMonthWalks(state).filter(item=>item.walkedAt!==walk.walkedAt),walk];
         const existing=(Array.isArray(state.walksToday)?state.walksToday:[])
-          .filter(item=>!item.offlinePending&&sharedAlbumDateKey(new Date(item.walkedAt))===today);
+          .filter(item=>item.walkedAt!==walk.walkedAt&&sharedAlbumDateKey(new Date(item.walkedAt))===today);
         if(sharedAlbumDateKey(date)===today)existing.push(walk);
         const last=state.lastWalk;
         const isLast=!last||Date.parse(walkedAt)>=Date.parse(last.walkedAt);
@@ -8487,6 +8667,7 @@
         let base={...(homeDashboardState.lulu||{})};
         const regular=(Array.isArray(base.walksToday)?base.walksToday:[]).filter(row=>!row.offlinePending);
         base.walksToday=regular;
+        base.walksMonth=luluMonthWalks(base).filter(row=>!row.offlinePending);
         if(base.lastWalk?.offlinePending)base.lastWalk=regular[regular.length-1]||null;
         for(const row of rows.filter(r=>r.data?.operation==='walk'))
           base=applyLocalLuluWalk(base,row);
@@ -8495,6 +8676,7 @@
 
       window.addEventListener('rudi-content-operation-synced',event=>{
         if(event.detail?.kind!=='lulu'||event.detail.actor!==currentActor)return;
+        if(event.detail.result?.health){luluHealthData=event.detail.result.health;void window.rudiOfflineContent?.capture?.('lulu-health',luluHealthData,currentActor);renderLuluHealth(luluHealthData,'Синхронизировано');return}
         if(event.detail.result?.lulu)renderLulu(event.detail.result.lulu);
         void loadActivityJournal({silent:true}).catch(()=>{});
         void renderPendingLuluWalks();
@@ -8509,7 +8691,7 @@
         const walkedAt=new Date().toISOString();
         const offlineOperationId=window.crypto?.randomUUID?.()||('walk-'+Date.now()+'-'+Math.random().toString(36).slice(2));
         const detail={operation:'walk',peed:toilet?.peed===true,pooped:toilet?.pooped===true,
-          walkedAt,offlineOperationId};
+          stool:toilet?.pooped===true?String(toilet?.stool||''):'',walkedAt,offlineOperationId};
         try{
           const offline=window.rudiHomeOffline?.isOffline?.()||window.rudiOfflineContent?.isOffline?.();
           if(!offline){
@@ -9785,7 +9967,8 @@
         });
         document.getElementById('homeMessageNew')?.addEventListener('click',()=>openHomeQuickAction('message'));
         document.getElementById('luluWalkButton')?.addEventListener('click',markLuluWalk);
-        document.getElementById('luluWalkHistoryToggle')?.addEventListener('click',toggleLuluWalkHistory);
+        document.getElementById('luluWalkHistoryToggle')?.addEventListener('click',openLuluProfile);
+        document.getElementById('luluProfileAvatar')?.addEventListener('click',openLuluProfile);
         document.getElementById('homeCycleOpen')?.addEventListener('click',()=>{
           navigateToAppTab('schedule',{scroll:true});
           setTimeout(()=>document.getElementById('dianaCycleCard')?.scrollIntoView({behavior:'smooth',block:'center'}),160);
@@ -10488,8 +10671,8 @@
         luluTile.innerHTML=
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
-              '<img class="lulu-avatar" src="/lulu-normal.webp?v=2.118" alt="Лулу" width="58" height="58">'+
-              '<div class="lulu-copy"><h2><button id="luluWalkHistoryToggle" class="lulu-name lulu-name-button" type="button" aria-controls="luluWalkHistory" aria-expanded="false" aria-label="Лулу, показать историю прогулок">Лулу</button><span class="lulu-age">'+luluAgeLabel()+'</span></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет пока не отмечен</div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
+              '<button id="luluProfileAvatar" class="lulu-avatar-button" type="button" aria-label="Открыть профиль Лулу"><img class="lulu-avatar" src="/lulu-normal.webp?v=2.118" alt="Лулу" width="58" height="58"></button>'+
+              '<div class="lulu-copy"><h2><button id="luluWalkHistoryToggle" class="lulu-name lulu-name-button" type="button" aria-label="Открыть профиль Лулу">Лулу</button><span class="lulu-age">'+luluAgeLabel()+'</span></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет пока не отмечен</div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
             '</div>'+
             '<div class="lulu-head-actions">'+
               '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
@@ -10498,7 +10681,7 @@
 
             '</div>'+
           '</div>'+
-          '<div id="luluWalkHistory" class="lulu-walk-history" aria-hidden="true"></div>';
+          '';
 
         const nearest=document.createElement('section');
         nearest.id='homeNearestBlock';

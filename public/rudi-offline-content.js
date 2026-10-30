@@ -60,7 +60,14 @@ async function capture(kind,value,who=actor){
 async function entries(who=actor){
  if(!actors.has(who))return [];
  const rows=await tx('outbox','readonly',store=>store.getAll());
- return (rows||[]).filter(row=>row.actor===who).sort((a,b)=>a.createdAt-b.createdAt);
+ const monthKey=value=>{const d=new Date(value);if(Number.isNaN(d.getTime()))return '';const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit'}).formatToParts(d).map(p=>[p.type,p.value]));return p.year+'-'+p.month};
+ const month=monthKey(Date.now()),keep=[];
+ for(const row of rows||[]){
+  if(row.actor!==who)continue;
+  if(row.kind==='lulu'&&row.data?.operation==='walk'&&monthKey(row.data.walkedAt)!==month){await tx('outbox','readwrite',store=>store.delete(row.id));continue}
+  keep.push(row);
+ }
+ return keep.sort((a,b)=>a.createdAt-b.createdAt);
 }
 async function pending(kind,scope='',who=actor){
  return (await entries(who)).filter(row=>row.kind===kind&&(!scope||row.scope===scope));
@@ -155,7 +162,7 @@ async function enqueue(kind,scope,data,who=actor){
   id:kind==='lulu'&&/^[a-z0-9_-]{8,96}$/i.test(String(data?.offlineOperationId||''))?String(data.offlineOperationId):makeId(),
   actor:who,kind,scope,data:safe(data),createdAt:Date.now(),stamp:makeId(),error:''
  };
- if(match&&['note','partner-note'].includes(kind))row.data.expectedUpdatedAt=match.data.expectedUpdatedAt;
+ if(match&&(['note','partner-note'].includes(kind)||kind==='lulu'&&data?.operation==='health-save'))row.data.expectedUpdatedAt=match.data.expectedUpdatedAt;
  await tx('outbox','readwrite',store=>store.put(row));
  if(kind==='lulu'&&isOffline()){
   if(root.document?.body)root.document.body.dataset.offlineMode='1';
@@ -258,7 +265,8 @@ async function send(row){
   body={operation:'answer',...row.data};
  }else if(row.kind==='lulu'){
   url='/api/partner-message?rudiAction=lulu';
-  body={operation:'walk',peed:row.data?.peed===true,pooped:row.data?.pooped===true,
+  body=row.data?.operation==='health-save'?{operation:'health-save',text:row.data.text,expectedUpdatedAt:row.data.expectedUpdatedAt}:{operation:'walk',peed:row.data?.peed===true,pooped:row.data?.pooped===true,
+   stool:row.data?.pooped===true?String(row.data?.stool||''):'',
    walkedAt:String(row.data?.walkedAt||''),offlineOperationId:row.id};
  }else if(row.kind==='wellness'){
   const area=String(row.data?.area||'');

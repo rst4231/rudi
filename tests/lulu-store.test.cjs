@@ -17,7 +17,7 @@ test('Lulu walk stores actor and exact time',async()=>{
   const state=await markLuluWalk('Рустам',{luluCache:cache,now:Date.parse('2026-09-23T06:42:00.000Z')});
   assert.equal(state.lastWalk.actor,'Рустам');
   assert.equal(state.lastWalk.walkedAt,'2026-09-23T06:42:00.000Z');
-  assert.equal((await readLuluState({luluCache:cache})).version,1);
+  assert.equal((await readLuluState({luluCache:cache,now:Date.parse('2026-09-25T17:00:00Z')})).version,1);
 });
 
 test('Lulu state restores from a newer backup',async()=>{
@@ -27,8 +27,8 @@ test('Lulu state restores from a newer backup',async()=>{
     version:4,
     lastWalk:{actor:'Диана',walkedAt:'2026-09-22T18:15:00.000Z'},
     updatedAt:'2026-09-22T18:15:00.000Z'
-  },{luluCache:cache});
-  const state=await readLuluState({luluCache:cache});
+  },{luluCache:cache,now:Date.parse('2026-09-25T17:00:00Z')});
+  const state=await readLuluState({luluCache:cache,now:Date.parse('2026-09-25T17:00:00Z')});
   assert.equal(state.version,4);
   assert.equal(state.lastWalk.actor,'Диана');
 });
@@ -39,7 +39,7 @@ test('Lulu toilet alert recipients persist for the current walk and reset on a n
   await recordLuluToiletAlertRecipients(first.lastWalk.walkedAt,['Рустам'],{
     luluCache:cache,now:Date.parse('2026-09-25T15:00:00.000Z')
   });
-  const alerted=await readLuluState({luluCache:cache});
+  const alerted=await readLuluState({luluCache:cache,now:Date.parse('2026-09-25T17:00:00Z')});
   assert.deepEqual(alerted.toiletAlert.recipients,['Рустам']);
   assert.equal(alerted.toiletAlert.walkedAt,first.lastWalk.walkedAt);
 

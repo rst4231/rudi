@@ -14,7 +14,7 @@ const { readDailyMoodState, restoreDailyMoodState } = require('./daily-mood-stor
 const { readReactionState, restoreReactionState, mergeReactionStates } = require('./reactions-store.cjs');
 const { readActivityJournal, restoreActivityJournalState } = require('./activity-journal-store.cjs');
 const { readScoreState, restoreScoreState } = require('./score-store.cjs');
-const { readLuluState, restoreLuluState } = require('./lulu-store.cjs');
+const { readLuluState, restoreLuluState, normalizeLuluState } = require('./lulu-store.cjs');
 const { readRecipients, saveRecipients, normalizeRecipients } = require('./partner-notification-store.cjs');
 const { readPinRecord, restorePinRecord } = require('./rudi-session.cjs');
 const { readPasskeys, restorePasskeys } = require('./rudi-passkeys.cjs');
@@ -273,7 +273,7 @@ async function createStateSnapshot(options = {}) {
     reactions: mergeReactionStates(previous?.reactions, reactions),
     activityJournal: newerVersionState(activityJournal, previous?.activityJournal),
     scoreState: newerVersionState(scoreState, previous?.scoreState),
-    luluState: newerVersionState(luluState, previous?.luluState),
+    luluState: newerVersionState(normalizeLuluState(luluState, options.now || Date.now()), normalizeLuluState(previous?.luluState, options.now || Date.now())),
     supplements: {
       'Рустам': newerVersionState(rustamSupplements, previous?.supplements?.['Рустам']),
       'Диана': newerVersionState(dianaSupplements, previous?.supplements?.['Диана']),

@@ -1,24 +1,23 @@
 {
-  "current": "v4.376",
-  "versionBranch": "feat/smart-home-compact-20261029",
+  "current": "v4.377",
+  "versionBranch": "feat/lulu-monthly-profile-20261030",
   "releaseCommit": "",
-  "deploymentSourceCommit": "3fddc83d00648f4132a4e9f35807ac97b16ea47a",
+  "deploymentSourceCommit": "7b0b1134b8b10e19c3037f0a182a7ca8407fe5f4",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-10-29",
-  "basedOnProduction": "v4.375",
+  "createdAt": "2026-10-30",
+  "basedOnProduction": "v4.376",
   "notes": [
-    "Компактный список включённых устройств: название и зелёная точка, без заголовка и плашек.",
-    "Удалены Быстрый доступ, Для Ди и Свидания вместе с их активной загрузкой, генерацией и публикацией.",
-    "Кнопка Создать фотосессию перенесена между воспоминанием и сеткой фотографий.",
-    "История голоданий заменена календарём по месяцам; длительности отображаются днями, месяцами и годами.",
-    "Финансы автоматически переходят на новый текущий месяц; ручной выбор прошлого месяца и незавершённый ввод общих расходов сохраняются."
+    "Профиль Лулу по нажатию на имя или аватарку, оформление в стиле французского бульдога.",
+    "История прогулок только за текущий месяц, счётчики по Диане и Рустаму, туалет и тип стула.",
+    "Отмена только своих сегодняшних прогулок, сохранены офлайн и отмена действия.",
+    "Расходы Дианы на корм и ветеринарию: операции, суммы по группам и общий итог месяца.",
+    "Общий блок текущих проблем здоровья с защитой от конфликтов и офлайн-сохранением."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Compact display-only enabled device summary",
-    "Retire For Di and date generation routes, UI and background work",
-    "Move the existing photo session link above the photo grid",
-    "Monthly fasting calendar with local day details and human duration totals",
-    "Finance current period advances on Moscow month boundary and foreground recovery"
+    "Lulu monthly profile, stool selection and actor counts",
+    "Current-month retention with Moscow rollover and stale-backup protection",
+    "Diana dog-food and veterinary monthly financial summaries",
+    "Shared current health note with offline sync"
   ]
 }

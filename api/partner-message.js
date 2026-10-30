@@ -82,7 +82,7 @@ const {
   removeActivityByDedupeKey,
   observeActivityMarker,
 } = require('./activity-journal-store.cjs');
-const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
+const { normalizeLuluState, readLuluHealth, saveLuluHealth, readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
 const { readScoreState, awardScore, reverseScoreByDedupeKey, transferStars, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
 const { readFastingState, startFasting, stopFasting, fastingView, fastingRewardStars } = require('./fasting-store.cjs');
@@ -660,7 +660,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
   ]);
 
   const journal = journalLive?.initialized ? journalLive : (backupSnapshot?.activityJournal || journalLive);
-  const lulu = luluLive?.initialized ? luluLive : (backupSnapshot?.luluState || luluLive);
+  const lulu = normalizeLuluState(luluLive?.initialized ? luluLive : (backupSnapshot?.luluState || luluLive));
   const scoreState = scoreLive?.initialized ? scoreLive : (backupSnapshot?.scoreState || scoreLive);
   const cycle = cycleLive || normalizeCycleState(backupSnapshot?.cycle);
   const wishlist = wishlistLive?.initialized ? wishlistLive : (backupSnapshot?.wishlist?.initialized ? backupSnapshot.wishlist : null);
@@ -1316,7 +1316,7 @@ function mergeBackupSnapshots(base, overlay) {
     cycle: newerVersion(base.cycle, overlay.cycle),
     activityJournal: newerVersion(base.activityJournal, overlay.activityJournal),
     scoreState: newerVersion(base.scoreState, overlay.scoreState),
-    luluState: newerVersion(base.luluState, overlay.luluState),
+    luluState: newerVersion(normalizeLuluState(base.luluState), normalizeLuluState(overlay.luluState)),
     carState: newerTime(base.carState, overlay.carState),
     dailyMood: newerVersion(base.dailyMood, overlay.dailyMood),
     reactions: mergeReactionStates(base.reactions, overlay.reactions),
@@ -3148,6 +3148,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'get').trim();
+      if(operation==='health-get')return res.status(200).json({ok:true,actor,health:await readLuluHealth(options)});
+      if(operation==='health-save')return res.status(200).json({ok:true,actor,health:await saveLuluHealth(actor,{text:body.text,expectedUpdatedAt:body.expectedUpdatedAt},options)});
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
 
       if (previousSnapshot?.luluState?.initialized) {
@@ -3168,6 +3170,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         const lulu = await markLuluWalk(actor, {
           peed: body.peed === true,
           pooped: body.pooped === true,
+          stool: body.stool,
         }, {...options,walkedAt:requestedWalkedAt,offlineOperationId});
         if(lulu.duplicateOperation)return res.status(200).json({ok:true,actor,lulu});
         const walkedAt = requestedWalkedAt || String(lulu?.lastWalk?.walkedAt || new Date(options.now || Date.now()).toISOString());
@@ -3271,6 +3274,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           walkedAt,
           peed:input.peed===true,
           pooped:input.pooped===true,
+          stool:input.stool,
           previousPeeAt:String(input.previousPeeAt||''),
           previousPoopAt:String(input.previousPoopAt||''),
         },options);
@@ -3301,6 +3305,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
         : code === 'lulu-walk-owner-required' || code === 'lulu-undo-forbidden' ? 403
+        : code === 'lulu-health-conflict' ? 409
         : code.startsWith('lulu-') ? 400
         : 500;
       if (status === 500) console.error('RUDI_LULU_ERROR', code);

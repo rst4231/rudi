@@ -217,3 +217,15 @@ test('conflict resolution requires confirmation and uses a fresh guarded server 
  h.confirm(true);assert.equal(await api.resolveSupplementConflict(row.id),true);assert.equal((await api.entries()).length,0);
  const body=h.requests.at(-1).body;assert.equal(body.offlineOperationId,row.id);assert.equal(body.expectedUpdatedAt,'fresh-revision');assert.equal(body.patch.goal,'Моя цель');
 });
+
+test('expired Lulu walk outbox rows are purged even offline while other operations remain',async()=>{
+ const h=makeHarness(),api=h.mount();api.init('Рустам');
+ await api.enqueue('lulu','old-walk',{operation:'walk',peed:true,walkedAt:'2020-01-01T06:00:00Z'});
+ await api.enqueue('note','home',{text:'Сохранить заметку'});
+ const entries=await api.entries();assert.equal(entries.length,1);assert.equal(entries[0].kind,'note');
+});
+test('Lulu health edit sync keeps health operation and text',async()=>{
+ const h=makeHarness(),api=h.mount();api.init('Диана');
+ await api.enqueue('lulu','health',{operation:'health-save',text:'Лапа',expectedUpdatedAt:''});
+ h.online(true);await api.flush();assert.equal(h.requests[0].body.operation,'health-save');assert.equal(h.requests[0].body.text,'Лапа');
+});
