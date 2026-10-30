@@ -1,4 +1,5 @@
 const { partnerFinanceSummary, selfFinanceSummary, luluFinanceSummary } = require('./partner-finances.cjs');
+const {limitForMonth}=require('../public/finance-category-limits.js');
 const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const coinKeeperHistory=require('./coinkeeper-history.cjs');
 const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
@@ -299,7 +300,7 @@ async function handler(req, res) {
       // live expenses as the Finance budget line, without shipping the full ledger.
       const month=moscowDateKey().slice(0,7);
       const state=await readFinanceState(),view=viewState(state,actor);
-      const plannedLimit=(view.categories||[]).reduce((sum,row)=>sum+Math.max(0,Number(row.monthlyLimit||0)),0);
+      const plannedLimit=(view.categories||[]).reduce((sum,row)=>sum+limitForMonth(row,month),0);
       const actualSpent=(view.personalExpenses||[])
         .filter(row=>String(row.month||'')===month)
         .reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0);

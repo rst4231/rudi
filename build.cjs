@@ -10,6 +10,7 @@ WEB_ASSETS.push('lulu-care.js','lulu-care.css');
 WEB_ASSETS.push('viewport.js','positive-emotion-chart.js','partner-profile.js','partner-profile.css');
 
 WEB_ASSETS.push('fasting-history.js','finance-month-rollover.js');
+WEB_ASSETS.push('finance-category-limits.js');
 WEB_ASSETS.push('cbt-content.js','cbt-core.js','cbt.js','cbt.css');
 
 WEB_ASSETS.push('mood-catalog.js','mood-picker.js','mood-picker.css');

@@ -1,5 +1,6 @@
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const { randomUUID, createHash } = require('node:crypto');
+const categoryLimits = require('../public/finance-category-limits.js');
 
 const NAMESPACE = 'rudi-household-finances-v1';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
@@ -323,6 +324,7 @@ function normalizeState(value) {
           icon: cleanIcon(raw?.icon),
           note: cleanText(raw?.note, 180),
           monthlyLimit: cleanMoney(raw?.monthlyLimit || 0),
+          monthlyLimits: categoryLimits.normalize(raw?.monthlyLimits),
           currency: cleanCurrency(raw?.currency || 'RUB'),
           labels: cleanExpenseLabels(raw?.labels, name),
           archived: Boolean(raw?.archived),
@@ -916,6 +918,7 @@ async function updateExpenseCategory(actor, payload = {}, options = {}) {
     const rows = current.categories[safeActor] || [];
     const found = rows.find((row) => row.id === id);
     if (!found) throw new Error('finance-category-not-found');
+    const limitMonth = payload.limitMonth === undefined ? '' : cleanMonth(payload.limitMonth);
     const name = cleanText(payload.name ?? found.name, 48, { required: true });
     const normalizedName = financeCategoryKey(name);
     if (rows.some((row) => row.id !== id && !row.archived && financeCategoryKey(row.name) === normalizedName)) {
@@ -926,7 +929,10 @@ async function updateExpenseCategory(actor, payload = {}, options = {}) {
       name,
       icon: cleanIcon(payload.icon ?? row.icon),
       note: cleanText(payload.note ?? row.note, 180),
-      monthlyLimit: cleanMoney(payload.monthlyLimit ?? row.monthlyLimit ?? 0),
+      monthlyLimit: limitMonth ? row.monthlyLimit : cleanMoney(payload.monthlyLimit ?? row.monthlyLimit ?? 0),
+      monthlyLimits: limitMonth && payload.monthlyLimit !== undefined
+        ? { ...row.monthlyLimits, [limitMonth]: cleanMoney(payload.monthlyLimit) }
+        : row.monthlyLimits,
       currency: cleanCurrency(payload.currency ?? row.currency ?? 'RUB'),
       labels: payload.labels === undefined ? cleanExpenseLabels(row.labels, name) : cleanExpenseLabels(payload.labels, name),
     } : row);

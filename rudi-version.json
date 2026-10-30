@@ -1,21 +1,22 @@
 {
-  "current": "v4.379",
-  "versionBranch": "feat/lulu-care-20261030",
+  "current": "v4.380",
+  "versionBranch": "fix/finance-history-totals-20261030",
   "releaseCommit": "",
-  "deploymentSourceCommit": "7952bce5cd07fd4ba5b4143943dd92e9ca3b3b2c",
+  "deploymentSourceCommit": "56dde15fc962315cc4d3a2ea4792ecec69bf35f0",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-30",
-  "basedOnProduction": "v4.378",
+  "basedOnProduction": "v4.379",
   "notes": [
-    "Добавлены вес с историей и графиком, питание, прививки и обработки, назначения врача и отметки приёма.",
-    "Новые записи общие для Рустама и Дианы, доступны офлайн, сохраняются между месяцами.",
-    "Убрана поясняющая подпись под историей прогулок."
+    "Восстановлено отображение сохранённых дополнительных расходов в истории категорий.",
+    "Итоги истории за месяц и день учитывают все сохранённые суммы.",
+    "Лимиты категорий можно заранее задать на следующий месяц без изменения текущего.",
+    "При установке лимита показаны расходы категории за предыдущий месяц."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Shared long-lived Lulu care records with record-level distributed locking",
-    "Weight chart, nutrition, prevention and prescription editors",
-    "Individual prescription intake marks and offline synchronization",
-    "Remove walk-history implementation copy"
+    "Include saved additional amounts in category history, totals and search",
+    "Keep legacy records read-only in the purchase editor and preserve stored amounts",
+    "Effective-month category limits shared by client and server budget summaries",
+    "Limit editor shows prior-month category spending"
   ]
 }

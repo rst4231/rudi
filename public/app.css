@@ -12989,6 +12989,7 @@ body[data-app-tab="finances"]{
 .finance-readonly-note{margin-top:11px;padding:8px 10px;border-radius:12px;background:color-mix(in srgb,var(--finance-gold) 10%,var(--surface));color:color-mix(in srgb,var(--finance-gold) 72%,var(--text));font-size:9.5px;font-weight:680}
 .finance-input-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:13px}
 .finance-input-field{display:grid;gap:6px;min-width:0}
+#financeCategoryPreviousSpent{color:var(--muted);font-size:12px;line-height:1.45;font-weight:500}
 .finance-input-field>span{color:var(--muted);font-size:9.5px;font-weight:720}
 .finance-money-input{min-height:48px;display:flex;align-items:center;gap:6px;padding:0 12px;border:1px solid var(--line);border-radius:15px;background:color-mix(in srgb,var(--surface) 96%,transparent);transition:border-color .16s ease,box-shadow .16s ease}
 .finance-money-input:focus-within{border-color:color-mix(in srgb,var(--finance-green) 48%,var(--line));box-shadow:0 0 0 3px color-mix(in srgb,var(--finance-green) 9%,transparent)}
