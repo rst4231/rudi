@@ -1,16 +1,18 @@
 {
-  "current": "v4.381",
-  "versionBranch": "fix/partner-budget-limit-20261030",
+  "current": "v4.382",
+  "versionBranch": "fix/remove-cloudcam",
   "releaseCommit": "",
-  "deploymentSourceCommit": "26ae8d92c785e52638343d52319a81018fc043da",
+  "deploymentSourceCommit": "0725fa90c3392266c0e0a406c6395c8d88bc623d",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-30",
-  "basedOnProduction": "v4.380",
+  "basedOnProduction": "v4.381",
   "notes": [
-    "В финансовом блоке партнёра показано Лимит исчерпан при полном использовании месячного бюджета, без суммы лимита и остатка."
+    "Удалена карточка CloudCam / EyePlus из Умного дома. Счётчики комнат учитывают только реальные устройства.",
+    "Нажатие на надпись Умный дом на главном экране открывает страницу устройств."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Partner monthly budget exhaustion message without budget amounts"
+    "Remove CloudCam external viewer card and unused styles; count actual room devices",
+    "Open smart home page from home screen title"
   ]
 }

@@ -505,21 +505,6 @@
     return card;
   }
 
-  function cloudCamCard(){
-    const card=document.createElement('article');
-    card.className='smart-home-device-card smart-home-cloudcam-card';
-    card.innerHTML='<div class="smart-home-device-row">'
-      +'<div class="smart-home-device-visual" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><circle cx="12" cy="12.5" r="3.2"/><path d="M7 3h10"/></svg></div>'
-      +'<div class="smart-home-device-card-copy"><div class="smart-home-device-title-row"><strong>CloudCam</strong></div><span class="smart-home-device-meta">EyePlus · удалённый просмотр</span></div>'
-      +'<div class="smart-home-device-actions"><a class="smart-home-camera-open" aria-label="Смотреть CloudCam в Safari">Смотреть</a></div></div>';
-    const link=card.querySelector('.smart-home-camera-open');
-    link.href=CLOUDCAM_URL;
-    link.target='_blank';
-    link.rel='noopener noreferrer';
-    link.referrerPolicy='no-referrer';
-    return card;
-  }
-
   function renderDevices(data){
     renderSummary(data);
     const root=document.getElementById('smartHomeRooms');
@@ -530,15 +515,7 @@
     tile?.classList.toggle('is-offline',controlsOffline());
     if(controlsOffline())setStatus(offlineControlMessage,'offline');
     const groups=roomGroups(data);
-    const isHallway=room=>String(room||'').trim().toLocaleLowerCase('ru-RU')==='прихожая';
-    // CloudCam is independent of Yandex. Keep it in Hallway, immediately
-    // above the Yandex "Камера" row. Diana must never see this device.
-    if(String(data?.actor||'')==='Рустам'){
-      if(!groups.some(([room])=>isHallway(room)))groups.push(['Прихожая',[]]);
-    }
     for(const [room,devices] of groups){
-      const hallway=isHallway(room);
-      const canShowCloudCam=hallway&&String(data?.actor||'')==='Рустам';
       const section=document.createElement('section');
       section.className='smart-home-room';
 
@@ -547,7 +524,7 @@
       const title=document.createElement('strong');
       title.textContent=room;
       const count=document.createElement('span');
-      count.textContent='('+(devices.length+(canShowCloudCam?1:0))+')';
+      count.textContent='('+devices.length+')';
       const group=document.createElement('div');
       group.className='smart-home-room-title';
       group.append(title,count);
@@ -557,16 +534,10 @@
       list.className='smart-home-device-list';
       const sorted=devices.slice().sort((a,b)=>Number(lowBatteryDevices({devices:[b]}).length>0)-Number(lowBatteryDevices({devices:[a]}).length>0)||String(a.name||'').localeCompare(String(b.name||''),'ru'));
       sorted.forEach(device=>list.appendChild(deviceCard(device)));
-      if(canShowCloudCam){
-        const cameraIndex=sorted.findIndex(device=>String(device?.name||'').trim().toLocaleLowerCase('ru-RU')==='камера');
-        list.insertBefore(cloudCamCard(),cameraIndex>=0?list.children[cameraIndex]:null);
-      }
       section.append(head,list);
       root.appendChild(section);
     }
   }
-
-  const CLOUDCAM_URL='https://eyeplus.closeli.com/login';
 
   // Calendar-based seasons approximate the Russian indoor comfort standards.
   function indoorClimateSeason(at=new Date()){
@@ -768,7 +739,9 @@
     if(state.started)return;state.started=true;
     document.getElementById('smartHomeRefresh')?.addEventListener('click',()=>loadHome({force:true}));
     document.getElementById('smartHomePageRefresh')?.addEventListener('click',()=>loadHome({force:true}));
-    document.getElementById('smartHomePageOpen')?.addEventListener('click',openSmartHome);
+    for(const id of ['smartHomePageOpen','smartHomeTitleOpen']){
+      document.getElementById(id)?.addEventListener('click',openSmartHome);
+    }
     document.getElementById('smartHomePageBack')?.addEventListener('click',()=>window.RUDI_GO_BACK?.('home'));
     loadWeather();
 
