@@ -30,7 +30,7 @@ function selfFinanceSummary(state,actor,now=new Date()){
 }
 module.exports={partnerFinanceSummary,selfFinanceSummary};
 
-// Only Diana's dog-food purchases are shared with Lulu's profile.
+// Diana's Lulu-category purchases plus explicitly marked food and veterinary expenses.
 function luluFinanceSummary(state,now=new Date()){
  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit'}).formatToParts(now).map(p=>[p.type,p.value]));
  const month=parts.year+'-'+parts.month;
@@ -40,18 +40,20 @@ function luluFinanceSummary(state,now=new Date()){
  const dog=text=>/лулу|собак|пес(?:\s|$)|питом|животн|dog/u.test(text);
  const classify=row=>{
   const category=normalized(categories.get(row.categoryId)),detail=normalized([row.label,row.note].join(' ')),all=category+' '+detail;
-  if(/кош|кот[а-я]*|cat\b/u.test(all))return '';
+  const inLuluCategory=category.trim()==='лулу';
+  if(/кош|кот[а-я]*|cat\b/u.test(all))return inLuluCategory?'other':'';
   if(/ветерин|ветклин|ветврач/u.test(all))return 'vet';
   if(dog(all)&&/привив|вакцин|анализ|лечени|лекарств|осмотр|клиник/u.test(all))return 'vet';
-  return food(all)&&(dog(all)||category.trim()==='корм')?'food':'';
+  if(food(all)&&(dog(all)||category.trim()==='корм'))return 'food';
+  return inLuluCategory?'other':'';
  };
  const transactions=(state.personalExpenses||[]).filter(row=>{
   if(row.actor!=='Диана'||row.month!==month||row.manualAdjustment||Number(row.rubAmount??row.amount)<=0)return false;
   return !!classify(row);
  }).map(row=>({id:row.id,actor:'Диана',kind:classify(row),occurredAt:row.occurredAt||row.createdAt,
-  note:String(row.note||row.label||(classify(row)==='vet'?'Ветеринария':'Корм для Лулу')),rubAmount:Math.round(Number(row.rubAmount??row.amount)*100)/100
+  note:String(row.note||row.label||(classify(row)==='vet'?'Ветеринария':classify(row)==='food'?'Корм для Лулу':'Расход на Лулу')),rubAmount:Math.round(Number(row.rubAmount??row.amount)*100)/100
  })).sort((a,b)=>String(b.occurredAt).localeCompare(String(a.occurredAt)));
  const sum=kind=>Math.round(transactions.filter(row=>row.kind===kind).reduce((total,row)=>total+row.rubAmount,0)*100)/100;
- return {month,currency:'RUB',foodRub:sum('food'),vetRub:sum('vet'),totalRub:Math.round(transactions.reduce((sum,row)=>sum+row.rubAmount,0)*100)/100,transactions};
+ return {month,currency:'RUB',foodRub:sum('food'),vetRub:sum('vet'),otherRub:sum('other'),totalRub:Math.round(transactions.reduce((sum,row)=>sum+row.rubAmount,0)*100)/100,transactions};
 }
 module.exports.luluFinanceSummary=luluFinanceSummary;

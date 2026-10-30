@@ -26,3 +26,16 @@ test('veterinary expenses are grouped separately and included in overall total',
  ]};const result=luluFinanceSummary(state,new Date('2026-10-30T12:00:00Z'));
  assert.equal(result.totalRub,5000);assert.equal(result.foodRub,1500);assert.equal(result.vetRub,3500);assert.equal(result.transactions[1].kind,'vet');
 });
+test('all Diana Lulu category expenses count even without labels or descriptions',()=>{
+ const state={categories:{'Диана':[{id:'pet-category',name:'Лулу'},{id:'other-category',name:'Покупки'}]},personalExpenses:[
+  {actor:'Диана',month:'2026-10',categoryId:'pet-category',id:'blank',amount:103,note:'',label:''},
+  {actor:'Диана',month:'2026-10',categoryId:'pet-category',id:'toy',amount:208,note:'Игрушка',label:''},
+  {actor:'Диана',month:'2026-10',categoryId:'other-category',id:'unrelated',amount:900},
+  {actor:'Рустам',month:'2026-10',categoryId:'pet-category',id:'another-actor',amount:800},
+  {actor:'Диана',month:'2026-09',categoryId:'pet-category',id:'old-month',amount:700},
+  {actor:'Диана',month:'2026-10',categoryId:'pet-category',id:'adjustment',amount:600,manualAdjustment:true},
+ ]};const result=luluFinanceSummary(state,new Date('2026-10-30T12:00:00Z'));
+ assert.equal(result.totalRub,311);assert.equal(result.otherRub,311);assert.equal(result.foodRub,0);assert.equal(result.vetRub,0);
+ assert.equal(result.transactions.length,2);assert.ok(result.transactions.every(row=>row.kind==='other'));
+ assert.equal(result.transactions.find(row=>row.id==='blank').note,'Расход на Лулу');
+});

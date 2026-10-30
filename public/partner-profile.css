@@ -262,7 +262,7 @@ html:not([data-theme="dark"]) .rudi-meditation-page.partner-profile-page {
     #f4f5fb;
   color:#29354b;
 }
-html:not([data-theme="dark"]) .partner-profile-page>.partner-profile-bar {
+html:not([data-theme="dark"]) .partner-profile-page:not(.lulu-profile-page)>.partner-profile-bar {
   background:rgba(252,252,255,.93)!important;
   border-bottom:1px solid rgba(72,83,122,.075)!important;
   -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
