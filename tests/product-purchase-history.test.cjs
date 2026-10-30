@@ -1,0 +1,9 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{JSDOM}=require('jsdom');
+function setup(){const dom=new JSDOM('<div id="history"></div>',{url:'https://rudi.test'}),ctx={document:dom.window.document,TZ:'Europe/Moscow'};vm.createContext(ctx);const src=fs.readFileSync('public/app.js','utf8');vm.runInContext(src.slice(src.indexOf('      function productBoughtDay('),src.indexOf('      function productsHistoryCollapsedStorageKey(')),ctx);return {dom,ctx,list:ctx.document.getElementById('history')}}
+const receipt=(id,amount)=>({id,amount,currency:'RUB',rubAmount:amount,walletName:'Карта'});
+test('monthly total counts each receipt once and shows same-day purchases separately',()=>{const t=setup();try{
+ const rows=[{id:'1',text:'Молоко',boughtAt:'2026-10-22T10:00:00Z',purchase:receipt('one',200)},{id:'2',text:'Хлеб',boughtAt:'2026-10-22T10:00:00Z',purchase:receipt('one',200)},{id:'3',text:'Сыр',boughtAt:'2026-10-22T16:00:00Z',purchase:receipt('two',300)},{id:'4',text:'Чай',boughtAt:'2026-09-22T10:00:00Z',purchase:receipt('three',100)}];
+ t.ctx.renderProductHistoryMonths(t.list,rows);
+ const october=t.list.querySelector('[data-month="2026-10"]');assert.equal(october.querySelectorAll('.product-history-item').length,2);assert.match(october.querySelector('.products-history-month-total').textContent,/500/);assert.equal(october.querySelectorAll('.product-history-amount').length,2);assert.match(t.list.querySelector('[data-month="2026-09"] .products-history-month-total').textContent,/100/);
+}finally{t.dom.window.close()}});
+test('old purchases without amounts never get a fictitious zero total',()=>{const t=setup();try{t.ctx.renderProductHistoryMonths(t.list,[{id:'old',text:'Хлеб',boughtAt:'2025-10-22T10:00:00Z'}]);assert.equal(t.list.querySelector('.products-history-month-total'),null);assert.equal(t.list.querySelector('.product-history-amount'),null)}finally{t.dom.window.close()}});

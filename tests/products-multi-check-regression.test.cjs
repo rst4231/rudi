@@ -36,9 +36,10 @@ test('buy checked removes exactly the selected ids and preserves the rest',async
   const cache=memoryCache();
   let state=await addProducts(['молоко','яйца','хлеб'],'Рустам',{productCache:cache});
   const [a,b,c]=state.items.map(item=>item.id);
+  const expectedBought=state.items.filter(item=>[a,b].includes(item.id)).map(item=>item.text);
   state=await setProductCheckedSelection([a,b],{productCache:cache});
   state=await markProductsBoughtByIds([a,b],'Рустам',{productCache:cache});
   assert.deepEqual(state.items.map(item=>item.id),[c]);
   assert.equal(state.history.length,2);
-  assert.deepEqual(new Set(state.history.map(item=>item.text)),new Set(['молоко','яйца']));
+  assert.deepEqual(new Set(state.history.map(item=>item.text)),new Set(expectedBought));
 });

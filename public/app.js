@@ -20346,16 +20346,86 @@
         const byDay=new Map();
         for(const item of Array.isArray(history)?history:[]){
           const day=productBoughtDay(item);
-          let group=byDay.get(day.key);
+          const purchase=item?.purchase&&Number(item.purchase.amount)>0?item.purchase:null;
+          const key=purchase?.id?'purchase-'+purchase.id:day.key;
+          let group=byDay.get(key);
           if(!group){
-            group={key:day.key,label:day.label,items:[]};
-            byDay.set(day.key,group);
+            group={key:day.key,label:day.label,items:[],purchase};
+            byDay.set(key,group);
             groups.push(group);
           }
           const text=String(item?.text||'').trim();
           if(text) group.items.push(text);
         }
         return groups;
+      }
+
+      function productPurchaseMoney(amount,currency='RUB'){
+        return new Intl.NumberFormat('ru-RU',{style:'currency',currency,maximumFractionDigits:currency==='RUB'?2:8}).format(Number(amount));
+      }
+
+      function renderProductHistoryMonths(historyList,history){
+        const monthNames=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+        const months=new Map();
+        const days=groupProductHistory(history).sort((a,b)=>{
+          const aKnown=/^\d{4}-\d{2}-\d{2}$/.test(a.key),bKnown=/^\d{4}-\d{2}-\d{2}$/.test(b.key);
+          return Number(bKnown)-Number(aKnown)||(aKnown&&bKnown?b.key.localeCompare(a.key):0);
+        });
+        for(const day of days){
+          const known=/^\d{4}-\d{2}-\d{2}$/.test(day.key);
+          const key=known?day.key.slice(0,7):'unknown';
+          let month=months.get(key);
+          if(!month){
+            month={key,label:known?monthNames[Number(key.slice(5,7))-1]+' '+key.slice(0,4):'Без даты',days:[]};
+            months.set(key,month);
+          }
+          month.days.push(day);
+        }
+        for(const month of months.values()){
+          const section=document.createElement('section');
+          section.className='products-history-month';
+          section.dataset.month=month.key;
+          section.setAttribute('aria-label',month.label);
+          const heading=document.createElement('h3');
+          heading.className='products-history-month-title';
+          heading.textContent=month.label;
+          const list=document.createElement('div');
+          list.className='products-history-month-list';
+          for(const group of month.days){
+            const row=document.createElement('div');
+            row.className='product-history-item';
+            const date=document.createElement('strong');
+            date.className='product-history-date';
+            date.textContent=group.label;
+            const separator=document.createElement('span');
+            separator.className='product-history-separator';
+            separator.textContent=' · ';
+            const itemsText=document.createElement('span');
+            itemsText.className='product-history-items';
+            itemsText.textContent=group.items.join(', ');
+            row.append(date,separator,itemsText);
+            if(group.purchase){
+              const amount=document.createElement('strong');
+              amount.className='product-history-amount';
+              amount.textContent=productPurchaseMoney(group.purchase.amount,group.purchase.currency);
+              const wallet=document.createElement('span');
+              wallet.className='product-history-wallet';
+              wallet.textContent=group.purchase.walletName||'';
+              row.append(amount,wallet);
+            }
+            list.appendChild(row);
+          }
+          const receipts=new Map(month.days.filter(day=>day.purchase?.id&&Number(day.purchase.rubAmount)>0).map(day=>[day.purchase.id,day.purchase]));
+          if(receipts.size){
+            const total=document.createElement('span');
+            total.className='products-history-month-total';
+            const sum=[...receipts.values()].reduce((sum,purchase)=>sum+Math.round(Number(purchase.rubAmount)*100),0)/100;
+            total.textContent=(month.days.some(day=>!day.purchase)?'Учтено: ':'')+productPurchaseMoney(sum);
+            heading.appendChild(total);
+          }
+          section.append(heading,list);
+          historyList.appendChild(section);
+        }
       }
 
       function productsHistoryCollapsedStorageKey(){
@@ -20399,7 +20469,7 @@
             String(item?.addedBy||''),String(item?.category||''),String(item?.weeklyAmount||''),String(item?.quantity||''),String(item?.unit||''),String(item?.note||''),String(item?.categoryOverride||'')
           ]),
           history:(Array.isArray(history)?history:[]).map(item=>[
-            String(item?.id||''),String(item?.text||''),String(item?.boughtAt||''),String(item?.boughtBy||'')
+            String(item?.id||''),String(item?.text||''),String(item?.boughtAt||''),String(item?.boughtBy||''),JSON.stringify(item?.purchase||null)
           ])
         });
       }
@@ -20620,21 +20690,7 @@
         if(historyCount) historyCount.textContent=history.length?String(history.length):'';
         const historyToggle=document.getElementById('productsHistoryToggle');
         if(historyToggle) historyToggle.dataset.historyCount=String(history.length);
-        for(const group of groupProductHistory(history)){
-          const row=document.createElement('div');
-          row.className='product-history-item';
-          const date=document.createElement('strong');
-          date.className='product-history-date';
-          date.textContent=group.label;
-          const separator=document.createElement('span');
-          separator.className='product-history-separator';
-          separator.textContent=' · ';
-          const itemsText=document.createElement('span');
-          itemsText.className='product-history-items';
-          itemsText.textContent=group.items.join(', ');
-          row.append(date,separator,itemsText);
-          historyList.appendChild(row);
-        }
+        renderProductHistoryMonths(historyList,history);
         setProductsHistoryCollapsed(readProductsHistoryCollapsed(),{persist:false});
         animateRudiCollection(groups,'.product-category',7);
         animateRudiCollection(groups,'.product-item',14);
@@ -21591,6 +21647,78 @@
       }
 
       window.RUDI_PRODUCTS_API={request:productsRequest,reload:loadProducts};
+      async function openProductPurchaseDialog(checkedIds){
+        const actor=currentActor;
+        const overlay=document.createElement('div');
+        overlay.className='rudi-product-editor-overlay';
+        overlay.innerHTML='<section class="rudi-product-editor product-purchase-dialog" role="dialog" aria-modal="true" aria-labelledby="productPurchaseTitle"><div class="rudi-product-editor-head"><strong id="productPurchaseTitle">Покупка продуктов</strong><button type="button" data-purchase-close aria-label="Закрыть">×</button></div><form><label>Из какого кошелька<select name="walletId" required aria-label="Кошелёк"><option value="">Загружаю кошельки…</option></select></label><label>Категория<input value="Продукты" readonly aria-label="Категория расхода"></label><label>Потрачено <span data-purchase-currency>₽</span><input name="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" required aria-label="Сумма покупки"></label><div class="rudi-product-editor-error" role="status" aria-live="polite"></div><div class="rudi-product-editor-footer"><button type="button" data-purchase-cancel>Отмена</button><button type="submit" data-purchase-save disabled>Сохранить покупку</button></div></form></section>';
+        document.body.appendChild(overlay);
+        const previousFocus=document.activeElement;
+        document.body.classList.add('rudi-product-modal-open');
+        const form=overlay.querySelector('form'),select=form.elements.walletId,amount=form.elements.amount;
+        const save=overlay.querySelector('[data-purchase-save]'),status=overlay.querySelector('[role="status"]');
+        let busy=false,finished=false;
+        const draftKey='rudi-product-purchase-'+actor+'-'+checkedIds.slice().sort().join(',');
+        let draft=null;try{draft=JSON.parse(localStorage.getItem(draftKey)||'null')}catch(_){}
+        const purchaseId=draft?.id||window.crypto?.randomUUID?.()||'purchase-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+        const occurredAt=draft?.occurredAt||new Date().toISOString();
+        if(draft?.amount)amount.value=String(draft.amount);
+        return new Promise(resolve=>{
+          const close=result=>{
+            if(finished)return;finished=true;
+            document.removeEventListener('keydown',onKey);
+            overlay.remove();document.body.classList.remove('rudi-product-modal-open');
+            previousFocus?.focus?.();resolve(result);
+          };
+          const onKey=event=>{
+            if(event.key==='Escape'&&!busy){event.preventDefault();event.stopPropagation();close(null)}
+            if(event.key==='Tab'){
+              const focusable=[...overlay.querySelectorAll('button:not(:disabled),select,input:not([readonly])')];
+              const first=focusable[0],last=focusable[focusable.length-1];
+              if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}
+              else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}
+            }
+          };
+          document.addEventListener('keydown',onKey);
+          overlay.querySelectorAll('[data-purchase-close],[data-purchase-cancel]').forEach(button=>button.addEventListener('click',()=>{if(!busy)close(null)}));
+          overlay.addEventListener('click',event=>{if(event.target===overlay&&!busy)close(null)});
+          let wallets=[];
+          const syncCurrency=()=>{
+            const currency=wallets.find(wallet=>wallet.id===select.value)?.currency||'RUB';
+            overlay.querySelector('[data-purchase-currency]').textContent=currency==='RUB'?'₽':currency;
+          };
+          select.addEventListener('change',syncCurrency);
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();if(busy||finished)return;
+            if(currentActor!==actor){close(null);return}
+            const raw=amount.value.replace(/\s/g,'').replace(',','.');
+            const value=Number(raw);
+            if(!/^\d+(?:\.\d{1,8})?$/.test(raw)||!Number.isFinite(value)||value<=0||value>100000000){status.textContent='Введи сумму больше нуля';amount.focus();return}
+            if(!wallets.some(wallet=>wallet.id===select.value)){status.textContent='Выбери кошелёк';return}
+            busy=true;save.disabled=true;select.disabled=true;amount.disabled=true;status.textContent='Сохраняю покупку…';
+            try{
+              try{localStorage.setItem(draftKey,JSON.stringify({id:purchaseId,occurredAt,amount:value,walletId:select.value}))}catch(_){}
+              const result=await productsRequest('buy-checked',{checkedIds,purchase:{id:purchaseId,walletId:select.value,walletName:wallets.find(wallet=>wallet.id===select.value)?.name||'',currency:wallets.find(wallet=>wallet.id===select.value)?.currency||'RUB',rubAmount:Math.round(value*Number(financeWalletRubRates()[wallets.find(wallet=>wallet.id===select.value)?.currency||'RUB']||0)*100)/100,amount:value,occurredAt}});
+              try{localStorage.removeItem(draftKey)}catch(_){}
+              close(currentActor===actor?result:null);
+            }catch(error){
+              const code=String(error?.message||'');
+              status.textContent=code.includes('insufficient')?'Недостаточно средств в кошельке':code.includes('selection-changed')?'Список покупок изменился. Закрой окно и проверь галочки':code.includes('conflict')?'Эта покупка уже записана с другой суммой или кошельком. Проверь историю расходов':'Не удалось сохранить покупку. Попробуй ещё раз';
+            }finally{busy=false;if(!finished){save.disabled=false;select.disabled=false;amount.disabled=false}}
+          });
+          financeRequest('list').then(data=>{
+            if(finished)return;if(currentActor!==actor){close(null);return}
+            wallets=(data.wallets||[]).filter(wallet=>!wallet.archived);
+            select.replaceChildren();
+            for(const wallet of wallets){const option=document.createElement('option');option.value=wallet.id;option.textContent=wallet.name+' · '+(wallet.currency==='RUB'?'₽':wallet.currency);select.appendChild(option)}
+            if(!wallets.length){status.textContent='Сначала добавь кошелёк в разделе Финансы';return}
+            const rubWallet=wallets.find(wallet=>wallet.currency==='RUB');if(rubWallet)select.value=rubWallet.id;
+            if(draft?.walletId&&wallets.some(wallet=>wallet.id===draft.walletId))select.value=draft.walletId;
+            syncCurrency();save.disabled=false;amount.focus();
+          }).catch(()=>{if(!finished)status.textContent='Не удалось загрузить кошельки. Закрой окно и попробуй ещё раз'});
+        });
+      }
+
       function setupProducts(){
         const form=document.getElementById('productsForm');
         const input=document.getElementById('productsInput');
@@ -21663,17 +21791,16 @@
             return;
           }
           boughtAll.disabled=true;
-          const selectedRows=[...document.querySelectorAll('.product-item.is-checked[data-rudi-item-id]')];
-          selectedRows.forEach(row=>row.remove());
-          try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
           try{
-            renderProducts(await productsRequest('buy-checked',{checkedIds}));
-            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-          }catch(_){
-            await loadProducts({silent:true}).catch(()=>{});
-            boughtAll.disabled=false;
-            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-          }
+            const result=await openProductPurchaseDialog(checkedIds);
+            if(result){
+              renderProducts(result);
+              void loadFinances({silent:true}).catch(()=>{});
+              document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
+              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+            }
+          }finally{boughtAll.disabled=false}
+
         });
       }
 

@@ -81,7 +81,7 @@ function productProjection(state,op,data,row){
   const taken=items.filter(x=>wanted===null||wanted.has(x.id));
   next.items=items.filter(x=>wanted!==null&&!wanted.has(x.id));
   if(op==='bought'||op==='buy-checked')
-   next.history=[...taken.map(x=>({...x,boughtBy:addedBy,boughtAt:timestamp,id:'offline-history-'+x.id})),...next.history];
+   next.history=[...taken.map(x=>({...x,boughtBy:addedBy,boughtAt:data.purchase?.occurredAt||timestamp,purchase:data.purchase?{...data.purchase,currency:data.purchase.currency||'RUB',rubAmount:Number(data.purchase.rubAmount)||((data.purchase.currency||'RUB')==='RUB'?data.purchase.amount:0)}:null,id:'offline-history-'+x.id})),...next.history];
   if(op==='remove')next.removedItem=taken[0]||null;
   if(op==='clear')next.removedItems=taken;
  }else if(op==='restore'){
@@ -163,7 +163,17 @@ async function view(area,who=actor){
  const saved=await base(area,who);
  if(!saved)return null;
  let state={...saved};
- for(const row of await pending(area,who))state=project(area,state,row);
+ for(const row of await pending('',who)){
+  if(row.area===area)state=project(area,state,row);
+  else if(area==='finances'&&row.area==='products'&&row.operation==='buy-checked'&&row.payload.purchase){
+   const p=row.payload.purchase;
+   if(state.personalExpenses?.some(x=>x.requestId==='products-'+p.id))continue;
+   const category=state.categories?.find(x=>String(x.name).toLowerCase()==='продукты');
+   const monthParts=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit'}).formatToParts(new Date(p.occurredAt||row.createdAt));
+   const month=monthParts.find(x=>x.type==='year').value+'-'+monthParts.find(x=>x.type==='month').value;
+   state=financeProjection(state,'save-expense',{walletId:p.walletId,categoryId:category?.id||'products',month,amount:p.amount,occurredAt:p.occurredAt,requestId:'products-'+p.id,note:'Покупка продуктов',offlineConversion:{sourceAmount:p.amount,amount:p.rubAmount||0,rubAmount:p.rubAmount||0}},{...row,id:'products-'+p.id});
+  }
+ }
  return state;
 }
 function offline(){
@@ -242,7 +252,12 @@ async function request(area,operation,payload={},live=null){
      ?{...payload,offlineOperationId:opId}
      :area==='finances'&&operation==='save-expense'&&!payload.id?{...payload,requestId:payload.requestId||opId}:payload;
    const result=await live(livePayload);
-   if(result?.ok===true)await capture(area,result,who).catch(()=>false);
+   if(result?.ok===true){
+    await capture(area,result,who).catch(()=>false);
+    if(area==='products'&&result.purchaseFinances?.ok){
+     await capture('finances',result.purchaseFinances,who);signal({area:'finances',synced:true});
+    }
+   }
    return (await view(area,who).catch(()=>null))||result;
   }catch(error){
    if(!networkError(error))throw error;
@@ -320,10 +335,12 @@ async function flush(){
     await tx(['outbox','snapshots'],'readwrite',tr=>{
      tr.objectStore('snapshots').put({key:key(who,row.area),state:clean(response),savedAt:Date.now()});
      if(row.area==='products')tr.objectStore('snapshots').put({key:key(who,'productMap'),value:productMap,savedAt:Date.now()});
+     if(row.area==='products'&&response.purchaseFinances?.ok)tr.objectStore('snapshots').put({key:key(who,'finances'),state:clean(response.purchaseFinances),savedAt:Date.now()});
      tr.objectStore('outbox').delete(row.id);
     });
     sent++;
     signal({area:row.area,synced:true});
+    if(row.area==='products'&&response.purchaseFinances?.ok)signal({area:'finances',synced:true});
    }catch(error){
     if(!error.status||error.status>=500||[401,403,408,425,429].includes(error.status))break;
     // Keep conflicts and invalid mutations visible, never silently lose them.

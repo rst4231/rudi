@@ -663,3 +663,5 @@ module.exports.handler = module.exports;
 module.exports.statusFor = statusFor;
 module.exports.categorySummary = categorySummary;
 module.exports.resolveExpenseConversion = resolveExpenseConversion;
+
+module.exports.financeRubRates=financeRubRates;

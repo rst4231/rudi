@@ -1,18 +1,20 @@
 {
-  "current": "v4.382",
-  "versionBranch": "fix/remove-cloudcam",
+  "current": "v4.383",
+  "versionBranch": "fix/purchase-history-months",
   "releaseCommit": "",
-  "deploymentSourceCommit": "0725fa90c3392266c0e0a406c6395c8d88bc623d",
+  "deploymentSourceCommit": "d0439d55943325a2801e0dc9a6e3397eb8b56384",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-30",
-  "basedOnProduction": "v4.381",
+  "basedOnProduction": "v4.382",
   "notes": [
-    "Удалена карточка CloudCam / EyePlus из Умного дома. Счётчики комнат учитывают только реальные устройства.",
-    "Нажатие на надпись Умный дом на главном экране открывает страницу устройств."
+    "История покупок сгруппирована по месяцам с итогом по известным суммам.",
+    "После Купил открывается выбор кошелька и суммы. Расход записывается в категорию Продукты и отображается в истории.",
+    "Убрана иконка кошелька рядом с Сохранённым."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Remove CloudCam external viewer card and unused styles; count actual room devices",
-    "Open smart home page from home screen title"
+    "Monthly purchase history totals deduplicated per receipt",
+    "Grocery checkout expense dialog with wallet selection and idempotent debit",
+    "Remove kitchen finance shortcut"
   ]
 }

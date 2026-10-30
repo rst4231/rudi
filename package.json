@@ -5,7 +5,7 @@
   "scripts": {
     "build": "node build.cjs",
     "postinstall": "node build.cjs",
-    "test": "npm run test:cbt && npm run test:car && npm run test:mood && npm run test:calendar-edit && npm run test:current && npm run test:weather-mobile && npm run test:smart-home",
+    "test": "npm run test:purchases && npm run test:cbt && npm run test:car && npm run test:mood && npm run test:calendar-edit && npm run test:current && npm run test:weather-mobile && npm run test:smart-home",
     "test:mood": "node --test tests/mood-picker-flow.test.cjs tests/mood-submood-store.test.cjs tests/daily-mood-store.test.cjs tests/mood-custom-reason-history.test.cjs tests/v4.84-mood-reason-time.test.cjs tests/v4.27-mood-factor-groups.test.cjs",
     "test:weather-mobile": "node --test tests/weather-forecast-mobile.test.cjs",
     "test:ui": "playwright test",
@@ -17,7 +17,8 @@
     "test:smart-home": "node --test tests/smart-home-page.test.cjs tests/smart-home-resilience.test.cjs",
     "test:retired-features": "node --test tests/for-di-retired.test.cjs",
     "test:fasting-history": "node --test tests/fasting-history-calendar.test.cjs",
-    "test:periods": "node --test tests/fasting-history-calendar.test.cjs tests/finance-month-rollover.test.cjs"
+    "test:periods": "node --test tests/fasting-history-calendar.test.cjs tests/finance-month-rollover.test.cjs",
+    "test:purchases": "node --test tests/product-purchase*.test.cjs"
   },
   "dependencies": {
     "@simplewebauthn/server": "14.0.2",

@@ -4680,7 +4680,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if (operation === 'buy-checked') {
         const state = Array.isArray(body.checkedIds)
-          ? await markProductsBoughtByIds(body.checkedIds, actor, options)
+          ? await markProductsBoughtByIds(body.checkedIds, actor, {...options,purchase:body.purchase})
           : await markCheckedProductsBought(actor, options);
         const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ ok: true, actor, ...state, backupToken });

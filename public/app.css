@@ -3245,6 +3245,10 @@
     .products-history-toggle{padding:3px 0;border:0;background:transparent;color:var(--accent);font:inherit;font-size:8.8px;font-weight:760;cursor:pointer}
     .products-history-toggle:active{transform:scale(.96)}
     .products-history-list{display:grid;gap:5px}
+    .products-history-month{display:grid;gap:7px;min-width:0}
+    .products-history-month+.products-history-month{margin-top:12px}
+    .products-history-month-title{margin:3px 0 0;color:var(--text);font-size:11px;font-weight:800;line-height:1.4}
+    .products-history-month-list{display:grid;gap:5px;min-width:0}
     .product-history-item{padding:8px 9px;border-radius:11px;background:color-mix(in srgb,var(--soft) 72%,transparent);color:var(--muted);font-size:9.2px;line-height:1.4;overflow-wrap:anywhere}
     .product-history-date{color:var(--text);font-size:9.5px;font-weight:760}
     .product-history-separator{color:var(--muted)}
@@ -17848,18 +17852,7 @@ button.fasting-elapsed:focus-visible{outline:2px solid var(--accent);outline-off
 .finance-obligations-card .finance-obligation-row.is-due-today-unpaid .finance-obligation-toggle{color:#fb6170}
 @media(prefers-reduced-motion:reduce){.finance-obligations-card .finance-obligation-row.is-due-today-unpaid{animation:none}}
 
-/* RUDI v4.146: preserve three kitchen tabs and add an independent finance shortcut. */
-body[data-app-tab="products"] .kitchen-switcher{
-  grid-template-columns:repeat(3,minmax(0,1fr)) 34px;
-  gap:4px;
-}
-body[data-app-tab="products"] .kitchen-switcher>button#kitchenFinanceShortcut{
-  display:grid;place-items:center;min-width:34px;width:34px;height:100%;min-height:34px;
-  padding:0;border:1px solid var(--line);border-radius:9px;
-  background:var(--surface-strong);color:var(--muted);
-}
-body[data-app-tab="products"] .kitchen-switcher>button#kitchenFinanceShortcut>svg{width:18px;height:18px}
-body[data-app-tab="products"] .kitchen-switcher>button#kitchenFinanceShortcut:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+body[data-app-tab="products"] .kitchen-switcher{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
 
 /* RUDI v4.146: partner avatar opens their existing star/profile page. */
 .profile-person-card .partner-header-avatar[role="button"]{cursor:pointer;-webkit-tap-highlight-color:transparent}
@@ -18403,3 +18396,12 @@ html[data-theme=dark] .rudi-meditation-page.lulu-profile-page{background:radial-
 .lulu-profile-page>.rudi-app-page-head{background:transparent!important;box-shadow:none!important;border:0!important}
 .lulu-profile-page h1,.lulu-profile-page h2,.lulu-profile-page h3{color:var(--lulu-ink)!important;-webkit-text-fill-color:var(--lulu-ink)!important}
 .lulu-profile-page .lulu-profile-back{background:var(--lulu-paper)!important;border:1px solid var(--lulu-line)!important;color:var(--lulu-ink)!important;box-shadow:none!important}
+
+.products-history-month-title{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.products-history-month-total{font-size:10px;font-weight:750;color:var(--accent)}
+.product-history-amount{display:block;margin-top:5px;color:var(--text);font-size:11px}
+.product-history-wallet{display:block;margin-top:2px;color:var(--muted);font-size:9px}
+.product-purchase-dialog{width:min(100%,420px)}
+.product-purchase-dialog select{min-height:44px}
+.product-purchase-dialog [data-purchase-save]{background:var(--accent);color:var(--surface-strong);font-weight:750}
+.product-purchase-dialog button:disabled{opacity:.55;cursor:wait}
