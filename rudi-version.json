@@ -1,21 +1,21 @@
 {
-  "current": "v4.378",
-  "versionBranch": "fix/lulu-light-header-20261030",
+  "current": "v4.379",
+  "versionBranch": "feat/lulu-care-20261030",
   "releaseCommit": "",
-  "deploymentSourceCommit": "bdf787f62c1cd22b0ee6a875af9a12d41323c26e",
+  "deploymentSourceCommit": "7952bce5cd07fd4ba5b4143943dd92e9ca3b3b2c",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-30",
-  "basedOnProduction": "v4.377",
+  "basedOnProduction": "v4.378",
   "notes": [
-    "Убрана белая полоса за заголовком профиля Лулу в светлой теме.",
-    "Учтены все расходы Дианы из категории Лулу, включая операции без меток и описаний.",
-    "Блок переименован в Расходы за месяц; убраны подпись с именем, разбивка расходов и сообщение пустого списка.",
-    "Счётчики прогулок Дианы и Рустама перенесены непосредственно над историей прогулок.",
-    "На главной убран возраст рядом с именем Лулу; в профиле возраст сохранён."
+    "Добавлены вес с историей и графиком, питание, прививки и обработки, назначения врача и отметки приёма.",
+    "Новые записи общие для Рустама и Дианы, доступны офлайн, сохраняются между месяцами.",
+    "Убрана поясняющая подпись под историей прогулок."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Exclude Lulu from shared light profile header background and blur",
-    "Include uncategorized Lulu expenses with a separate unclassified subtotal"
+    "Shared long-lived Lulu care records with record-level distributed locking",
+    "Weight chart, nutrition, prevention and prescription editors",
+    "Individual prescription intake marks and offline synchronization",
+    "Remove walk-history implementation copy"
   ]
 }

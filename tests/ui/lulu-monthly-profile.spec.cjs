@@ -4,8 +4,8 @@ const app=fs.readFileSync('public/app.js','utf8');
 const code=app.slice(app.indexOf('      function luluTodayWalks('),app.indexOf('      let settingsFaceIdStatusSequence='));
 test.beforeEach(async({page})=>{
  await page.clock.install({time:new Date('2026-10-30T12:00:00Z')});
- await page.route('**/*',route=>{const u=new URL(route.request().url());if(u.pathname==='/fixture')return route.fulfill({contentType:'text/html',body:'<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/meditation.css"><link rel="stylesheet" href="/partner-profile.css"></head><body><button id="trigger">Лулу</button><button id="luluWalkButton">Прогулка</button><div id="luluWalkStatus"></div><div id="luluWalkHistory"></div></body></html>'});return route.continue()});
- await page.goto('/fixture');
+ await page.route('**/*',route=>{const u=new URL(route.request().url());if(u.pathname==='/fixture')return route.fulfill({contentType:'text/html',body:'<html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/meditation.css"><link rel="stylesheet" href="/partner-profile.css"><link rel="stylesheet" href="/lulu-care.css"></head><body><button id="trigger">Лулу</button><button id="luluWalkButton">Прогулка</button><div id="luluWalkStatus"></div><div id="luluWalkHistory"></div></body></html>'});return route.continue()});
+ await page.goto('/fixture');await page.addScriptTag({url:'/lulu-care.js'});
  await page.addScriptTag({content:`const TZ='Europe/Moscow',currentActor='Рустам',tg=null,homeDashboardState={lulu:null};
  function sharedAlbumDateKey(v){const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(v).map(p=>[p.type,p.value]));return p.year+'-'+p.month+'-'+p.day}
  function syncLuluToiletStatus(){} function luluAgeLabel(){return '5 лет'}

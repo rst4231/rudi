@@ -82,6 +82,7 @@ const {
   removeActivityByDedupeKey,
   observeActivityMarker,
 } = require('./activity-journal-store.cjs');
+const {readLuluCare,saveLuluCare}=require('./lulu-care-store.cjs');
 const { normalizeLuluState, readLuluHealth, saveLuluHealth, readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
 const { readScoreState, awardScore, reverseScoreByDedupeKey, transferStars, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
@@ -3148,6 +3149,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'get').trim();
+      if(operation==='care-get')return res.status(200).json({ok:true,actor,care:await readLuluCare(options)});
+      if(operation==='care-command')return res.status(200).json({ok:true,actor,record:await saveLuluCare(actor,body.command,options)});
       if(operation==='health-get')return res.status(200).json({ok:true,actor,health:await readLuluHealth(options)});
       if(operation==='health-save')return res.status(200).json({ok:true,actor,health:await saveLuluHealth(actor,{text:body.text,expectedUpdatedAt:body.expectedUpdatedAt},options)});
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
@@ -3305,7 +3308,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
         : code === 'lulu-walk-owner-required' || code === 'lulu-undo-forbidden' ? 403
-        : code === 'lulu-health-conflict' ? 409
+        : ['lulu-health-conflict','lulu-care-conflict'].includes(code) ? 409
+        : code === 'lulu-care-busy' ? 503
         : code.startsWith('lulu-') ? 400
         : 500;
       if (status === 500) console.error('RUDI_LULU_ERROR', code);

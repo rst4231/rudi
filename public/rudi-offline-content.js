@@ -162,6 +162,7 @@ async function enqueue(kind,scope,data,who=actor){
   id:kind==='lulu'&&/^[a-z0-9_-]{8,96}$/i.test(String(data?.offlineOperationId||''))?String(data.offlineOperationId):makeId(),
   actor:who,kind,scope,data:safe(data),createdAt:Date.now(),stamp:makeId(),error:''
  };
+ if(match&&kind==='lulu'&&data?.operation==='care-command')row.data.command.expectedUpdatedAt=match.data.command.expectedUpdatedAt;
  if(match&&(['note','partner-note'].includes(kind)||kind==='lulu'&&data?.operation==='health-save'))row.data.expectedUpdatedAt=match.data.expectedUpdatedAt;
  await tx('outbox','readwrite',store=>store.put(row));
  if(kind==='lulu'&&isOffline()){
@@ -225,6 +226,16 @@ async function advanceNoteRevision(id,expectedUpdatedAt){
   tr.onabort=()=>{db.close();reject(tr.error||Error('offline-note-revision-aborted'))};
  });
 }
+async function advanceCareRevision(id,from,to){
+ const db=await open();
+ await new Promise((resolve,reject)=>{
+  const tr=db.transaction('outbox','readwrite'),store=tr.objectStore('outbox'),get=store.get(id);
+  get.onsuccess=()=>{const row=get.result;if(row?.kind==='lulu'&&row.data?.operation==='care-command'&&row.data.command.expectedUpdatedAt===from)store.put({...row,data:{...row.data,command:{...row.data.command,expectedUpdatedAt:to}},error:'',errorStatus:0})};
+  tr.oncomplete=()=>{db.close();resolve()};
+  tr.onerror=()=>{db.close();reject(tr.error||Error('offline-care-revision-failed'))};
+  tr.onabort=()=>{db.close();reject(tr.error||Error('offline-care-revision-aborted'))};
+ });
+}
 async function rebaseNote(expectedUpdatedAt,who=actor,scope='home',kind='note'){
  if(!actors.has(who)||typeof expectedUpdatedAt!=='string')throw Error('offline-rebase-invalid');
  const row=(await pending(kind,scope,who))[0];
@@ -265,7 +276,7 @@ async function send(row){
   body={operation:'answer',...row.data};
  }else if(row.kind==='lulu'){
   url='/api/partner-message?rudiAction=lulu';
-  body=row.data?.operation==='health-save'?{operation:'health-save',text:row.data.text,expectedUpdatedAt:row.data.expectedUpdatedAt}:{operation:'walk',peed:row.data?.peed===true,pooped:row.data?.pooped===true,
+  body=row.data?.operation==='care-command'?{operation:'care-command',command:row.data.command}:row.data?.operation==='health-save'?{operation:'health-save',text:row.data.text,expectedUpdatedAt:row.data.expectedUpdatedAt}:{operation:'walk',peed:row.data?.peed===true,pooped:row.data?.pooped===true,
    stool:row.data?.pooped===true?String(row.data?.stool||''):'',
    walkedAt:String(row.data?.walkedAt||''),offlineOperationId:row.id};
  }else if(row.kind==='wellness'){
@@ -319,6 +330,9 @@ async function flush(){
      const acked=await acknowledge(row.id,row.stamp);
      const stored=acked?null:await tx('outbox','readonly',store=>store.get(row.id));
      if(acked)sent++;
+     else if(stored&&row.kind==='lulu'&&row.data?.operation==='care-command'&&result.record?.updatedAt){
+      await advanceCareRevision(row.id,row.data.command.expectedUpdatedAt,result.record.updatedAt);
+     }
      else if(stored&&['note','partner-note'].includes(row.kind)&&result.note?.updatedAt){
       await advanceNoteRevision(row.id,result.note.updatedAt);
      }

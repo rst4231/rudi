@@ -229,3 +229,19 @@ test('Lulu health edit sync keeps health operation and text',async()=>{
  await api.enqueue('lulu','health',{operation:'health-save',text:'Лапа',expectedUpdatedAt:''});
  h.online(true);await api.flush();assert.equal(h.requests[0].body.operation,'health-save');assert.equal(h.requests[0].body.text,'Лапа');
 });
+test('Lulu care edits coalesce per record while preserving original revision and command',async()=>{
+ const h=makeHarness(),api=h.mount();api.init('Диана');
+ await api.enqueue('lulu','care:weight:w1',{operation:'care-command',command:{kind:'weight',id:'w1',data:{date:'2026-10-30',kg:12},expectedUpdatedAt:'rev-1'}});
+ await api.enqueue('lulu','care:weight:w1',{operation:'care-command',command:{kind:'weight',id:'w1',data:{date:'2026-10-30',kg:12.5},expectedUpdatedAt:'local-2'}});
+ h.online(true);await api.flush();
+ assert.equal(h.requests.length,1);assert.equal(h.requests[0].body.operation,'care-command');assert.equal(h.requests[0].body.command.expectedUpdatedAt,'rev-1');assert.equal(h.requests[0].body.command.data.kg,12.5);
+});
+test('care edit made during sync advances to the committed predecessor revision',async()=>{
+ const h=makeHarness(),api=h.mount();api.init('Диана');let first=true;
+ await api.enqueue('lulu','care:weight:w1',{operation:'care-command',command:{kind:'weight',id:'w1',data:{date:'2026-10-30',kg:12},expectedUpdatedAt:'rev-1'}});
+ h.intercept(async body=>{
+  if(first){first=false;await api.enqueue('lulu','care:weight:w1',{operation:'care-command',command:{kind:'weight',id:'w1',data:{date:'2026-10-30',kg:13},expectedUpdatedAt:'rev-1'}});return {ok:true,json:async()=>({ok:true,record:{kind:'weight',id:'w1',updatedAt:'rev-2',data:body.command.data}})}}
+  assert.equal(body.command.expectedUpdatedAt,'rev-2');return {ok:true,json:async()=>({ok:true,record:{kind:'weight',id:'w1',updatedAt:'rev-3',data:body.command.data}})};
+ });
+ h.online(true);await api.flush();assert.equal((await api.pending('lulu'))[0].data.command.expectedUpdatedAt,'rev-2');await api.flush();assert.equal((await api.pending('lulu')).length,0);
+});

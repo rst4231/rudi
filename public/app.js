@@ -8421,7 +8421,7 @@
         return [...rows.values()].sort((a,b)=>Date.parse(a.walkedAt)-Date.parse(b.walkedAt));
       }
 
-      let luluProfilePage=null,luluProfileTrigger=null,luluProfileTimer=null;
+      let luluProfilePage=null,luluProfileTrigger=null,luluProfileTimer=null,luluCareUnmount=null;
       function renderLuluProfile(){
         if(!luluProfilePage)return;
         renderLuluFinances();
@@ -8449,6 +8449,7 @@
 
       function closeLuluProfile(fromHistory=false){
         if(!luluProfilePage)return;
+        luluCareUnmount?.();luluCareUnmount=null;
         luluProfilePage.remove();luluProfilePage=null;clearInterval(luluProfileTimer);
         document.body.classList.remove('lulu-profile-open');
         if(!fromHistory&&history.state?.rudiLuluProfile)history.back();
@@ -8460,12 +8461,13 @@
         luluProfileTrigger=event?.currentTarget||document.getElementById('luluWalkHistoryToggle');
         const page=document.createElement('section');page.className='rudi-meditation-page partner-profile-page lulu-profile-page';
         page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';page.setAttribute('aria-label','Профиль Лулу');
-        page.innerHTML='<header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head partner-profile-bar"><button type="button" class="fasting-back-button rudi-app-page-back lulu-profile-back" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="fasting-page-title"><h1>Лулу</h1></div></header><div class="partner-profile-content"><div class="partner-profile-layout"><section class="lulu-profile-hero"><img src="/lulu-normal.webp?v=2.118" width="72" height="72" alt="Лулу"><div><small class="lulu-profile-eyebrow">🐾 Моя собачья жизнь</small><h2>Лулу</h2><p>Французский бульдог · '+luluAgeLabel()+'</p></div></section><section class="lulu-profile-health"><h2>Здоровье</h2><label for="luluHealthText">Текущие проблемы</label><textarea id="luluHealthText" rows="4" maxlength="2000" placeholder="Укажи, что сейчас беспокоит Лулу. Каждую проблему можно написать с новой строки."></textarea><div class="lulu-health-actions"><button type="button" class="lulu-health-save" disabled>Сохранить</button><span class="lulu-health-status" role="status">Загружаю…</span></div></section><section class="lulu-profile-finances"><h2>Расходы за месяц</h2><strong class="lulu-food-total">Загружаю…</strong><div class="lulu-food-transactions"></div></section><section class="lulu-profile-summary"><h2>Прогулки за месяц</h2><p class="lulu-profile-month"></p><div class="lulu-profile-counts"><div><span>Диана</span><strong data-lulu-count="Диана">0</strong></div><div><span>Рустам</span><strong data-lulu-count="Рустам">0</strong></div></div></section><section class="lulu-profile-journal"><h2>История прогулок</h2><p class="lulu-profile-retention">Храним только текущий месяц. Отменить свою прогулку можно в день записи.</p><div class="lulu-profile-history"></div></section></div></div>';
+        page.innerHTML='<header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head partner-profile-bar"><button type="button" class="fasting-back-button rudi-app-page-back lulu-profile-back" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="fasting-page-title"><h1>Лулу</h1></div></header><div class="partner-profile-content"><div class="partner-profile-layout"><section class="lulu-profile-hero"><img src="/lulu-normal.webp?v=2.118" width="72" height="72" alt="Лулу"><div><small class="lulu-profile-eyebrow">🐾 Моя собачья жизнь</small><h2>Лулу</h2><p>Французский бульдог · '+luluAgeLabel()+'</p></div></section><section class="lulu-profile-health"><h2>Здоровье</h2><label for="luluHealthText">Текущие проблемы</label><textarea id="luluHealthText" rows="4" maxlength="2000" placeholder="Укажи, что сейчас беспокоит Лулу. Каждую проблему можно написать с новой строки."></textarea><div class="lulu-health-actions"><button type="button" class="lulu-health-save" disabled>Сохранить</button><span class="lulu-health-status" role="status">Загружаю…</span></div></section><div class="lulu-care-root"></div><section class="lulu-profile-finances"><h2>Расходы за месяц</h2><strong class="lulu-food-total">Загружаю…</strong><div class="lulu-food-transactions"></div></section><section class="lulu-profile-summary"><h2>Прогулки за месяц</h2><p class="lulu-profile-month"></p><div class="lulu-profile-counts"><div><span>Диана</span><strong data-lulu-count="Диана">0</strong></div><div><span>Рустам</span><strong data-lulu-count="Рустам">0</strong></div></div></section><section class="lulu-profile-journal"><h2>История прогулок</h2><div class="lulu-profile-history"></div></section></div></div>';
         luluProfilePage=page;document.body.append(page);document.body.classList.add('lulu-profile-open');
         history.pushState({...history.state,rudiLuluProfile:true},'','#lulu');
         page.querySelector('.lulu-profile-back').onclick=()=>closeLuluProfile();
         page.querySelector('.lulu-health-save').onclick=saveLuluHealthFromProfile;
         page.querySelector('#luluHealthText').oninput=event=>{event.target.dataset.dirty='1'};
+        luluCareUnmount=window.RudiLuluCare?.mount(page.querySelector('.lulu-care-root'),{actor:currentActor,request:luluRequest})||null;
         renderLuluProfile();void loadLuluFinances();void loadLuluHealth();page.querySelector('.lulu-profile-back').focus({preventScroll:true});
         luluProfileTimer=setInterval(()=>{renderLuluProfile();if(luluFinanceData?.month!==sharedAlbumDateKey(new Date()).slice(0,7))void loadLuluFinances()},60000);
         window.RudiViewport?.sync?.();
@@ -8575,7 +8577,7 @@
 
       async function luluRequest(operation,payload={}){
         const backupContext=backupRequestContext();
-        const controller=['walk','health-get','health-save'].includes(operation)?new AbortController():null;
+        const controller=['walk','health-get','health-save','care-get','care-command'].includes(operation)?new AbortController():null;
         const timer=controller?setTimeout(()=>controller.abort(),6000):null;
         let response;
         try{
@@ -8673,6 +8675,7 @@
 
       window.addEventListener('rudi-content-operation-synced',event=>{
         if(event.detail?.kind!=='lulu'||event.detail.actor!==currentActor)return;
+        if(event.detail.operation==='care-command')return;
         if(event.detail.result?.health){luluHealthData=event.detail.result.health;void window.rudiOfflineContent?.capture?.('lulu-health',luluHealthData,currentActor);renderLuluHealth(luluHealthData,'Синхронизировано');return}
         if(event.detail.result?.lulu)renderLulu(event.detail.result.lulu);
         void loadActivityJournal({silent:true}).catch(()=>{});
