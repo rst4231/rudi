@@ -2,7 +2,7 @@
 // Cross-source observations are computed ONCE at scheduled report time, not on page opening.
 // Paired dates, minimum evidence, incomplete-day controls and actor isolation prevent false claims.
 const VALID_DATE=/^\d{4}-\d{2}-\d{2}$/;
-const NEGATIVE=new Set(['sadness','boredom','fatigue','anger']);
+const NEGATIVE=new Set(['sadness','boredom','fatigue','anger','anxiety']);
 const MOODS=new Set([...NEGATIVE,'joy','love','neutral']);
 const dateKey=raw=>{
  const ms=Date.parse(String(raw||''));if(!Number.isFinite(ms))return '';

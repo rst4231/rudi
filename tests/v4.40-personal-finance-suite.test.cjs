@@ -104,7 +104,7 @@ test('v4.49 due obligations are wired into morning and 21:00 evening summaries',
   assert.ok(evening.includes("const unpaidObligations=obligationRows.filter(row=>!row.paid)"));
   assert.ok(evening.includes("if(obligationPart)blocks.push(obligationPart)"));
   assert.ok(evening.includes('eveningObligationPart(obligationRows)'));
-  assert.ok(evening.includes('buildEveningSummary(actor,{pendingHabits,taskDetails,obligationRows})'));
+  assert.ok(evening.includes('buildEveningSummary(actor,{pendingHabits,taskDetails,obligationRows,cbtReminder})'));
 });
 
 

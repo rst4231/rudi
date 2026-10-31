@@ -1,3 +1,4 @@
+const Course=require('../public/supplement-course.js');
 const crypto=require('node:crypto');
 const {createStrictRuntimeCache}=require('./strict-runtime-cache.cjs');
 
@@ -140,7 +141,7 @@ function normalizeState(value,actor){
   };
 }
 function enqueue(actor,task){const key=cleanActor(actor),tail=tails.get(key)||Promise.resolve(),run=tail.then(task,task);tails.set(key,run.catch(()=>{}));return run}
-async function readSupplements(actor,o={}){const who=cleanActor(actor);return normalizeState(await stateStoreOf(who,o).read(),who)}
+async function readSupplements(actor,o={}){const who=cleanActor(actor);const state=normalizeState(await stateStoreOf(who,o).read(),who);return {...state,items:state.items.map(item=>Course.apply(item,moscowDateKey(o.now||Date.now())))}}
 async function writeSupplements(actor,state,o={}){
   const who=cleanActor(actor),now=new Date(o.now||Date.now()).toISOString(),next=normalizeState({...state,initialized:true,actor:who,updatedAt:now},who);
   await stateStoreOf(who,o).write(next);
@@ -170,7 +171,7 @@ async function updateSupplement(actor,id,patch,o={}){
       goal:source.goal===undefined?current.goal:source.goal,
       ingredients:source.ingredients===undefined?current.ingredients:source.ingredients,
       schedule:source.schedule===undefined?current.schedule:{...current.schedule,...source.schedule},
-      course:source.course===undefined?current.course:{...current.course,...source.course},
+      course:Course.forUpdate(current,source,moscowDateKey(o.now||Date.now())),
       status,
       expirationDate:source.expirationDate===undefined?current.expirationDate:source.expirationDate,
       updatedAt:now,
@@ -185,6 +186,7 @@ async function markSupplementTaken(actor,id,o={}){
     const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);
     if(index<0)throw new Error('supplement-not-found');
     const date=moscowDateKey(o.now||Date.now()),current=state.items[index];
+    if(!Course.canMark(current,date))throw new Error('supplement-course-inactive');
     const target=cleanTimesPerDay(current.schedule?.timesPerDay);
     const occupied=intakeSlots(current.intakes,date,target);
     const asked=o.slot===undefined?undefined:intakeSlot(o.slot);
@@ -219,6 +221,7 @@ async function unmarkSupplementTaken(actor,id,o={}){
 async function markSupplementSkipped(actor,id,o={}){
   const who=cleanActor(actor),safeId=cleanText(id,96);if(!safeId)throw new Error('supplement-id-required');
   return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)throw new Error('supplement-not-found');const date=moscowDateKey(o.now||Date.now()),current=state.items[index];
+    if(!Course.canMark(current,date))throw new Error('supplement-course-inactive');
     if(current.intakes.some(row=>row.date===date))throw new Error('supplement-already-taken');
     if((current.skips||[]).some(row=>row.date===date))return{state,item:current,duplicate:true,date};
     const now=new Date(o.now||Date.now()).toISOString(),items=[...state.items];items[index]=normalizeItem({...current,skips:[...(current.skips||[]),{date,at:now}],updatedAt:now});
@@ -287,12 +290,13 @@ async function applyOfflineOperation(actor,opId,command,payload={},o={}){
       goal:patch.goal===undefined?old.goal:patch.goal,
       ingredients:patch.ingredients===undefined?old.ingredients:patch.ingredients,
       schedule:patch.schedule===undefined?old.schedule:{...old.schedule,...patch.schedule},
-      course:patch.course===undefined?old.course:{...old.course,...patch.course},
+      course:Course.forUpdate(old,patch,date),
       expirationDate:patch.expirationDate===undefined?old.expirationDate:patch.expirationDate,
       status:nextStatus,updatedAt:timestamp,
       statusHistory:nextStatus!==old.status?[...old.statusHistory,{status:nextStatus,at:timestamp}]:old.statusHistory});
     items[index]=item;
    }else if(command==='take'){
+    if(!Course.canMark(old,date))throw Error('supplement-course-inactive');
     const target=cleanTimesPerDay(old.schedule?.timesPerDay),occupied=intakeSlots(old.intakes,date,target);
     const asked=payload.slot===undefined?undefined:intakeSlot(payload.slot);
     if(payload.slot!==undefined&&(asked===null||asked>=target))throw Error('supplement-slot-invalid');
@@ -309,6 +313,7 @@ async function applyOfflineOperation(actor,opId,command,payload={},o={}){
     const matched=asked===undefined?taken[taken.length-1]:taken.find(row=>row.slot===asked);
     if(matched){item=normalizeItem({...old,intakes:old.intakes.filter((_,j)=>matched.index!==j),updatedAt:timestamp});items[index]=item}
    }else if(command==='skip'){
+    if(!Course.canMark(old,date))throw Error('supplement-course-inactive');
     if(old.intakes.some(x=>x.date===date))throw Error('supplement-already-taken');
     if(!old.skips.some(x=>x.date===date)){item=normalizeItem({...old,skips:[...old.skips,{date,at:timestamp}],updatedAt:timestamp});items[index]=item}
    }else if(command==='note'){

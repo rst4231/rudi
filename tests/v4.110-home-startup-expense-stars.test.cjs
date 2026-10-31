@@ -21,7 +21,7 @@ test('profile card compactness preserves avatar and action sizes',()=>{
   assert.match(release,/min-height:56px!important/);
   assert.doesNotMatch(release,/\.avatar\s*\{|\.profile-contact-button\s*\{/);
 });
-test('first expense bonus is 0.2 daily, separate actors and double credit is blocked',async()=>{
+test('legacy expense bonus remains reversible without removing other actors stars',async()=>{
   resetMutationQueueForTests();
   assert.equal(DAILY_EXPENSE_SCORE_UNITS,2);
   const now=Date.parse('2026-10-09T12:00:00.000Z'),day=scoreDateKey(now);
@@ -46,9 +46,8 @@ test('first expense bonus is 0.2 daily, separate actors and double credit is blo
   const repeat=await reverseScoreByDedupeKey(key,{skipStreak:true},{scoreCache:cache,now:now+3000});
   assert.equal(repeat.reversedUnits,0);
 });
-test('edited and imported expenses cannot earn stars, delete checks matching expense id',()=>{
-  assert.match(finance,/const isNew=!String\(body\.id\|\|''\)\.trim\(\)/);
-  assert.match(finance,/const score=newExpense\?\.actor===actor&&!newExpense\.importKey/);
+test('expenses cannot earn stars, deletion can reverse a matching legacy bonus',()=>{
+  assert.doesNotMatch(finance,/awardFirstDailyExpense|awardScore\(/);
   assert.match(finance,/current\.dedupe\[key\]===expenseId/);
   assert.match(finance,/reverseScoreByDedupeKey\(key/);
   assert.match(finance,/removed&&!removed\.manualAdjustment&&!removed\.importKey/);

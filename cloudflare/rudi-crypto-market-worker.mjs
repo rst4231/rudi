@@ -4,7 +4,7 @@
  * Does not authenticate to Bybit, place orders, or fabricate price candles.
  */
 const HOSTS=['https://api.bybit.com','https://api.bytick.com'];
-const SYMBOL=/^[A-Z0-9]{2,25}USDT$/;
+const SYMBOL=/^[A-Z0-9]{1,25}USDT$/;
 const DIGITS=/^\d{10,16}$/;
 const CACHE_TTL={tickers:90*1000,candle5:6*60000,candle60:19*60000,funding:2*3600000};
 const BASE='/v5/market/';
@@ -159,7 +159,7 @@ async function primeMarket(env){
 // public Telegram feed: no private keys, positions or orders are read.
 function authorSignalCandidate(row,now){
   const content=String(row?.text||'');
-  const m=content.match(/\$([a-z0-9]{2,14})\b/i);
+  const m=content.match(/\$([a-z0-9]{1,14})\b/i);
   if(!m||!/(?:^|[^а-яёa-z])(шорт|short|лонг|long)(?=$|[^а-яёa-z])/i.test(content))
     return null;
   const actionable=/(?:^|[^а-яёa-z])(?:беру|заш[её]л|вхожу|открыл|открываю|набираю|набираюсь|докупаю|лонгую|шорчу)(?=$|[^а-яёa-z])|можно\s+(?:брать|открывать)/i.test(content);
@@ -241,10 +241,16 @@ async function scheduledRun(env){
   let prev=null;try{prev=JSON.parse(previous?.body||'null')}catch{}
   if(prev?.ok&&now-Date.parse(prev.at)<12*60000)return prev;
   const status={at:new Date(now).toISOString(),ok:false,source:'Bybit',scanRequested:false};
+  if(!env.VERCEL_AUTOMATION_BYPASS_SECRET){
+    status.error='rudi-vercel-protection-secret-missing';
+    await writeStatus(env,status);
+    return status;
+  }
   // Launch the real scanner before cache warming: the prefetch must never block it.
   try{
     const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-monitor-cron',{
-      headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json'},
+      headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json',
+        'x-vercel-protection-bypass':env.VERCEL_AUTOMATION_BYPASS_SECRET},
       signal:AbortSignal.timeout(110000)});
     status.scanRequested=true;
     status.httpStatus=response.status;
@@ -262,17 +268,65 @@ async function scheduledRun(env){
   catch(error){console.error('RUDI_CRYPTO_STATUS_WRITE_ERROR',String(error?.message||error));}
   return status;
 }
+async function scheduledLiveRun(env){
+  // No exchange credentials leave D1. Without connected accounts there is no
+  // reason to invoke Vercel every minute. The first tick after connection also
+  // confirms the heartbeat required before the user can activate trading.
+  const account=await env.MARKET_DB.prepare(
+    "SELECT "+
+    "(SELECT COUNT(*) FROM rudi_state WHERE namespace='rudi-crypto-live-config-v1' AND json_extract(value,'$.secret') IS NOT NULL) AS connected,"+
+    "(SELECT COUNT(*) FROM rudi_state WHERE namespace='rudi-crypto-live-config-v1' AND json_extract(value,'$.enabled')=1) AS enabled,"+
+    "(SELECT COUNT(*) FROM rudi_state WHERE namespace='rudi-crypto-live-orders-v1' AND json_extract(value,'$.state') IN ('submitted','unknown','open','attention')) AS active"
+  ).first();
+  if(!Number(account?.connected))return;
+  // No open positions and entries disabled? Half the idle Vercel requests.
+  // A successful 2-minute heartbeat remains inside the server's 3-minute TTL.
+  if(!Number(account.enabled)&&!Number(account.active)){
+    let previous=null;
+    try{previous=await cachedRow(env,'__live_cron_status')}catch(_){}
+    let last=null;try{last=JSON.parse(previous?.body||'null')}catch{}
+    if(last?.ok&&Date.now()-Date.parse(last.at)<110000)return last;
+  }
+  const status={at:new Date().toISOString(),ok:false};
+  // Avoid 401s and unnecessary request billing while Vercel deployment
+  // protection blocks external cron calls. This is a Worker secret binding.
+  if(!env.VERCEL_AUTOMATION_BYPASS_SECRET){
+    status.error='rudi-vercel-protection-secret-missing';
+    await persist(env,'__live_cron_status',JSON.stringify(status));
+    return status;
+  }
+  try{
+    // Hit the dedicated lightweight Vercel function directly to avoid
+    // redirects through the older /api/finances rewrite.
+    const response=await fetch('https://spb-daily-guide-bot.vercel.app/api/crypto-live-runner',{
+      headers:{Authorization:'Bearer '+env.CRON_SECRET,Accept:'application/json',
+        'x-vercel-protection-bypass':env.VERCEL_AUTOMATION_BYPASS_SECRET},
+      redirect:'manual',signal:AbortSignal.timeout(55000)});
+    const payload=response.ok?await response.json().catch(()=>null):null;
+    status.httpStatus=response.status;
+    status.ok=Boolean(response.ok&&payload?.ok);
+    if(!status.ok)status.error=response.status>=300&&response.status<400?
+      'rudi-live-redirect-'+response.status:'rudi-live-http-'+response.status;
+  }catch(error){
+    const category=String(error?.name||'fetch-error').slice(0,45).replace(/[^a-z0-9-]/gi,'');
+    status.error='rudi-live-unavailable-'+category;
+  }
+  await persist(env,'__live_cron_status',JSON.stringify(status));
+  if(!status.ok)console.warn('RUDI_CRYPTO_LIVE_WARN',status.error);
+  return status;
+}
 export default {
   async fetch(req,env){
     const u=new URL(req.url);
     if(u.pathname==='/health'){
-      let last=null;
-      try{if(env.MARKET_DB)last=await cachedRow(env,'__cron_status');}
+      let last=null,live=null;
+      try{if(env.MARKET_DB)[last,live]=await Promise.all([cachedRow(env,'__cron_status'),cachedRow(env,'__live_cron_status')]);}
       catch(error){console.warn('RUDI_CRYPTO_HEALTH_READ_WARN',String(error?.message||error));}
       let stat=null;try{stat=JSON.parse(last?.body||'null')}catch{}
+      let liveStat=null;try{liveStat=JSON.parse(live?.body||'null')}catch{}
       return Response.json({ok:true,service:'rudi-crypto-market',
         source:'Bybit',database:Boolean(env.MARKET_DB),scheduled:Boolean(env.CRON_SECRET),
-        lastRun:stat},{headers:{'cache-control':'no-store'}});
+        lastRun:stat,liveLastRun:liveStat},{headers:{'cache-control':'no-store'}});
     }
     if(req.method!=='GET')return new Response('method-not-allowed',{status:405});
     const path=verifiedMarketPath(req.url);
@@ -282,7 +336,13 @@ export default {
   },
   async scheduled(event,env,ctx){
     if(!env.CRON_SECRET||!env.MARKET_DB){console.error('RUDI_CRYPTO_BINDINGS_MISSING');return;}
-    try{await scheduledRun(env);}
-    catch(error){console.error('RUDI_CRYPTO_SCHEDULE_ERROR',String(error?.message||error));}
+    // Separate triggers: 1-minute safety heartbeat vs 15-minute paper market scan.
+    // No 40-coin market scan, candle fetching or warm-up on the minute trigger.
+    const jobs=event?.cron==='* * * * *'?[scheduledLiveRun(env)]:
+      event?.cron==='*/15 * * * *'?[scheduledRun(env)]:
+      [scheduledRun(env),scheduledLiveRun(env)];
+    const outcomes=await Promise.allSettled(jobs);
+    for(const outcome of outcomes)if(outcome.status==='rejected')
+      console.error('RUDI_CRYPTO_SCHEDULE_ERROR',String(outcome.reason?.message||outcome.reason));
   }
 };

@@ -1,72 +1,117 @@
-const CACHE_NAME='rudi-shell-v4.384';
+const CACHE_NAME='rudi-shell-v4.385';
 const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
 const PRECACHE=[
   "/",
   "/manifest.webmanifest",
+  "/icons/wallet-pionex.png",
   "/battle-ocean.svg",
   "/favicon-rudi-v460.png",
   "/apple-touch-icon-rudi-v460.png",
   "/icon-192-rudi-v460.png",
   "/icon-512.svg",
   "/icon-maskable.svg",
-  "/home-note.css?v=4.384",
-  "/home-note.js?v=4.384",
-  "/home-offline.js?v=4.384",
-  "/rudi-offline-content.js?v=4.384",
-  "/personal-center.css?v=4.384",
-  "/personal-center.js?v=4.384",
-  "/app.css?v=4.384",
-  "/finance-bank.css?v=4.384",
-  "/rudi-design-system.css?v=4.384",
-  "/pwa-extras.css?v=4.384",
-  "/calendar.css?v=4.384",
-  "/calendar-offline.js?v=4.384",
-  "/calendar-entertainment.css?v=4.384",
-  "/calendar-entertainment.js?v=4.384",
-  "/presence.css?v=4.384",
-  "/presence.js?v=4.384",
-  "/rudi-interactions.js?v=4.384",
-  "/smart-home.css?v=4.384",
-  "/car.css?v=4.384",
-  "/profile-supplements.css?v=4.384",
-  "/supplement-advanced.css?v=4.384",
-  "/app.js?v=4.384",
-  "/personal-task-editor.js?v=4.384",
-  "/personal-task-editor.css?v=4.384",
-  "/calendar-day-recap.js?v=4.384",
-  "/wallet-brand-icons.js?v=4.384",
-  "/finance-bank.js?v=4.384",
-  "/crypto-wallets.css?v=4.384",
-  "/crypto-wallets.js?v=4.384",
-  "/pwa-extras.js?v=4.384",
-  "/weather.js?v=4.384",
-  "/bill-payment.js?v=4.384",
-  "/bill-payment.css?v=4.384",
-  "/weather-forecast.js?v=4.384",
-  "/weather-forecast.css?v=4.384",
-  "/rudi-effects.js?v=4.384",
-  "/rudi-effects.css?v=4.384",
-  "/meditation.js?v=4.384",
-  "/meditation.css?v=4.384",
-  "/meditation-audio.js?v=4.384",
-  "/meditation-audio.css?v=4.384",
-  "/smart-home.js?v=4.384",
-  "/car.js?v=4.384",
-  "/profile-supplements.js?v=4.384",
-  "/mood-history.js?v=4.384",
-  "/supplement-editor.js?v=4.384",
-  "/supplement-advanced.js?v=4.384",
-  "/product-extras.css?v=4.384",
-  "/product-extras.js?v=4.384",
-  "/finance-nav-icons.js?v=4.384",
-  "/finance-nav-icons.css?v=4.384",
-  "/rudi-games.js?v=4.384",
-  "/rudi-games-extra.js?v=4.384",
-  "/rudi-games.css?v=4.384",
-  "/home-reference-layout.css?v=4.384",
-  "/home-reference-layout.js?v=4.384"
+  "/home-scene-morning.svg?v=2.104",
+  "/home-scene-day.svg?v=2.104",
+  "/home-scene-evening.svg?v=2.104",
+  "/home-scene-night.svg?v=2.104",
+  "/poslanie-background.png?v=1.8.9",
+  "/changan-uni-v-header.webp?v=4.385",
+  "/habit-history.js?v=4.385",
+  "/supplement-course.js?v=4.385",
+  "/task-completion-policy.js?v=4.385",
+  "/home-hero-v2104.css?v=4.385",
+  "/mood-history-v2101.css?v=4.385",
+  "/mood-reason-v2105.css?v=4.385",
+  "/finance-cards.css?v=4.385",
+  "/crypto-signals.css?v=4.385",
+  "/crypto-algorithms.css?v=4.385",
+  "/recommendations.css?v=4.385",
+  "/finance-wallet-currency.js?v=4.385",
+  "/finance-obligation-dates.js?v=4.385",
+  "/recommendations.js?v=4.385",
+  "/crypto-signals.js?v=4.385",
+  "/crypto-live.js?v=4.385",
+  "/crypto-algorithms.js?v=4.385",
+  "/home-note.css?v=4.385",
+  "/home-note.js?v=4.385",
+  "/home-offline.js?v=4.385",
+  "/rudi-offline-pin.js?v=4.385",
+  "/rudi-offline-content.js?v=4.385",
+  "/rudi-offline-saves.js?v=4.385",
+  "/rudi-offline-transactions.js?v=4.385",
+  "/personal-center.css?v=4.385",
+  "/personal-center.js?v=4.385",
+  "/app.css?v=4.385",
+  "/finance-decisions.css?v=4.385",
+  "/finance-decisions-core.js?v=4.385",
+  "/finance-decisions-ui.js?v=4.385",
+  "/finance-bank.css?v=4.385",
+  "/rudi-design-system.css?v=4.385",
+  "/pwa-extras.css?v=4.385",
+  "/calendar.css?v=4.385",
+  "/calendar-offline.js?v=4.385",
+  "/calendar-entertainment.css?v=4.385",
+  "/calendar-entertainment.js?v=4.385",
+  "/presence.css?v=4.385",
+  "/presence.js?v=4.385",
+  "/rudi-interactions.js?v=4.385",
+  "/smart-home.css?v=4.385",
+  "/car.css?v=4.385",
+  "/profile-supplements.css?v=4.385",
+  "/supplement-advanced.css?v=4.385",
+  "/app.js?v=4.385",
+  "/personal-task-editor.js?v=4.385",
+  "/personal-task-editor.css?v=4.385",
+  "/calendar-day-recap.js?v=4.385",
+  "/wallet-brand-icons.js?v=4.385",
+  "/finance-bank.js?v=4.385",
+  "/crypto-wallets.css?v=4.385",
+  "/crypto-wallets.js?v=4.385",
+  "/pwa-extras.js?v=4.385",
+  "/weather.js?v=4.385",
+  "/bill-payment.js?v=4.385",
+  "/bill-payment.css?v=4.385",
+  "/weather-forecast.js?v=4.385",
+  "/weather-forecast.css?v=4.385",
+  "/rudi-effects.js?v=4.385",
+  "/rudi-effects.css?v=4.385",
+  "/meditation.js?v=4.385",
+  "/meditation.css?v=4.385",
+  "/meditation-audio.js?v=4.385",
+  "/meditation-audio.css?v=4.385",
+  "/smart-home.js?v=4.385",
+  "/car.js?v=4.385",
+  "/profile-supplements.js?v=4.385",
+  "/mood-history.js?v=4.385",
+  "/supplement-editor.js?v=4.385",
+  "/supplement-advanced.js?v=4.385",
+  "/product-extras.css?v=4.385",
+  "/product-extras.js?v=4.385",
+  "/finance-nav-icons.js?v=4.385",
+  "/finance-nav-icons.css?v=4.385",
+  "/rudi-games.js?v=4.385",
+  "/rudi-games-extra.js?v=4.385",
+  "/rudi-games.css?v=4.385",
+  "/home-reference-layout.css?v=4.385",
+  "/home-reference-layout.js?v=4.385",
+  "/lulu-care.js?v=4.385",
+  "/lulu-care.css?v=4.385",
+  "/viewport.js?v=4.385",
+  "/positive-emotion-chart.js?v=4.385",
+  "/partner-profile.js?v=4.385",
+  "/partner-profile.css?v=4.385",
+  "/fasting-history.js?v=4.385",
+  "/finance-month-rollover.js?v=4.385",
+  "/finance-category-limits.js?v=4.385",
+  "/cbt-content.js?v=4.385",
+  "/cbt-core.js?v=4.385",
+  "/cbt.js?v=4.385",
+  "/cbt.css?v=4.385",
+  "/mood-catalog.js?v=4.385",
+  "/mood-picker.js?v=4.385",
+  "/mood-picker.css?v=4.385"
 ];
 
 const SYNC_DB='rudi-background-sync-v1';
@@ -127,41 +172,13 @@ async function notifyClients(payload){
 }
 
 async function flushOutbox(){
+  // Background workers cannot recover a fresh Telegram token or safely
+  // infer whether a rejected mutation reached the server.
+  // Keep all writes durably until an authenticated foreground app confirms.
   const rows=await readOutbox().catch(()=>[]);
-  if(!rows.length) return {sent:0,dropped:0,pending:0};
-
-  let sent=0;
-  let dropped=0;
-  for(const row of rows){
-    try{
-      const response=await fetch(row.url,{
-        method:row.method||'POST',
-        headers:row.headers||{'content-type':'application/json'},
-        body:row.body||undefined,
-        credentials:'include',
-        cache:'no-store'
-      });
-
-      if(response.ok){
-        await deleteOutboxItem(row.id);
-        sent+=1;
-        continue;
-      }
-
-      const retryable=response.status===401||response.status===403||response.status===408||response.status===425||response.status===429||response.status>=500;
-      if(retryable) break;
-
-      await deleteOutboxItem(row.id);
-      dropped+=1;
-    }catch(_){
-      break;
-    }
-  }
-
-  const pending=(await readOutbox().catch(()=>[])).length;
-  if(sent>0||dropped>0) await notifyClients({type:'RUDI_SYNC_COMPLETE',sent,dropped,pending});
-  else if(pending>0) await notifyClients({type:'RUDI_SYNC_PENDING',pending});
-  return {sent,dropped,pending};
+  if(!rows.length)return {sent:0,pending:0};
+  await notifyClients({type:'RUDI_OUTBOX_REPLAY_REQUEST',pending:rows.length});
+  return {sent:0,pending:rows.length};
 }
 
 self.addEventListener('install',event=>{
@@ -169,7 +186,7 @@ self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
     const cache=await caches.open(CACHE_NAME);
     const critical=PRECACHE.filter(url=>url==='/'||
-      /^\/(?:app\.js|app\.css|calendar-offline\.js|home-offline\.js|home-note\.js|rudi-offline-content\.js|calendar\.css|pwa-extras\.js)\?/.test(url));
+      /^\/(?:app\.js|app\.css|task-completion-policy\.js|calendar-offline\.js|cbt-content\.js|cbt-core\.js|cbt\.js|cbt\.css|home-offline\.js|home-note\.js|rudi-offline-pin\.js|rudi-offline-content\.js|rudi-offline-transactions\.js|calendar\.css|pwa-extras\.js)\?/.test(url));
     await Promise.all(critical.map(url=>cache.add(url)));
     await Promise.allSettled(PRECACHE.filter(url=>!critical.includes(url)).map(url=>cache.add(url)));
   })());
@@ -196,23 +213,32 @@ self.addEventListener('fetch',event=>{
 
   if(request.mode==='navigate'){
     event.respondWith((async()=>{
+      let cache=null;
       try{
-        const networkRequest=new Request(request,{cache:'no-store'});
-        const response=await fetchWithTimeout(networkRequest,NAVIGATION_TIMEOUT_MS);
-        if(response&&response.ok){
-          const copy=response.clone();
-          // Cache Storage can stall on iOS standalone. Never delay the HTML response.
-          caches.open(CACHE_NAME).then(cache=>cache.put('/',copy)).catch(()=>{});
+        cache=await caches.open(CACHE_NAME);
+        // Offline first-launch: always serve cached shell immediately.
+        const cached=(await cache.match(request))||(await cache.match('/'));
+        if(cached){
+          event.waitUntil((async()=>{
+            try{
+              const response=await fetchWithTimeout(new Request(request,{cache:'no-store'}),NAVIGATION_TIMEOUT_MS);
+              if(!response?.ok)return;
+              const html=await response.clone().text();
+              const version=html.match(/<meta name="rudi-version" content="(v[^"]+)"/)?.[1];
+              if(version==='v'+CACHE_NAME.slice('rudi-shell-v'.length))
+                await cache.put('/',response.clone());
+            }catch(_){}
+          })());
+          return cached;
         }
+      }catch(_){}
+      try{
+        const response=await fetchWithTimeout(new Request(request,{cache:'no-store'}),NAVIGATION_TIMEOUT_MS);
+        if(response?.ok&&cache)event.waitUntil(cache.put('/',response.clone()).catch(()=>{}));
         return response;
       }catch(_){
-        try{
-          const cache=await caches.open(CACHE_NAME);
-          const cached=(await cache.match(request)) || (await cache.match('/'));
-          if(cached)return cached;
-        }catch(_cacheError){}
-        // Even with a corrupt or empty cache, show a recoverable screen, not a blank WebView.
-        return new Response('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>RUDI</title><body style="background:#0b0d12;color:white;font:16px system-ui;display:grid;place-items:center;min-height:90vh;text-align:center"><main><h2>RUDI пока не загрузился</h2><p>Проверь интернет и повтори запуск.</p><button style="font:inherit;padding:12px 22px;border-radius:12px" onclick="location.reload()">Повторить</button></main></body></html>',{status:200,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}});
+        // Explicit dark fallback; a white blank WebView must never be shown.
+        return new Response('<!doctype html><html lang="ru"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{background:#0b0d12;color:#fff;font:16px system-ui;text-align:center}body{display:grid;place-items:center;min-height:90vh}</style><title>РуДи</title><main><h2>РуДи: офлайн-режим</h2><p>Для первого запуска потребуется один раз открыть приложение с интернетом.</p><button style="font:inherit;padding:12px 22px;border-radius:12px" onclick="location.reload()">Повторить</button></main>',{status:200,headers:{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}});
       }
     })());
     return;

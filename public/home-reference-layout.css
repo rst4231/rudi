@@ -1074,30 +1074,30 @@ body[data-app-tab="home"] #homeDianaTile:not(:has(#displayName)) .identity > .pe
 
 /* RUDI v4.246: former partner fasting progress now frames their avatar.
    Exactly the original lavender outline until goal, green after goal. */
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .score-avatar-wrap.rudi-partner-fasting-active{
+:is(body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile),.partner-profile-page) .score-avatar-wrap.rudi-partner-fasting-active{
   position:relative!important;overflow:visible!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .score-avatar-wrap > .rudi-partner-fasting-outline{
+:is(body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile),.partner-profile-page) .score-avatar-wrap > .rudi-partner-fasting-outline{
   position:absolute!important;inset:-4px!important;top:-4px!important;left:-4px!important;
   width:calc(100% + 8px)!important;height:calc(100% + 8px)!important;
   display:block!important;max-width:none!important;box-sizing:border-box!important;
   overflow:visible!important;z-index:8!important;pointer-events:none!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .score-avatar-wrap > .rudi-partner-fasting-outline[hidden]{
+:is(body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile),.partner-profile-page) .score-avatar-wrap > .rudi-partner-fasting-outline[hidden]{
   display:none!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .rudi-partner-fasting-outline path{
+:is(body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile),.partner-profile-page) .rudi-partner-fasting-outline path{
   fill:none!important;stroke-width:7!important;stroke-linecap:round!important;stroke-linejoin:round!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .rudi-partner-fasting-track{
+:is(body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile),.partner-profile-page) .rudi-partner-fasting-track{
   stroke:rgba(151,146,245,.22)!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .rudi-partner-fasting-value{
+:is(body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile),.partner-profile-page) .rudi-partner-fasting-value{
   stroke:var(--rudi-partner-fasting-color,#a59af9)!important;
   filter:drop-shadow(0 0 3px var(--rudi-partner-fasting-color,#a59af9));
   transition:stroke-dasharray .5s linear,stroke .2s ease;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .score-avatar-wrap > .rudi-partner-fasting-hours{
+:is(body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile),.partner-profile-page) .score-avatar-wrap > .rudi-partner-fasting-hours{
   position:absolute!important;top:-15px!important;left:50%!important;
   transform:translateX(-50%)!important;z-index:40!important;
   display:block!important;width:max-content!important;max-width:none!important;
@@ -1110,15 +1110,15 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .score-avatar-wrap
   text-align:center!important;letter-spacing:0!important;
   box-shadow:0 2px 10px rgba(0,0,0,.20)!important;pointer-events:auto!important;cursor:pointer!important;font-family:inherit!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .rudi-partner-fasting-hours:focus-visible{
+:is(body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile),.partner-profile-page) .rudi-partner-fasting-hours:focus-visible{
   outline:2px solid var(--rudi-partner-fasting-color,#a59af9)!important;
   outline-offset:2px!important;
 }
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .rudi-partner-fasting-hours[hidden]{
+:is(body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile),.partner-profile-page) .rudi-partner-fasting-hours[hidden]{
   display:none!important;
 }
 @media(prefers-reduced-motion:reduce){
-  body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .rudi-partner-fasting-value{
+  :is(body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile),.partner-profile-page) .rudi-partner-fasting-value{
     transition:none!important;
   }
 }
@@ -1360,3 +1360,15 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-st
 body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-strip > .rudi-energy-point-caption[hidden]{
   display:none!important;
 }
+
+/* CBT halo shows elapsed day percentage, like fasting progress. */
+body[data-app-tab="home"] #rudiHomeCbtButton{isolation:isolate;overflow:visible!important}
+body[data-app-tab="home"] #rudiHomeCbtButton>.rudi-cbt-progress-halo{position:absolute;inset:-3px;border-radius:17px;pointer-events:none;z-index:1;padding:2.5px;background:conic-gradient(from -90deg,#b299ff var(--rudi-cbt-percent,0%),rgba(171,154,215,.20) 0);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+body[data-app-tab="home"] #rudiHomeCbtButton>svg{position:relative;z-index:2}
+/* Current-time markers are visual; tapping them no longer expands either card. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-plot .profile-energy-now{pointer-events:none!important;cursor:default!important}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-plot .profile-energy-now::before{pointer-events:none!important}
+
+/* Shared partner row: the curve and time axis use the same lanes as self. */
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):not(:has(#displayName)) .profile-energy-strip .profile-energy-plot{grid-row:2!important;height:29px!important}
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):not(:has(#displayName)) .profile-energy-strip .profile-energy-times{grid-row:3!important;align-self:start!important}

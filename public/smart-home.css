@@ -551,7 +551,7 @@ html[data-theme="dark"] .smart-home-scenario{
 
 
 /* RUDI v1.8.1 smart-home hero */
-.smart-home-tile.is-collapsed{
+.smart-home-tile.is-compact{
   min-height:128px;
   padding:18px;
   border-color:rgba(151,159,197,.30);
@@ -561,23 +561,23 @@ html[data-theme="dark"] .smart-home-scenario{
     linear-gradient(145deg,#171b25 0%,#0b0e14 100%);
   box-shadow:0 18px 42px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08);
 }
-.smart-home-tile.is-collapsed::before,
-.smart-home-tile.is-collapsed::after{display:none}
-.smart-home-tile.is-collapsed .smart-home-head{
+.smart-home-tile.is-compact::before,
+.smart-home-tile.is-compact::after{display:none}
+.smart-home-tile.is-compact .smart-home-head{
   position:relative;
   z-index:2;
   min-height:92px;
   margin-bottom:0;
 }
-.smart-home-tile.is-collapsed .smart-home-head h2{color:#fff}
-.smart-home-tile.is-collapsed .smart-home-updated{color:rgba(226,230,240,.68)}
-.smart-home-tile.is-collapsed .smart-home-title-icon{
+.smart-home-tile.is-compact .smart-home-head h2{color:#fff}
+.smart-home-tile.is-compact .smart-home-updated{color:rgba(226,230,240,.68)}
+.smart-home-tile.is-compact .smart-home-title-icon{
   color:#766bff;
   background:linear-gradient(145deg,rgba(118,105,255,.24),rgba(72,79,145,.16));
   box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 8px 20px rgba(18,20,40,.22);
 }
-.smart-home-tile.is-collapsed .smart-home-refresh,
-.smart-home-tile.is-collapsed .block-collapse-button{
+.smart-home-tile.is-compact .smart-home-refresh,
+.smart-home-tile.is-compact .block-collapse-button{
   color:#fff!important;
   border-color:rgba(255,255,255,.10)!important;
   background:rgba(15,18,25,.68)!important;
@@ -591,31 +591,31 @@ html[data-theme="dark"] .smart-home-scenario{
   background:rgba(13,16,23,.72)!important;
 }
 @media(max-width:430px){
-  .smart-home-tile.is-collapsed{min-height:118px;padding:15px}
-  .smart-home-tile.is-collapsed .smart-home-head{min-height:88px}
+  .smart-home-tile.is-compact{min-height:118px;padding:15px}
+  .smart-home-tile.is-compact .smart-home-head{min-height:88px}
 }
 /* end RUDI v1.8.1 smart-home hero */
 
 
 /* RUDI v1.9.0: climate stays visible in collapsed smart-home card */
-.smart-home-tile.is-collapsed .smart-home-title-wrap{display:flex}
-.smart-home-tile.is-collapsed .smart-home-title-icon,
-.smart-home-tile.is-collapsed .smart-home-updated{display:none!important}
-.smart-home-tile.is-collapsed .smart-home-title-wrap h2{
+.smart-home-tile.is-compact .smart-home-title-wrap{display:flex}
+.smart-home-tile.is-compact .smart-home-title-icon,
+.smart-home-tile.is-compact .smart-home-updated{display:none!important}
+.smart-home-tile.is-compact .smart-home-title-wrap h2{
   margin:0;
   font-size:18px;
   line-height:1.2;
   font-weight:780;
   letter-spacing:-.02em;
 }
-.smart-home-tile.is-collapsed .smart-home-head{
+.smart-home-tile.is-compact .smart-home-head{
   min-height:30px;
   height:30px;
   margin-bottom:8px;
   justify-content:space-between;
 }
-.smart-home-tile.is-collapsed .smart-home-head .block-head-actions{margin-left:auto}
-.smart-home-tile.is-collapsed .smart-home-climate{
+.smart-home-tile.is-compact .smart-home-head .block-head-actions{margin-left:auto}
+.smart-home-tile.is-compact .smart-home-climate{
   position:relative;
   z-index:2;
   margin:0;
@@ -625,27 +625,14 @@ html[data-theme="dark"] .smart-home-scenario{
   backdrop-filter:blur(9px);
   -webkit-backdrop-filter:blur(9px);
 }
-.smart-home-tile.is-collapsed .smart-home-climate-card{padding-top:3px;padding-bottom:3px}
-.smart-home-tile.is-collapsed .smart-home-climate-card small{color:rgba(235,239,246,.76)}
+.smart-home-tile.is-compact .smart-home-climate-card{padding-top:3px;padding-bottom:3px}
+.smart-home-tile.is-compact .smart-home-climate-card small{color:rgba(235,239,246,.76)}
 @media(max-width:430px){
-  .smart-home-tile.is-collapsed{min-height:118px}
-  .smart-home-tile.is-collapsed .smart-home-head{min-height:28px;height:28px;margin-bottom:7px}
-  .smart-home-tile.is-collapsed .smart-home-climate{padding:8px 4px}
+  .smart-home-tile.is-compact{min-height:118px}
+  .smart-home-tile.is-compact .smart-home-head{min-height:28px;height:28px;margin-bottom:7px}
+  .smart-home-tile.is-compact .smart-home-climate{padding:8px 4px}
 }
 /* end RUDI v1.9.0 smart-home collapsed climate */
-
-/* CloudCam: native external EyePlus link, no embedded browser/captcha. */
-.smart-home-cloudcam-card .smart-home-device-visual svg{width:28px;height:28px}
-.smart-home-camera-open{
-  display:inline-flex;align-items:center;justify-content:center;
-  min-height:38px;padding:0 12px;border:0;border-radius:11px;
-  color:#fff;background:#665cf2;font:inherit;font-size:11px;font-weight:750;
-  text-decoration:none;white-space:nowrap;
-}
-@media(max-width:430px){
-  .smart-home-cloudcam-card .smart-home-device-row{gap:6px}
-  .smart-home-camera-open{min-height:34px;padding:0 9px;font-size:10px}
-}
 
 /* Collapsed smart home: match the red car notification badge for batteries <10%. */
 .smart-home-title-wrap h2{display:inline-flex;align-items:center;gap:7px;max-width:100%}
@@ -657,7 +644,7 @@ html[data-theme="dark"] .smart-home-scenario{
   letter-spacing:-.02em;box-shadow:0 2px 7px rgba(255,59,48,.32);
 }
 .smart-home-battery-badge[hidden],
-.smart-home-tile:not(.is-collapsed) .smart-home-battery-badge{display:none!important}
+.smart-home-tile:not(.is-compact) .smart-home-battery-badge{display:none!important}
 
 /* Battery below 10%: red border and glow on affected smart-home devices. */
 .smart-home-device-card.is-battery-low,
@@ -667,3 +654,59 @@ html[data-theme="dark"] .smart-home-scenario{
   box-shadow:0 0 0 1px rgba(239,68,76,.27),0 0 18px rgba(239,68,76,.27),
     0 8px 20px rgba(239,68,76,.13),inset 0 1px 0 rgba(255,255,255,.16);
 }
+
+/* Offline: show last known device states but never send delayed physical commands. */
+.smart-home-tile.is-offline .smart-home-device-actions button:disabled,
+.smart-home-tile.is-offline .smart-home-speed-option:disabled,
+.smart-home-tile.is-offline .smart-home-scenario:disabled {
+  opacity:.36;
+  cursor:not-allowed;
+  pointer-events:none;
+}
+.smart-home-status.is-offline {
+  background:rgba(120,130,150,.12);
+  color:var(--muted,#9da5b2);
+}
+
+/* Shared overview and dedicated device page. */
+.smart-home-tile.is-compact .smart-home-head{height:auto;min-height:36px;gap:8px}
+.smart-home-tile.is-compact .smart-home-title-wrap{margin-right:auto}
+.smart-home-tile.is-compact .smart-home-refresh{width:36px;height:36px}
+.smart-home-page-open svg{width:18px;height:18px}
+.smart-home-title-open{appearance:none;display:inline;padding:0;border:0;border-radius:4px;background:none;color:inherit;font:inherit;letter-spacing:inherit;text-align:inherit;line-height:inherit;box-shadow:none;cursor:pointer}
+.smart-home-title-open:focus-visible{outline:2px solid #a59dff;outline-offset:4px}
+.smart-home-summary{position:relative;z-index:2;display:grid;gap:6px;margin-top:8px;color:#fff}
+.smart-home-summary-row{display:grid;gap:4px;min-width:0}
+.smart-home-summary-row[hidden],.smart-home-attention[hidden]{display:none!important}
+.smart-home-summary-row>strong{font-size:11px;line-height:1.25;font-weight:650;color:rgba(235,239,246,.72)}
+.smart-home-summary-row.is-battery>strong{color:#ffb0a4}
+.smart-home-summary-row.is-unavailable>strong{color:#e7c791}
+.smart-home-summary-chips{display:flex;gap:6px;flex-wrap:wrap;min-width:0}
+.smart-home-summary-chip{display:inline-flex;align-items:center;gap:7px;max-width:100%;box-sizing:border-box;padding:6px 9px;border-radius:11px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.08);font-size:11px;line-height:1.3}
+.smart-home-summary-chip>span{min-width:0;overflow-wrap:anywhere}
+.smart-home-summary-chip.is-battery{color:#ffc2b8;background:rgba(233,90,65,.12);border-color:rgba(255,131,109,.2)}
+#smartHomeActiveDevices{column-gap:12px;row-gap:4px}
+.smart-home-summary-chip.is-active{padding:0;border:0;border-radius:0;background:none;gap:5px;font-size:11px}
+.smart-home-summary-dot{width:6px;height:6px;border-radius:50%;flex:none;background:#24bf70;box-shadow:0 0 5px rgba(36,191,112,.3)}
+.smart-home-summary-more{font:inherit;font-size:11px;color:inherit;background:transparent;border:1px solid rgba(255,255,255,.14);padding:6px 9px;border-radius:11px}
+.smart-home-summary-empty,.smart-home-summary-updated{font-size:9px;color:rgba(235,239,246,.58);line-height:1.3}
+.smart-home-page{min-width:0;color:var(--text)}
+.smart-home-page-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.smart-home-page-head h1{font-size:23px;line-height:1.2;margin:0;text-align:center;letter-spacing:-.03em}
+.smart-home-page-head .rudi-app-page-back{width:38px;height:38px;display:grid;place-items:center;padding:9px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text)}
+.smart-home-page-head .rudi-app-page-back svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.smart-home-page .smart-home-room{margin-bottom:18px}
+.smart-home-attention{padding:14px;margin-bottom:18px;border:1px solid color-mix(in srgb,#ef6b55 30%,var(--line));border-radius:18px;background:color-mix(in srgb,#ef6b55 7%,var(--surface))}
+.smart-home-attention h2{font-size:14px;margin:0 0 10px}
+.smart-home-attention .smart-home-summary-chip{color:var(--text);background:var(--surface)}
+.smart-home-device-card.is-unavailable{opacity:.66}
+.smart-home-state-dot.is-unavailable{background:#dba94e;box-shadow:none}
+.smart-home-refresh:focus-visible,.smart-home-summary-more:focus-visible{outline:2px solid #a59dff;outline-offset:3px}
+@media(max-width:360px){.smart-home-tile.is-compact{padding:12px}.smart-home-page-head h1{font-size:21px}.smart-home-summary-chip{font-size:10px}}
+body[data-app-tab="smart-home"]{padding-top:max(28px,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px),calc(var(--tg-content-safe-top,0px) + 12px))!important}
+.smart-home-page{padding-top:4px!important}
+.smart-home-page-head.rudi-app-page-head{grid-template-columns:var(--rudi-page-head-control,48px) minmax(0,1fr) 38px!important}
+
+.smart-home-summary-status{font-size:11px;line-height:1.4;color:#ffb8ab}
+.smart-home-summary-status[hidden]{display:none!important}
+.smart-home-page-updated{display:block;margin:0 0 10px;color:var(--muted);font-size:11px}

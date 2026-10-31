@@ -14,6 +14,7 @@
      ' V '+(inset+r)+' A '+r+' '+r+' 0 0 1 '+(inset+r)+' '+inset+
      ' H '+width/2;
  }
+ function updateCbtProgress(){const button=$('rudiHomeCbtButton');if(!button)return;const percent=Math.max(0,Math.min(100,Number(window.RudiCbt?.progress?.())||0));button.style.setProperty('--rudi-cbt-percent',percent+'%');button.setAttribute('aria-label','КПТ · пройдено '+Math.round(percent)+'%');button.title='КПТ · '+Math.round(percent)+'%';}
  function restoreTrackerOutlines(rail){
    for(const id of ['fastingProfileButton','supplementProfileButton']){
      const button=rail.querySelector('#'+id);
@@ -92,7 +93,7 @@
  }
  // The profile is assembled by the runtime after page load. Layout must be
  // enforced on those live DOM nodes, not only through the cascading stylesheets.
- let selfAxisObserver=null,selfAxisObserved=null,axisFrame=0;
+ const profileAxisFrames=new WeakMap(),profileAxisObservers=new WeakMap();
  function setImportant(node,styles){
    if(!node)return;
    for(const [key,value] of Object.entries(styles)){
@@ -101,9 +102,10 @@
    }
  }
  function alignLiveProfileAxis(profileHead,energy){
-   if(axisFrame)cancelAnimationFrame(axisFrame);
-   axisFrame=requestAnimationFrame(()=>{
-     axisFrame=0;
+   const pendingFrame=profileAxisFrames.get(profileHead);
+   if(pendingFrame)cancelAnimationFrame(pendingFrame);
+   profileAxisFrames.set(profileHead,requestAnimationFrame(()=>{
+     profileAxisFrames.delete(profileHead);
      if(!profileHead.isConnected||!energy.isConnected)return;
      const avatar=profileHead.querySelector('.score-avatar-wrap');
      const row=profileHead.closest('.rudi-home-self-line');
@@ -117,36 +119,9 @@
      const adjustment=Math.max(-24,Math.min(24,distance));
      if(Math.abs(adjustment)>0.75)
        profileHead.style.setProperty('transform','translateY('+adjustment.toFixed(2)+'px)','important');
-   });
+   }));
  }
 
- // Current-time biorhythm point uses the native collapse toggle, on both cards.
- function bindEnergyDotExpander(energy){
-   const tile=energy?.closest('#homeRustamTile,#homeDianaTile');
-   const dot=energy?.querySelector('.profile-energy-plot .profile-energy-now');
-   if(!tile||!dot||dot.dataset.rudiDotExpandBound==='1')return;
-   dot.dataset.rudiDotExpandBound='1';
-   dot.removeAttribute('aria-hidden');
-   dot.setAttribute('role','button');
-   dot.setAttribute('tabindex','0');
-   dot.setAttribute('aria-label','Раскрыть карточку '+(tile.id==='homeDianaTile'?'Дианы':'Рустама'));
-   energy.setAttribute('role','group');
-   const sync=()=>dot.setAttribute('aria-expanded',String(!tile.classList.contains('is-collapsed')));
-   const expand=event=>{
-     if(document.body.dataset.appTab&&document.body.dataset.appTab!=='home')return;
-     event.preventDefault();
-     event.stopPropagation();
-     if(tile.classList.contains('is-collapsed'))tile.querySelector('.block-collapse-button')?.click();
-     sync();
-   };
-   dot.addEventListener('click',expand);
-   dot.addEventListener('keydown',event=>{
-     if(event.key==='Enter'||event.key===' ')expand(event);
-   });
-   if(typeof MutationObserver==='function')new MutationObserver(sync)
-     .observe(tile,{attributes:true,attributeFilter:['class']});
-   sync();
- }
  function layoutLiveSelf(self,main,profileHead,energy){
    // Both account roles must share exactly one profile layout. The former
    // Diana-only two-row layout shifted her avatar into the energy timeline.
@@ -173,13 +148,12 @@
    const person=identity?.querySelector('.person');
    setImportant(person,{'display':'flex','flex-direction':'column','justify-content':'center',
      'align-self':'center','margin':'0','padding':'0'});
-   if(selfAxisObserved!==main&&typeof ResizeObserver==='function'){
-     selfAxisObserver?.disconnect();
-     selfAxisObserved=main;
-     selfAxisObserver=new ResizeObserver(()=>alignLiveProfileAxis(profileHead,energy));
-     selfAxisObserver.observe(main);
-     if(identity)selfAxisObserver.observe(identity);
-     selfAxisObserver.observe(energy);
+   if(!profileAxisObservers.has(main)&&typeof ResizeObserver==='function'){
+     const observer=new ResizeObserver(()=>alignLiveProfileAxis(profileHead,energy));
+     profileAxisObservers.set(main,observer);
+     observer.observe(main);
+     if(identity)observer.observe(identity);
+     observer.observe(energy);
    }
    alignLiveProfileAxis(profileHead,energy);
  }
@@ -289,6 +263,11 @@
      games.innerHTML='<span aria-hidden="true">🎮</span>';
      games.addEventListener('click',()=>window.RudiGames?.open?.());
      inner.append(games);
+     const cbt=document.createElement('button');cbt.id='rudiHomeCbtButton';
+     cbt.className='rudi-home-games cbt-home-shortcut';cbt.type='button';
+     cbt.setAttribute('aria-label','КПТ');cbt.title='Когнитивно-поведенческая терапия';
+     cbt.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6c-2-5-7-3-6 1-4 0-4 6-1 7-2 4 3 7 5 4V6m2 0c2-5 7-3 6 1 4 0 4 6 1 7 2 4-3 7-5 4V6M5 10l3 1m11-1-3 1"/></svg><span class="rudi-cbt-progress-halo" aria-hidden="true"></span>';
+     cbt.addEventListener('click',()=>window.RudiCbt?.open());inner.append(cbt);
      window.RudiGameExtras?.renderBadges?.();
    }
    const buttons=self.querySelector('.mood-self-buttons')||$('fastingProfileButton')?.closest('.mood-self-buttons')
@@ -296,6 +275,7 @@
    const inner=rail.querySelector('.rudi-home-shortcuts-inner');
    if(buttons&&buttons.parentElement!==inner)inner.insertBefore(buttons,$('rudiHomeGamesButton'));
    restoreTrackerOutlines(rail);
+   updateCbtProgress();
    if(!outlineObserver&&typeof MutationObserver==='function'){
      outlineObserver=new MutationObserver(()=>restoreTrackerOutlines(rail));
      outlineObserver.observe(rail,{childList:true,subtree:true});
@@ -330,13 +310,29 @@
        main.append(profileHead,energy);
      layoutLiveSelf(self,main,profileHead,energy);
    }
+   // Give the partner the same identity/graph columns as the current account.
+   for(const card of [$('homeRustamTile'),$('homeDianaTile')]){
+     if(!card||card===self)continue;
+     const partnerHead=card.querySelector('.profile-person-head'),partnerEnergy=card.querySelector('.profile-energy-strip');
+     if(!partnerHead||!partnerEnergy)continue;
+     let row=card.querySelector('.rudi-home-self-line');
+     if(!row){row=document.createElement('div');row.className='rudi-home-self-line';card.insertBefore(row,card.firstChild)}
+     if(partnerHead.parentElement!==row||partnerEnergy.parentElement!==row)row.append(partnerHead,partnerEnergy);
+     layoutLiveSelf(card,row,partnerHead,partnerEnergy);
+   }
+   for(const card of [self,$('homeRustamTile'),$('homeDianaTile')]){
+     setImportant(card,{'padding-left':'12px','padding-right':'12px','width':'100%','max-width':'100%','box-sizing':'border-box'});
+     const graph=card?.querySelector('.profile-energy-strip');
+     setImportant(graph,{'width':'100%','box-sizing':'border-box','padding-left':'8px','padding-right':'0','margin':'0'});
+     setImportant(graph?.querySelector('.profile-energy-plot'),{'width':'100%','box-sizing':'border-box','margin':'0','padding':'0'});
+   }
    // Observe BOTH profiles in either account: Rustam is the partner on Diana's
    // phone and Diana is the partner on Rustam's phone.
    for(const id of ['homeRustamTile','homeDianaTile']){
      const strip=$(id)?.querySelector('.profile-energy-strip');
      if(!strip)continue;
      watchEnergyPointCaption(strip);
-     bindEnergyDotExpander(strip);
+
    }
    // Both cards need the same name-side sticker geometry.
    placeMoodBadgesByName();
@@ -373,6 +369,10 @@
    event.stopImmediatePropagation();
    feed.click();
  },true);
+ window.addEventListener('rudi-cbt-progress',updateCbtProgress);
+ window.addEventListener('rudi:auth-ready',updateCbtProgress);
+ window.addEventListener('storage',e=>{if(e.key?.startsWith('rudi:cbt:v1:'))updateCbtProgress()});
+ window.addEventListener('focus',updateCbtProgress);setInterval(updateCbtProgress,60000);
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',schedule,{once:true});
  else schedule();
 })();

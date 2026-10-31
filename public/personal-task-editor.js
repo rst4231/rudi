@@ -29,6 +29,11 @@ const quick=[
  {id:'clear',label:'Без даты',value:()=>''}
 ];
 function quickHtml(){return quick.map(q=>'<button type="button" data-personal-date-action="'+q.id+'" aria-label="'+q.label+'" title="'+q.label+'"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">'+icons[q.id]+'</svg></button>').join('')}
+function syncEditorViewport(){
+ if(!modal)return;const viewport=window.visualViewport;
+ modal.style.setProperty('--pt-height',Math.round(viewport?.height||window.innerHeight)+'px');
+ modal.style.setProperty('--pt-top',Math.max(0,Math.round(viewport?.offsetTop||0))+'px');
+}
 function init(){
   if(modal)return;
   modal=document.createElement('div');modal.id='rudiPersonalTaskModal';modal.className='ticktick-task-modal rudi-personal-task-modal';
@@ -44,9 +49,13 @@ function init(){
        '<label class="ticktick-task-field"><span>Время</span><input id="rudiPersonalTaskTime" class="rudi-personal-picker-input" type="time" aria-label="Время дела"></label></div>'+
 
       '<label class="ticktick-task-field"><span>Список TickTick</span><select id="rudiPersonalTaskProject"><option value="">Загружаю списки…</option></select></label>'+
-      '<div id="rudiPersonalTaskRepeatFields" hidden><label class="ticktick-task-field"><span>Как часто повторять</span><select id="rudiPersonalTaskRepeat"><option value="none">Не повторять</option><option value="daily">Каждый день</option><option value="weekly">По дням недели</option></select></label>'+
-      '<label class="ticktick-task-field" id="rudiPersonalTaskIntervalField" hidden><span>Интервал</span><input id="rudiPersonalTaskRepeatEvery" type="number" min="1" max="52" value="1" aria-label="Интервал повторения"><small id="rudiPersonalTaskRepeatUnit">дней</small></label>'+
-      '<fieldset id="rudiPersonalTaskWeekdays" class="rudi-personal-weekdays" hidden><legend>По каким дням</legend>'+[1,2,3,4,5,6,0].map((day,index)=>'<label><input type="checkbox" name="personalRepeatDay" value="'+day+'"><span>'+['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][index]+'</span></label>').join('')+'</fieldset></div>'+
+      '<div id="rudiPersonalTaskRepeatFields">'+
+      '<label class="ticktick-task-field"><span>Повтор</span><select id="rudiPersonalTaskRepeat"><option value="none">Не повторять</option><option value="daily">Каждый день</option><option value="weekly">По дням недели</option><option value="monthly">Каждый месяц</option><option value="yearly">Каждый год</option><option value="keep" hidden>Сохранить правило TickTick</option></select></label>'+
+      '<label class="ticktick-task-field" id="rudiPersonalTaskIntervalField" hidden><span>Каждые</span><span class="rudi-personal-interval-row"><input id="rudiPersonalTaskRepeatEvery" type="number" min="1" max="365" value="1" aria-label="Интервал повторения"><small id="rudiPersonalTaskRepeatUnit">дней</small></span></label>'+
+      '<fieldset id="rudiPersonalTaskWeekdays" class="rudi-personal-weekdays" hidden><legend>По каким дням</legend>'+[1,2,3,4,5,6,0].map((day,index)=>'<label><input type="checkbox" name="personalRepeatDay" value="'+day+'"><span>'+['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][index]+'</span></label>').join('')+'</fieldset>'+
+      '<div id="rudiPersonalTaskRepeatEndFields" hidden><label class="ticktick-task-field"><span>Окончание</span><select id="rudiPersonalTaskRepeatEnd"><option value="never">Никогда</option><option value="date">До даты</option><option value="count">После заданного числа выполнений</option></select></label>'+
+      '<label class="ticktick-task-field" id="rudiPersonalTaskRepeatUntilField" hidden><span>Последний день</span><input id="rudiPersonalTaskRepeatUntil" type="date" aria-label="Последний день повторения"></label>'+
+      '<label class="ticktick-task-field" id="rudiPersonalTaskRepeatCountField" hidden><span>Количество выполнений</span><input id="rudiPersonalTaskRepeatCount" type="number" min="1" max="365" value="10"></label></div></div>'+
       '<label class="ticktick-task-field"><span>Описание</span><textarea id="rudiPersonalTaskDescription" maxlength="5000" rows="3" placeholder="Необязательно"></textarea></label>'+
       '<section id="rudiPersonalChecklistSection" class="rudi-personal-checklist-section" hidden><div class="rudi-personal-checklist-header"><strong>Подзадачи</strong><small id="rudiPersonalChecklistCount"></small></div><div id="rudiPersonalChecklistItems" class="rudi-personal-checklist-items"></div><small id="rudiPersonalChecklistStatus" role="status"></small></section>'+
       '<p class="rudi-personal-repeat-note" id="rudiPersonalRepeatNote" hidden>Повторение сохранится. Для сложных правил используйте TickTick.</p>'+
@@ -56,6 +65,9 @@ function init(){
       '<p class="ticktick-task-form-status" id="rudiPersonalTaskStatus" aria-live="polite"></p>'+
     '</form></section>';
   document.body.appendChild(modal);
+  window.visualViewport?.addEventListener('resize',syncEditorViewport,{passive:true});
+  window.visualViewport?.addEventListener('scroll',syncEditorViewport,{passive:true});
+  window.addEventListener('resize',syncEditorViewport,{passive:true});
   menu=document.createElement('div');menu.id='rudiPersonalQuickMenu';menu.className='rudi-personal-quick-menu';
   menu.hidden=true;menu.setAttribute('role','group');menu.setAttribute('aria-label','Быстрые действия с делом');
   menu.innerHTML='<div class="rudi-personal-quick-caption">Изменить дату</div><div class="rudi-personal-quick-actions">'+quickHtml()+'</div>';
@@ -64,6 +76,7 @@ function init(){
   byId('rudiPersonalTaskForm').addEventListener('submit',submit);
   byId('rudiPersonalTaskDelete').addEventListener('click',remove);
   f('repeat').addEventListener('change',syncRepeat);
+  f('repeatEnd').addEventListener('change',syncRepeat);
   // Native iOS date/time picker state is recreated each time a task opens.
   // This prevents the previous task's system picker value being displayed.
   // Date shortcuts remain available in the right-click context menu only.
@@ -88,18 +101,68 @@ function refreshTemporalInputs(){
 function syncTime(){
   const date=f('date'),time=f('time');
   if(time)time.disabled=!date?.value;
+  if(modal&&!modal.hidden&&active)syncRepeat();
+}
+function readRepeatFlag(value){
+  const none={repeat:'none',repeatEvery:1,repeatDays:[],repeatEnd:'never',repeatUntil:'',repeatCount:10};
+  const flag=String(value||'').trim().toUpperCase();
+  if(!flag)return none;
+  const keep={...none,repeat:'keep'};
+  if(!flag.startsWith('RRULE:'))return keep;
+  const parts=flag.slice(6).split(';').map(part=>part.split('='));
+  if(parts.some(part=>part.length!==2||!['FREQ','INTERVAL','BYDAY','COUNT','UNTIL','WKST'].includes(part[0])))return keep;
+  const rule=Object.fromEntries(parts);
+  const repeat=({DAILY:'daily',WEEKLY:'weekly',MONTHLY:'monthly',YEARLY:'yearly'})[rule.FREQ];
+  const every=Number(rule.INTERVAL||1);
+  if(!repeat||!Number.isInteger(every)||every<1||every>({daily:365,weekly:52,monthly:60,yearly:20})[repeat]||rule.COUNT&&rule.UNTIL)return keep;
+  if(rule.BYDAY&&repeat!=='weekly')return keep;
+  const week=['SU','MO','TU','WE','TH','FR','SA'];
+  const days=rule.BYDAY?rule.BYDAY.split(',').map(day=>week.indexOf(day)):[];
+  if(days.some(day=>day<0)||new Set(days).size!==days.length)return keep;
+  let repeatEnd='never',repeatUntil='',repeatCount=10;
+  if(rule.COUNT){
+    repeatCount=Number(rule.COUNT);
+    if(!Number.isInteger(repeatCount)||repeatCount<1||repeatCount>365)return keep;
+    repeatEnd='count';
+  }
+  if(rule.UNTIL){
+    const match=rule.UNTIL.match(/^(\d{8})(?:T\d{6}Z)?$/);
+    if(!match)return keep;
+    const raw=match[1];
+    // Rules written by RUDI end at 20:59:59 UTC (=23:59:59 Moscow).
+    const date=rule.UNTIL.includes('T')?new Date(rule.UNTIL.slice(0,4)+'-'+rule.UNTIL.slice(4,6)+'-'+rule.UNTIL.slice(6,8)+'T'+rule.UNTIL.slice(9,11)+':'+rule.UNTIL.slice(11,13)+':'+rule.UNTIL.slice(13,15)+'Z'):null;
+    const local=date?Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date).map(part=>[part.type,part.value])):null;
+    const key=local?local.year+'-'+local.month+'-'+local.day:raw.slice(0,4)+'-'+raw.slice(4,6)+'-'+raw.slice(6,8);
+    repeatUntil=/^\d{4}-\d{2}-\d{2}$/.test(key)?key:'';
+    if(!repeatUntil)return keep;
+    repeatEnd='date';
+  }
+  return {repeat,repeatEvery:every,repeatDays:days,repeatEnd,repeatUntil,repeatCount};
 }
 function syncRepeat(){
-  const repeat=f('repeat').value;
-  byId('rudiPersonalTaskIntervalField').hidden=repeat==='none';
+  const repeat=f('repeat').value,local=active?.ctx.actor==='Диана';
+  const repeating=repeat!=='none'&&repeat!=='keep';
+  byId('rudiPersonalTaskIntervalField').hidden=!repeating;
   byId('rudiPersonalTaskWeekdays').hidden=repeat!=='weekly';
-  byId('rudiPersonalTaskRepeatUnit').textContent=repeat==='weekly'?'недель':'дней';
+  byId('rudiPersonalTaskRepeatEndFields').hidden=!repeating||local;
+  const ending=f('repeatEnd').value;
+  byId('rudiPersonalTaskRepeatUntilField').hidden=!repeating||local||ending!=='date';
+  byId('rudiPersonalTaskRepeatCountField').hidden=!repeating||local||ending!=='count';
+  const max=({daily:365,weekly:52,monthly:60,yearly:20})[repeat]||365;
+  f('repeatEvery').max=String(max);
+  byId('rudiPersonalTaskRepeatUnit').textContent=({daily:'дней',weekly:'недель',monthly:'месяцев',yearly:'лет'})[repeat]||'';
+  f('repeatUntil').min=f('date').value||today();
   if(repeat==='weekly'&&!modal.querySelector('[name="personalRepeatDay"]:checked')){
     const date=f('date').value||today();
     const weekday=new Date(date+'T12:00:00Z').getUTCDay();
     const input=modal.querySelector('[name="personalRepeatDay"][value="'+weekday+'"]');
     if(input)input.checked=true;
   }
+  const note=byId('rudiPersonalRepeatNote');
+  note.hidden=repeat==='none';
+  note.textContent=local?'Изменения применятся ко всем будущим повторениям. Выполненные дела сохранятся.':
+    repeat==='keep'?'Сложное правило TickTick останется без изменений, пока не выберешь новое.':
+    'Повторение сохранится в TickTick вместе с задачей.';
 }
 function closeMenu(){if(menu)menu.hidden=true}
 function close(){
@@ -117,11 +180,28 @@ function enabled(flag){
 }
 async function request(action,payload={}){
   if(!active)throw Error('Задача не выбрана');
+  const selected=active,store=window.rudiCalendarOffline;
+  // Record simple edits before touching the network. Moving between TickTick
+  // lists keeps its existing confirmation and server verification flow.
+  if(action==='personal-task-edit'&&payload.operation==='save'&&store?.enqueue&&
+    (selected.ctx.actor==='Диана'||payload.targetProjectId===selected.task.projectId)){
+    const who=selected.ctx.actor,kind=who==='Диана'?'diana-update':'personal-update';
+    const queued=await store.enqueue(who,kind,{...payload,task:selected.task});
+    setTimeout(()=>{
+      if(store.isOffline?.())return;
+      return store.flush?.(who,()=>({initData:selected.ctx.initData||''})).catch(()=>{});
+    },0);
+    return queued;
+  }
   const local=active.ctx.actor==='Диана';
-  if(local&&action!=='personal-task-projects'){
-    const kind=action==='personal-task-create'?'diana-create':payload.operation==='delete'?'diana-delete':'diana-update';
-    const queued=await active.ctx.queueOffline?.(kind,{...payload,task:active.task});
-    if(queued)return queued;
+  if(action!=='personal-task-projects'){
+    const kind=local
+      ?action==='personal-task-create'?'diana-create':payload.operation==='delete'?'diana-delete':'diana-update'
+      :action==='personal-task-edit'?(payload.operation==='delete'?'personal-delete':'personal-update'):null;
+    if(kind){
+      const queued=await active.ctx.queueOffline?.(kind,{...payload,task:active.task});
+      if(queued)return queued;
+    }
   }
   const response=await fetch('/api/partner-message?ticktickAction='+action,{
     method:'POST',headers:{'Content-Type':'application/json'},
@@ -137,13 +217,19 @@ const errorText=e=>{
   if(s.includes('write-permission'))return 'Нужно переподключить TickTick с разрешением на редактирование';
   if(s.includes('move-unconfirmed'))return 'Не удалось подтвердить перенос. Исходное дело сохранено';
   if(s.includes('repeat-date-required'))return 'У повторяющегося дела нельзя убрать дату';
+  if(s.includes('repeat-weekdays'))return 'Выбери хотя бы один день недели';
+  if(s.includes('repeat-until'))return 'Дата окончания не может быть раньше начала';
+  if(s.includes('repeat-interval')||s.includes('repeat-count'))return 'Проверь интервал и количество повторений';
+  if(s.includes('repeat-invalid'))return 'Неподдерживаемое правило повторения';
   if(s.includes('reconnect')||s.includes('not-connected'))return 'Переподключите личный TickTick в настройках';
   if(s.includes('project-forbidden'))return 'Список недоступен. Обновите окно';
   return 'Не удалось сохранить. Попробуйте ещё раз';
 };
 async function projects(){
-  listed=false;const select=f('project'),task=active?.task;
-  select.replaceChildren(new Option('Загружаю списки…',''));select.disabled=true;
+  const select=f('project'),task=active?.task;
+  listed=Boolean(!active?.creating&&task?.projectId);
+  if(!listed)select.replaceChildren(new Option('Загружаю списки…',''));
+  select.disabled=true;
   try{
     const data=await request('personal-task-projects');
     if(!active||active.task!==task)return;
@@ -158,7 +244,8 @@ async function projects(){
     if(!active||active.task!==task)return;
     select.replaceChildren(new Option(task.projectName||'Текущий список',task.projectId));
     select.value=task.projectId;select.disabled=true;
-    message('Не удалось загрузить списки. Попробуйте открыть дело ещё раз');
+    listed=true;
+    message('Офлайн режим · изменения сохранятся и отправятся после подключения');
   }
 }
 function renderPersonalChecklist(items,writable){
@@ -263,26 +350,28 @@ function open(task,ctx={}){
   syncTime();message('');enabled(true);
   modal.hidden=false;modal.setAttribute('aria-hidden','false');
   document.body.classList.add('ticktick-task-modal-open');
-  requestAnimationFrame(()=>f('title').focus({preventScroll:true}));
+  syncEditorViewport();
+  requestAnimationFrame(()=>{const heading=byId('rudiPersonalTaskHeading');heading.tabIndex=-1;heading.focus({preventScroll:true});modal.querySelector('.ticktick-task-modal-sheet').scrollTop=0;byId('rudiPersonalTaskForm').scrollTop=0});
   const local=ctx.actor==='Диана';
   f('project').closest('label').hidden=local;
   f('project').disabled=local;
   byId('rudiPersonalTaskSubtitle').textContent=local?'Личный календарь':'Личный календарь · TickTick';
-  byId('rudiPersonalTaskRepeatFields').hidden=!local;
-  if(local){
-    f('repeat').value=String(task.repeat||'none');
-    f('repeatEvery').value=String(task.repeatEvery||1);
-    modal.querySelectorAll('[name="personalRepeatDay"]').forEach(input=>{input.checked=(task.repeatDays||[]).includes(Number(input.value))});
-    syncRepeat();
-    byId('rudiPersonalRepeatNote').hidden=!task.repeat||task.repeat==='none';
-    byId('rudiPersonalRepeatNote').textContent='Изменения применятся ко всем будущим повторениям. Выполненные дела сохранятся.';
-    listed=true;
-  }
-  else {
-    byId('rudiPersonalRepeatNote').textContent='Повторение сохранится. Для сложных правил используйте TickTick.';
-    projects().catch(()=>{});
-    void loadPersonalChecklist();
-  }
+  byId('rudiPersonalTaskRepeatFields').hidden=false;
+  const options=f('repeat').options;
+  for(const option of options)option.hidden=local&&!['none','daily','weekly'].includes(option.value)||!local&&option.value==='keep';
+  const rule=local?{repeat:String(task.repeat||'none'),repeatEvery:Number(task.repeatEvery||1),
+    repeatDays:task.repeatDays||[],repeatEnd:'never',repeatUntil:'',repeatCount:10}:
+    readRepeatFlag(task.repeatFlag);
+  if(!local&&rule.repeat==='keep')f('repeat').querySelector('[value="keep"]').hidden=false;
+  f('repeat').value=rule.repeat;
+  f('repeatEvery').value=String(rule.repeatEvery||1);
+  f('repeatEnd').value=rule.repeatEnd||'never';
+  f('repeatUntil').value=rule.repeatUntil||'';
+  f('repeatCount').value=String(rule.repeatCount||10);
+  modal.querySelectorAll('[name="personalRepeatDay"]').forEach(input=>{input.checked=rule.repeatDays.includes(Number(input.value))});
+  syncRepeat();
+  if(local)listed=true;
+  else {projects().catch(()=>{});void loadPersonalChecklist();}
 }
 async function persist(data,options={}){
   if(!active||busy)return false;
@@ -292,6 +381,7 @@ async function persist(data,options={}){
     if(saved.ctx.actor!=='Диана'&&!saved.creating&&data.targetProjectId!==task.projectId&&!options.skipMoveConfirm&&
       !window.confirm('Перенести дело в другой список TickTick?')){enabled(true);message('');return false;}
     if((saved.creating||saved.ctx.actor==='Диана')&&!data.date){message('Выбери дату');return false;}
+    if(data.repeat&&data.repeat!=='none'&&!data.date){message('Для повторения выбери дату');return false;}
     const payload=saved.creating?
       await request('personal-task-create',{...data,clientId:saved.clientId||(saved.clientId=window.crypto.randomUUID())}):
       await request('personal-task-edit',{operation:'save',taskId:task.id,projectId:task.projectId,...data});
@@ -306,14 +396,16 @@ function closeForced(){
   document.body.classList.remove('ticktick-task-modal-open');closeMenu();active=null;
 }
 function value(){
+  const repeat=f('repeat').value,local=active?.ctx?.actor==='Диана';
+  const rule={repeat,repeatEvery:Number(f('repeatEvery').value||1),
+    repeatDays:[...modal.querySelectorAll('[name="personalRepeatDay"]:checked')].map(input=>Number(input.value))};
   return {title:String(f('title').value||'').trim(),
     date:String(f('date').value||''),time:String(f('time').value||''),
-    ...(active?.ctx?.actor==='Диана'?{}:{targetProjectId:f('project').value}),
+    ...(local?{}:{targetProjectId:f('project').value}),
     description:String(f('description').value||''),
-    ...(active?.ctx?.actor==='Диана'?{
-      repeat:f('repeat').value,repeatEvery:Number(f('repeatEvery').value||1),
-      repeatDays:[...modal.querySelectorAll('[name="personalRepeatDay"]:checked')].map(input=>Number(input.value))
-    }:{})};
+    ...(local?rule:repeat==='keep'?{}:{...rule,
+      repeatEnd:f('repeatEnd').value,repeatUntil:f('repeatUntil').value,
+      repeatCount:Number(f('repeatCount').value||0)})};
 }
 function submit(event){event.preventDefault();if(!listed){message('Дождитесь загрузки списков');return}
   void persist(value());
@@ -388,49 +480,15 @@ function bind(element,task,ctx){
  binding.ctx=ctx;
  if(element.dataset.personalTaskBound==='1')return;
  element.dataset.personalTaskBound='1';
- let start=null,suppressUntil=0,holdTimer=0;
- const reset=()=>{clearTimeout(holdTimer);holdTimer=0;start=null;element.classList.remove('rudi-personal-holding')};
- const blocked=target=>{const control=target?.closest?.('input,button,a,textarea,select');return control&&control!==element};
- const beginHold=(id,x,y)=>{
-  reset();start={id,x,y};element.classList.add('rudi-personal-holding');
-  holdTimer=setTimeout(()=>{
-   if(!start)return;
-   suppressUntil=Date.now()+1600;reset();
-   element.__rudiPersonalTaskBinding?.ctx?.openTickTick?.();
-  },550);
- };
- // On iOS, touch events survive native pointercancel during a long press.
- element.addEventListener('touchstart',event=>{
-  if(event.touches.length!==1||blocked(event.target))return;
-  const t=event.touches[0];beginHold(t.identifier,t.clientX,t.clientY);
- },{passive:true,capture:true});
- element.addEventListener('touchmove',event=>{
-  const t=event.touches[0];
-  if(start&&t&&t.identifier===start.id&&Math.hypot(t.clientX-start.x,t.clientY-start.y)>12)reset();
- },{passive:true,capture:true});
- element.addEventListener('touchend',reset,{passive:true,capture:true});
- element.addEventListener('touchcancel',reset,{passive:true,capture:true});
- element.addEventListener('pointerdown',event=>{
-  if(event.pointerType==='touch'||(event.pointerType==='mouse'&&event.button!==0)||event.isPrimary===false||blocked(event.target))return;
-  beginHold(event.pointerId,event.clientX,event.clientY);
- },true);
- element.addEventListener('pointermove',event=>{
-  if(event.pointerType==='touch')return;
-  if(start&&event.pointerId===start.id&&Math.hypot(event.clientX-start.x,event.clientY-start.y)>12)reset();
- },true);
- element.addEventListener('pointerup',event=>{if(event.pointerType!=='touch')reset()},true);
- element.addEventListener('pointercancel',event=>{if(event.pointerType!=='touch')reset()},true);
+ // Long hold must never navigate away to TickTick.
+ // Keep the contextual menu on desktop right-click; normal tap opens RUDI editor.
  element.addEventListener('contextmenu',event=>{
-  event.preventDefault();event.stopPropagation();
-  if(start||Date.now()<suppressUntil)return;
-  if(event.pointerType==='mouse'){
-    const current=element.__rudiPersonalTaskBinding;
-    if(current?.task)showMenu(current.task,current.ctx,event);
-  }
+   event.preventDefault();
+   event.stopPropagation();
+   const current=element.__rudiPersonalTaskBinding;
+   if(event.pointerType==='mouse'&&current?.task)
+     showMenu(current.task,current.ctx,event);
  });
- element.addEventListener('click',event=>{
-  if(Date.now()<suppressUntil){event.preventDefault();event.stopImmediatePropagation()}
- },true);
 }
 window.RUDIPersonalTaskEditor={open,create,bind,showMenu};
 })();

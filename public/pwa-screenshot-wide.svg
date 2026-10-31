@@ -10,7 +10,7 @@
   <rect x="464" y="208" width="328" height="210" rx="28" fill="#fff" stroke="#dfe3eb"/>
   <text x="494" y="254" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#15171c">Быстрый доступ</text>
   <rect x="494" y="290" width="268" height="42" rx="14" fill="#fff1f7"/><text x="512" y="317" font-family="Arial,sans-serif" font-size="14" fill="#15171c">♡ Вишлист</text>
-  <rect x="494" y="346" width="268" height="42" rx="14" fill="#eef1ff"/><text x="512" y="373" font-family="Arial,sans-serif" font-size="14" fill="#15171c">⌁ Идеи свидания</text>
+  <rect x="494" y="346" width="268" height="42" rx="14" fill="#eef1ff"/><text x="512" y="373" font-family="Arial,sans-serif" font-size="14" fill="#15171c">⌁ Фото и воспоминания</text>
   <rect x="812" y="208" width="352" height="210" rx="28" fill="#fff" stroke="#dfe3eb"/>
   <text x="842" y="254" font-family="Arial,sans-serif" font-size="20" font-weight="700" fill="#15171c">Календарь</text>
   <g fill="#eef1ff"><rect x="842" y="288" width="42" height="42" rx="12"/><rect x="894" y="288" width="42" height="42" rx="12"/><rect x="946" y="288" width="42" height="42" rx="12"/><rect x="998" y="288" width="42" height="42" rx="12"/><rect x="1050" y="288" width="42" height="42" rx="12"/></g>

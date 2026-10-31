@@ -57,7 +57,7 @@ async function handler(req,res){
     }else if(operation==='collapse')state=await setHabitsCollapsed(actor,body.collapsed,{now});
     else throw new Error('habit-operation-invalid');
 
-    const view=viewHabits(state,{date:requestedDate,now});
+    const view=viewHabits(state,{date:requestedDate,now,includeCalendar:true});
     let history=null;
     if(operation==='list'&&requestedDate===today){
       history={};

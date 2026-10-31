@@ -13,7 +13,7 @@ test('daily question reward is 0.1 star',()=>{
   assert.match(html,/\+0,1 ⭐ за ответ · один раз в день/);
 });
 
-test('partner message reward is 0.1 star',()=>{
-  assert.match(api,/awardScoreSafe\(actor,1,\{\s*label:'Послание'/);
+test('partner messages no longer award stars',()=>{
+  assert.doesNotMatch(api,/label:'Послание'/);
   assert.doesNotMatch(api,/awardScoreSafe\(actor,3,\{\s*label:'Послание'/);
 });

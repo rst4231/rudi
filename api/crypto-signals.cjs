@@ -135,7 +135,7 @@ function parseSignal(row){
     !/(?:^|[^а-яёa-z])(?:открыл|открываю|заш[её]л|вхожу|беру|взял|взяла)(?=$|[^а-яёa-z])/i.test(text))return null;
   if(/(?:^|[^а-яёa-z])(отзыв|розыгрыш|реферал|учебник|подписка|вакансия)(?=$|[^а-яёa-z])/i.test(text)&&
      !/(?:беру|взял|взяла|заш[её]л|вхожу|открыл|открываю)\s.{0,40}(?:шорт|лонг)/i.test(text))return null;
-  const ticker=text.match(/\$([a-z0-9]{2,14})\b/i)?.[1]?.toUpperCase();
+  const ticker=text.match(/\$([a-z0-9]{1,14})\b/i)?.[1]?.toUpperCase();
   if(!ticker||!/(?:^|[^а-яёa-z])(шорт|short|лонг|long)(?=$|[^а-яёa-z])/i.test(text))return null;
   const direction=/(?:^|[^а-яёa-z])(шорт|short)(?=$|[^а-яёa-z])/i.test(text)?'short':'long';
   const actionable=/(?:^|[^а-яёa-z])(?:беру|взял|взяла|заш[её]л|вхожу|открыл|открываю|набираю|набираюсь|докупаю|лонгую|шорчу)(?=$|[^а-яёa-z])|можно\s+(?:брать|открывать)/i.test(lower);
@@ -149,7 +149,7 @@ function parseSignal(row){
   const complete=Boolean(entry&&(take||stop));
   const {market,marketSource}=marketFromText(text,direction);
   return {id:row.id,at:row.at,url:row.url,symbol:ticker,exchange:'bybit',market,marketSource,
-    direction,entry,take,stop,leverage,marginModeReported:parseMarginMode(text),marginSource:parseMarginMode(text)?'signal':'unspecified',conditional,qualified:complete&&!conditional&&market!=='unconfirmed',paperEligible:!conditional&&market!=='unconfirmed',
+    direction,entry,authorEntry:entry,take,stop,leverage,marginModeReported:parseMarginMode(text),marginSource:parseMarginMode(text)?'signal':'unspecified',conditional,qualified:complete&&!conditional&&market!=='unconfirmed',paperEligible:!conditional&&market!=='unconfirmed',
     status:conditional?'conditional':complete?'awaiting-market':'insufficient-levels',
     excerpt:text.slice(0,400),authorClaim:null};
 }
@@ -369,22 +369,27 @@ async function refreshSignals(options={}){
   })();
   try{return await refreshFlight}finally{refreshFlight=null;}
 }
-function buildView(state,now=Date.now()){
+function buildView(state,now=Date.now(),options={}){
   const cutoff=now-PERIOD_MS;
   const messages=(Array.isArray(state.messages)?state.messages:[]).filter(m=>Date.parse(m.at)>=cutoff);
   const signals=collectEntrySignals(messages).map(signal=>{
     const row=state.results?.[signal.id];
     return {...signal,...(row||{}),url:signal.url,id:signal.id,at:signal.at};
   });
-  attachTradeUpdates(signals,messages);
-  linkUpdates(signals,messages);
+  const published=messages.filter(m=>Date.parse(m.at)<=now);
+  attachTradeUpdates(signals,published);
+  linkUpdates(signals,published,{activeSignalIds:options.activeSignalIds||[]});
   for(const signal of signals){
     const reported=(signal.events||[]).findLast(event=>event.type==='full-close');
-    if(reported&&!['won','lost','breakeven','author-closed-size-unknown'].includes(signal.status)){
+    if(reported){
       // The author explicitly closed the position, while an executable exit
       // quote may still be unavailable. Never invent a PnL or execution price.
-      signal.status='author-closed-awaiting-price';
+      const unknownPartial=signal.events.some(e=>e.type==='partial-close'&&e.closeFraction===null);
+      if(unknownPartial)signal.status='author-closed-size-unknown';
+      else if(!['won','lost','breakeven','author-closed-size-unknown'].includes(signal.status))
+        signal.status='author-closed-awaiting-price';
       signal.closedByAuthor=true;
+      signal.openFraction=0;
       signal.reportedCloseAt=reported.at;
       signal.reportedCloseUrl=reported.url;
     }
@@ -416,5 +421,24 @@ async function readSignals(options={}){
   const state=row?.value&&typeof row.value==='object'?row.value:{};
   return buildView(state,options.now??Date.now());
 }
+// Trading feed: one Telegram page per active minute, NO candles/40-coin scan.
+// Read-only merge with archived source results avoids extra D1 writes and replays.
+async function readLiveSignals(options={}){
+ const now=options.now??Date.now(),client=options.client||createRudiStateClient(options);
+ const row=await client.getRecord(NS,KEY);
+ const prior=row?.value&&typeof row.value==='object'?row.value:{};
+ try{
+  const latest=await fetchChannelPage(null,options);
+  const cutoff=now-PERIOD_MS;
+  const byId=new Map([...((Array.isArray(prior.messages)?prior.messages:[])
+    .filter(m=>Date.parse(m.at)>=cutoff)),...latest]
+    .filter(m=>m&&Number.isInteger(Number(m.id))&&Date.parse(m.at)>=cutoff)
+    .map(m=>[String(m.id),m]));
+  const messages=[...byId.values()].sort((a,b)=>Number(b.id)-Number(a.id)).slice(0,1000);
+  return buildView({...prior,messages,sourceError:null,updatedAt:new Date(now).toISOString()},now,options);
+ }catch(e){
+  return {...buildView(prior,now,options),sourceError:'live-author-feed-unavailable'};
+ }
+}
 module.exports={NS,parsePreview,parseSignal,collectEntrySignals,evaluateCandles,compareSignal:parseSignal,
-  buildView,readSignals,refreshSignals,candlesForSignal,marketPriceForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk,fundingForSignal};
+  buildView,readSignals,readLiveSignals,refreshSignals,candlesForSignal,marketPriceForSignal,modeledTrade,parseMarginMode,parseTradeAdjustment,attachTradeUpdates,marketFromText,tradeOutcome,screenLiquidationRisk,fundingForSignal};

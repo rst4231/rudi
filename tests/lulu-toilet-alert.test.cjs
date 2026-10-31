@@ -132,7 +132,7 @@ test('one walk produces only one 100% alert even after shift state changes',asyn
   ));
   assert.equal(second.sent.length,0);
   assert.equal(calls.length,1);
-  const state=await readLuluState({luluCache:cache});
+  const state=await readLuluState({luluCache:cache,now:Date.parse('2026-09-25T17:30:00Z')});
   assert.deepEqual(state.toiletAlert.recipients,['Рустам']);
 });
 

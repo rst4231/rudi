@@ -1,0 +1,28 @@
+const {test,expect}=require('@playwright/test');
+for(const theme of ['light','dark'])test('supplement editor is a page with compact intake history: '+theme,async({page})=>{
+ await page.setViewportSize({width:390,height:640});
+ await page.route('http://127.0.0.1:4173/',route=>route.fulfill({contentType:'text/html',body:`<!doctype html><html data-theme="${theme}"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/app.css"><link rel="stylesheet" href="/rudi-design-system.css"><link rel="stylesheet" href="/supplement-advanced.css"><body data-rudi-actor="Рустам" data-app-tab="supplements"><button id="edit" onclick="RudiSupplementEditor.open('vitamin')">Редактировать</button><script>let items=[{id:'vitamin',name:'Витамин Д3',schedule:{timesPerDay:2,times:['10:00','19:00']},intakes:Array.from({length:6},(_,i)=>({at:'2026-10-'+String(10+i).padStart(2,'0')+'T10:00:00Z'})),statusHistory:[{at:'2026-10-20T10:00:00Z',status:'active'}]}];window.RudiSupplementApp={getActor:()=>document.body.dataset.rudiActor,getItems:()=>items,setItems:value=>items=value,setStatus:()=>{},emojiForSupplement:()=>'',request:async(op,payload)=>{window.saved=payload;return {items}}};</script><script src="/supplement-editor.js"></script></body></html>`}));
+ await page.goto('/');await page.locator('#edit').click();
+ const editor=page.locator('.supplement-editor-page');await expect(editor).toBeVisible();
+ await expect(editor.locator('.supplement-editor-back')).toBeInViewport();
+ await expect(editor.locator('h1')).toHaveText('💊 Витамин Д3');
+ await expect(editor.locator('.supplement-editor-backdrop')).toHaveCount(0);
+ const box=await editor.boundingBox();expect(box.y).toBe(0);expect(box.height).toBe(640);
+ await editor.screenshot({path:test.info().outputPath('editor-'+theme+'.png')});
+ await editor.locator('.supplement-history-list').scrollIntoViewIfNeeded();
+ await expect(editor.locator('.supplement-editor-back')).toBeInViewport();
+ await expect(editor.locator('.supplement-history-intakes .supplement-history-row:visible')).toHaveCount(3);
+ await expect(editor.locator('.supplement-history-intakes .supplement-history-row:visible').first()).toContainText('15.10.2026');
+ await editor.locator('.supplement-history-more').click();
+ await expect(editor.locator('.supplement-history-intakes .supplement-history-row:visible')).toHaveCount(6);
+ await editor.locator('.supplement-history-more').click();
+ await expect(editor.locator('.supplement-history-intakes .supplement-history-row:visible')).toHaveCount(3);
+ expect(await editor.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+ await page.goBack();await expect(editor).toBeHidden();
+ await page.goForward();await expect(editor).toBeVisible();
+ await expect(editor.locator('[name=intakeTime1]')).toHaveValue('19:00');
+ await editor.locator('[name=dosage]').fill('1 капсула');
+ await editor.locator('.supplement-editor-save').click();await expect(editor).toBeHidden();
+ expect(await page.evaluate(()=>saved.patch.schedule.times)).toEqual(['10:00','19:00']);
+ expect(await page.evaluate(()=>saved.patch.schedule.dosage)).toBe('1 капсула');
+});

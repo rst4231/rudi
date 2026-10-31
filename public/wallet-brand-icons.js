@@ -40,13 +40,14 @@
   const CRYPTO=[
     ['binance','Binance','binance.com','binance,бинанс,бинансе,бинанс биржа'],
     ['bybit','Bybit','bybit.com','bybit,байбит,бай бай бит'],
+    ['pionex','Pionex','pionex.com','pionex,пионекс','/icons/wallet-pionex.png'],
     ['okx','OKX','okx.com','okx,окекс,окх'],
     ['coinbase','Coinbase','coinbase.com','coinbase,коинбейз,коинбейс'],
     ['kraken','Kraken','kraken.com','kraken,кракен'],
     ['bitget','Bitget','bitget.com','bitget,битгет'],
     ['kucoin','KuCoin','kucoin.com','kucoin,кукоин'],
     ['mexc','MEXC','mexc.com','mexc,мекс,мексс'],
-    ['gateio','Gate.io','gate.io','gate io,gateio,гейт ио'],
+    ['gateio','Gate','gate.com','gate,gate.io,gate io,gateio,гейт,гейт ио'],
     ['htx','HTX','htx.com','htx,huobi,хуоби'],
     ['bingx','BingX','bingx.com','bingx,бинг икс'],
     ['phemex','Phemex','phemex.com','phemex,фемекс'],
@@ -89,8 +90,8 @@
       .replace(/[^a-zа-я0-9]+/g,' ').replace(/\s+/g,' ').trim();
   }
   const GROUPS=[['Банки',BANKS],['Криптобиржи и кошельки',CRYPTO],['Платёжные сервисы',PAYMENTS]].map(([label,rows])=>({
-    label,brands:rows.map(([id,title,domain,rawAliases])=>({
-      id,title,domain,aliases:rawAliases.split(',').map(normalize).filter(Boolean)
+    label,brands:rows.map(([id,title,domain,rawAliases,localLogo])=>({
+      id,title,domain,localLogo,aliases:rawAliases.split(',').map(normalize).filter(Boolean)
     }))
   }));
   const BRANDS=GROUPS.flatMap(group=>group.brands);
@@ -134,6 +135,7 @@
     img.style.position='absolute';
     img.style.visibility='hidden';
     const sources=[
+      ...(brand.localLogo?[brand.localLogo]:[]),
       '/api/wallet-logo?brand='+encodeURIComponent(brand.id),
       'https://www.google.com/s2/favicons?domain='+encodeURIComponent(brand.domain)+'&sz=128',
       'https://icons.duckduckgo.com/ip3/'+brand.domain+'.ico'

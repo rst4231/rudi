@@ -6,7 +6,8 @@
   let pending = 0;
   let needsReview = 0;
   let syncing = false;
-  const offlineNow = () => navigator.onLine === false || root.document?.body?.dataset?.offlineMode === '1';
+  const offlineNow = () => root.__rudiNetworkReachable === true ? false :
+    navigator.onLine === false || root.document?.body?.dataset?.offlineMode === '1';
   const clone = value => JSON.parse(JSON.stringify(value));
   const id = () => (root.crypto?.randomUUID?.() || String(Date.now()) + '-' + Math.random().toString(36).slice(2));
   const key = (who, scope, month) => [who, scope, month].join('|');
@@ -44,7 +45,9 @@
     const rows = (await all('outbox')).filter(row => row.actor === who);
     pending = rows.length;
     needsReview = rows.filter(row => row.state !== 'queued').length;
-    root.dispatchEvent(new CustomEvent('rudi-calendar-queue', { detail: { actor: who, pending, needsReview } }));
+    const issues=rows.filter(row=>row.state!=='queued').map(row=>({kind:row.kind,state:row.state,
+      code:row.errorCode||'',attempts:Number(row.attempts||0)}));
+    root.dispatchEvent(new CustomEvent('rudi-calendar-queue', { detail: { actor: who, pending, needsReview, issues } }));
     return { pending, needsReview };
   }
   async function init(who) {
@@ -85,8 +88,10 @@
   }
   async function enqueue(who, kind, details) {
     if (kind.startsWith('diana-') && who !== 'Диана')throw Error('calendar-offline-owner-forbidden');
-    if (!who || !['create', 'update', 'delete', 'complete', 'personal-complete', 'move', 'personal-move', 'diana-create', 'diana-update', 'diana-delete', 'diana-complete'].includes(kind))
+    if (!who || !['create', 'update', 'delete', 'complete', 'reopen', 'personal-complete', 'personal-update', 'personal-delete', 'personal-reopen', 'move', 'personal-move', 'diana-create', 'diana-update', 'diana-delete', 'diana-complete', 'diana-reopen'].includes(kind))
       throw Error('calendar-offline-invalid-action');
+    if(['complete','personal-complete','diana-complete'].includes(kind))
+      root.RUDITaskCompletionPolicy?.assertTaskCompletionAllowed(details?.task||{id:details?.taskId,date:details?.date});
     const row = {
       id: id(), actor: who, kind, details: clone(details || {}),
       createdAt: Date.now(), state: 'queued'
@@ -106,11 +111,11 @@
       canEdit:true,canComplete:true,assigned:false,offlinePending:true
     };
     return {
-      id: 'offline:' + row.id, title: String(value.title || 'Новое дело'),
+      id: 'rudi-'+String(value.clientId||row.id), title: String(value.title || 'Новое дело'),
       date: String(value.date || ''), startTime: String(value.time || ''),
-      endTime: '', allDay: !value.time, description: String(value.description || ''),
+      endTime: String(value.endTime||''), allDay: !value.time, description: String(value.description || ''),
       responsible: String(value.responsible || ''), repeat: value.repeat || 'none',
-      repeatCount: value.repeatCount || 1, together: !value.responsible,
+      repeatCount: value.repeatCount ?? 0, repeatDays:Array.isArray(value.repeatDays)?value.repeatDays:[], together: !value.responsible,
       assigned: Boolean(value.responsible), personal: false, canEdit: false,
       canComplete: false, canDelete: false, offlinePending: true
     };
@@ -130,8 +135,33 @@
     }
     return items;
   }
+  function sharedOccurrences(task,month) {
+    const anchor=String(task.date||''),repeat=String(task.repeat||'none');
+    if(repeat==='none')return [task];
+    if(!/^20\d\d-\d\d-\d\d$/.test(anchor)||!/^20\d\d-\d\d$/.test(month))return [];
+    const first=new Date(anchor+'T00:00:00Z');
+    if(!Number.isFinite(first.getTime()))return [];
+    const chosen=Array.isArray(task.repeatDays)?task.repeatDays.map(Number):[];
+    const last=new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7)),0));
+    const results=[],limit=Number(task.repeatCount)>0?Math.min(366,Number(task.repeatCount)+1):Infinity;
+    let count=0;
+    for(let day=new Date(first);day<=last;day.setUTCDate(day.getUTCDate()+1)){
+      const date=day.toISOString().slice(0,10),weekday=day.getUTCDay();
+      const delta=Math.round((day-first)/86400000);
+      const ok=repeat==='daily'||
+        repeat==='weekdays'&&weekday>=1&&weekday<=5||
+        repeat==='custom'&&chosen.includes(weekday)||
+        repeat==='weekly'&&delta%7===0||
+        repeat==='monthly'&&day.getUTCDate()===first.getUTCDate()||
+        repeat==='yearly'&&date.slice(5)===anchor.slice(5);
+      if(!ok)continue;
+      count++;if(count>limit)break;
+      if(date.slice(0,7)===month)results.push({...task,id:task.id+'__'+date,date,seriesId:task.id});
+    }
+    return results;
+  }
   function overlay(source, rows, month) {
-    const result = clone(source);
+    const result = clone(source) || {ok:true,ticktickDays:[]};
     const days = Array.isArray(result.ticktickDays) ? result.ticktickDays : (result.ticktickDays = []);
     const getDay = date => {
       let day = days.find(x => x.date === date);
@@ -140,16 +170,35 @@
       return day;
     };
     for (const row of rows) {
+      // A definite server refusal is not a successful local mutation. Keep
+      // the requested change in outbox, but leave the server task visible.
+      if(row.state==='blocked')continue;
       const d = row.details || {};
       if (row.kind === 'create' || row.kind === 'diana-create') {
         const item = eventFromCreate(row);
-        for(const occurrence of row.kind==='diana-create'?dianaOccurrences(item,month):[item]){
+        for(const occurrence of row.kind==='diana-create'?dianaOccurrences(item,month):sharedOccurrences(item,month)){
           if(occurrence.date.slice(0,7)===month&&!getDay(occurrence.date).events.some(task=>task.id===occurrence.id))getDay(occurrence.date).events.push(occurrence);
         }
         continue;
       }
       const taskId = String(d.taskId || '');
       if (!taskId) continue;
+      if(['reopen','personal-reopen','diana-reopen'].includes(row.kind)){
+        let previous=d.task?clone(d.task):null;
+        const date=String(d.date||d.task?.date||'');
+        for(const day of days){
+          if(date&&day.date!==date)continue;
+          const found=(day.events||[]).find(task=>task.id===taskId);
+          if(found)previous=clone(found);
+          day.events=(day.events||[]).filter(task=>task.id!==taskId);
+        }
+        if(previous){
+          const next={...previous,completed:false,canComplete:true,canEdit:true,offlinePending:true};
+          delete next.completedAt;delete next.expiresAt;
+          if(next.date.slice(0,7)===month)getDay(next.date).events.push(next);
+        }
+        continue;
+      }
       if(row.kind.startsWith('diana-')){
         const seriesId=taskId.split('__')[0];
         let previous=d.task?clone(d.task):null;
@@ -178,27 +227,46 @@
         continue;
       }
       let old = d.task ? clone(d.task) : null;
+      const sharedSeriesId=taskId.split('__')[0];
+      const seriesMutation=['update','delete','move'].includes(row.kind);
       for (const day of days) {
         if (!Array.isArray(day.events)) continue;
+        const completedDate=['complete','personal-complete'].includes(row.kind)?String(d.task?.date||d.date||''):'';
+        if(completedDate&&day.date!==completedDate)continue;
         const entry = day.events.find(x => String(x?.id || '') === taskId);
         if (entry) old = clone(entry);
-        day.events = day.events.filter(x => String(x?.id || '') !== taskId);
+        day.events = day.events.filter(x => seriesMutation&&x.completed||String(x?.id || '') !== taskId&&
+          !(seriesMutation&&String(x?.seriesId||'')===sharedSeriesId));
       }
-      if (row.kind === 'complete' || row.kind === 'personal-complete' || row.kind === 'delete' || row.kind === 'diana-delete' || row.kind === 'diana-complete') continue;
-      if (!old) continue;
-      const value = row.kind==='diana-update'?d:(d.value || {});
+      if(row.kind==='complete'||row.kind==='personal-complete'){
+        if(old&&old.date.slice(0,7)===month)getDay(old.date).events.push({...old,completed:true,completedAt:new Date(row.createdAt).toISOString(),canComplete:false,canEdit:false,canReopen:true,offlinePending:true});
+        continue;
+      }
+      if(row.kind==='personal-delete'||row.kind==='delete')continue;
+      if(!old)continue;
+      const value = row.kind==='diana-update'||row.kind==='personal-update'?d:(d.value || {});
       const next = {
         ...old, title: value.title === undefined ? old.title : value.title,
         description: value.description === undefined ? old.description : value.description,
         responsible: value.responsible === undefined ? old.responsible : value.responsible,
         repeat: value.repeat === undefined ? old.repeat : value.repeat,
         repeatCount: value.repeatCount === undefined ? old.repeatCount : value.repeatCount,
+        repeatDays: value.repeatDays===undefined?old.repeatDays:value.repeatDays,
         date: String(value.date || d.date || old.date),
         startTime: value.time === undefined && d.time === undefined ? old.startTime : String(value.time ?? d.time ?? ''),
+        endTime: value.endTime===undefined ? old.endTime : String(value.endTime||''),
         offlinePending: true
       };
       next.allDay = !next.startTime;
-      if (next.date.slice(0, 7) === month) getDay(next.date).events.push(next);
+      if(next.personal){
+        if(next.date.slice(0,7)===month)getDay(next.date).events.push(next);
+      }else{
+        const task={...next,id:sharedSeriesId};
+        for(const occurrence of sharedOccurrences(task,month)){
+          if(!getDay(occurrence.date).events.some(event=>String(event.id)===String(occurrence.id)))
+            getDay(occurrence.date).events.push(occurrence);
+        }
+      }
     }
     for(const day of days)day.events=(day.events||[]).filter(task=>!task.completed||!task.expiresAt||Date.parse(task.expiresAt)>Date.now());
     days.sort((a, b) => String(a.date).localeCompare(String(b.date)));
@@ -208,19 +276,58 @@
   }
   async function materialize(who, month, payload, scope) {
     const rows = (await all('outbox')).filter(row => row.actor === who && (!scope ||
-      (row.kind.startsWith('personal-')||row.kind.startsWith('diana-')?scope==='personal':scope==='shared')));
+      (row.kind.startsWith('personal-')||row.kind.startsWith('diana-')?scope==='personal':scope==='shared')))
+      .sort((a,b)=>a.createdAt-b.createdAt||a.id.localeCompare(b.id));
     return overlay(payload, rows, month);
+  }
+
+  function overlayAgenda(payload, rows) {
+    if (!payload?.date) return payload;
+    const dates = [payload.date, payload.tomorrowDate].filter(Boolean);
+    const source = {ticktickDays: dates.map((date,index)=>({date,
+      events:(payload[index?'tomorrowTasks':'tasks']||[]).map(task=>({...task,date}))}))};
+    const days = [...new Set(dates.map(date=>date.slice(0,7)))].flatMap(month=>
+      overlay(source,rows,month).ticktickDays.filter(day=>day.date.slice(0,7)===month));
+    const forDay = date=>days.filter(day=>day.date===date).flatMap(day=>day.events)
+      .filter(task=>!task.completed).sort((a,b)=>String(a.startTime||'99:99').localeCompare(String(b.startTime||'99:99')));
+    return {...payload,tasks:forDay(payload.date),tomorrowTasks:forDay(payload.tomorrowDate),
+      offlinePending:rows.length,offlineNeedsReview:rows.filter(row=>row.state!=='queued').length};
+  }
+  async function materializeAgenda(who, scope, payload) {
+    const rows=(await all('outbox')).filter(row=>row.actor===who&&
+      ((row.kind.startsWith('personal-')||row.kind.startsWith('diana-'))?scope==='personal':scope==='shared'))
+      .sort((a,b)=>a.createdAt-b.createdAt||a.id.localeCompare(b.id));
+    return overlayAgenda(payload,rows);
+  }
+  async function acknowledge(row) {
+    // Keep the confirmed edit in disk snapshots before removing its overlay.
+    // Reapplying an edit after a crash is safe; losing the edit is not.
+    if(row.kind.startsWith('personal-')||['diana-update','diana-complete','diana-reopen','complete','reopen'].includes(row.kind)){
+      const snapshots=(await all('snapshots')).filter(item=>item.key.startsWith(row.actor+'|'));
+      for(const snapshot of snapshots){
+        const [,scope,month]=snapshot.key.split('|');
+        const targetScope=row.kind.startsWith('personal-')||row.kind.startsWith('diana-')?'personal':'shared';
+        if(scope==='home-agenda'&&month===targetScope)snapshot.payload=overlayAgenda(snapshot.payload,[row]);
+        else if(scope===targetScope)snapshot.payload=overlay(snapshot.payload,[row],month);
+        else continue;
+        snapshot.savedAt=Math.max(snapshot.savedAt,row.createdAt);
+        await change('snapshots',table=>table.put(snapshot));
+      }
+    }
+    await change('outbox',table=>table.delete(row.id));
   }
 
   function endpoint(row) {
     const k = row.kind;
     if(k==='diana-create')return '/api/partner-message?ticktickAction=personal-task-create';
-    if(['diana-update','diana-delete','diana-complete'].includes(k))return '/api/partner-message?ticktickAction=personal-task-edit';
+    if(['diana-update','diana-delete','diana-complete','diana-reopen'].includes(k))return '/api/partner-message?ticktickAction=personal-task-edit';
     if (k === 'create') return '/api/ticktick/task-create';
     if (k === 'update') return '/api/ticktick/task-update';
     if (k === 'delete') return '/api/ticktick/task-delete';
     if (k === 'complete') return '/api/ticktick/task-complete';
+    if (k === 'reopen') return '/api/partner-message?ticktickAction=task-reopen';
     if (k === 'personal-complete') return '/api/partner-message?ticktickAction=personal-task-complete';
+    if (k==='personal-update'||k==='personal-delete'||k==='personal-reopen') return '/api/partner-message?ticktickAction=personal-task-edit';
     if (k === 'personal-move') return '/api/partner-message?ticktickAction=personal-task-move';
     if (k === 'move') return '/api/partner-message?ticktickAction=task-move';
     throw Error('calendar-offline-unsupported-action');
@@ -238,7 +345,47 @@
     // Diana creates use atomic insert-if-absent IDs; edits and tombstones are
     // idempotent too. Retrying never creates a second task after a lost response.
     if(row.kind.startsWith('diana-'))return who==='Диана'?'retry':'unknown';
-    const data=row.details||{}, value=data.value||{}, taskId=string(data.taskId);
+    if(!row.kind.startsWith('personal-'))return 'retry'; // native shared mutations are idempotent
+    const data=row.details||{}, value=data.value||(row.kind==='personal-update'?data:{}), taskId=string(data.taskId);
+    // Updating the same stable task ID with the same fields is idempotent.
+    // It does not need a month-calendar read (which also depends on the shared
+    // integration). Cross-list moves create a copy, so still require readback.
+    if(row.kind==='personal-update'&&data.operation==='save'&&taskId&&string(data.projectId)&&
+      string(data.targetProjectId||data.projectId)===string(data.projectId))return 'retry';
+    if(row.kind==='personal-reopen')return 'retry'; // Reopening the same stable ID is idempotent.
+    if(['personal-complete','personal-delete','personal-move'].includes(row.kind)&&taskId&&string(data.projectId)){
+      const readKey='task|'+string(data.projectId)+'|'+taskId;
+      if(!reads.has(readKey)){
+        try{
+          const response=await fetch('/api/partner-message?ticktickAction=personal-task-state',{
+            method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
+            body:JSON.stringify({...auth(),taskId,projectId:data.projectId,syncKind:row.kind})
+          });
+          const state=await response.json().catch(()=>null);
+          reads.set(readKey,response.ok&&state?.ok===true&&typeof state.found==='boolean'?state:null);
+        }catch(_){reads.set(readKey,null)}
+      }
+      const state=reads.get(readKey);
+      if(!state)return 'unknown';
+      const original=data.task;
+      const age=Date.now()-row.createdAt;
+      if(row.kind==='personal-complete'||row.kind==='personal-delete'){
+        if(!state.found&&original)return 'done';
+        if(state.found&&row.kind==='personal-complete'){
+          if(state.task?.completed)return 'done';
+          // A recurring completion advances this stable ID to the next day.
+          // Replaying completion would complete that next occurrence too.
+          const before=string(original?.date||data.date),after=string(state.task?.date);
+          if(state.task?.recurring&&before&&after>before)return 'done';
+          if(state.task?.recurring&&(!before||after!==before))return 'unknown';
+        }
+        return state.found&&age>20000?'retry':'unknown';
+      }
+      if(!state.found)return 'unknown';
+      if(string(state.task?.startTime)===string(data.time)&&
+        (state.task?.recurring||string(state.task?.date)===string(data.date)))return 'done';
+      return age>20000?'retry':'unknown';
+    }
     const personal=row.kind.startsWith('personal-');
     const scope=personal?'rustam':'shared';
     const snapshots=(await all('snapshots')).filter(s=>
@@ -261,7 +408,7 @@
           });
           const value=await response.json().catch(()=>null);
           reads.set(key,response.ok&&value?.ok!==false&&value?.stale!==true
-            &&value?.personalUnavailable!==true&&value?.sharedUnavailable!==true
+            &&(personal?value?.personalUnavailable!==true&&value?.personalConnected!==false:value?.sharedUnavailable!==true)
             &&Array.isArray(value?.days)?snapshotEvents({ticktickDays:value.days}):null);
         }catch(_){reads.set(key,null)}
       }
@@ -282,16 +429,16 @@
       // Cannot safely infer a failed create from absence alone.
       return 'unknown';
     }
-    if(row.kind==='complete'||row.kind==='personal-complete'||row.kind==='delete'){
+    if(row.kind==='complete'||row.kind==='personal-complete'||row.kind==='personal-delete'||row.kind==='delete'){
       if(row.kind!=='delete'&&found?.completed===true)return 'done';
       if(!found&&original)return 'done';
       if(found&&age>20000)return 'retry';
       return 'unknown';
     }
-    if(row.kind==='update'||row.kind==='move'||row.kind==='personal-move'){
+    if(row.kind==='update'||row.kind==='personal-update'||row.kind==='move'||row.kind==='personal-move'){
       const targetDate=string(value.date||data.date),targetTime=string(value.time??data.time);
       if(found&&string(found.date)===targetDate&&string(found.startTime)===targetTime
-        &&(row.kind!=='update'||string(found.title)===string(value.title)))return 'done';
+        &&(!['update','personal-update'].includes(row.kind)||string(found.title)===string(value.title)))return 'done';
       if(found&&age>20000)return 'retry';
       return 'unknown';
     }
@@ -307,17 +454,34 @@
     try{
       const rows=(await all('outbox')).filter(row=>row.actor===who)
         .sort((a,b)=>a.createdAt-b.createdAt||a.id.localeCompare(b.id));
+      const waitingTasks=new Set();
       for(const row of rows){
         if(offlineNow())break;
+        const details=row.details||{};
+        if(['complete','personal-complete','diana-complete'].includes(row.kind)&&
+          root.RUDITaskCompletionPolicy?.isFutureTask(details.task||{id:details.taskId,date:details.date})){
+          row.state='blocked';row.retryAt=Date.parse(root.RUDITaskCompletionPolicy.taskDateKey(details.task||{id:details.taskId,date:details.date})+'T00:00:00+03:00');
+          row.error=root.RUDITaskCompletionPolicy.MESSAGE;
+          await change('outbox',table=>table.put(row));
+          continue;
+        }
+        const taskKey=details.taskId
+          ?(row.kind.startsWith('personal-')?'personal':row.kind.startsWith('diana-')?'diana':'shared')+'|'+string(details.taskId).split('__')[0]
+          :row.id;
+        if(waitingTasks.has(taskKey))continue;
         const now=Date.now();
         if(row.state==='blocked'){
-          if(now<Number(row.retryAt||0))break;
+          // Old releases rejected delayed edits after task completion. The
+          // server now preserves that completion status while saving the edit.
+          if(row.errorCode==='ticktick-personal-task-completed'&&row.kind==='personal-update'&&
+            string(details.targetProjectId||details.projectId)===string(details.projectId))row.retryAt=0;
+          if(now<Number(row.retryAt||0)){waitingTasks.add(taskKey);continue;}
           row.state='queued';
         }else if(row.state!=='queued'){
-          if(now<Number(row.checkAt||0))break;
+          if(now<Number(row.checkAt||0)){waitingTasks.add(taskKey);continue;}
           const decision=await reconcile(row,who,auth,reads);
           if(decision==='done'){
-            await change('outbox',table=>table.delete(row.id));
+            await acknowledge(row);
             sent++;
             continue;
           }
@@ -326,7 +490,8 @@
             row.checkAt=Date.now()+30000;
             row.error='Не удалось подтвердить изменение на сервере';
             await change('outbox',table=>table.put(row));
-            break;
+            waitingTasks.add(taskKey);
+            continue;
           }
           row.state='queued';
         }
@@ -343,6 +508,7 @@
           });
           const payload=await response.json().catch(()=>({}));
           if(!response.ok||payload.ok!==true){
+            row.errorCode=string(payload.error||'http-'+response.status).slice(0,100);
             if(response.status>=500||response.status===408||response.status===504){
               row.state='review'; // Unclear whether an upstream write committed.
               row.checkAt=Date.now()+30000;
@@ -351,13 +517,13 @@
               row.retryAt=Date.now()+Math.min(600000,15000*2**Math.min(5,row.attempts-1));
             }
             row.error=response.status===401||response.status===403
-              ?'Подключи TickTick повторно'
+              ?'Проверь авторизацию RUDI'
               :response.status===429?'Сервис ограничил частоту запросов'
               :'Ответ сервера: '+response.status;
             await change('outbox',table=>table.put(row));
             break;
           }
-          await change('outbox',table=>table.delete(row.id));
+          await acknowledge(row);
           sent++;
           reads.clear();
         }catch(_){
@@ -381,13 +547,13 @@
   root.setInterval?.(()=>{
     if(actor&&pending>0&&lastAuth&&!syncing&&
       root.document?.visibilityState==='visible'&&
-      root.document?.body?.dataset?.appTab==='schedule'&&!offlineNow()){
+      ['schedule','home'].includes(root.document?.body?.dataset?.appTab)&&!offlineNow()){
       flush(actor,lastAuth).catch(error=>console.warn(
         'RUDI_CALENDAR_RECONCILE_WARN',String(error?.message||error)));
     }
   },20000);
   root.rudiCalendarOffline = {
-    init, cached, capture, cachedAgenda, captureAgenda, materialize, enqueue, flush, summary,
+    init, cached, capture, cachedAgenda, captureAgenda, materialize, materializeAgenda, enqueue, flush, summary,
     hasPendingSync: () => pending > 0,
     isSyncing: () => syncing,
     isOffline: offlineNow,

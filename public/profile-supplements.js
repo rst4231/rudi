@@ -5,7 +5,7 @@ const STORAGE='rudi-personal-profile-v1:';
 const HOME_TOOLS_STALE_MS=10*60*1000;
 let actor='',items=[],profile=null,overlay=null,list=null,statusNode=null,tile=null,summary=null,summaryMeta=null,recommendationNode=null,recommendationWrap=null,recommendationToggle=null,collapseButton=null,undoTimer=null,habitUndoTimer=null,trackerGroup=null,homeToolsLoadedActor='',homeToolsLoadedAt=0,homeToolsLoadPromise=null,habitInfoModal=null,habitInfoClose=null,supplementSummaryNode=null,supplementProgressFill=null,supplementPercentNode=null,guidanceEnrichmentPromise=null,supplementInfoModal=null,supplementInfoTitle=null,supplementInfoBody=null,supplementInfoClose=null,supplementReminderBadge=null,habitReminderBadge=null,reminderBadgeTimer=0,habitTodayReminder={today:'',habits:[],statuses:{}};
 let homeToolsRequestActor='',homeToolsLoadSequence=0;
-let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},stats:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitYesterdayQuote=null,habitHistory={},habitSelectedDate='',habitArchiveExpanded=false,habitDateRequestSeq=0,habitDateInputLastValue='';
+let habitState={habits:[],archivedHabits:[],completedIds:[],notDoneIds:[],statuses:{},streaks:{},stats:{},bonusIds:[],collapsed:false,today:'',date:'',done:0,total:0,canCompleteToday:false},habitTile=null,habitList=null,habitProgressText=null,habitProgressFill=null,habitPercentNode=null,habitCollapseButton=null,habitInfoButton=null,habitInfoPanel=null,habitAddButton=null,habitForm=null,habitInput=null,habitPurposeInput=null,habitStatusNode=null,habitDateStrip=null,habitDateInput=null,habitYesterdayQuote=null,habitHistory={},habitSelectedDate='',habitArchiveExpanded=false,habitExpandedId='',habitDateRequestSeq=0,habitDateInputLastValue='';
 
 function initData(){return String(window.Telegram?.WebApp?.initData||'')}
 function storageKey(){return STORAGE+(actor||'unknown')}
@@ -82,11 +82,12 @@ function localSupplementMutation(snapshot,command,payload,at,id){
    item={...existing,goal:patch.goal??existing.goal,ingredients:patch.ingredients??existing.ingredients,
     status,expirationDate:patch.expirationDate??existing.expirationDate,
     schedule:{...existing.schedule,...patch.schedule},
-    course:{...existing.course,...patch.course},updatedAt:at,
+    course:window.RudiSupplementCourse?.forUpdate(existing,patch,date)||{...existing.course,...patch.course},updatedAt:at,
     statusHistory:status!==existing.status?[...(existing.statusHistory||[]),{status,at}]:existing.statusHistory};
    rows[i]=item;
   }
   if(command==='take'){
+   if(window.RudiSupplementCourse&&!window.RudiSupplementCourse.canMark(existing,date))throw Error('supplement-course-inactive');
    const target=Math.max(1,Math.min(12,Number(existing.schedule?.timesPerDay)||1));
    const filled=new Set(existing.intakes.filter(x=>x.date===date&&Number.isInteger(x.slot)).map(x=>x.slot));
    const legacy=existing.intakes.filter(x=>x.date===date&&!Number.isInteger(x.slot));
@@ -107,6 +108,7 @@ function localSupplementMutation(snapshot,command,payload,at,id){
    if(match){item={...existing,intakes:existing.intakes.filter((_,j)=>j!==match.index),updatedAt:at};rows[i]=item}
   }
   if(command==='skip'){
+   if(window.RudiSupplementCourse&&!window.RudiSupplementCourse.canMark(existing,date))throw Error('supplement-course-inactive');
    if(existing.intakes.some(x=>x.date===date))throw Error('supplement-already-taken');
    if(!existing.skips.some(x=>x.date===date)){
     item={...existing,skips:[...existing.skips,{date,at}],updatedAt:at};rows[i]=item;
@@ -317,6 +319,7 @@ function applyHabitView(data){
     statuses:view?.statuses&&typeof view.statuses==='object'?view.statuses:{},
     streaks:view?.streaks&&typeof view.streaks==='object'?view.streaks:{},
     stats:view?.stats&&typeof view.stats==='object'?view.stats:{},
+    calendarHistory:view?.calendarHistory&&typeof view.calendarHistory==='object'?view.calendarHistory:habitState.calendarHistory||{},
     bonusIds:Array.isArray(view?.bonusIds)?view.bonusIds:[],
     collapsed:habitState.collapsed===true,today:String(view?.today||''),date:String(view?.date||view?.today||''),
     done:Number(view?.done||0),total:Number(view?.total||0),canCompleteToday:Boolean(view?.canCompleteToday)
@@ -369,7 +372,11 @@ function paintReminderBadge(node,count){
   node.textContent=value>99?'99+':String(value);
   node.hidden=value<=0;
 }
+let courseRenderDay='';
 function updateReminderBadges(){
+  const day=habitDateKey(new Date());
+  const changed=courseRenderDay&&courseRenderDay!==day;courseRenderDay=day;
+  if(changed&&items.length){render();return}
   const supplementCount=overdueSupplementCount();
   const habitCount=pendingHabitCount();
   paintReminderBadge(supplementReminderBadge,supplementCount);
@@ -384,7 +391,7 @@ function startReminderBadgeClock(){
 }
 
 function habitStreakText(value){const n=Math.max(0,Math.round(Number(value)||0)),m100=n%100,m10=n%10,w=m100>=11&&m100<=14?'дней':m10===1?'день':m10>=2&&m10<=4?'дня':'дней';return n+' '+w+' подряд'}
-function habitScoreMeta(id){if(habitSelectedDate!==habitState.today)return'За прошлые даты звёзды не меняются';return (habitState.bonusIds||[]).includes(id)?'+0,2 ⭐ за выполнение · −1 ⭐ за невыполнение':'Без бонуса и штрафа'}
+function habitScoreMeta(id){if(habitSelectedDate!==habitState.today)return'За прошлые даты звёзды не меняются';return (habitState.bonusIds||[]).includes(id)?'+0,1 ⭐ за выполнение · −2 ⭐ за невыполнение':'Без бонуса и штрафа'}
 function habitScoreMessage(data,id,status){if(habitSelectedDate!==habitState.today)return'Статус сохранён. За прошлые даты звёзды не меняются.';if(!(habitState.bonusIds||[]).includes(id))return'Статус сохранён. Эта привычка без бонуса и штрафа.';const d=Number(data?.scoreDelta||0);if(d>0)return'Баланс: +'+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';if(d<0)return'Баланс: '+String(Number(d.toFixed(2))).replace('.',',')+' ⭐';return status==='done'?'Выполнение сохранено.':'Статус «Не выполнено» сохранён.'}
 function launchHabitConfetti(anchor){
   if(!anchor||window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches)return;
@@ -472,9 +479,9 @@ function renderHabits(){
     const id=String(habit.id||''),status=String(statuses[id]||'pending'),isDone=status==='done',isNotDone=status==='notdone';
     const row=document.createElement('div');row.className='personal-habit-row';row.classList.toggle('is-done',isDone);row.classList.toggle('is-notdone',isNotDone);row.classList.toggle('is-history',isHistorical);
     const main=document.createElement('div');main.className='personal-habit-main';
-    const emoji=document.createElement('span');emoji.className='personal-habit-emoji';emoji.textContent=habitDisplayEmoji(habit,habits.indexOf(habit));
+    const emoji=document.createElement('button');emoji.className='personal-habit-emoji';emoji.textContent=habitDisplayEmoji(habit,habits.indexOf(habit));
     const copy=document.createElement('div');copy.className='personal-habit-copy';
-    const name=document.createElement('div');name.className='personal-habit-name';name.textContent=String(habit.name||'Привычка');
+    const name=document.createElement('button');name.className='personal-habit-name';name.textContent=String(habit.name||'Привычка');
     const purpose=document.createElement('div');purpose.className='personal-habit-purpose';purpose.textContent=String(habit.purpose||'').trim();purpose.hidden=!purpose.textContent;
     const habitStats=habitState.stats?.[id]||{},notDoneCount=Math.max(0,Number(habitStats.notDone)||0),lostStars=Math.max(0,Number(habitStats.lostStars)||0);
     const streak=document.createElement('div');streak.className='personal-habit-streak';streak.textContent=habitStreakText(habitState.streaks?.[id])+' · '+notDoneCount+' не выполнено · −'+String(Number(lostStars.toFixed(1))).replace('.0','').replace('.',',')+' ⭐';
@@ -486,6 +493,11 @@ function renderHabits(){
       copy.appendChild(dayStatus);
     }
     const remove=document.createElement('button');remove.type='button';remove.className='personal-habit-remove';remove.textContent='×';remove.setAttribute('aria-label','Переместить привычку в архив: '+habit.name);main.append(emoji,copy,remove);
+    for(const trigger of [emoji,name]){
+      trigger.type='button';trigger.className+=' personal-habit-history-trigger';trigger.dataset.habitHistory=id;
+      trigger.setAttribute('aria-expanded',String(habitExpandedId===id));trigger.setAttribute('aria-controls','habit-history-'+id);trigger.setAttribute('aria-label','История за 30 дней: '+habit.name);
+      trigger.addEventListener('click',()=>{habitExpandedId=habitExpandedId===id?'':id;renderHabits();habitList.querySelector((trigger===emoji?'.personal-habit-emoji':'.personal-habit-name')+'[data-habit-history="'+id+'"]')?.focus({preventScroll:true})});
+    }
     const actions=document.createElement('div');actions.className='personal-habit-actions';
     const yes=document.createElement('button');yes.type='button';yes.className='personal-habit-status-button is-done';yes.textContent='Выполнено';yes.classList.toggle('is-active',isDone);
     const no=document.createElement('button');no.type='button';no.className='personal-habit-status-button is-notdone';no.textContent='Не выполнено';no.classList.toggle('is-active',isNotDone);
@@ -553,7 +565,14 @@ function renderHabits(){
     };
     yes.addEventListener('click',()=>save('done',yes));no.addEventListener('click',()=>save('notdone',no));
     remove.addEventListener('click',async()=>{if(remove.disabled)return;yes.disabled=no.disabled=remove.disabled=true;setHabitStatus('');try{const data=await habitRequest('archive',{id,date:habitSelectedDate||habitState.today});applyHabitView(data);setHabitStatus('Привычка перемещена в архив. Восстановить её нельзя.')}catch(error){console.error('RUDI_HABIT_ARCHIVE_UI_ERROR',error);setHabitStatus('Не удалось переместить привычку в архив.',true);yes.disabled=no.disabled=remove.disabled=false}});
-    row.append(main,actions);habitList.appendChild(row);
+    row.append(main,actions);
+    if(habitExpandedId===id&&window.RudiHabitHistory){
+      const overrides={};for(const [key,value] of habitOptimisticStatuses){const [owner,date,habitId]=key.split('|');if(owner===actor&&habitId===id)overrides[date]=value}
+      const history=habitState.calendarHistory?.[id]||Object.entries(habitHistory).map(([date,view])=>({date,status:view?.statuses?.[id]}));
+      if(habitState.statuses[id])overrides[habitState.date||habitState.today]=habitState.statuses[id];
+      row.append(window.RudiHabitHistory.render({habit,history,today:habitState.today||habitDateKey(new Date()),overrides}));
+    }
+    habitList.appendChild(row);
   }
   const archived=Array.isArray(habitState.archivedHabits)?habitState.archivedHabits:[];
   if(archived.length){
@@ -601,7 +620,7 @@ function prefs(){return readPrefs()}
 function ageText(age){const n=Math.max(0,Math.round(Number(age)||0));const mod100=n%100,mod10=n%10;const word=mod100>=11&&mod100<=14?'лет':mod10===1?'год':mod10>=2&&mod10<=4?'года':'лет';return n+' '+word}
 function emojiForSupplement(name){const value=String(name||'').toLowerCase().replace(/ё/g,'е');if(/креатин/.test(value))return'🏋️';if(/теанин|l[-\s]?theanine/.test(value))return'🍵';if(/витамин\s*d|d3|к2|k2/.test(value))return'☀️';if(/магни/.test(value))return'⚡';if(/омега|рыб/.test(value))return'🐟';if(/желез/.test(value))return'🩸';if(/цинк/.test(value))return'🛡️';if(/мелатонин/.test(value))return'🌙';if(/коллаген/.test(value))return'🦴';if(/протеин|белок/.test(value))return'🥛';if(/витамин\s*c|аскорб/.test(value))return'🍊';return'💊'}
 function renderProfileMeta(){if(!summaryMeta)return;summaryMeta.textContent=profile?.age&&profile?.sexLabel?ageText(profile.age)+' · '+profile.sexLabel:'Твоя личная страница в РуДи'}
-function activeSupplementItems(){return items.filter(item=>String(item?.status||'active')==='active')}
+function activeSupplementItems(){return items.filter(item=>String(item?.status||'active')==='active'&&(!window.RudiSupplementCourse||window.RudiSupplementCourse.canMark(item)))}
 function todaySupplementProgress(){const today=habitDateKey(new Date()),active=activeSupplementItems();const taken=active.filter(item=>supplementIntakesOn(item,today)>0).length;return{taken,total:active.length}}
 function todaySupplementCount(){return todaySupplementProgress().taken}
 const SUPPLEMENT_OUTLINE_LENGTH=168+52*Math.PI;
@@ -692,7 +711,7 @@ async function openSupplementInfo(item){
   supplementInfoBody.textContent='Загружаю описание…';
   supplementInfoModal.hidden=false;document.body.classList.add('habit-info-modal-open');
   let current=item;
-  if(!current?.description||!current?.intakeGuidance){
+  if(!current?.description||!current?.intakeGuidance||/невозможно.{0,50}рассматривать.{0,30}БАД/i.test(current.description)){
     try{
       const data=await request('describe',{id:item.id});
       if(data?.item){
@@ -732,6 +751,7 @@ function applyCollapse(){
 }
 function applyPosition(){}
 function render(){
+  if(window.RudiSupplementCourse)items=items.map(item=>window.RudiSupplementCourse.apply(item));
   if(!list)return;
   renderSupplementSummary();
   list.replaceChildren();
@@ -865,7 +885,7 @@ function build(){
   habitInfoClose=document.createElement('button');habitInfoClose.type='button';habitInfoClose.className='habit-info-modal-close';habitInfoClose.setAttribute('aria-label','Закрыть');habitInfoClose.textContent='×';
   const habitInfoTitle=document.createElement('strong');habitInfoTitle.id='habitInfoModalTitle';habitInfoTitle.className='habit-info-modal-title';habitInfoTitle.textContent='Как работают звёзды';
   habitInfoPanel=document.createElement('div');habitInfoPanel.className='habit-info-modal-copy';
-  const habitFemale=actor==='Диана';habitInfoPanel.innerHTML='<p><b>Здесь всё просто.</b></p><p>Первые <b>3 привычки</b> дают или забирают звёзды.</p><p>🟢 '+(habitFemale?'Сделала':'Сделал')+' привычку → получишь <b>+0,2 ⭐</b>.<br>🔴 '+(habitFemale?'Не сделала':'Не сделал')+' → снимется <b>−1 ⭐</b>.</p><p>Кнопку <b>«Выполнено»</b> за сегодня можно нажать после <b>20:00 МСК</b>. Само начисление звёзд от времени не зависит.</p><p>Если до конца дня не выбрать статус у бонусной привычки, снимется <b>−1 ⭐</b>.</p><p>🔥 Если одна привычка выполнена <b>21 день подряд без единого штрафа</b>, начисляется <b>+5 ⭐</b>. За одну непрерывную серию бонус выдаётся один раз. После срыва новая серия может заработать новый бонус.</p><p>Остальные привычки можно просто отмечать. За них обычные ежедневные звёзды не добавляются и не снимаются, но бонус за 21 день действует для любой привычки.</p><p>Если случайно '+(habitFemale?'нажала':'нажал')+' <b>«Выполнено»</b> или <b>«Не выполнено»</b>, у тебя есть <b>5 секунд</b>, чтобы нажать <b>«Отменить»</b>.</p><p>За прошлые дни звёзды не меняются. Если нажмёшь кнопку несколько раз, звёзды дважды не начислятся и не спишутся.</p>';
+  const habitFemale=actor==='Диана';habitInfoPanel.innerHTML='<p><b>Здесь всё просто.</b></p><p>Первые <b>3 привычки</b> дают или забирают звёзды.</p><p>🟢 '+(habitFemale?'Сделала':'Сделал')+' привычку → получишь <b>+0,1 ⭐</b>.<br>🔴 '+(habitFemale?'Не сделала':'Не сделал')+' → снимется <b>−2 ⭐</b>.</p><p>Кнопку <b>«Выполнено»</b> за сегодня можно нажать после <b>20:00 МСК</b>. Само начисление звёзд от времени не зависит.</p><p>Если до конца дня не выбрать статус у бонусной привычки, снимется <b>−2 ⭐</b>.</p><p>🔥 Если одна привычка выполнена <b>21 день подряд без единого штрафа</b>, начисляется <b>+5 ⭐</b>. За одну непрерывную серию бонус выдаётся один раз. После срыва новая серия может заработать новый бонус.</p><p>Остальные привычки можно просто отмечать. За них обычные ежедневные звёзды не добавляются и не снимаются, но бонус за 21 день действует для любой привычки.</p><p>Если случайно '+(habitFemale?'нажала':'нажал')+' <b>«Выполнено»</b> или <b>«Не выполнено»</b>, у тебя есть <b>5 секунд</b>, чтобы нажать <b>«Отменить»</b>.</p><p>За прошлые дни звёзды не меняются. Если нажмёшь кнопку несколько раз, звёзды дважды не начислятся и не спишутся.</p>';
   habitInfoDialog.append(habitInfoClose,habitInfoTitle,habitInfoPanel);habitInfoModal.append(habitInfoBackdrop,habitInfoDialog);document.body.appendChild(habitInfoModal);
   const habitBody=document.createElement('div');habitBody.className='personal-habits-body';
   const habitProgressRow=document.createElement('div');habitProgressRow.className='personal-habits-progress-row';
@@ -985,7 +1005,7 @@ async function loadHomeTools({force=false}={}){
   actor=nextActor;
   if(changedActor){
     clearReadCache(supplementReadCache);clearReadCache(habitReadCache);
-    homeToolsLoadedActor='';homeToolsLoadedAt=0;habitArchiveExpanded=false;
+    homeToolsLoadedActor='';homeToolsLoadedAt=0;habitArchiveExpanded=false;habitExpandedId='';habitHistory={};habitState={...habitState,calendarHistory:{}};
   }
   try{build()}catch(error){
     console.error('RUDI_HOME_TOOLS_BUILD_ERROR',String(error?.stack||error));

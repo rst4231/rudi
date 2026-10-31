@@ -11,10 +11,20 @@
     if(!res.ok||!data.ok){const err=new Error(String(data.error||'crypto-sync-unavailable'));err.status=res.status;throw err;}
     return data;
   };
-  const providerName=name=>name==='bybit'?'Bybit':name==='trust'?'Trust Wallet':'Uniswap';
+  const providerName=name=>name==='bybit'?'Bybit':name==='pionex'?'Pionex':name==='gate'?'Gate':name==='trust'?'Trust Wallet':'Uniswap';
   const errorLabel=err=>{
     const code=String(err?.message||err||'');
     const messages={
+      'crypto-pionex-key-invalid':'Pionex не распознал API Key. Проверь ключ и срок его действия.',
+      'crypto-pionex-sign-invalid':'Pionex отклонил подпись. Проверь пару API Key и API Secret.',
+      'crypto-pionex-permission-denied':'Включи у ключа Pionex право чтения Enable reading (Trade reading).',
+      'crypto-pionex-access-blocked':'Pionex ограничил доступ. Проверь ограничения аккаунта и IP ключа.',
+      'crypto-pionex-ip-mismatch':'Pionex: IP сервера не разрешён в настройках API-ключа.',
+      'crypto-pionex-time-invalid':'Pionex отклонил время запроса. Попробуй обновить позже.',
+      'crypto-pionex-rate-limited':'Pionex ограничил частоту запросов. Повтори через минуту.',
+      'crypto-pionex-network-unavailable':'Не удалось связаться с Pionex. Последний баланс сохранён.',
+      'crypto-pionex-response-invalid':'Pionex вернул некорректный баланс. Последнее значение сохранено.',
+      'crypto-pionex-api-rejected':'Pionex отклонил запрос. Проверь ключ и разрешение на чтение.',
       'crypto-bybit-readonly-required':'Ключ Bybit должен быть только для чтения. Создай Read-only API Key.',
       'crypto-bybit-api-rejected':'Bybit отклонил API-запрос. Проверь ключ, разрешения и IP-ограничения.',
       'crypto-bybit-access-blocked':'Bybit отклонил запрос (HTTP 403). Возможны ограничения страны, IP или доступа к Bybit.com. RUDI использует сервер в Европе.',
@@ -54,6 +64,22 @@
       'crypto-bybit-balance-unavailable':'Bybit не вернул баланс Unified, старое значение сохранено.',
       'crypto-encryption-unavailable':'На сервере не настроено шифрование ключей.',
     };
+    if(code.startsWith('crypto-gate-'))return ({
+      'crypto-gate-key-invalid':'Gate не распознал API Key или Secret. Проверь пару ключей.',
+      'crypto-gate-sign-invalid':'Gate отклонил подпись API. Проверь, что Key и Secret из одной пары.',
+      'crypto-gate-ip-mismatch':'Gate запретил IP сервера. Проверь IP-ограничения API-ключа.',
+      'crypto-gate-time-invalid':'Gate отклонил временную метку запроса. Это ошибка синхронизации времени сервера.',
+      'crypto-gate-permission-denied':'Gate запретил доступ. Проверь право чтения Wallet у API-ключа.',
+      'crypto-gate-account-locked':'Gate сообщает о блокировке аккаунта. Проверь статус аккаунта.',
+      'crypto-gate-request-invalid':'Gate отклонил формат API-запроса. Это ошибка интеграции RUDI.',
+      'crypto-gate-endpoint-unavailable':'Gate не нашёл API-метод баланса. Попробуй позже.',
+      'crypto-gate-rate-limited':'Gate ограничил частоту запросов. Повтори через минуту.',
+      'crypto-gate-network-unavailable':'Не удалось связаться с Gate. Предыдущий баланс сохранён.',
+      'crypto-gate-response-invalid':'Gate вернул некорректный баланс. Последнее значение сохранено.',
+      'crypto-gate-price-unavailable':'Gate ответил, но курс USDT/USD сейчас недоступен. Баланс не менялся.',
+      'crypto-gate-api-rejected-400':'Gate вернул HTTP 400 без понятного кода причины. Проверь диагностику сервера RUDI.',
+      'crypto-gate-api-rejected':'Gate отклонил запрос. Подробность можно уточнить по журналу сервера RUDI.'
+    })[code]||'Не удалось получить баланс Gate. Последнее значение сохранено.';
     return messages[code]||'Не удалось получить баланс. Проверь соединение и доступ к API. Ручной баланс не изменён.';
   };
   const cash=n=>Number(n||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';
@@ -138,7 +164,7 @@
       const card=document.createElement('article');card.className='finance-crypto-source-card';card.dataset.walletId=link.walletId;
       const head=document.createElement('div');head.className='finance-crypto-source-head';
       const title=document.createElement('strong');title.textContent=providerName(link.provider);
-      const note=document.createElement('span');note.textContent=link.provider==='bybit'&&wallet.name.trim().toLowerCase()==='bybit'?'':wallet.name+(link.provider==='bybit'?'':' · '+(link.chain||'ethereum'));
+      const note=document.createElement('span');note.textContent=['bybit','pionex','gate'].includes(link.provider)&&wallet.name.trim().toLowerCase()===link.provider?'':wallet.name+(['bybit','pionex','gate'].includes(link.provider)?'':' · '+(link.chain||'ethereum'));
       const actions=document.createElement('div');actions.className='finance-crypto-source-actions';
       const sourceRefresh=document.createElement('button');
       sourceRefresh.type='button';sourceRefresh.className='finance-crypto-source-refresh';
@@ -229,7 +255,7 @@
       }
       // Scope detail available from server only.
       if(link.lastError&&!link.incomplete){const err=document.createElement('p');err.className='finance-crypto-error';err.textContent=errorLabel({message:link.lastError});card.append(err);}
-      if(link.provider==='bybit'&&Array.isArray(link.sections)){
+      if(['bybit','pionex','gate'].includes(link.provider)&&Array.isArray(link.sections)){
         const groups=document.createElement('div');groups.className='finance-crypto-sections';
         const hideEmptyBybitSections=new Set([
           'earn-advanced-smart','earn-advanced-discount','earn-advanced-double',
@@ -386,18 +412,24 @@
   }
   function switchProvider(){
     const provider=$('financeCryptoProvider')?.value;
-    if($('financeCryptoBybitFields'))$('financeCryptoBybitFields').hidden=provider!=='bybit';
-    if($('financeCryptoUniswapFields'))$('financeCryptoUniswapFields').hidden=provider==='bybit';
+    const apiProvider=['bybit','pionex','gate'].includes(provider);
+    if($('financeCryptoBybitFields'))$('financeCryptoBybitFields').hidden=!apiProvider;
+    if($('financeCryptoUniswapFields'))$('financeCryptoUniswapFields').hidden=apiProvider;
+    if($('financeCryptoApiHelp'))$('financeCryptoApiHelp').textContent=provider==='gate'
+      ?'Создай ключ Gate API v4 с правом чтения Wallet, без торговли и вывода. RUDI получает общий баланс и разбивку по счетам.'
+      :provider==='pionex'
+      ?'Создай API-ключ Pionex.com только с правом Enable reading (Trade reading), без торговли и переводов. RUDI читает общий баланс, включая спот, ботов и фьючерсы. Ключи хранятся зашифрованными.'
+      :'Создай системный HMAC API-ключ Bybit.com с правами Read-only. Подключение выполняется через европейский сервер RUDI. Ключи с правами торговли или вывода отклоняются.';
     for(const chain of $('financeCryptoChain')?.options||[])chain.hidden=provider==='uniswap'&&!['ethereum','arbitrum'].includes(chain.value);
     if(provider==='uniswap'&&!['ethereum','arbitrum'].includes($('financeCryptoChain').value))$('financeCryptoChain').value='ethereum';
-    if(provider!=='bybit')switchChain();
+    if(!apiProvider)switchChain();
   }
   function onOpenWallet(ev){
     editingWalletId=String(ev.detail?.walletId||'');
     if($('financeCryptoConnectFields'))$('financeCryptoConnectFields').hidden=true;
     clearKeys();if($('financeCryptoSpotConsent'))$('financeCryptoSpotConsent').checked=false;setStatus('financeCryptoWalletStatus','');
     const wallet=wallets.find(w=>w.id===editingWalletId);
-    const provider=/trust/i.test(wallet?.name||'')?'trust':/uniswap/i.test(wallet?.name||'')?'uniswap':'bybit';
+    const provider=/gate|гейт/i.test(wallet?.name||'')?'gate':/pionex|пионекс/i.test(wallet?.name||'')?'pionex':/trust/i.test(wallet?.name||'')?'trust':/uniswap/i.test(wallet?.name||'')?'uniswap':'bybit';
     const existing=connections.find(c=>c.walletId===editingWalletId);
     if($('financeCryptoProvider'))$('financeCryptoProvider').value=existing?.provider||provider;
     if($('financeCryptoChain'))$('financeCryptoChain').value=existing?.chain||'ethereum';
@@ -679,7 +711,7 @@
       const button=$('financeCryptoConnectButton');if(button)button.disabled=true;
       setStatus('financeCryptoWalletStatus','Проверяю подключение…');
       try{
-        const payload=provider==='bybit'
+        const payload=['bybit','pionex','gate'].includes(provider)
           ?{apiKey:$('financeCryptoApiKey')?.value,apiSecret:$('financeCryptoApiSecret')?.value}
           :{address:$('financeCryptoAddress')?.value,
              chain:$('financeCryptoChain')?.value||'ethereum',

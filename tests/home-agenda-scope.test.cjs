@@ -69,6 +69,9 @@ test('personal agenda today count ignores tomorrow selection; edit and checkbox 
  h.ctx.renderActual({ok:true,writable:false,agendaActor:'Рустам',agendaScope:'personal',tasks:[{id:'bill:rent:2026-10',title:'Квартира',financeObligation:true,amount:1000,personal:true,responsible:'Рустам',canEdit:false,canComplete:true}],tomorrowTasks:[]});
  const bill=nodes.ticktickTodayList.children[0];assert.equal(bill.children[1].disabled,false,'finance payment stays writable when personal TickTick is unavailable');assert.equal(bill.children[2].disabled,true);assert.match(bill.children[2].children[1].textContent,/1000 ₽/);
  bill.children[1].events.click({stopPropagation(){}});assert.equal(completions.at(-1)[3],true);
+ h.ctx.renderActual({ok:true,writable:true,agendaActor:'Рустам',agendaScope:'personal',tasks:[],tomorrowTasks:[],offlinePending:12,offlineNeedsReview:12});
+ assert.equal(nodes.ticktickTitle.textContent,'Изменения ожидают синхронизации');
+ assert.equal(nodes.ticktickBadge.hidden,false);assert.match(nodes.ticktickBadge.textContent,/12/);
 });
 test('personal completion never calls shared completion endpoint',async()=>{
  const h=harness(),calls=[];h.ctx.completeCalendarTickTickTask=async(...args)=>{calls.push(args);return {ok:true}};
@@ -121,4 +124,15 @@ test('Home bill completion marks the exact finance month paid without invoking t
  const bill={id:'bill:rent:2026-11',personal:true,financeObligation:true,responsible:'Диана',obligation:{id:'rent'},obligationMonth:'2026-11'},row={dataset:{}},button={};
  await complete(bill,row,button,true);assert.equal(paid.length,1);assert.equal(paid[0][0].id,'rent');assert.equal(paid[0][1],'2026-11');assert.equal(paid[0][2],true);assert.equal(refresh.length,1);
  await complete({...bill,responsible:'Рустам'},row,button,true);assert.equal(paid.length,1);
+});
+test('temporary personal provider failure retains cached tasks alongside current finance bills',async()=>{
+ const h=harness();h.ctx.currentActor='Рустам';h.api.ensureHomeAgendaActor();let saved=0;
+ const task={id:'study',personal:true,responsible:'Рустам',privateLocal:false,title:'Практика с ДПС'};
+ h.ctx.window.rudiCalendarOffline={isOffline:()=>false,
+  cachedAgenda:async()=>({ok:true,date:'2026-10-31',tomorrowDate:'2026-11-01',tasks:[task],tomorrowTasks:[]}),
+  captureAgenda:async()=>{saved++}};
+ h.ctx.managedJsonRequest=async()=>({ok:true,date:'2026-10-31',tomorrowDate:'2026-11-01',writable:false,personalUnavailable:true,tasks:[{id:'bill',financeObligation:true,personal:true,responsible:'Рустам'}],tomorrowTasks:[]});
+ await h.api.setHomeAgendaScope('personal');
+ assert.deepEqual(Array.from(h.rendered.at(-1).tasks,task=>task.id).sort(),['bill','study']);
+ assert.equal(saved,0,'a partial provider response must not overwrite the complete snapshot');
 });

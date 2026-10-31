@@ -1,7 +1,7 @@
 
 'use strict';
 const crypto=require('node:crypto');
-const NEGATIVE=new Set(['sadness','boredom','fatigue','anger']);
+const NEGATIVE=new Set(['sadness','boredom','fatigue','anger','anxiety']);
 const POSITIVE=new Set(['joy','love']);
 const KNOWN=new Set([...NEGATIVE,...POSITIVE,'neutral']);
 function computeEmotionSignals(history,limit=90){

@@ -1,0 +1,341 @@
+/* RUDI CBT: private offline drafts, ordered idempotent writes, explicit conflict resolution. */
+(()=>{'use strict';
+const C=window.RudiCbtCore,D=window.RudiCbtContent;if(!C||!D)return;
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>crypto.randomUUID(),date=s=>s?new Date(s).toLocaleString('ru-RU',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Нет даты';
+let ctx=null,page=null,screen='home',selected='',day=1,notice='',timer=0,retry=0,flight=null,lastFocus=null,backupIndex=-1,entryId='initial';
+let deleteTarget=null,analysisBusy=false,analysisMessage='';
+let recordFilters={query:'',emotion:'',from:'',to:''},exportSelection=new Set();
+let scrollLock=null,viewportFrame=0,revealTimer=0,renderedMarkup='',renderedRoute='';
+const localZone=()=>Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
+const scroller=()=>document.getElementById('cbtScroll');
+function progress(){const actor=document.body.dataset.rudiActor;if(!['Рустам','Диана'].includes(actor))return 0;const state=snapshot(ctx?.actor===actor?ctx:load(actor));const r=C.active(state)||state.runs.at(-1);return r?C.stats(r).percent:0}
+const icons={brain:'<path d="M12 6c-2-5-7-3-6 1-4 0-4 6-1 7-2 4 3 7 5 4V6m2 0c2-5 7-3 6 1 4 0 4 6 1 7 2 4-3 7-5 4V6M5 10l3 1m-3 4 3-1m11-4-3 1m3 4-3-1"/>',sprout:'<path d="M12 21V11M12 15C5 16 2 11 3 5c7-1 10 3 9 10Zm0-4c0-5 4-8 9-8 1 6-3 10-9 10"/>',target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="m12 12 8-8m-1-3 1 3 3 1"/>',back:'<path d="m15 18-6-6 6-6"/>',history:'<path d="M3 11a9 9 0 1 1 2 7M3 5v6h6m3-5v6l4 2"/>',chart:'<path d="M5 20v-7m7 7V8m7 12V3"/>',check:'<path d="m5 12 4 4L20 5"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v5m10-5v5M3 11h18"/>',arrow:'<path d="m9 5 7 7-7 7"/>',play:'<path d="m8 4 12 8-12 8Z"/>',save:'<path d="M6 3h12v18l-6-4-6 4Z"/>'};
+const icon=(name,cls='')=>'<svg class="cbt-icon '+cls+'" viewBox="0 0 24 24" aria-hidden="true">'+(icons[name]||icons.brain)+'</svg>';
+const entryDate=s=>s?new Date(s).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Нет даты';
+const entryTime=s=>s?new Date(s).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'';
+const emotionEmoji={'Тревога':'😰','Грусть':'😢','Злость':'😠','Обида':'😞','Страх':'😨','Стыд':'😳','Вина':'😔','Разочарование':'😕','Радость':'😊','Спокойствие':'😌','Интерес':'🤔','Облегчение':'😮‍💨'};
+const fieldEmoji={situation:'📍',thought:'💭',emotions:'💗',reaction:'⚡',evidence:'🔎',alternative:'💡',action:'🎯',conclusion:'📝',moodBefore:'🌧️',moodAfter:'☀️',emotionIntensity:'📊',beliefBefore:'🧠',beliefAfter:'🌿',distortion:'🔍',actionDone:'✅'};
+const key=a=>'rudi:cbt:v1:'+a;
+function load(a){let v;try{v=JSON.parse(localStorage.getItem(key(a))||'null')}catch{}return {actor:a,server:v?.server||C.empty(),queue:Array.isArray(v?.queue)?v.queue:[],backups:Array.isArray(v?.backups)?v.backups:[],copy:v?.copy||null,error:'',conflict:v?.conflict||null,loaded:!!v,syncing:false,failed:false}}
+function snapshot(c=ctx){let s=c.server;for(const op of c.queue){try{s=C.apply(s,op,op.at,true)}catch{}}return C.refresh(s)}
+function persist(){if(!ctx)return false;try{localStorage.setItem(key(ctx.actor),JSON.stringify({server:ctx.server,queue:ctx.queue,backups:ctx.backups,copy:ctx.copy,conflict:ctx.conflict}));ctx.failed=false;window.dispatchEvent(new Event('rudi-cbt-progress'));return true}catch{ctx.failed=true;ctx.error='Не удалось сохранить на устройстве. Освободи место и нажми «Повторить синхронизацию». Не закрывай эту страницу до сохранения.';status();return false}}
+function run(){const s=backupIndex>=0?ctx.backups[backupIndex]?.state:snapshot();return s?.runs.find(r=>r.id===selected)||C.active(s)||s?.runs.at(-1)||null}
+function enqueue(op){
+ if(!ctx)return false;
+ const full={...op,id:uid(),at:new Date().toISOString()};
+ try{if(full.type==='complete'){const r=snapshot().runs.find(x=>x.id===full.cycleId);const record=C.entry(r,full.day,full.entryId),fields=C.missing(full.day,record?.answers,record?.format);if(fields.length){showMissing(fields);return false}}C.apply(snapshot(),full,full.at,true)}catch(e){if(e.message==='cbt-incomplete'){showMissing(e.fields);return false}ctx.error='Не удалось сохранить изменение. Попробуй ещё раз.';status();return false}
+ // Unsent drafts can be compacted, but every changed payload gets a NEW id.
+ // Once sent, an operation remains immutable even when its reply is lost.
+ const last=ctx.queue.at(-1);
+ if(full.type==='edit'&&last?.type==='edit'&&!last.sent&&last.id!==flight&&last.cycleId===full.cycleId&&last.day===full.day&&(last.entryId||'initial')===(full.entryId||'initial')){
+  full.patch={...last.patch,...full.patch};full.base={...full.base,...last.base};
+  full.supersedes=[...(last.supersedes||[]),last.id];ctx.queue[ctx.queue.length-1]=full;
+ }else ctx.queue.push(full);
+ const saved=persist();status();schedule();return saved;
+}
+function schedule(ms=1600){clearTimeout(timer);timer=setTimeout(()=>void sync(),ms)}
+async function request(body,c){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),body.operation==='analyze'?28000:12000);try{const res=await fetch('/api/cbt',{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({expectedActor:c.actor,initData:window.Telegram?.WebApp?.initData||'',...body})});const data=await res.json();if(data.error==='cbt-actor-changed')throw Error('auth');if(data.actor&&data.actor!==c.actor)throw Error('actor-changed');return {res,data}}finally{clearTimeout(timeout)}}
+async function sync(){
+ const c=ctx;if(!c||c.syncing||c.conflict||c.actor!==document.body.dataset.rudiActor||!document.body.classList.contains('auth-ok'))return;
+ if(navigator.onLine===false){status();return}
+ c.syncing=true;c.error='';status();
+ try{
+  if(!c.queue.length){const {res,data}=await request({operation:'state'},c);if(!res.ok||!data.ok)throw Error(res.status===401?'auth':'network');if(c!==ctx)return;c.server=data.state;c.copy=data.copy||null;c.loaded=true;if(page&&!page.hidden)upgradeCalendar();persist();if(!editing())render(false)}
+  while(c===ctx&&c.queue.length&&!c.conflict){
+   for(const item of c.queue.slice(0,50))item.sent=true;persist();
+   const ops=JSON.parse(JSON.stringify(c.queue.slice(0,50)));
+   let op=ops[0];flight=op.id;
+   const {res,data}=await request({operation:'mutate',ops},c);if(c!==ctx)return;
+   const acked=new Set(data.acked||[]);if(res.ok&&!data.acked)for(const item of ops)acked.add(item.id);
+   c.queue=c.queue.filter(v=>!acked.has(v.id));
+   op=ops.find(x=>x.id===data.opId)||ops.find(x=>!acked.has(x.id))||op;
+   if(res.status===409&&data.state){
+    c.server=data.state;
+    if(data.error==='cbt-incomplete'){c.queue=c.queue.filter(v=>v.id!==op.id);screen='day';selected=op.cycleId;day=op.day;entryId=op.entryId||'initial';persist();render(false);showMissing(data.fields||[]);break}
+    c.conflict={op,fields:data.fields||[],error:data.error};persist();render(false);break
+   }
+   if(!res.ok||!data.ok)throw Error(res.status===401?'auth':'network');
+   c.server=data.state;c.loaded=true;retry=0;if(!c.queue.length)notice='';persist();
+  }
+  if(!editing())render(false);
+ }catch(e){if(c!==ctx)return;c.error=e.message==='auth'?'Войди в RUDI, чтобы записи были доступны на других устройствах.':'Не удалось обновить записи. Ответы остались на этом устройстве.';retry=Math.min(retry+1,5);if(c.queue.length&&retry<5)schedule(Math.min(30000,2000*2**retry))}
+ finally{if(c===ctx){c.syncing=false;flight=null;status()}}
+}
+function editing(){return page?.contains(document.activeElement)&&/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)}
+function status(){const el=$('#cbtSyncStatus');if(!el||!ctx)return;el.textContent=ctx.failed?ctx.error:ctx.conflict?'Есть разные версии ответов. Выбери, какую оставить.':ctx.error||notice||'';el.hidden=!el.textContent;el.classList.toggle('is-error',!!ctx.error||!!ctx.conflict||ctx.failed);const btn=page?.querySelector('[data-do="sync"]');if(btn)btn.hidden=!(ctx.error||ctx.failed)}
+function lesson(n){const base=D.days[n-1],copy=ctx?.copy?.days?.find(x=>x.day===n);if(!copy)return base;const safe={...base};for(const k of ['title','explanation','example','prompt','takeaway'])if(typeof copy[k]==='string'&&copy[k].length<8000)safe[k]=copy[k];return safe}
+function ensure(){if(page)return;page=document.createElement('section');page.id='rudiCbtPage';page.className='cbt-page';page.hidden=true;page.setAttribute('aria-label','Программа КПТ');page.innerHTML='<div class="cbt-wrap"><header class="cbt-nav"><button type="button" data-do="back" class="cbt-back" aria-label="Назад">'+icon('back')+'</button><span class="cbt-nav-label">Время для себя</span><span class="cbt-nav-spacer" aria-hidden="true"></span></header><div id="cbtView"></div><p id="cbtSyncStatus" class="cbt-sync" role="status" aria-live="polite"></p><button type="button" data-do="sync" class="cbt-link" hidden>Повторить</button><p class="cbt-disclaimer">Тренажёр самопомощи на основе КПТ. Записывай наблюдения в течение дня. Он не заменяет психотерапию или помощь специалиста.</p></div>';page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';
+const wrap=page.firstElementChild,nav=wrap.querySelector('.cbt-nav'),scroll=document.createElement('div');
+scroll.id='cbtScroll';scroll.className='cbt-scroll';scroll.append(wrap);page.replaceChildren(nav,scroll);document.body.append(page);
+let touch=null;
+scroll.addEventListener('touchstart',e=>{touch=e.touches.length===1?{x:e.touches[0].clientX,y:e.touches[0].clientY}:null},{passive:true});
+scroll.addEventListener('touchmove',e=>{
+ if(!touch||e.touches.length!==1)return;
+ const dx=e.touches[0].clientX-touch.x,dy=e.touches[0].clientY-touch.y;if(Math.abs(dy)<=Math.abs(dx))return;
+ const input=e.target.closest?.('textarea');
+ if(input&&((dy>0&&input.scrollTop>0)||(dy<0&&input.scrollTop<input.scrollHeight-input.clientHeight-1)))return;
+ const atTop=scroll.scrollTop<=0,atBottom=scroll.scrollTop>=scroll.scrollHeight-scroll.clientHeight-1;
+ if((atTop&&dy>0)||(atBottom&&dy<0)){if(e.cancelable)e.preventDefault()}
+},{passive:false});
+scroll.addEventListener('touchend',()=>{touch=null},{passive:true});scroll.addEventListener('touchcancel',()=>{touch=null},{passive:true});
+page.addEventListener('focusin',()=>updateViewport());page.addEventListener('click',click);page.addEventListener('input',input);page.addEventListener('change',input);page.addEventListener('focusout',e=>{if(e.target?.matches?.('#cbtExercise textarea'))queueProofread(e.target,true)});page.addEventListener('pointerup',e=>{const el=e.target.closest('input[type="range"]');if(el&&el.dataset.empty==='true')setField(el.dataset.field,Number(el.value),el)});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!page.hidden)back()})}
+function lockScroll(){if(scrollLock)return;scrollLock={x:window.scrollX,y:window.scrollY,top:document.body.style.top};document.documentElement.classList.add('cbt-page-open');document.body.classList.add('cbt-page-open')}
+function unlockScroll(){if(!scrollLock)return;const saved=scrollLock;scrollLock=null;document.documentElement.classList.remove('cbt-page-open');document.body.classList.remove('cbt-page-open');document.body.style.top=saved.top;window.scrollTo({left:saved.x,top:saved.y,behavior:'instant'})}
+function revealFocusedField(){if(page?.hidden)return;const input=document.activeElement,scroll=scroller();if(!scroll||!page.contains(input)||!input.matches('textarea,input,select'))return;const a=input.getBoundingClientRect(),b=scroll.getBoundingClientRect();if(a.bottom>b.bottom-12)scroll.scrollTop+=a.bottom-b.bottom+12;else if(a.top<b.top+12)scroll.scrollTop+=a.top-b.top-12}
+function updateViewport(){
+ cancelAnimationFrame(viewportFrame);
+ viewportFrame=requestAnimationFrame(()=>{
+  if(!page||page.hidden)return;
+  const view=window.visualViewport;
+  const focused=page.contains(document.activeElement)&&document.activeElement?.matches('textarea,input,select');
+  const layoutHeight=Math.round(window.innerHeight||document.documentElement.clientHeight);
+  const keyboardGap=view?layoutHeight-Math.round(view.height+(view.offsetTop||0)):0;
+  const keyboardOpen=Boolean(focused&&view&&keyboardGap>130);
+  if(keyboardOpen){
+   page.style.setProperty('--cbt-viewport-height',Math.round(view.height)+'px');
+   page.style.setProperty('--cbt-viewport-top',Math.max(0,Math.round(view.offsetTop||0))+'px');
+   page.classList.add('cbt-keyboard-open');
+  }else{
+   page.style.removeProperty('--cbt-viewport-height');
+   page.style.removeProperty('--cbt-viewport-top');
+   page.classList.remove('cbt-keyboard-open');
+  }
+  clearTimeout(revealTimer);
+  revealTimer=setTimeout(revealFocusedField,100);
+ })
+}
+window.visualViewport?.addEventListener('resize',updateViewport);window.visualViewport?.addEventListener('scroll',updateViewport);window.addEventListener('resize',updateViewport);
+function navTo(s){screen=s;notice='';render();if(scroller())scroller().scrollTop=0;$('#cbtView h1')?.focus({preventScroll:true})}
+function upgradeCalendar(){const r=C.active(snapshot());if(r&&!r.calendar)enqueue({type:'schedule',cycleId:r.id,timeZone:localZone()})}
+function open(){const a=document.body.dataset.rudiActor;if(!['Рустам','Диана'].includes(a)||!document.body.classList.contains('auth-ok'))return;lastFocus=document.activeElement;if(!ctx||ctx.actor!==a){analysisBusy=false;analysisMessage='';ctx=load(a);recordFilters={query:'',emotion:'',from:'',to:''};exportSelection.clear()}ensure();page.hidden=false;lockScroll();updateViewport();screen='home';backupIndex=-1;selected=C.active(snapshot())?.id||snapshot().runs.at(-1)?.id||'';upgradeCalendar();render();if(location.hash!=='#cbt')history.pushState({rudiCbt:true},'','#cbt');void sync();}
+function close(fromHistory=false){if(!page||page.hidden)return;const dialog=$('#cbtDeleteDialog');if(dialog?.open)dialog.close();deleteTarget=null;if(page.contains(document.activeElement))document.activeElement.blur();page.hidden=true;unlockScroll();clearTimeout(revealTimer);clearTimeout(chromeTimer);if(!fromHistory&&history.state?.rudiCbt)history.back();lastFocus?.focus?.();if(ctx?.queue.length)schedule(0)}
+function back(){if(screen==='home')close();else if(screen==='day'||screen==='done')navTo('home');else {backupIndex=-1;selected=C.active(snapshot())?.id||snapshot().runs.at(-1)?.id||'';navTo('home')}}
+function ringDays(r,w,activeDay){const maxDay=r?C.nextDay(r):1;return '<div class="cbt-days" aria-label="Дни недели '+w+'">'+Array.from({length:7},(_,i)=>{const n=(w-1)*7+i+1,row=r?.days[n],done=r?.calendar?n<=C.calendar(r).elapsed:!!row?.completedAt,draft=!!row&&!done,recorded=C.entries(row).some(e=>C.hasAnswers(e.answers));return '<button type="button" data-day="'+n+'" '+(n>maxDay?'disabled title="День ещё не наступил" ':'')+'class="cbt-day-dot '+(done?recorded?'is-done':'is-empty':draft?'is-draft':'')+(activeDay===n?' is-current':'')+'" aria-label="День '+n+'. '+esc(lesson(n).title)+'. '+(done?recorded?'Завершён':'Закрыт, без записей':draft?'В процессе':'Не начат')+'" '+(activeDay===n?'aria-current="step"':'')+'><span>'+(done&&recorded?icon('check'):n)+'</span><small>'+(done?n:draft?'•':'')+'</small></button>'}).join('')+'</div>'}
+function overview(){const r=run(),s=C.stats(r),current=r?.status==='active',n=C.nextDay(r);return '<section class="cbt-hero"><div><h1 tabindex="-1">Когнитивно-поведенческая<br>терапия</h1><p>21 день работы с мыслями, эмоциями и поведением</p></div><div class="cbt-hero-art" aria-hidden="true">'+icon('brain')+'<i></i></div></section><section class="cbt-card cbt-progress"><div><strong>'+s.completed+' из 21 дней</strong><span>'+s.percent+'%</span></div><progress max="21" value="'+s.completed+'" aria-label="Прогресс программы">'+s.percent+'%</progress><p class="cbt-meta">Дней с записями: '+s.recordedDays+' · Сохранено записей: '+s.records+'</p></section><div class="cbt-actions"><button type="button" data-do="'+(current?'continue':'start')+'" class="cbt-primary cbt-continue" aria-label="'+(current?'Продолжить':r?'Пройти заново':'Начать программу')+'">'+icon('play')+'<span><strong>'+(current?'Продолжить':r?'Пройти заново':'Начать программу')+'</strong><small>'+(current?'Неделя '+Math.ceil(n/7)+' · День '+n+' · '+esc(lesson(n).title):r?'Новый независимый цикл':'Несколько записей в течение каждого дня')+'</small></span></button><button type="button" data-do="history" class="cbt-card cbt-calendar">'+icon('calendar')+'<small>История</small></button></div>'+ (r?'<p class="cbt-meta">'+(r.status==='completed'?'Программа завершена '+date(r.completedAt):r.status==='interrupted'?'Прервано '+date(r.interruptedAt):'Начало '+date(r.startedAt))+'</p>':'')+D.weeks.map((w,i)=>'<article class="cbt-week cbt-'+w.tone+'"><div class="cbt-week-icon">'+icon(w.icon)+'</div><div class="cbt-week-copy"><div class="cbt-week-top"><span>Неделя '+(i+1)+'</span><span>'+C.stats(r,i+1).completed+' из 7</span></div><h2>'+esc(w.title)+'</h2><p>'+esc(w.description)+'</p>'+ringDays(r,i+1,current&&Math.ceil(n/7)===i+1?n:0)+'</div></article>').join('')+'<button type="button" data-do="history" class="cbt-card cbt-row">'+icon('history')+'<strong>История прохождений</strong>'+icon('arrow')+'</button>'+(r?'<button type="button" data-do="report" class="cbt-card cbt-row">'+icon('chart')+'<strong>'+(r.status==='completed'?'Личный отчёт за 21 день':'Статистика и итоги')+'</strong>'+icon('arrow')+'</button>':'')+(r?'<button type="button" data-do="records" class="cbt-card cbt-row">'+icon('history')+'<strong>Найти и выгрузить записи</strong>'+icon('arrow')+'</button>':'')+(current?'<button type="button" data-do="restart" class="cbt-link">Начать новый цикл</button>':'')+(r?.status==='completed'?'<p class="cbt-complete-note">21 день программы завершён. Результаты сохранены в истории.</p>':'')}
+function field(f,a,readonly){const v=a[f.key],id='cbt-field-'+f.key,label='<label for="'+id+'">'+(fieldEmoji[f.key]||'✍️')+' '+esc(f.label)+(f.required?'':' <small>необязательно</small>')+'</label>',attrs=' id="'+id+'" data-field="'+f.key+'" '+(readonly?'disabled':'');if(f.type==='range'){const has=typeof v==='number';return '<div class="cbt-field cbt-rating" data-wrap="'+f.key+'" data-original="'+esc(JSON.stringify(v??''))+'">'+label+'<div><input type="range" min="0" max="'+f.max+'" step="1" value="'+(has?v:Math.round(f.max/2))+'" data-empty="'+!has+'"'+attrs+' aria-valuetext="'+(has?v:'Не указано')+'"><output for="'+id+'">'+(has?v+(f.max===100?'%':''):'Выбери')+'</output></div><div class="cbt-range-labels"><span>0 '+(f.key.includes('mood')?'Очень плохо':'')+'</span><span>'+f.max+' '+(f.key.includes('mood')?'Очень хорошо':'')+'</span></div></div>'}if(f.type==='emotions')return '<fieldset class="cbt-field" data-wrap="emotions" data-original="'+esc(JSON.stringify(v??''))+'"><legend>💗 '+esc(f.label)+'</legend><div class="cbt-emotions">'+D.emotions.map(x=>'<button type="button" data-emotion="'+esc(x)+'" aria-pressed="'+(v||[]).includes(x)+'" '+(readonly?'disabled':'')+'><span aria-hidden="true">'+(emotionEmoji[x]||'💭')+'</span> '+esc(x)+'</button>').join('')+'</div></fieldset>';if(f.type==='distortion')return '<div class="cbt-field" data-wrap="'+f.key+'" data-original="'+esc(JSON.stringify(v??''))+'">'+label+'<select'+attrs+'><option value="">Выбери вариант</option>'+D.distortions.map(([name])=>'<option '+(v===name?'selected':'')+'>'+esc(name)+'</option>').join('')+'</select><details class="cbt-help"><summary>Объяснения и примеры искажений</summary>'+D.distortions.map(([name,desc])=>'<p><b>'+esc(name)+'.</b> '+esc(desc)+'</p>').join('')+'</details></div>';if(f.type==='check')return '<div class="cbt-field cbt-check" data-wrap="'+f.key+'" data-original="'+esc(JSON.stringify(v??''))+'"><input type="checkbox"'+attrs+' '+(v===true?'checked':'')+'>'+label+'<small>Если пока не получилось, сохрани черновик или уменьши шаг.</small></div>';return '<div class="cbt-field" data-wrap="'+f.key+'" data-original="'+esc(JSON.stringify(v??''))+'">'+label+'<textarea'+attrs+' rows="2" maxlength="6000" placeholder="'+esc(f.placeholder||'Твоё наблюдение')+'">'+esc(v||'')+'</textarea></div>'}
+const quickFields=[{key:'situation',label:'Что произошло?',type:'text',placeholder:'Пара слов о ситуации'},{key:'thought',label:'Какая мысль появилась?',type:'text',placeholder:'Запиши мысль, которую хочется разобрать'},{key:'emotions',label:'Что я почувствовал?',type:'emotions'}];
+function allFields(n){const fields=[...lesson(n).fields];for(const f of [...quickFields,{key:'moodBefore',label:'Настроение до'},{key:'moodAfter',label:'Настроение после'},{key:'emotionIntensity',label:'Интенсивность эмоций'}])if(!fields.some(x=>x.key===f.key))fields.push(f);return fields}
+function previewRecord(e){const a=e.answers||{};return String(a.situation||a.thought||a.action||a.alternative||a.conclusion||(a.emotions||[]).join(', ')||'Пустой черновик').replace(/\s+/g,' ').slice(0,100)}
+function coachCard(record){
+ const saved=!!record?.savedAt,current=saved&&record.coach&&C.same(record.coach.source,record.answers)?record.coach:null,result=current?.result;
+ const cleanCoach=value=>esc(String(value||'').replace(/пользовательница/gi,'вы').replace(/у пользователя/gi,'у вас').replace(/пользователя/gi,'вас').replace(/пользователю/gi,'вам').replace(/пользователь/gi,'вы'));
+ const heading='<section class="cbt-card cbt-coach-card" id="cbtCoachCard"><h2>🧠 Разбор вашей записи</h2>';
+ if(result)return heading+
+ '<div class="cbt-coach-conversation"><p>'+cleanCoach(result.pattern)+'</p>'+
+ '<p>'+cleanCoach(result.trap)+' '+cleanCoach(result.reason)+'</p>'+
+ '<p>'+cleanCoach(result.check)+'</p>'+
+ '<p>'+cleanCoach(result.alternative)+'</p></div>'+
+ '<div class="cbt-coach-action"><strong>🎯 Что можно попробовать завтра</strong><p>'+cleanCoach(result.step)+'</p></div>'+
+ '<p class="cbt-coach-tomorrow">'+cleanCoach(result.question)+'</p>'+
+ '<p class="cbt-meta">Это возможный взгляд на ситуацию, а не диагноз. Если что-то не откликается, не нужно с этим соглашаться.</p></section>';
+ return heading+
+ '<p class="cbt-meta">'+(saved?'Если хотите, разберём вашу запись вместе: что могло повлиять на реакцию и какой небольшой шаг попробовать завтра. Для разбора ответы отправляются в Groq.':'Когда закончите запись, здесь можно будет её обсудить.')+'</p>'+
+ '<button type="button" data-do="coach" class="cbt-primary cbt-coach-button" '+(!saved||analysisBusy?'disabled':'')+'>'+(analysisBusy?'Разбираю вашу запись…':'Разобрать мои ответы')+'</button>'+
+ (analysisMessage?'<p class="cbt-meta" role="status">'+esc(analysisMessage)+'</p>':'')+'</section>';
+}
+function coachFollowUp(r,today){
+ if(!r||today<=1)return '';
+ const prior=Array.from({length:today-1},(_,i)=>today-1-i).flatMap(n=>C.entries(r.days[n]).filter(e=>e.coach&&C.same(e.coach.source,e.answers)).map(e=>({n,e})));
+ const pending=prior.find(x=>!x.e.coachCheck),item=pending||prior[0];if(!item)return '';
+ const {n,e}=item,result=e.coach.result;
+ return '<section class="cbt-card cbt-coach-followup"><h2>🎯 Проверка предыдущего шага</h2><p class="cbt-meta">День '+n+'</p><p>'+esc(result.step)+'</p><p>'+esc(result.question)+'</p>'+
+ (e.coachCheck?'<p class="cbt-coach-outcome">Твой ответ: '+esc({'done':'Получилось','partial':'Частично','not-done':'Не получилось'}[e.coachCheck.outcome]||'—')+'</p>':
+ '<div class="cbt-coach-choices">'+[['done','Получилось'],['partial','Частично'],['not-done','Не получилось']].map(([v,t])=>'<button type="button" class="cbt-secondary" data-coach-outcome="'+v+'" data-coach-day="'+n+'" data-coach-entry="'+esc(e.id)+'">'+t+'</button>').join('')+'</div>')+'</section>';
+}
+async function analyzeCurrent(){
+ if(analysisBusy||!ctx||ctx.conflict)return;
+ const r=run(),record=C.entry(r,day,entryId);if(!r||!record?.savedAt)return;
+ const target={cycleId:r.id,day,entryId:record.id},oldCtx=ctx;
+ if(navigator.onLine===false){analysisMessage='Для нового разбора нужен интернет. Запись уже сохранена и доступна офлайн.';render(false);return}
+ analysisBusy=true;analysisMessage='';render(false);
+ try{
+  if(ctx.queue.length&&!ctx.syncing)await sync();
+  const deadline=Date.now()+10000;while(ctx===oldCtx&&(ctx.queue.length||ctx.syncing)&&Date.now()<deadline)await new Promise(done=>setTimeout(done,180));
+  if(ctx!==oldCtx||ctx.queue.length||ctx.syncing||ctx.conflict)throw Error('Сначала дождись синхронизации ответов и повтори анализ.');
+  const {res,data}=await request({operation:'analyze',...target},oldCtx);
+  if(!res.ok||!data.ok)throw Error(res.status===409?'Ответы изменились. Повтори анализ после сохранения.':'Сейчас не удалось получить разбор. Попробуй позднее.');
+  if(ctx!==oldCtx)return;
+  ctx.server=data.state;ctx.loaded=true;persist();
+ }catch(e){if(ctx===oldCtx)analysisMessage=e.message||'Не удалось получить разбор.'}
+ finally{analysisBusy=false;if(ctx===oldCtx){render(false);if(screen==='day'&&selected===target.cycleId&&day===target.day&&entryId===target.entryId)page.querySelector('#cbtCoachCard')?.scrollIntoView({block:'nearest',behavior:'smooth'})}}
+}
+function focusFirstQuestion(){const el=page?.querySelector('#cbtExercise .cbt-step:not([hidden]) [data-field]:not([disabled])');if(el){try{el.focus({preventScroll:true})}catch{el.focus()}}}
+function openFreshEntry(targetDay=day){
+ const r=run();if(!r||r.status!=='active'||backupIndex>=0||targetDay>C.nextDay(r))return;
+ day=targetDay;const row=r.days[day],empty=C.entries(row).filter(e=>!e.savedAt&&!C.hasAnswers(e.answers)).at(-1);
+ if(empty){entryId=empty.id;navTo('day');focusFirstQuestion();return}
+ if(!row){entryId='initial';navTo('day');focusFirstQuestion();return}
+ const id=uid();if(enqueue({type:'new-entry',cycleId:r.id,day,entryId:id})){entryId=id;navTo('day');focusFirstQuestion()}
+}
+function dayView(){
+ const r=run(),d=lesson(day),row=r?.days[day],record=C.entry(r,day,entryId),a=record?.answers||{};
+ const readonly=!r||r.status!=='active'||backupIndex>=0||!!(r.calendar&&day>C.nextDay(r)),emptyDeleted=!record&&!!row?.deletedAt&&!C.entries(row).length,quick=record?.format==='quick';
+ const optional=day<15?[{key:'moodBefore',label:'Настроение до занятия',type:'range',max:10},{key:'moodAfter',label:'Настроение после занятия',type:'range',max:10}]:[];
+ if(day>=8&&day<15)optional.push({key:'emotions',label:'Эмоции в этом эпизоде',type:'emotions'},{key:'emotionIntensity',label:'Интенсивность эмоции',type:'range',max:10});
+ if(day>=15)optional.push({key:'emotions',label:'Что я почувствовал?',type:'emotions'},{key:'emotionIntensity',label:'Интенсивность эмоции',type:'range',max:10});
+ const fields=quick?quickFields:d.fields;
+ return '<div class="cbt-day-heading"><div><h1 tabindex="-1">День '+day+'</h1><p id="cbtDayTitle">'+esc(d.title)+'</p></div><span>Неделя '+d.week+' из 3</span></div>'+ringDays(r,d.week,day)+
+ coachFollowUp(r,day)+'<article class="cbt-card cbt-explanation"><span class="cbt-bulb" aria-hidden="true">☀</span><div><h2>'+esc(d.title)+'</h2><p>'+esc(d.explanation)+'</p><blockquote class="cbt-life-example">'+esc(d.example)+'</blockquote></div></article><p class="cbt-prompt">'+esc(d.prompt)+'</p>'+
+ (readonly?'<p class="cbt-meta">'+(r?.calendar&&day>C.nextDay(r)?'Этот день ещё не начался · просмотр темы':'Сохранённое прохождение · просмотр')+'</p>':'')+
+ (day%7===0&&r?'<details class="cbt-card cbt-week-review"><summary>Твои записи и итоги недели</summary>'+weekly(r,d.week)+'</details>':'')+
+ (!readonly?'<button type="button" data-do="add-entry" class="cbt-primary cbt-add-entry">Добавить запись</button>':'')+
+  (!readonly&&quick?'<button type="button" data-format="full" class="cbt-secondary cbt-expand-entry">Перейти к подробному разбору</button>':'')+
+   entryDetail(r,row,record,readonly)+'<form id="cbtExercise"'+(emptyDeleted?' hidden':'')+' novalidate>'+fields.map((f,i)=>'<div class="cbt-step" data-cbt-step="'+i+'"'+(!readonly&&i>0?' hidden':'')+'>'+field(f,a,readonly)+'</div>').join('')+
+ (!quick?'<details class="cbt-card cbt-optional" id="cbtOptionalFields"><summary>Дополнительные оценки состояния</summary>'+optional.map(f=>field(f,a,readonly)).join('')+'</details>':'')+'</form>'+versionsView(record)+
+ coachCard(record)+entryPicker(r,row,readonly)+'<div class="cbt-day-nav"><button type="button" data-day="'+Math.max(1,day-1)+'" '+(day===1?'disabled':'')+'>Предыдущий день</button><button type="button" data-day="'+Math.min(21,day+1)+'" '+(day===21||day>=C.nextDay(r)?'disabled':'')+'>Следующий день</button></div>';
+}
+function thoughtSentiment(entry){
+ const emotions=Array.isArray(entry?.answers?.emotions)?entry.answers.emotions:[];
+ const positive=new Set(['Радость','Спокойствие','Интерес','Облегчение']);
+ const negative=new Set(['Тревога','Грусть','Злость','Обида','Страх','Стыд','Вина','Разочарование']);
+ const hasPositive=emotions.some(value=>positive.has(value));
+ const hasNegative=emotions.some(value=>negative.has(value));
+ return hasPositive&&!hasNegative?' cbt-thought-positive':hasNegative&&!hasPositive?' cbt-thought-negative':'';
+}
+function entryPicker(r,row,readonly){
+ const list=C.entries(row).filter(e=>C.hasAnswers(e.answers)||e.savedAt);
+ return '<section class="cbt-card cbt-entry-picker cbt-thought-picker"><div class="cbt-entry-top"><h2>Записи дня'+(list.length?' · '+list.length:'')+'</h2></div>'+
+ (list.length?'<div class="cbt-thought-scene'+(list.length>6?' cbt-thought-many':'')+'" data-count="'+list.length+'"><div class="cbt-thought-orbit cbt-thought-orbit-a" aria-hidden="true"></div><div class="cbt-thought-orbit cbt-thought-orbit-b" aria-hidden="true"></div><div class="cbt-thought-brain" aria-hidden="true">🧠</div><div class="cbt-thought-list" role="group" aria-label="Мысли и записи дня">'+list.map((e,i)=>'<button type="button" class="cbt-thought-bubble cbt-thought-position-'+i%6+thoughtSentiment(e)+'" data-entry="'+esc(e.id)+'" aria-label="Открыть запись '+(i+1)+': '+esc(previewRecord(e).slice(0,90))+'" aria-pressed="'+(e.id===C.canonicalEntryId(row,entryId))+'"><strong>'+esc(previewRecord(e))+'</strong><small>'+esc(entryTime(e.startedAt))+'</small></button>').join('')+'</div></div>':
+ '<p class="cbt-meta cbt-entry-empty">Пока нет записей. Первая мысль появится здесь после ответа.</p>')+
+ '<p class="cbt-thought-hint">Нажми на мысль, чтобы открыть всю запись.</p></section>'
+}
+function entryDetail(r,row,record,readonly){
+ if(!record||!C.hasAnswers(record.answers)&&!record.savedAt)return '';
+ const list=C.entries(row),number=list.findIndex(e=>e.id===record.id)+1;
+ return '<div class="cbt-entry-detail"><div><strong>Запись '+(number>0?number:'')+'</strong><small>'+entryDate(record.startedAt)+' · '+(record.savedAt?'Сохранена':'Черновик')+'</small></div>'+
+ (!readonly?'<button type="button" class="cbt-entry-remove" data-delete-entry="'+esc(record.id)+'" aria-label="Удалить открытую запись">× <span>Удалить</span></button>':'')+'</div>'
+}
+
+function versionsView(row){if(!row?.versions?.length)return '';return '<details class="cbt-card cbt-week-review"><summary>Предыдущие версии ответов ('+row.versions.length+')</summary>'+row.versions.map(v=>'<details class="cbt-review-entry"><summary>'+date(v.at)+'</summary>'+Object.entries(v.answers).map(([k,value])=>'<p><b>'+esc(lesson(day).fields.find(f=>f.key===k)?.label||k)+'</b><br>'+esc(Array.isArray(value)?value.join(', '):typeof value==='boolean'?value?'Выполнено':'Не выполнено':value)+'</p>').join('')+'</details>').join('')+'</details>'}
+function weekly(r,w){let html='<div class="cbt-report-text">'+C.report(r,w).map(t=>'<p>'+esc(t)+'</p>').join('')+'</div>';for(let n=(w-1)*7+1;n<=w*7;n++){for(const [i,e]of C.entries(r.days[n]).entries()){const a=e.answers;if(!Object.keys(a).length)continue;html+='<details class="cbt-review-entry"><summary>День '+n+' · Запись '+(i+1)+' · '+date(e.startedAt)+'</summary>'+allFields(n).filter(f=>a[f.key]!==undefined&&a[f.key]!=='').map(f=>'<p><b>'+esc(f.label)+'</b><br>'+esc(Array.isArray(a[f.key])?a[f.key].join(', '):typeof a[f.key]==='boolean'?a[f.key]?'Выполнено':'Не выполнено':a[f.key])+'</p>').join('')+'</details>'}}return html}
+
+function chart(title,series,max,compare){const all=[...series,...(compare||[])];if(!all.length)return '<section class="cbt-card cbt-chart"><h3>'+title+'</h3><p>Пока нет сохранённых оценок.</p></section>';const x=d=>24+(d-1)*12,y=v=>95-v/max*75;const line=(p,color)=>p.length>1?'<polyline points="'+p.map(v=>x(v.day)+','+y(v.value)).join(' ')+'" fill="none" stroke="'+color+'" stroke-width="2"/>':'';return '<section class="cbt-card cbt-chart"><h3>'+title+'</h3><p class="cbt-meta">Средние по сохранённым записям каждого дня.</p><svg viewBox="0 0 280 120" role="img" aria-label="'+title+'"><path d="M24 20V95H266" fill="none" stroke="currentColor" opacity=".2"/><text x="2" y="24">'+max+'</text><text x="9" y="99">0</text><text x="24" y="115">День 1</text><text x="222" y="115">День 21</text>'+line(series,'#8167df')+line(compare||[],'#50ac87')+all.map(p=>'<circle cx="'+x(p.day)+'" cy="'+y(p.value)+'" r="3" fill="'+(series.includes(p)?'#8167df':'#50ac87')+'"><title>День '+p.day+': '+p.value+'</title></circle>').join('')+'</svg>'+(compare?'<p class="cbt-chart-key"><span>● До</span><span>● После</span></p>':'')+'<details><summary>Средние оценки по дням</summary><table><thead><tr><th>День</th><th>'+(compare?'До':'Оценка')+'</th>'+(compare?'<th>После</th>':'')+'</tr></thead><tbody>'+[...new Set(all.map(x=>x.day))].sort((a,b)=>a-b).map(n=>'<tr><td>'+n+'</td><td>'+(series.find(p=>p.day===n)?.value??'—')+'</td>'+(compare?'<td>'+(compare.find(p=>p.day===n)?.value??'—')+'</td>':'')+'</tr>').join('')+'</tbody></table></details></section>'}
+function comparison(r){const first=C.stats(r,1),last=C.stats(r,3),mean=p=>p.length?(p.reduce((s,v)=>s+v.value,0)/p.length).toFixed(1):'Нет данных';return '<section class="cbt-card cbt-comparison"><h3>Первый и последний этапы</h3><table><thead><tr><th></th><th>Неделя 1</th><th>Неделя 3</th></tr></thead><tbody><tr><th>Записи</th><td>'+first.records+' записей</td><td>'+last.records+' записей</td></tr><tr><th>Настроение до</th><td>'+mean(first.moodBefore)+'</td><td>'+mean(last.moodBefore)+'</td></tr><tr><th>Сила эмоций</th><td>'+mean(first.intensity)+'</td><td>'+mean(last.intensity)+'</td></tr></tbody></table><p>Средние по дням с заполненными оценками сохранённых записей. Количество и контекст записей могут различаться.</p></section>'}
+function reportView(){const r=run(),s=C.stats(r);return '<h1 tabindex="-1">'+(r?.status==='completed'?'Личный отчёт за 21 день':'Статистика и итоги')+'</h1><p class="cbt-meta">'+date(r?.startedAt)+' · '+s.completed+' из 21 дней · '+s.records+' записей</p><section class="cbt-card cbt-report-text">'+C.report(r).map(t=>'<p>'+esc(t)+'</p>').join('')+'</section>'+chart('Настроение до и после',s.moodBefore,10,s.moodAfter)+chart('Интенсивность эмоций',s.intensity,10)+chart('Убеждённость в негативных мыслях',s.beliefBefore,100,s.beliefAfter)+'<section class="cbt-card cbt-frequency"><h3>Часто отмечаемые эмоции</h3>'+(s.emotions.length?s.emotions.map(([name,n])=>'<div><span>'+esc(name)+'</span><meter min="0" max="'+s.records+'" value="'+n+'">'+n+'</meter><b>'+n+'</b></div>').join(''):'<p>Пока нет отмеченных эмоций в сохранённых записях.</p>')+'</section>'+comparison(r)+D.weeks.map((w,i)=>'<details class="cbt-card cbt-week-review"><summary>Неделя '+(i+1)+' · '+esc(w.title)+'</summary>'+weekly(r,i+1)+'</details>').join('')+(r?.status==='completed'?'<button type="button" data-do="start" class="cbt-primary">Пройти заново</button>':'')}
+function historyView(){const runs=[...snapshot().runs].reverse();return '<h1 tabindex="-1">История прохождений</h1><p class="cbt-meta">Все циклы и твои ответы</p><button type="button" data-do="records" class="cbt-secondary">Поиск записей и PDF</button>'+(runs.length?runs.map((r)=>{const s=C.stats(r);return '<button type="button" class="cbt-card cbt-history-row" data-run="'+esc(r.id)+'"><span><strong>'+date(r.startedAt)+'</strong><small>'+(r.status==='active'?'В процессе':r.status==='completed'?'Завершено':'Прервано')+' · '+s.completed+' из 21 · '+s.percent+'%</small><small>'+(r.completedAt?'Завершено '+date(r.completedAt):r.interruptedAt?'Прервано '+date(r.interruptedAt):'')+'</small></span>'+icon('arrow')+'</button>'}).join(''):'<section class="cbt-card"><p>Здесь появятся все твои прохождения. Начни программу, когда будет удобно.</p></section>')+(runs.length>1?'<details class="cbt-card cbt-comparison"><summary>Сравнить прохождения</summary><table><thead><tr><th>Начало</th><th>Дни</th><th>Изменение настроения</th></tr></thead><tbody>'+runs.map(r=>{const s=C.stats(r);return '<tr><td>'+date(r.startedAt)+'</td><td>'+s.completed+'/21</td><td>'+(s.moodPairs?s.moodChange+' · '+s.moodPairs+' пар':'Нет данных')+'</td></tr>'}).join('')+'</tbody></table><p>Сравниваются записи с двумя оценками. Это не оценка эффективности лечения.</p></details>':'')+(ctx.backups.length?'<details class="cbt-card"><summary>Другие сохранённые варианты ('+ctx.backups.length+')</summary>'+ctx.backups.map((b,i)=>'<button type="button" data-backup="'+i+'" class="cbt-row">'+date(b.at)+' · '+esc(b.label||'Локальная копия')+'</button>').join('')+'</details>':'')}
+function recordRows(){const rows=[];for(const r of snapshot().runs)for(const [n,row]of Object.entries(r.days||{}))for(const e of C.entries(row)){if(!C.hasAnswers(e.answers))continue;const startedAt=e.startedAt||e.answerUpdatedAt||e.savedAt||r.startedAt;rows.push({key:r.id+':'+n+':'+e.id,run:r,day:Number(n),entry:{...e,startedAt},date:startedAt?C.dayKey(startedAt,r.calendar?.timeZone||localZone()):''})}return rows.sort((a,b)=>String(b.entry.startedAt||'').localeCompare(String(a.entry.startedAt||'')))}
+function filteredRecords(){const q=recordFilters.query.trim().toLocaleLowerCase('ru');return recordRows().filter(x=>(!q||Object.values(x.entry.answers).map(v=>Array.isArray(v)?v.join(' '):String(v)).join(' ').toLocaleLowerCase('ru').includes(q))&&(!recordFilters.emotion||(x.entry.answers.emotions||[]).includes(recordFilters.emotion))&&(!recordFilters.from||x.date>=recordFilters.from)&&(!recordFilters.to||x.date<=recordFilters.to))}
+function answerText(v){return Array.isArray(v)?v.join(', '):typeof v==='boolean'?v?'Выполнено':'Не выполнено':String(v??'')}
+function answerHtml(item){return allFields(item.day).filter(f=>item.entry.answers[f.key]!==undefined&&item.entry.answers[f.key]!==''&&(!Array.isArray(item.entry.answers[f.key])||item.entry.answers[f.key].length)).map(f=>'<p><b>'+esc(f.label)+'</b><br>'+esc(answerText(item.entry.answers[f.key]))+'</p>').join('')}
+function recordResults(){const found=filteredRecords();return '<p class="cbt-meta">Найдено записей: '+found.length+'</p>'+(found.length?found.map(x=>'<article class="cbt-card cbt-record-result"><label class="cbt-export-choice"><input type="checkbox" data-export-key="'+esc(x.key)+'" '+(exportSelection.has(x.key)?'checked':'')+'><span>Выбрать для PDF</span></label><details><summary><strong>День '+x.day+' · '+entryDate(x.entry.startedAt)+'</strong><span class="cbt-meta">'+(x.entry.savedAt?'Сохранена':'Черновик')+' · Цикл от '+entryDate(x.run.startedAt)+'</span><p>'+esc(previewRecord(x.entry))+'</p></summary>'+answerHtml(x)+'</details><button type="button" data-open-record="'+esc(x.key)+'" class="cbt-link">Открыть запись</button></article>').join(''):'<section class="cbt-card"><p>По этим условиям записей нет.</p></section>')}
+function recordsView(){const all=recordRows(),runs=snapshot().runs.filter(r=>all.some(x=>x.run.id===r.id)).reverse();return '<h1 tabindex="-1">Скачать записи КПТ</h1><p class="cbt-meta">Выбери цикл — все ответы за него попадут в один PDF.</p><div class="cbt-cycle-list">'+(runs.length?runs.map(r=>{const items=all.filter(x=>x.run.id===r.id),days=new Set(items.map(x=>x.day));return '<article class="cbt-card cbt-cycle-download"><div><h2>Цикл от '+entryDate(r.startedAt)+'</h2><p class="cbt-meta">'+(r.status==='active'?'В процессе':r.status==='completed'?'Завершён':'Прерван')+' · '+days.size+' дн. · '+items.length+' записей</p></div><button type="button" class="cbt-primary" data-export-cycle="'+esc(r.id)+'">Скачать PDF</button></article>'}).join(''):'<section class="cbt-card"><p>Пока нет записей для скачивания.</p></section>')+'</div>'}
+function updateExportCount(){const valid=new Set(recordRows().map(x=>x.key));for(const key of exportSelection)if(!valid.has(key))exportSelection.delete(key);const button=$('#cbtExportPdf');if(button){button.disabled=!exportSelection.size;button.textContent='Скачать PDF · '+exportSelection.size}}
+function renderRecordResults(){const host=$('#cbtRecordResults');if(host)host.innerHTML=recordResults();updateExportCount()}
+// Build an offline PDF from locally rendered pages; no diary content leaves the device.
+function makePdf(items){
+ const width=1240,height=1754,margin=80,limit=height-110,jpegs=[];let canvas,paint,y;
+ function pageStart(){canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;paint=canvas.getContext('2d');paint.fillStyle='#fff';paint.fillRect(0,0,width,height);paint.fillStyle='#282241';paint.font='bold 23px Arial';paint.fillText('RUDI · Личные записи КПТ',margin,60);paint.strokeStyle='#e3ddf3';paint.beginPath();paint.moveTo(margin,80);paint.lineTo(width-margin,80);paint.stroke();y=125}
+ function finish(){paint.fillStyle='#777';paint.font='18px Arial';paint.fillText('Личные записи · '+new Date().toLocaleDateString('ru-RU')+' · '+(jpegs.length+1),margin,height-45);const raw=atob(canvas.toDataURL('image/jpeg',.94).split(',')[1]);jpegs.push(Uint8Array.from(raw,c=>c.charCodeAt(0)))}
+ function line(text,bold=false,size=25){if(y+size*1.4>limit){finish();pageStart()}paint.fillStyle=bold?'#282241':'#373345';paint.font=(bold?'bold ':'')+size+'px Arial';paint.fillText(text,margin,y);y+=Math.ceil(size*1.45)}
+ function paragraph(text,bold=false,size=25){paint.font=(bold?'bold ':'')+size+'px Arial';for(const block of String(text).split(/\r?\n/)){let current='';for(const word of block.split(/\s+/)){if(!word)continue;const candidate=current?current+' '+word:word;if(paint.measureText(candidate).width<=width-margin*2){current=candidate;continue}if(current){line(current,bold,size);current=''}let part='';for(const ch of Array.from(word)){if(paint.measureText(part+ch).width>width-margin*2){line(part,bold,size);part=''}part+=ch}current=part}if(current)line(current,bold,size);else if(!block.trim())line('',bold,size)}}
+ pageStart();paragraph('Все записи цикла',true,37);paragraph('Записей: '+items.length,false,22);y+=16;
+ for(const item of items){if(y>limit-180){finish();pageStart()}paragraph('День '+item.day+' · '+lesson(item.day).title,true,29);paragraph(date(item.entry.startedAt)+' · '+(item.entry.savedAt?'Сохранена':'Черновик')+(item.entry.format==='quick'?' · Короткая запись':''),false,21);paragraph('Цикл от '+date(item.run.startedAt),false,21);y+=12;
+ for(const field of allFields(item.day)){const value=item.entry.answers[field.key];if(value===undefined||value===''||Array.isArray(value)&&!value.length)continue;paragraph(field.label,true,24);paragraph(answerText(value),false,25);y+=10}y+=25;
+ }finish();
+ const encoder=new TextEncoder(),chunks=[],offsets=[0];let length=0;
+ const append=data=>{const bytes=typeof data==='string'?encoder.encode(data):data;chunks.push(bytes);length+=bytes.length};
+ const object=(id,parts)=>{offsets[id]=length;append(id+' 0 obj\n');for(const part of parts)append(part);append('\nendobj\n')};
+ append('%PDF-1.4\n');object(1,['<< /Type /Catalog /Pages 2 0 R >>']);object(2,['<< /Type /Pages /Count '+jpegs.length+' /Kids ['+jpegs.map((_,i)=>(3+i*3)+' 0 R').join(' ')+'] >>']);
+ jpegs.forEach((jpeg,i)=>{const id=3+i*3,content='q 595.28 0 0 841.89 0 0 cm /I Do Q';object(id,['<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /I '+(id+2)+' 0 R >> >> /Contents '+(id+1)+' 0 R >>']);object(id+1,['<< /Length '+encoder.encode(content).length+' >>\nstream\n'+content+'\nendstream']);object(id+2,['<< /Type /XObject /Subtype /Image /Width '+width+' /Height '+height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+jpeg.length+' >>\nstream\n',jpeg,'\nendstream'])});
+ const xref=length;append('xref\n0 '+offsets.length+'\n0000000000 65535 f \n');for(let i=1;i<offsets.length;i++)append(String(offsets[i]).padStart(10,'0')+' 00000 n \n');append('trailer\n<< /Size '+offsets.length+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF');return new Blob(chunks,{type:'application/pdf'});
+}
+async function exportPdf(cycleId){const cycle=snapshot().runs.find(r=>r.id===cycleId),items=recordRows().filter(x=>x.run.id===cycleId).sort((a,b)=>a.day-b.day||String(a.entry.startedAt||'').localeCompare(String(b.entry.startedAt||'')));if(!cycle||!items.length){notice='В этом цикле пока нет записей.';status();return}try{const blob=makePdf(items),name='RUDI-CBT-'+C.dayKey(cycle.startedAt||new Date(),cycle.calendar?.timeZone||localZone())+'-'+cycle.id.slice(0,8)+'.pdf',file=new File([blob],name,{type:'application/pdf'});if(navigator.canShare?.({files:[file]})){await navigator.share({files:[file],title:'Записи цикла КПТ'})}else{const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000)}notice='PDF подготовлен: '+items.length+' записей.';status()}catch(error){if(error?.name==='AbortError')return;notice='Не удалось подготовить PDF цикла.';status()}}
+ 
+function doneView(){const d=lesson(day),r=run(),record=C.entry(r,day,entryId);return '<section class="cbt-done"><div class="cbt-done-mark">'+icon('check')+'</div><h1 tabindex="-1">Запись сохранена</h1><p>'+esc(record?.format==='quick'?'Наблюдение сохранено. К подробному разбору можно вернуться позже.':d.takeaway)+'</p><p class="cbt-meta">'+date(record?.savedAt)+'</p><p>'+ (r?.days[day]?.closedAt?'День '+day+' закрыт в полночь. Записи сохранены.':'День '+day+' остаётся открытым до 00:00. Можно добавить ещё одну запись.')+'</p>'+(r?.status==='completed'?'<button type="button" data-do="report" class="cbt-primary">Личный отчёт за 21 день</button>':r?.days[day]?.closedAt?'<button type="button" data-do="continue" class="cbt-primary">Перейти к текущему дню</button>':'<button type="button" data-do="add-entry" class="cbt-primary">Добавить запись</button>')+'<button type="button" data-do="edit-entry" class="cbt-secondary">Посмотреть запись</button><button type="button" data-do="home" class="cbt-secondary">К программе</button></section>'}
+
+function conflictView(){if(!ctx.conflict)return '';const conflict=ctx.conflict,op=conflict.op,remote=ctx.server.runs.find(r=>r.id===op.cycleId),values=C.entry(remote,op.day,op.entryId,true)?.answers||{},localValues=C.entry(snapshot().runs.find(r=>r.id===op.cycleId),op.day,op.entryId,true)?.answers||op.patch||{};return '<section class="cbt-card cbt-conflict" role="alert"><h2>Ответы изменились на другом устройстве</h2><p>'+(conflict.error==='cbt-conflict-deleted'?'Этот черновик удалён на другом устройстве. Можно сохранить свои изменения отдельным новым черновиком.':'Обе версии сохранены. Выбери, какие ответы использовать. Оба варианта останутся в истории.')+'</p>'+(conflict.fields||[]).map(k=>'<div><b>'+esc(lesson(op.day).fields.find(f=>f.key===k)?.label||k)+'</b><p>С другого устройства:</p><pre>'+esc(Array.isArray(values[k])?values[k].join(', '):values[k])+'</pre><p>На этом устройстве:</p><pre>'+esc(Array.isArray(localValues[k])?localValues[k].join(', '):localValues[k])+'</pre></div>').join('')+'<button type="button" data-do="conflict-local" class="cbt-primary">'+(conflict.error==='cbt-conflict-delete'?'Удалить обновлённый черновик':conflict.error==='cbt-conflict-deleted'?'Сохранить как новый черновик':conflict.error==='cbt-read-only'||conflict.error==='cbt-conflict-start'?'Перенести мои ответы в новый цикл':'Оставить мои ответы')+'</button><button type="button" data-do="conflict-server" class="cbt-secondary">Оставить ответы с другого устройства</button></section>'}
+function render(scroll=true){
+ if(!page||page.hidden||!ctx)return;
+ const currentRun=run(),raw=C.entry(currentRun,day,entryId,true);if(screen==='day'&&!C.entry(currentRun,day,entryId)&&raw?.deletedAt&&!ctx.queue.some(op=>op.type==='edit'&&op.cycleId===currentRun.id&&op.day===day&&C.canonicalEntryId(currentRun.days[day],op.entryId)===raw.id))entryId=C.nextEntry(currentRun.days[day]);
+ const host=$('#cbtView'),area=scroller(),pos=area?.scrollTop||0,route=[screen,selected,day,entryId,backupIndex].join(':'),markup=conflictView()+({home:overview,day:dayView,done:doneView,history:historyView,report:reportView,records:recordsView}[screen]||overview)();
+ if(!scroll&&markup===renderedMarkup&&route===renderedRoute){status();return}
+ const preserve=!scroll&&route===renderedRoute;
+ const details=preserve?[...host.querySelectorAll('details')].map(el=>el.open):[];
+ host.innerHTML=markup;renderedMarkup=markup;renderedRoute=route;
+ if(preserve)[...host.querySelectorAll('details')].forEach((el,i)=>{el.open=Boolean(details[i])});
+ status();if(screen==='day')revealSteps();if(!scroll&&area)area.scrollTop=pos;
+}
+function answered(f,v){return f.type==='range'?Number.isFinite(v):f.type==='check'?v===true:f.type==='emotions'?Array.isArray(v)&&v.length>0:typeof v==='string'&&!!v.trim()}
+let stepTimer=0,proofTimer=0,chromeTimer=0,proofSequence=0;const proofSeen=new Map();
+function queueThoughtChrome(){
+ clearTimeout(chromeTimer);
+ chromeTimer=setTimeout(()=>{
+  if(!ctx||!page||page.hidden||screen!=='day')return;
+  const r=run(),row=r?.days[day],record=C.entry(r,day,entryId);
+  const readonly=!r||r.status!=='active'||backupIndex>=0||!!(r.calendar&&day>C.nextDay(r));
+  const picker=page.querySelector('.cbt-entry-picker');if(picker)picker.outerHTML=entryPicker(r,row,readonly);
+  const detail=entryDetail(r,row,record,readonly),existing=page.querySelector('.cbt-entry-detail');
+  if(existing)existing.outerHTML=detail;
+  else if(detail)page.querySelector('#cbtExercise')?.insertAdjacentHTML('beforebegin',detail);
+ },950)
+}
+
+function revealSteps(){if(screen!=='day')return;const r=run(),form=page?.querySelector('#cbtExercise'),steps=form?.querySelectorAll('.cbt-step')||[];if(!r||backupIndex>=0||r.status!=='active'){steps.forEach(el=>el.hidden=false);return}const entry=C.entry(r,day,entryId),a=entry?.answers||{},fields=entry?.format==='quick'?quickFields:lesson(day).fields;let missing=fields.findIndex(f=>!answered(f,a[f.key]));if(missing<0)missing=fields.length;steps.forEach((el,i)=>el.hidden=!(i<=missing||answered(fields[i],a[fields[i]?.key])));const extra=$('#cbtOptionalFields');if(extra)extra.hidden=missing<fields.length}
+function queueReveal(){clearTimeout(stepTimer);stepTimer=setTimeout(revealSteps,400)}
+async function proofreadField(el){if(!el?.isConnected||el.disabled||navigator.onLine===false||page?.hidden||!ctx)return;const raw=el.value,name=el.dataset.field;if(!name||!raw.trim()||raw.length>6000||raw.length<4)return;const r=run();if(!r||r.status!=='active')return;const cycleId=r.id,targetDay=day,targetId=entryId,token=cycleId+':'+targetDay+':'+targetId+':'+name;if(proofSeen.get(token)===raw)return;proofSeen.set(token,raw);const sequence=++proofSequence;try{const response=await fetch('/api/home-note',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},body:JSON.stringify({operation:'proofread',text:raw,initData:window.Telegram?.WebApp?.initData||''})});if(!response.ok)return;const result=await response.json();if(!result.ok||typeof result.text!=='string'||!result.text.trim()||result.text.length>6000||result.text===raw)return;if(!el.isConnected||el.value!==raw||page.hidden||screen!=='day'||day!==targetDay||entryId!==targetId||run()?.id!==cycleId||sequence!==proofSequence)return;el.value=result.text;setField(name,result.text,el);queueReveal()}catch{}}
+function queueProofread(el,quick=false){clearTimeout(proofTimer);if(!el||el.tagName!=='TEXTAREA')return;proofTimer=setTimeout(()=>void proofreadField(el),quick?240:1700)}
+function showMissing(fields){notice='Заполни отмеченные поля, чтобы сохранить запись.';status();for(const name of fields){const el=page.querySelector('[data-wrap="'+name+'"]');el?.classList.add('is-missing');el?.querySelector('textarea,input,select,button')?.setAttribute('aria-invalid','true')}page.querySelector('.is-missing')?.scrollIntoView({block:'center',behavior:'smooth'})}
+function autoComplete(){const r=run(),entry=C.entry(r,day,entryId);if(!r||r.status!=='active'||backupIndex>=0||day>C.nextDay(r)||!entry||entry.savedAt||!C.hasAnswers(entry.answers)||C.missing(day,entry.answers,entry.format).length)return;if(enqueue({type:'complete',cycleId:r.id,day,entryId})){const card=[...page.querySelectorAll('[data-entry]')].find(e=>e.dataset.entry===entryId),meta=card?.querySelector('small');if(meta)meta.textContent=meta.textContent.replace('Черновик','Сохранена');const coachEl=page.querySelector('#cbtCoachCard');if(coachEl)coachEl.outerHTML=coachCard(C.entry(run(),day,entryId))}}
+function setField(name,value,element){const r=run();if(!r||backupIndex>=0)return;if(r.status!=='active'){notice='Программа завершена. Все записи до полуночи сохранены.';render(false);return}const wrap=element?.closest('[data-wrap]');let before=C.entry(r,day,entryId)?.answers?.[name];try{if(wrap?.dataset.original!==undefined)before=JSON.parse(wrap.dataset.original)}catch{}if(C.same(before,value))return;notice='';if(enqueue({type:'edit',cycleId:r.id,day,entryId,patch:{[name]:value},base:{[name]:before??''}})){autoComplete();queueReveal();queueThoughtChrome()}if(wrap)wrap.dataset.original=JSON.stringify(value);wrap?.classList.remove('is-missing');element?.removeAttribute('aria-invalid');if(element?.type==='range'){element.dataset.empty='false';element.setAttribute('aria-valuetext',String(value));const out=wrap?.querySelector('output');if(out)out.textContent=value+(element.max==='100'?'%':'')}}
+function input(e){if(e.target.dataset.cbtFilter){recordFilters[e.target.dataset.cbtFilter]=e.target.value;renderRecordResults();return}if(e.target.dataset.exportKey){if(e.target.checked)exportSelection.add(e.target.dataset.exportKey);else exportSelection.delete(e.target.dataset.exportKey);updateExportCount();return}if(e.target.id==='cbtEntrySelect'){entryId=e.target.value;navTo('day');return}const el=e.target.closest('[data-field]');if(!el||el.type==='range'&&e.type==='change')return;const value=el.type==='range'?Number(el.value):el.type==='checkbox'?el.checked:el.value;setField(el.dataset.field,value,el);if(el.tagName==='TEXTAREA')queueProofread(el);else queueReveal()}
+function startProgram(force=false){const s=snapshot(),current=C.active(s);if(current&&!force){confirmRestart();return}const cycleId=uid();if(enqueue({type:'start',cycleId,expectedActive:current?.id||null,timeZone:localZone()})){backupIndex=-1;selected=cycleId;day=1;entryId='initial';navTo('day')}}
+function confirmDelete(targetId=entryId){const r=run(),record=C.entry(r,day,targetId);if(!r||r.status!=='active'||backupIndex>=0||day>C.nextDay(r)||!record)return;deleteTarget={cycleId:r.id,day,entryId:record.id,base:JSON.parse(JSON.stringify(record.answers))};let dialog=$('#cbtDeleteDialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='cbtDeleteDialog';dialog.className='cbt-dialog';dialog.innerHTML='<h2>Удалить запись?</h2><p>Удалится только выбранная запись. Остальные останутся.</p><div><button type="button" data-do="cancel-delete" class="cbt-secondary">Отмена</button><button type="button" data-do="confirm-delete" class="cbt-primary">Удалить запись</button></div>';dialog.addEventListener('click',click);dialog.addEventListener('close',()=>{deleteTarget=null});document.body.append(dialog)}dialog.showModal()}
+function deleteRecord(){const target=deleteTarget;$('#cbtDeleteDialog')?.close();deleteTarget=null;if(!target||run()?.status!=='active')return;if(enqueue({type:'delete-entry',...target})){entryId=C.nextEntry(run()?.days[day]);navTo('day');notice='Запись удалена';status();schedule(0)}}
+function confirmRestart(){let dialog=$('#cbtRestartDialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='cbtRestartDialog';dialog.className='cbt-dialog';dialog.innerHTML='<h2>Начать новый цикл?</h2><p>Текущий цикл сохранится в истории как прерванный. Новый начнётся с первого дня.</p><div><button type="button" data-do="cancel-restart" class="cbt-secondary">Продолжить текущий</button><button type="button" data-do="confirm-restart" class="cbt-primary">Начать новый цикл</button></div>';dialog.addEventListener('click',click);document.body.append(dialog)}dialog.showModal()}
+function recoverable(state){const copy=JSON.parse(JSON.stringify(state));for(const [index,op]of ctx.queue.entries()){if(op.type!=='edit')continue;const r=copy.runs.find(r=>r.id===op.cycleId),row=r?.days[op.day],id=C.canonicalEntryId(row,op.entryId),record=id==='initial'?row:row?.entries?.find(e=>e.id===id);const deletedLater=ctx.queue.some((v,j)=>j>index&&v.type==='delete-entry'&&v.cycleId===op.cycleId&&v.day===op.day&&C.canonicalEntryId(row,v.entryId)===id);if(record?.deletedAt&&!deletedLater)delete record.deletedAt}return copy}
+function resolve(local){const conflict=ctx.conflict;if(!conflict)return;const projection=snapshot();ctx.backups.push({id:uid(),at:new Date().toISOString(),label:'На этом устройстве',state:recoverable(projection)},{id:uid(),at:new Date().toISOString(),label:'С другого устройства',state:ctx.server});const op=ctx.queue.find(v=>v.id===conflict.op.id);if(!op){ctx.conflict=null;persist();render();return}
+ const remote=ctx.server.runs.find(r=>r.id===op.cycleId);
+ if(conflict.error==='cbt-conflict-delete'){
+  ctx.queue=ctx.queue.filter(v=>v.id!==op.id);ctx.conflict=null;const record=C.entry(remote,op.day,op.entryId);
+  if(local&&record&&!record.savedAt&&remote.status==='active')enqueue({type:'delete-entry',cycleId:op.cycleId,day:op.day,entryId:record.id,base:record.answers});
+  else if(local)notice='Запись уже сохранена. Удаление черновика отменено.';
+  entryId=C.nextEntry(run()?.days[day]);persist();render(false);schedule(0);return;
+ }
+ if(conflict.error==='cbt-conflict-deleted'&&remote?.status==='active'){
+  const row=remote.days[op.day],canonical=C.canonicalEntryId(row,op.entryId),mine=C.entry(projection.runs.find(r=>r.id===op.cycleId),op.day,op.entryId,true);
+  ctx.queue=ctx.queue.filter(v=>!(v.cycleId===op.cycleId&&v.day===op.day&&C.canonicalEntryId(row,v.entryId)===canonical));ctx.conflict=null;
+  if(local&&mine){const id=uid();enqueue({type:'new-entry',cycleId:op.cycleId,day:op.day,entryId:id});if(mine.format)enqueue({type:'format',cycleId:op.cycleId,day:op.day,entryId:id,format:mine.format});if(Object.keys(mine.answers).length)enqueue({type:'edit',cycleId:op.cycleId,day:op.day,entryId:id,patch:mine.answers,base:{}});entryId=id}else entryId=C.nextEntry(run()?.days[day]);
+  persist();render(false);schedule(0);return;
+ }
+ const preserved=local?C.entry(remote,op.day,op.entryId)?.answers:C.entry(projection.runs.find(r=>r.id===op.cycleId),op.day,op.entryId)?.answers;
+ const archive=remote&&op.day&&preserved&&Object.keys(preserved).length?{id:uid(),at:new Date().toISOString(),type:'archive',cycleId:op.cycleId,day:op.day,entryId:op.entryId,patch:preserved,base:{}}:null;
+ if(local&&(op.type==='start'||remote?.status!=='active')){
+  const old=recoverable(projection).runs.find(r=>r.id===op.cycleId);ctx.queue=ctx.queue.filter(x=>x.cycleId!==op.cycleId);ctx.conflict=null;const id=uid();enqueue({type:'start',cycleId:id,expectedActive:C.active(ctx.server)?.id||null,timeZone:localZone()});for(const [n,row]of Object.entries(old?.days||{})){for(const e of C.entries(row)){if(e.id!=='initial')enqueue({type:'new-entry',cycleId:id,day:Number(n),entryId:e.id});if(e.format)enqueue({type:'format',cycleId:id,day:Number(n),entryId:e.id,format:e.format});if(Object.keys(e.answers).length)enqueue({type:'edit',cycleId:id,day:Number(n),entryId:e.id,patch:e.answers,base:{}});if(e.savedAt)enqueue({type:'complete',cycleId:id,day:Number(n),entryId:e.id})}}entryId=C.canonicalEntryId(old?.days[day],entryId);selected=id;
+ }else if(local){
+  const pending=ctx.queue.filter(v=>v.type==='edit'&&v.cycleId===op.cycleId&&v.day===op.day&&(v.entryId||'initial')===(op.entryId||'initial')),keys=[...new Set(pending.flatMap(v=>Object.keys(v.patch)))];
+  const a=C.entry(remote,op.day,op.entryId,true)?.answers||{},mine=C.entry(projection.runs.find(r=>r.id===op.cycleId),op.day,op.entryId)?.answers||{};
+  ctx.queue=ctx.queue.filter(v=>!pending.includes(v));
+  if(keys.length)ctx.queue.unshift({id:uid(),at:new Date().toISOString(),type:'edit',cycleId:op.cycleId,day:op.day,entryId:op.entryId,patch:Object.fromEntries(keys.map(k=>[k,mine[k]])),base:Object.fromEntries(keys.map(k=>[k,a[k]??'']))});
+  ctx.conflict=null;
+ }else {
+  if(op.type==='start'||remote?.status!=='active')ctx.queue=ctx.queue.filter(v=>v.cycleId!==op.cycleId);
+  else {ctx.queue=ctx.queue.map(v=>{if(v.type!=='edit'||v.cycleId!==op.cycleId||v.day!==op.day||(v.entryId||'initial')!==(op.entryId||'initial'))return v;const next=JSON.parse(JSON.stringify(v));for(const k of conflict.fields)delete next.patch[k];return Object.keys(next.patch).length?{...next,id:uid()}:null}).filter(Boolean)}
+  ctx.conflict=null
+ }
+ if(archive)ctx.queue.unshift(archive);persist();render(false);schedule(0);
+}
+function click(e){const b=e.target.closest('button');if(!b||b.disabled)return;if(b.dataset.coachOutcome){const r=run(),targetDay=Number(b.dataset.coachDay),targetEntry=b.dataset.coachEntry,entry=C.entry(r,targetDay,targetEntry);if(!r||!entry?.coach||backupIndex>=0||day<=targetDay)return;if(enqueue({type:'coach-check',cycleId:r.id,day:targetDay,entryId:targetEntry,outcome:b.dataset.coachOutcome}))render(false);return}if(b.dataset.deleteEntry){confirmDelete(b.dataset.deleteEntry);return}if(b.dataset.exportCycle){void exportPdf(b.dataset.exportCycle);return}if(b.dataset.entry){entryId=b.dataset.entry;navTo('day');return}if(b.dataset.format){if(run()?.status==='active'&&enqueue({type:'format',cycleId:run().id,day,entryId,format:b.dataset.format})){render(false);autoComplete()}return}if(b.dataset.openRecord){const [cycle,n,id]=b.dataset.openRecord.split(':');selected=cycle;day=Number(n);entryId=id;backupIndex=-1;navTo('day');return}if(b.dataset.day){const target=Number(b.dataset.day),r=run();if(!Number.isInteger(target)||target<1||target>21||target>(r?C.nextDay(r):1)){notice='Этот день пока недоступен.';status();return}if(!r){startProgram();return}day=target;entryId=C.nextEntry(r.days[day]);navTo('day');return}if(b.dataset.run){backupIndex=-1;selected=b.dataset.run;navTo('home');return}if(b.dataset.backup!==undefined){backupIndex=Number(b.dataset.backup);selected=ctx.backups[backupIndex].state.runs.at(-1)?.id;navTo('home');return}if(b.dataset.emotion){const a=[...b.closest('.cbt-emotions').querySelectorAll('[aria-pressed="true"]')].map(x=>x.dataset.emotion),name=b.dataset.emotion,next=a.includes(name)?a.filter(x=>x!==name):[...a,name];setField('emotions',next,b);b.setAttribute('aria-pressed',next.includes(name));return}switch(b.dataset.do){case 'back':back();break;case 'home':navTo('home');break;case 'start':startProgram();break;case 'restart':confirmRestart();break;case 'confirm-restart':$('#cbtRestartDialog').close();startProgram(true);break;case 'cancel-restart':$('#cbtRestartDialog').close();break;case 'continue':openFreshEntry(C.nextDay(run()));break;case 'coach':void analyzeCurrent();break;case 'history':backupIndex=-1;navTo('history');break;case 'records':backupIndex=-1;navTo('records');break;case 'select-records':for(const item of filteredRecords())exportSelection.add(item.key);renderRecordResults();break;case 'clear-records':exportSelection.clear();renderRecordResults();break;case 'export-pdf':void exportPdf();break;case 'report':navTo('report');break;case 'next':day=Math.min(C.nextDay(run()),day+1);navTo('day');break;case 'delete-draft':confirmDelete();break;case 'cancel-delete':$('#cbtDeleteDialog').close();break;case 'confirm-delete':deleteRecord();break;case 'add-entry':openFreshEntry();break;case 'edit-entry':navTo('day');break;case 'sync':retry=0;persist();void sync();break;case 'conflict-local':resolve(true);break;case 'conflict-server':resolve(false);break;}}
+window.addEventListener('online',()=>{retry=0;void sync()});window.addEventListener('rudi-content-network-recovered',()=>void sync());window.addEventListener('popstate',()=>{if(!page?.hidden)close(true)});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&ctx&&(ctx.queue.length||!page?.hidden))void sync()});window.addEventListener('pagehide',()=>persist());
+// Merge sibling-tab outboxes without dropping locally pending operations.
+window.addEventListener('storage',e=>{if(!ctx||e.key!==key(ctx.actor)||!e.newValue)return;let other;try{other=JSON.parse(e.newValue)}catch{return}if(!other?.server)return;const ids=new Set(other.server.runs.flatMap(r=>r.applied||[]));const merged=[...other.queue||[],...ctx.queue],superseded=new Set(merged.flatMap(x=>x.supersedes||[]));const queue=merged.filter((v,i,a)=>!ids.has(v.id)&&!superseded.has(v.id)&&a.findIndex(x=>x.id===v.id)===i).map(v=>({...v,sent:merged.some(x=>x.id===v.id&&x.sent)}));ctx.server=other.server;ctx.queue=queue;ctx.backups=[...other.backups||[],...ctx.backups].filter((v,i,a)=>a.findIndex(x=>(x.id||x.at)===(v.id||v.at))===i);if(!editing())render(false);if(queue.length)schedule()});
+function primeHomeProgress(){
+ const actor=document.body.dataset.rudiActor;
+ if(!['Рустам','Диана'].includes(actor)||!document.body.classList.contains('auth-ok'))return;
+ if(ctx?.actor!==actor){
+  if(ctx){persist();close();clearTimeout(timer)}
+  analysisBusy=false;analysisMessage='';ctx=load(actor);recordFilters={query:'',emotion:'',from:'',to:''};exportSelection.clear();
+ }
+ window.dispatchEvent(new Event('rudi-cbt-progress'));
+ void sync();
+}
+window.addEventListener('rudi:auth-ready',primeHomeProgress);
+window.addEventListener('pageshow',primeHomeProgress);
+new MutationObserver(()=>{
+ if(ctx&&(document.body.dataset.rudiActor!==ctx.actor||!document.body.classList.contains('auth-ok'))){persist();close();ctx=null;clearTimeout(timer)}
+ if(!ctx)primeHomeProgress();
+}).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor','class']});
+let clockDay='';setInterval(()=>{if(!ctx||!page||page.hidden)return;const r=run(),c=C.calendar(r),key=r?.id+':'+c?.elapsed;if(key===clockDay)return;if(editing()){if(r?.status==='completed')document.activeElement.blur();else{const note=$('#cbtDayBoundary');if(note&&r?.days[day]?.closedAt)note.textContent='Этот день завершён. Записи можно посмотреть и отредактировать.';return}}clockDay=key;render(false)},1000);
+window.RudiCbt={open,close,progress};
+primeHomeProgress();
+})();

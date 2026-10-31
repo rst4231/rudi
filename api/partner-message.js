@@ -68,15 +68,12 @@ const { readDailyMood, setDailyMood, setDailyMoodReason, moodView, restoreDailyM
 const { readLatestMoodAnalysisCache, writeMoodAnalysisCache, normalizeWindowDays, readMoodFeedback, saveMoodFeedback, readMoodAnalysisQuota, recordSuccessfulMoodAnalysis } = require('./mood-analysis-store.cjs');
 const { readHabits, viewHabits, habitCreatedByDate } = require('./habit-tracker-store.cjs');
 const { generateRecipeSuggestions, generateRecipeDetail } = require('./recipe-ai.cjs');
-const { generateDateIdeas, buildDateWeatherContext } = require('./date-ai.cjs');
-const { readDateGenerationQuota, readDateGenerationHistory, recordSuccessfulDateGeneration } = require('./date-generation-limit-store.cjs');
 const { readDailyQuestion, readDailyQuestionCached, answerDailyQuestion } = require('./daily-question-store.cjs');
 const { generateMoodMessage } = require('./mood-notification-ai.cjs');
 const { generateMoodAnalysis } = require('./mood-analysis-ai.cjs');
 const { getWeather } = require('./weather.cjs');
 const { readSavedItems, addSavedItem, removeSavedItem } = require('./saved-items-store.cjs');
 const { readSmartSaves, addSmartSave, removeSmartSave, restoreSmartSave } = require('./smart-saves-store.cjs');
-const { readForDiFeed, toggleForDiLike, saveForDiItem, removeForDiSaved } = require('./for-di-feed-store.cjs');
 const { readCycleState, bootstrapCycleState, recordCycleStart, recordCycleEnd, normalizeCycleState, cycleViewForDate, cycleStateWithStart, cycleStateWithEnd, writeCycleState } = require('./cycle-store.cjs');
 const { readReactions, setReaction, toggleReaction, restoreReactionState, readReactionState, mergeReactionStates } = require('./reactions-store.cjs');
 const {
@@ -85,7 +82,8 @@ const {
   removeActivityByDedupeKey,
   observeActivityMarker,
 } = require('./activity-journal-store.cjs');
-const { readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
+const {readLuluCare,saveLuluCare}=require('./lulu-care-store.cjs');
+const { normalizeLuluState, readLuluHealth, saveLuluHealth, readLuluState, markLuluWalk, cancelLuluWalk, restoreLuluWalk, restoreLuluState } = require('./lulu-store.cjs');
 const { readScoreState, awardScore, reverseScoreByDedupeKey, transferStars, redeemReward, completeReward, scoreView, restoreScoreState, pointsFromUnits } = require('./score-store.cjs');
 const { readUiPreferences, saveUiPreferences, seedUiPreferences } = require('./ui-preferences-store.cjs');
 const { readFastingState, startFasting, stopFasting, fastingView, fastingRewardStars } = require('./fasting-store.cjs');
@@ -128,7 +126,7 @@ const {
   removeSharedTaskMeta,
 } = require('./shared-task-meta-store.cjs');
 const { createStateBackup, restoreStateBackup, openSnapshot, sealSnapshot, mergeUiPreferences, normalizeUiPreferences } = require('./rudi-backup.cjs');
-const { getCinemaPremieresCache, getTopicMaintenanceCache, getLaborCache, getControlPlaneCache } = require('./stateful-cache.cjs');
+const { getCinemaPremieresCache, getTopicMaintenanceCache, getControlPlaneCache } = require('./stateful-cache.cjs');
 const { getDailyCronState } = require('./daily-cron-state.cjs');
 const { readSummaryState } = require('./morning-summary-store.cjs');
 const { resolveCinemaTopicId } = require('./cinema-topic.cjs');
@@ -663,7 +661,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
   ]);
 
   const journal = journalLive?.initialized ? journalLive : (backupSnapshot?.activityJournal || journalLive);
-  const lulu = luluLive?.initialized ? luluLive : (backupSnapshot?.luluState || luluLive);
+  const lulu = normalizeLuluState(luluLive?.initialized ? luluLive : (backupSnapshot?.luluState || luluLive));
   const scoreState = scoreLive?.initialized ? scoreLive : (backupSnapshot?.scoreState || scoreLive);
   const cycle = cycleLive || normalizeCycleState(backupSnapshot?.cycle);
   const wishlist = wishlistLive?.initialized ? wishlistLive : (backupSnapshot?.wishlist?.initialized ? backupSnapshot.wishlist : null);
@@ -837,6 +835,7 @@ async function recordLikeActivity(target, actor, options = {}) {
 }
 
 const MOOD_ACTIVITY = {
+  anxiety: { label: 'Страх', emoji: '😨' },
   sadness: { label: 'Грусть', emoji: '😢' },
   boredom: { label: 'Скука', emoji: '🥱' },
   neutral: { label: 'Нейтрально', emoji: '😐' },
@@ -849,7 +848,7 @@ const MOOD_ACTIVITY = {
 const MOOD_ACTIVITY_BY_EMOJI=Object.freeze(Object.fromEntries(Object.entries(MOOD_ACTIVITY).map(([key,value])=>[value.emoji,key])));
 function moodSampleAverage(samples,fallback=''){const rows=(Array.isArray(samples)?samples:[]).filter(row=>MOOD_ACTIVITY[String(row?.mood||'')]);const fallbackMood=String(fallback||'');if(!rows.length)return MOOD_ACTIVITY[fallbackMood]?fallbackMood:'';const counts=new Map();for(const row of rows){const mood=String(row.mood||'');counts.set(mood,(counts.get(mood)||0)+1)}let best=String(rows[rows.length-1]?.mood||fallbackMood),bestCount=-1,bestLatest=-1;for(const[mood,count]of counts){let latest=-1;for(let index=rows.length-1;index>=0;index--){if(String(rows[index]?.mood||'')===mood){latest=index;break}}if(count>bestCount||(count===bestCount&&latest>bestLatest)){best=mood;bestCount=count;bestLatest=latest}}return MOOD_ACTIVITY[best]?best:(MOOD_ACTIVITY[fallbackMood]?fallbackMood:'')}
 function moodFromActivity(item){if(String(item?.type||'')!=='mood')return'';const icon=String(item?.icon||'').trim();if(MOOD_ACTIVITY_BY_EMOJI[icon])return MOOD_ACTIVITY_BY_EMOJI[icon];const text=String(item?.text||'');let best='',bestIndex=-1;for(const[mood,view]of Object.entries(MOOD_ACTIVITY)){const index=text.lastIndexOf(view.emoji+' '+view.label);if(index>bestIndex){best=mood;bestIndex=index}}return best}
-function mergeMoodHistoryActivity(history,journal,actor){const map=new Map();for(const raw of Array.isArray(history)?history:[]){const date=String(raw?.date||'');if(!date)continue;map.set(date,{...raw,_stored:true,samples:Array.isArray(raw?.samples)?raw.samples.map(row=>({mood:String(row?.mood||''),updatedAt:String(row?.updatedAt||''),reason:String(row?.reason||''),reasonText:String(row?.reasonText||'')})).filter(row=>MOOD_ACTIVITY[row.mood]&&row.updatedAt):[]})}for(const item of Array.isArray(journal?.items)?journal.items:[]){if(item?.actor!==actor)continue;const mood=moodFromActivity(item);if(!mood)continue;const stamp=String(item?.createdAt||''),ms=Date.parse(stamp);if(!Number.isFinite(ms))continue;const date=moscowDateKey(ms),existing=map.get(date);if(existing?._stored)continue;const row=existing||{date,mood:'',latestMood:'',samples:[]};const duplicate=row.samples.some(sample=>sample.mood===mood&&Math.abs((Date.parse(sample.updatedAt)||0)-ms)<15000);if(!duplicate)row.samples.push({mood,updatedAt:stamp});row.samples.sort((a,b)=>(Date.parse(a.updatedAt)||0)-(Date.parse(b.updatedAt)||0));if(!row.latestMood||ms>=(Date.parse(row.updatedAt||0)||0)){row.latestMood=mood;row.updatedAt=stamp}map.set(date,row)}return[...map.values()].map(row=>{const{_stored,...clean}=row,fallback=clean.latestMood||clean.mood||'',average=moodSampleAverage(clean.samples,fallback);return{...clean,mood:average||fallback,averageMood:average||fallback,sampleCount:clean.samples.length||Number(clean.sampleCount)||1}}).sort((a,b)=>String(a.date).localeCompare(String(b.date)))}
+function mergeMoodHistoryActivity(history,journal,actor){const map=new Map();for(const raw of Array.isArray(history)?history:[]){const date=String(raw?.date||'');if(!date)continue;map.set(date,{...raw,_stored:true,samples:Array.isArray(raw?.samples)?raw.samples.map(row=>({mood:String(row?.mood||''),updatedAt:String(row?.updatedAt||''),reason:String(row?.reason||''),reasonText:String(row?.reasonText||''),submood:String(row?.submood||'')})).filter(row=>MOOD_ACTIVITY[row.mood]&&row.updatedAt):[]})}for(const item of Array.isArray(journal?.items)?journal.items:[]){if(item?.actor!==actor)continue;const mood=moodFromActivity(item);if(!mood)continue;const stamp=String(item?.createdAt||''),ms=Date.parse(stamp);if(!Number.isFinite(ms))continue;const date=moscowDateKey(ms),existing=map.get(date);if(existing?._stored)continue;const row=existing||{date,mood:'',latestMood:'',samples:[]};const duplicate=row.samples.some(sample=>sample.mood===mood&&Math.abs((Date.parse(sample.updatedAt)||0)-ms)<15000);if(!duplicate)row.samples.push({mood,updatedAt:stamp});row.samples.sort((a,b)=>(Date.parse(a.updatedAt)||0)-(Date.parse(b.updatedAt)||0));if(!row.latestMood||ms>=(Date.parse(row.updatedAt||0)||0)){row.latestMood=mood;row.updatedAt=stamp}map.set(date,row)}return[...map.values()].map(row=>{const{_stored,...clean}=row,fallback=clean.latestMood||clean.mood||'',average=moodSampleAverage(clean.samples,fallback);return{...clean,mood:average||fallback,averageMood:average||fallback,sampleCount:clean.samples.length||Number(clean.sampleCount)||1}}).sort((a,b)=>String(a.date).localeCompare(String(b.date)))}
 function moodShiftDateKey(key,days){const value=new Date(String(key||'')+'T12:00:00Z');if(Number.isNaN(value.getTime()))return'';value.setUTCDate(value.getUTCDate()+Number(days||0));return value.toISOString().slice(0,10)}
 function moodHistoryForWindow(history,date,windowDays){const days=normalizeWindowDays(windowDays),cutoff=moodShiftDateKey(date,-(days-1));return(Array.isArray(history)?history:[]).filter(row=>String(row?.date||'')>=cutoff&&String(row?.date||'')<=date)}
 function moodAnalysisMinimumDays(windowDays){const days=normalizeWindowDays(windowDays);return days>=90?20:days>=30?10:5}
@@ -1073,6 +1072,7 @@ async function sendChecklistCompletedNotificationToPartner(actor,itemTitle,taskT
 }
 
 const MOOD_NOTICE = {
+  anxiety: { phrase: 'страх', emoji: '😨' },
   sadness: { phrase: 'грусть', emoji: '😢' },
   boredom: { phrase: 'скука', emoji: '🥱' },
   neutral: { phrase: 'нейтрально', emoji: '😐' },
@@ -1087,7 +1087,9 @@ function moodNotificationText(recipient, actor, mood) {
   const view = MOOD_NOTICE[moodKey];
   if (!view) return '';
   const actorDative = actor === 'Рустам' ? 'Рустаму' : actor === 'Диана' ? 'Диане' : actor;
-  const stateText = moodKey === 'sadness'
+  const stateText = moodKey === 'anxiety'
+    ? actor + ' сейчас чувствует страх'
+    : moodKey === 'sadness'
     ? actor + ' сейчас грустит'
     : moodKey === 'boredom'
       ? actorDative + ' сейчас скучно'
@@ -1315,7 +1317,7 @@ function mergeBackupSnapshots(base, overlay) {
     cycle: newerVersion(base.cycle, overlay.cycle),
     activityJournal: newerVersion(base.activityJournal, overlay.activityJournal),
     scoreState: newerVersion(base.scoreState, overlay.scoreState),
-    luluState: newerVersion(base.luluState, overlay.luluState),
+    luluState: newerVersion(normalizeLuluState(base.luluState), normalizeLuluState(overlay.luluState)),
     carState: newerTime(base.carState, overlay.carState),
     dailyMood: newerVersion(base.dailyMood, overlay.dailyMood),
     reactions: mergeReactionStates(base.reactions, overlay.reactions),
@@ -1383,17 +1385,6 @@ function moscowDateKey(now = Date.now()) {
       .map((part) => [part.type, part.value])
   );
   return [parts.year, parts.month, parts.day].join('-');
-}
-
-function moscowMoodScoreWindow(now = Date.now()) {
-  const hour = Number(new Intl.DateTimeFormat('en-GB', {
-    timeZone: 'Europe/Moscow',
-    hour: '2-digit',
-    hourCycle: 'h23',
-  }).format(new Date(now)));
-  if (hour < 12) return { key: 'morning', label: 'утро' };
-  if (hour < 18) return { key: 'day', label: 'день' };
-  return { key: 'evening', label: 'вечер' };
 }
 
 function feedPreviewBaseUrl(options = {}) {
@@ -1576,6 +1567,54 @@ function tickTickTaskSnapshot(task, meta = null) {
 }
 
 async function handleTickTick(req, res, action, options = {}) {
+
+  // Shared tasks now persist in RUDI; personal TickTick remains unchanged.
+  const native=require('./shared-native-routes.cjs');
+  const payload=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+  let selected=native.shouldHandle(action,payload);
+  if((action==='task-completion-undo'||action==='task-restore')&&selected){
+    try{
+      const snapshot=openSnapshot(String(payload.undoToken||''),options);
+      selected=action==='task-completion-undo'
+        ? snapshot?.type==='rudi-shared-completion-v1'
+        : snapshot?.type==='rudi-shared-delete-v1';
+    }catch(_){selected=false}
+  }
+  if(selected){
+    try{
+      const {actor}=authorizeRequest(req,payload.initData,options);
+      const nativeStore=require('./shared-native-tasks.cjs');
+      let imported=await nativeStore.ready(options).catch(()=>null);
+      if(!imported?.complete){
+        // The switch is atomic: a failed import leaves TickTick as the live source.
+        try{imported=await nativeStore.migrate(options)}
+        catch(error){console.warn('RUDI_SHARED_MIGRATION_RETRY_LATER',String(error?.message||error))}
+      }
+      if(imported?.complete)return await native.handle(req,res,action,actor,options,{
+        seal:state=>sealSnapshot({...state,version:2},options),
+        open:token=>openSnapshot(String(token||''),options),
+        onCompleted:async(result,who)=>{
+          try{
+            await sendTaskCompletedNotificationToPartner(who,result.title,options);
+            await recordActivity({type:'task-complete',actor:who,text:who+' выполнил(а) задачу: '+result.title,icon:'✅',targetTab:'schedule'},options);
+          }catch(error){console.warn('RUDI_SHARED_TASK_NOTIFY_WARN',String(error?.message||error))}
+          for(const recipient of (result.responsible?[result.responsible]:['Рустам','Диана'])){
+            try{const award=await awardScore(recipient,20,{label:'Общая задача',detail:result.title,icon:'✅',
+              dedupeKey:'score:task:'+result.taskId+':'+result.scoreDate+':'+recipient},options);
+              scheduleShopUnlockNotification(recipient,award?.unlockedRewards,options);
+            }catch(error){console.warn('RUDI_SHARED_TASK_SCORE_WARN',String(error?.message||error))}
+          }
+        },
+        onUndo:async(task,date)=>{
+          const id=task.repeatFlag?task.id+'__'+date:task.id;
+          for(const recipient of (task.responsible?[task.responsible]:['Рустам','Диана']))
+            await reverseScoreByDedupeKey('score:task:'+id+':'+date+':'+recipient,{
+              label:'Отмена выполнения задачи',detail:'Задача возвращена в список',
+              icon:'↩️',clearDedupe:true},options).catch(()=>{});
+        }
+      });
+    }catch(error){return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)})}
+  }
   if (action === 'connect') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {
@@ -1643,13 +1682,14 @@ async function handleTickTick(req, res, action, options = {}) {
     try{
       const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       const { actor }=authorizeRequest(req,body.initData,options);
-      const [shared,personal,calendarUrl]=await Promise.all([
+      const [shared,personal,calendarUrl,sharedNative]=await Promise.all([
         readTickTickTokenWithBackup(body,options),
         actor==='Рустам'?readPersonalToken('Рустам',options).catch(()=>null):Promise.resolve(null),
-        readCalendarUrl(options).catch(()=>null)
+        readCalendarUrl(options).catch(()=>null),
+        require('./shared-native-tasks.cjs').ready(options).catch(()=>null)
       ]);
       return res.status(200).json({
-        ok:true,sharedConnected:Boolean(shared?.accessToken),
+        ok:true,sharedConnected:Boolean(shared?.accessToken),sharedNativeReady:Boolean(sharedNative?.complete),
         personalAvailable:actor==='Рустам',
         personalConnected:actor==='Рустам'&&Boolean(personal?.accessToken),
         dianaWorkConnected:Boolean(calendarUrl)
@@ -2121,8 +2161,8 @@ async function handleTickTick(req, res, action, options = {}) {
         const config=await loadTickTickConfig(options);
         const sourceTasks=await fetchPersonalProjectTasks(token.accessToken,config.projectId,options);
         const sourceById=new Map(sourceTasks.map(task=>[String(task.id||''),task]));
-        const calendar=buildTickTickCalendar(sourceTasks,now,'month');
-        const nextCalendar=today.slice(0,7)===tomorrowDate.slice(0,7)?calendar:buildTickTickCalendar(sourceTasks,tomorrowNow,'month');
+        const calendar=buildTickTickCalendar(sourceTasks,now,'month',undefined,'',{expandRecurrence:true});
+        const nextCalendar=today.slice(0,7)===tomorrowDate.slice(0,7)?calendar:buildTickTickCalendar(sourceTasks,tomorrowNow,'month',undefined,'',{expandRecurrence:true});
         const writable=tokenHasWriteScope(token)!==false;
         const mapDay=(cal,date)=>(cal.days.find(day=>day.date===date)?.events||[]).filter(event=>!event.completed).map(event=>{
           const source=sourceById.get(String(event.id||''))||{},repeatFlag=String(source.repeatFlag||'');
@@ -2318,13 +2358,24 @@ async function handleTickTick(req, res, action, options = {}) {
   }
 
   // Dedicated private editor and project picker. Shared token is never used.
-  if(action==='personal-task-projects'||action==='personal-task-edit'||action==='personal-task-create'||action==='personal-task-list'){
+  if(action==='personal-task-projects'||action==='personal-task-edit'||action==='personal-task-create'||action==='personal-task-list'||action==='personal-task-state'){
     if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
     let body,actor;
     try{
       body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
       ({actor}=authorizeRequest(req,body.initData,options));
     }catch(error){return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)})}
+    if(action==='personal-task-state'&&actor!=='Рустам')return res.status(403).json({ok:false,error:'ticktick-personal-owner-forbidden'});
+    if(action==='personal-task-state'&&body.operation==='queue-report'){
+      const issues=(Array.isArray(body.issues)?body.issues:[]).slice(0,20).map(row=>({
+        kind:String(row?.kind||'').replace(/[^a-z-]/g,'').slice(0,40),
+        state:['review','blocked','inflight'].includes(row?.state)?row.state:'unknown',
+        code:String(row?.code||'').replace(/[^a-z0-9:-]/gi,'').slice(0,100),
+        attempts:Math.max(0,Math.min(1000,Number(row?.attempts)||0))
+      }));
+      console.info('RUDI_PERSONAL_QUEUE_STATE',JSON.stringify(issues));
+      return res.status(200).json({ok:true});
+    }
     if(actor==='Диана'){
       try{
         const {personalTasks}=require('./diana-personal-tasks.cjs');
@@ -2333,7 +2384,7 @@ async function handleTickTick(req, res, action, options = {}) {
         return res.status(200).json(await personalTasks({...body,actor,operation},options));
       }catch(error){
         const code=String(error?.message||error);
-        const status=code.includes('forbidden')?403:code.includes('not-found')?404:
+        const status=code==='task-completion-future-forbidden'?409:code.includes('forbidden')?403:code.includes('not-found')?404:
           /invalid|required/.test(code)?400:503;
         return res.status(status).json({ok:false,error:status===503?'calendar-save-unavailable':code});
       }
@@ -2345,7 +2396,18 @@ async function handleTickTick(req, res, action, options = {}) {
       if(!token?.accessToken)return res.status(401).json({ok:false,error:'ticktick-personal-not-connected'});
       const config=await loadTickTickConfig(options);
       if(!config.enabled)return res.status(409).json({ok:false,error:'ticktick-disabled'});
-      const {personalLists,editPersonalTask,createPersonalTask}=require('./personal-task-editor.cjs');
+      const {personalLists,editPersonalTask,createPersonalTask,readPersonalTaskState}=require('./personal-task-editor.cjs');
+      if(action==='personal-task-edit'&&body.operation==='reopen'){
+        const result=await reopenRustamPersonalTask({actor,token,taskId:body.taskId,projectId:body.projectId,sharedProjectId:config.projectId,options});
+        await updateCompletedTaskHistory(()=>forgetCompletedTask(actor,{id:body.taskId,projectId:body.projectId},options));
+        return res.status(200).json(result);
+      }
+      if(action==='personal-task-state'){
+        const result=await readPersonalTaskState({...body,actor,token,sharedProjectId:config.projectId,options});
+        const kind=String(body.syncKind||'').replace(/[^a-z-]/g,'').slice(0,40);
+        console.info('RUDI_PERSONAL_SYNC_STATE',JSON.stringify({kind,found:result.found,completed:result.task?.completed,recurring:result.task?.recurring}));
+        return res.status(200).json(result);
+      }
       if(action==='personal-task-projects'){
         const {listTickTickProjects}=require('./ticktick-client.cjs');
         const lists=personalLists(await listTickTickProjects(token.accessToken,options),config.projectId);
@@ -2354,7 +2416,14 @@ async function handleTickTick(req, res, action, options = {}) {
       const result=action==='personal-task-create'
         ?await createPersonalTask({...body,actor,token,sharedProjectId:config.projectId,options})
         :await editPersonalTask({...body,actor,token,sharedProjectId:config.projectId,options});
-      return res.status(200).json(result);
+      if(result.completed&&result.taskSnapshot){
+        await updateCompletedTaskHistory(async()=>{
+          await forgetCompletedTask(actor,{id:result.taskId,projectId:result.projectId},options);
+          await archiveCompletedTask(actor,result.taskSnapshot,options);
+        });
+      }
+      const {taskSnapshot,...publicResult}=result;
+      return res.status(200).json(publicResult);
     }catch(error){
       const code=String(error?.message||error);
       if(code==='ticktick-token-invalid'){
@@ -2443,6 +2512,7 @@ async function handleTickTick(req, res, action, options = {}) {
       return res.status(200).json({...publicResult,undoToken});
     } catch (error) {
       const code = String(error?.message || error);
+      if(code==='task-completion-future-forbidden')return res.status(409).json({ok:false,error:code});
       if (code === 'ticktick-token-invalid') {
         await clearPersonalToken('Рустам',options).catch(()=>{});
         return res.status(401).json({ ok:false,error:'ticktick-personal-reconnect-required' });
@@ -2595,6 +2665,7 @@ async function handleTickTick(req, res, action, options = {}) {
         });
       }
 
+      require('../public/task-completion-policy.js').assertTaskCompletionAllowed(task,options.now??Date.now());
       await completeTickTickTask(token.accessToken, config.projectId, taskId, options);
       if (wasOpen) {
         await sendTaskCompletedNotificationToPartner(actor,task?.title,options);
@@ -2643,6 +2714,7 @@ async function handleTickTick(req, res, action, options = {}) {
       });
     } catch (error) {
       const code = String(error?.message || error);
+      if(code==='task-completion-future-forbidden')return res.status(409).json({ok:false,error:code});
       if (code === 'ticktick-token-invalid') {
         await clearToken(options);
         return res.status(401).json({ ok: false, connected: false, reconnectRequired: true, error: 'ticktick-reconnect-required' });
@@ -2834,7 +2906,7 @@ async function handleTickTick(req, res, action, options = {}) {
             const personalTasks=await fetchPersonalProjectTasks(personalToken.accessToken,config.projectId,options);
             const ownCalendar=buildTickTickCalendar(
               personalTasks,options.now?new Date(options.now):new Date(),
-              view,undefined,String(body.month||'')
+              view,undefined,String(body.month||''),{expandRecurrence:true}
             );
             const taskById=new Map(personalTasks.map(task=>[String(task.id||''),task]));
             const byDate=new Map((calendar.days||[]).map(day=>[day.date,day]));
@@ -3007,6 +3079,7 @@ async function handleTickTick(req, res, action, options = {}) {
       });
     } catch (error) {
       const code = String(error?.message || error);
+      if(code==='task-completion-future-forbidden')return res.status(409).json({ok:false,error:code});
       if (code === 'ticktick-token-invalid') {
         await clearToken(options);
         return res.status(401).json({
@@ -3120,6 +3193,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
       const { actor } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'get').trim();
+      if(operation==='care-get')return res.status(200).json({ok:true,actor,care:await readLuluCare(options)});
+      if(operation==='care-command')return res.status(200).json({ok:true,actor,record:await saveLuluCare(actor,body.command,options)});
+      if(operation==='health-get')return res.status(200).json({ok:true,actor,health:await readLuluHealth(options)});
+      if(operation==='health-save')return res.status(200).json({ok:true,actor,health:await saveLuluHealth(actor,{text:body.text,expectedUpdatedAt:body.expectedUpdatedAt},options)});
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
 
       if (previousSnapshot?.luluState?.initialized) {
@@ -3135,11 +3212,15 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
 
       if (operation === 'walk') {
+        const requestedWalkedAt=String(body.walkedAt||'').trim();
+        const offlineOperationId=String(body.offlineOperationId||'').trim();
         const lulu = await markLuluWalk(actor, {
           peed: body.peed === true,
           pooped: body.pooped === true,
-        }, options);
-        const walkedAt = String(lulu?.lastWalk?.walkedAt || new Date(options.now || Date.now()).toISOString());
+          stool: body.stool,
+        }, {...options,walkedAt:requestedWalkedAt,offlineOperationId});
+        if(lulu.duplicateOperation)return res.status(200).json({ok:true,actor,lulu});
+        const walkedAt = requestedWalkedAt || String(lulu?.lastWalk?.walkedAt || new Date(options.now || Date.now()).toISOString());
         const actionWord = actor === 'Диана' ? 'погуляла' : 'погулял';
         await recordActivity({
           type: 'lulu-walk',actor,text: actor + ' ' + actionWord + ' с Лулу',icon:'🐾',targetTab:'home',
@@ -3240,6 +3321,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           walkedAt,
           peed:input.peed===true,
           pooped:input.pooped===true,
+          stool:input.stool,
           previousPeeAt:String(input.previousPeeAt||''),
           previousPoopAt:String(input.previousPoopAt||''),
         },options);
@@ -3270,6 +3352,8 @@ async function handleRudiAction(req, res, action, options = {}) {
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
         : code === 'lulu-walk-owner-required' || code === 'lulu-undo-forbidden' ? 403
+        : ['lulu-health-conflict','lulu-care-conflict'].includes(code) ? 409
+        : code === 'lulu-care-busy' ? 503
         : code.startsWith('lulu-') ? 400
         : 500;
       if (status === 500) console.error('RUDI_LULU_ERROR', code);
@@ -4074,7 +4158,11 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'set') {
         const before = await readDailyMood(date, options).catch(() => null);
         const previousMood = before?.moods?.[actor]?.mood || '';
-        row = await setDailyMood(date, actor, body.mood, options);
+        row = await setDailyMood(date, actor, body.mood, {
+          ...options,
+          ...(Object.prototype.hasOwnProperty.call(body,'submood')?{submood:body.submood}:{}),
+          ...(Object.prototype.hasOwnProperty.call(body,'reason')?{reason:body.reason,reasonText:body.reasonText}:{}),
+        });
         const nextMood = row?.moods?.[actor]?.mood || '';
         if (nextMood && nextMood !== previousMood) {
           const recipientActor = actor === 'Рустам' ? 'Диана' : actor === 'Диана' ? 'Рустам' : '';
@@ -4094,13 +4182,6 @@ async function handleRudiAction(req, res, action, options = {}) {
           if (activityText) {
             await recordActivity({type:'mood',actor,text:activityText,icon:MOOD_ACTIVITY[nextMood]?.emoji||'🙂',targetTab:'home'},options);
           }
-          const moodScoreWindow = moscowMoodScoreWindow(options.now || Date.now());
-          await awardScoreSafe(actor,1,{
-            label:'Настроение',
-            detail:(MOOD_ACTIVITY[nextMood]?.emoji||'🙂')+' '+(MOOD_ACTIVITY[nextMood]?.label||'Выбор настроения')+' · '+moodScoreWindow.label,
-            icon:MOOD_ACTIVITY[nextMood]?.emoji||'🙂',
-            dedupeKey:'score:mood:'+actor+':'+date+':'+moodScoreWindow.key,
-          },options);
         }
         backupToken=await refreshBackupToken(previousSnapshot,options);
       } else if (operation === 'reason') {
@@ -4149,7 +4230,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const code = String(error?.message || error);
       const authStatus = statusForError(error);
       const status = authStatus !== 500 ? authStatus
-        : code === 'mood-value-invalid' || code === 'mood-actor-invalid' || code === 'mood-date-invalid' ? 400
+        : code === 'mood-value-invalid' || code === 'mood-submood-invalid' || code === 'mood-actor-invalid' || code === 'mood-date-invalid' ? 400
         : code === 'mood-analysis-no-data' || code === 'mood-analysis-insufficient-data' ? 409
         : code === 'mood-reason-invalid' || code === 'mood-reason-no-mood' || code === 'mood-feedback-invalid' || code === 'mood-feedback-no-analysis' ? 400
         : code === 'mood-analysis-quota' || code === 'mood-analysis-daily-limit' ? 429
@@ -4435,95 +4516,7 @@ async function handleRudiAction(req, res, action, options = {}) {
 
 
 
-  if (action === 'for-di-feed') {
-    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
-    try {
-      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeRequest(req, body.initData, options);
-      const operation = String(body.operation || 'list').trim();
-      const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);
-
-      if (previousSnapshot?.forDiFeed?.initialized) {
-        const liveBefore = await readForDiFeed(options).catch(() => ({ initialized:false, version:0, items:[] }));
-        if (!liveBefore?.initialized || !(liveBefore.items || []).length) {
-          await restoreStateBackup(body.backupToken, {
-            ...options,
-            cacheOptions: { ...(options.cacheOptions || {}), confirmWrites: false },
-          }).catch(() => null);
-        }
-      }
-
-      if (operation === 'list') {
-        let live = await readForDiFeed(options).catch(() => ({ initialized:false, version:0, items:[] }));
-        const todayKey=moscowDateKey(options.now||Date.now());
-        const hasTodayLabor=(live.items||[]).some(item=>String(item?.source||'')==='labor'&&String(item?.dateKey||'')===todayKey);
-        if(!hasTodayLabor){
-          try{
-            const { publishLaborArticle }=require('./labor-code.cjs');
-            const { publishForDiToRudi }=require('./for-di-private.cjs');
-            const now=new Date(options.now||Date.now());
-            await publishLaborArticle({queueOnly:true,force:true,now,cache:getLaborCache(),fetchImpl:options.fetch||globalThis.fetch});
-            await publishForDiToRudi({now,cacheOptions:options.cacheOptions});
-            live=await readForDiFeed(options).catch(()=>live);
-          }catch(error){
-            console.warn('RUDI_FOR_DI_LABOR_SELF_HEAL_WARN',String(error?.message||error));
-          }
-        }
-        const saved = previousSnapshot?.forDiFeed;
-        const state = live?.initialized ? live : (saved?.initialized ? saved : live);
-        return res.status(200).json({ ok:true, actor, ...state });
-      }
-
-      if (operation === 'save') {
-        const result = await saveForDiItem(body.id, actor, options);
-        const backupToken = await refreshBackupToken(previousSnapshot, options);
-        return res.status(200).json({
-          ok:true,
-          actor,
-          ...result.state,
-          item:result.item,
-          duplicate:result.duplicate,
-          backupToken,
-        });
-      }
-
-      if (operation === 'remove-saved') {
-        const result = await removeForDiSaved(body.id, actor, options);
-        const backupToken = await refreshBackupToken(previousSnapshot, options);
-        return res.status(200).json({
-          ok:true,
-          actor,
-          ...result.state,
-          item:result.item,
-          backupToken,
-        });
-      }
-
-      if (operation === 'toggle-like') {
-        const result = await toggleForDiLike(body.id, actor, options);
-        const backupToken = await refreshBackupToken(previousSnapshot, options);
-        await recordLikeActivity({ type:'feed', key:'for-di:' + String(body.id || '') }, actor, options).catch(() => null);
-        return res.status(200).json({
-          ok:true,
-          actor,
-          ...result.state,
-          item:result.item,
-          backupToken,
-        });
-      }
-
-      return res.status(400).json({ ok:false, error:'for-di-operation-invalid' });
-    } catch (error) {
-      const code = String(error?.message || error);
-      const authStatus = statusForError(error);
-      const status = authStatus !== 500 ? authStatus
-        : code === 'for-di-item-not-found' ? 404
-        : code.startsWith('for-di-') ? 400
-        : 500;
-      if (status === 500) console.error('RUDI_FOR_DI_FEED_ERROR', code);
-      return res.status(status).json({ ok:false, error:code });
-    }
-  }
+  if (action === 'for-di-feed') return res.status(410).json({ ok:false, error:'feature-removed' });
 
   if (action === 'saves') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
@@ -4550,18 +4543,19 @@ async function handleRudiAction(req, res, action, options = {}) {
         return res.status(200).json({ ok: true, actor, ...state });
       }
       if (operation === 'add') {
+        if(body.type!=='recipe')return res.status(410).json({ok:false,error:'feature-removed'});
         const result = await addSavedItem(body.type, body.payload, actor, options);
         if (!result.duplicate && result.item) {
           const type = String(result.item.type || body.type || '').trim();
           const title = String(result.item.payload?.title || body.payload?.title || '').replace(/\s+/g, ' ').trim();
-          const savedLabel = type === 'recipe' ? 'рецепт' : type === 'date' ? 'свидание' : 'сохранение';
+          const savedLabel = 'рецепт';
           const savedVerb = activityVerb(actor, 'сохранил', 'сохранила');
           await recordActivity({
-            type: type === 'recipe' ? 'saved-recipe' : type === 'date' ? 'saved-date' : 'saved-item',
+            type: 'saved-recipe',
             actor,
             text: actor + ' ' + savedVerb + ' ' + savedLabel + (title ? ': ' + title : ''),
-            icon: type === 'recipe' ? '🍳' : type === 'date' ? '💞' : '🔖',
-            targetTab: type === 'recipe' ? 'products' : type === 'date' ? 'dates' : 'home',
+            icon: '🍳',
+            targetTab: 'products',
             dedupeKey: 'saved:' + String(result.item.id || activityDigest(result.item)),
           }, options);
         }
@@ -4604,57 +4598,7 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
-  if (action === 'dates') {
-    if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
-    try {
-      const body = req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {};
-      const { actor } = authorizeRequest(req, body.initData, options);
-      const operation = String(body.operation || 'generate').trim();
-
-      if (operation === 'status') {
-        const quota = await readDateGenerationQuota(actor, options);
-        return res.status(200).json({ ok: true, actor, operation, quota });
-      }
-
-      const quotaBefore = await readDateGenerationQuota(actor, options);
-      if (quotaBefore?.unlimited !== true && quotaBefore.available <= 0) {
-        return res.status(429).json({ ok: false, error: 'date-generation-limit', quota: quotaBefore });
-      }
-
-      const [history, weatherRaw] = await Promise.all([
-        readDateGenerationHistory(actor, options).catch(() => []),
-        Promise.resolve().then(() => (options.getWeather || getWeather)()).catch(() => null),
-      ]);
-      const result = await generateDateIdeas({
-        period: body.period,
-        exclude: body.exclude,
-        history,
-        weather: buildDateWeatherContext(weatherRaw),
-      }, {
-        env: options.env || process.env,
-        fetch: options.fetch || global.fetch,
-      });
-      const quota = await recordSuccessfulDateGeneration(actor, { ...options, ideas: result.ideas });
-      return res.status(200).json({
-        ok: true,
-        actor,
-        operation: 'generate',
-        period: String(body.period || ''),
-        quota,
-        ...result,
-      });
-    } catch (error) {
-      const code = String(error?.message || error);
-      const authStatus = statusForError(error);
-      const status = authStatus !== 500 ? authStatus
-        : code === 'date-period-invalid' ? 400
-        : code === 'date-ai-quota' || code === 'date-generation-limit' ? 429
-        : code === 'groq-api-key-missing' ? 503
-        : 502;
-      if (status >= 500) console.error('RUDI_DATE_AI_ERROR', code);
-      return res.status(status).json({ ok: false, error: code, quota: error?.quota || null });
-    }
-  }
+  if (action === 'dates') return res.status(410).json({ ok:false, error:'feature-removed' });
 
   if (action === 'recipes') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
@@ -4753,6 +4697,10 @@ async function handleRudiAction(req, res, action, options = {}) {
       if (operation === 'remove') {
         const before = await readProductList(options);
         const removedItem = (before.items || []).find((item) => item.id === String(body.id || '')) || null;
+        const offlineId=String(body.offlineOperationId||'').trim();
+        if(offlineId&&/^[a-z0-9_-]{8,96}$/i.test(offlineId)&&!removedItem){
+          return res.status(200).json({ok:true,actor,...before});
+        }
         const state = await removeProduct(body.id, options);
         const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ ok: true, actor, ...state, removedItem, backupToken });
@@ -4776,7 +4724,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       }
       if (operation === 'buy-checked') {
         const state = Array.isArray(body.checkedIds)
-          ? await markProductsBoughtByIds(body.checkedIds, actor, options)
+          ? await markProductsBoughtByIds(body.checkedIds, actor, {...options,purchase:body.purchase})
           : await markCheckedProductsBought(actor, options);
         const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ ok: true, actor, ...state, backupToken });
@@ -5104,14 +5052,6 @@ async function handler(req, res, options = {}) {
     }, options);
 
     await recordActivity({type:'partner-message',actor,text:actor+' '+activityVerb(actor,'оставил','оставила')+' послание',icon:'💌',targetTab:'home',dedupeKey:'message:'+String(message?.updatedAt||'')},options);
-    const messageScoreDate=moscowDateKey(options.now||Date.now());
-    await awardScoreSafe(actor,1,{
-      label:'Послание',
-      detail:'Оставлено послание партнёру',
-      icon:'💌',
-      dedupeKey:'score:message:'+actor+':'+messageScoreDate,
-    },options);
-
     const notificationTask = sendPartnerMessageNotification(actor, options).catch((error) => {
       console.error('RUDI_PARTNER_NOTIFICATION_ERROR', String(error?.message || error));
       return { sent: false, error: 'notification-failed' };

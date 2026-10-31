@@ -91,8 +91,11 @@
         lastLoad=Date.now();
       }catch(error){
         console.warn('RUDI_RECOMMENDATIONS_LOAD',String(error?.message||error));
-        // Fail closed: never display stale or invented alerts when the source is unavailable.
-        render([]);
+        // Preserve previously observed cards in offline mode; never invent new ones.
+        const offline=window.__rudiNetworkReachable===true?false:
+          navigator.onLine===false||document.body?.dataset?.offlineMode==='1';
+        if(!offline||!activeItems.length)render([]);
+        tile.dataset.offlineStale=offline?'1':'0';
       }finally{inFlight=null;}
     })();
     return inFlight;

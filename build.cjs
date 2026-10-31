@@ -3,7 +3,17 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const { PNG } = require('pngjs');
 
-const WEB_ASSETS = ['home-note.css', 'home-note.js', 'home-offline.js', 'rudi-offline-content.js', 'personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'calendar-entertainment.css', 'calendar-entertainment.js', 'presence.css', 'presence.js', 'rudi-interactions.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'personal-task-editor.js', 'personal-task-editor.css', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'bill-payment.js', 'bill-payment.css', 'weather-forecast.js', 'weather-forecast.css', 'rudi-effects.js', 'rudi-effects.css', 'personal-task-editor.js', 'personal-task-editor.css', 'meditation.js', 'meditation.css', 'meditation-audio.js', 'meditation-audio.css', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js', 'finance-nav-icons.js', 'finance-nav-icons.css', 'rudi-games.js', 'rudi-games-extra.js', 'rudi-games.css', 'home-reference-layout.css', 'home-reference-layout.js'];
+const WEB_ASSETS = ['habit-history.js', 'supplement-course.js', 'task-completion-policy.js', 'home-hero-v2104.css', 'mood-history-v2101.css', 'mood-reason-v2105.css', 'finance-cards.css', 'crypto-signals.css', 'crypto-algorithms.css', 'recommendations.css', 'finance-wallet-currency.js', 'finance-obligation-dates.js', 'recommendations.js', 'crypto-signals.js', 'crypto-live.js', 'crypto-algorithms.js', 'home-note.css', 'home-note.js', 'home-offline.js', 'rudi-offline-pin.js', 'rudi-offline-content.js', 'rudi-offline-saves.js', 'rudi-offline-transactions.js', 'personal-center.css', 'personal-center.js', 'app.css', 'finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js', 'finance-bank.css', 'rudi-design-system.css', 'pwa-extras.css', 'calendar.css', 'calendar-offline.js', 'calendar-entertainment.css', 'calendar-entertainment.js', 'presence.css', 'presence.js', 'rudi-interactions.js', 'smart-home.css', 'car.css', 'profile-supplements.css', 'supplement-advanced.css', 'app.js', 'personal-task-editor.js', 'personal-task-editor.css', 'calendar-day-recap.js', 'wallet-brand-icons.js', 'finance-bank.js', 'crypto-wallets.css', 'crypto-wallets.js', 'pwa-extras.js', 'weather.js', 'bill-payment.js', 'bill-payment.css', 'weather-forecast.js', 'weather-forecast.css', 'rudi-effects.js', 'rudi-effects.css', 'personal-task-editor.js', 'personal-task-editor.css', 'meditation.js', 'meditation.css', 'meditation-audio.js', 'meditation-audio.css', 'smart-home.js', 'car.js', 'profile-supplements.js', 'mood-history.js', 'supplement-editor.js', 'supplement-advanced.js', 'product-extras.css', 'product-extras.js', 'finance-nav-icons.js', 'finance-nav-icons.css', 'rudi-games.js', 'rudi-games-extra.js', 'rudi-games.css', 'home-reference-layout.css', 'home-reference-layout.js'];
+
+WEB_ASSETS.push('lulu-care.js','lulu-care.css');
+
+WEB_ASSETS.push('viewport.js','positive-emotion-chart.js','partner-profile.js','partner-profile.css');
+
+WEB_ASSETS.push('fasting-history.js','finance-month-rollover.js');
+WEB_ASSETS.push('finance-category-limits.js');
+WEB_ASSETS.push('cbt-content.js','cbt-core.js','cbt.js','cbt.css');
+
+WEB_ASSETS.push('mood-catalog.js','mood-picker.js','mood-picker.css');
 
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
@@ -92,6 +102,8 @@ function patchRetiredRuntime(source) {
     'retired recipe generation',
   );
   next = next.replace(/sections\.has\(\s*(["'])facts\1\s*\)/g, 'false');
+  next = replaceOnce(next, ' await run("clients",()=>runClientDigest({dateKey,dryRun}));', '', 'retired For Di daily generation');
+
   return next;
 }
 
@@ -196,6 +208,10 @@ function syncWebVersion(env = process.env) {
   if (fs.existsSync(webServiceWorkerPath)) {
     let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');
     serviceWorker = serviceWorker.replace(/const CACHE_NAME='rudi-shell-v[^']+';/, "const CACHE_NAME='rudi-shell-" + label + "';");
+    serviceWorker = serviceWorker.replace(
+      /(\/[a-zA-Z0-9._-]+\.(?:js|css)\?v=)[0-9.]+/g,
+      (_, prefix) => prefix + assetVersion
+    );
     writeBuiltFile(webServiceWorkerPath, serviceWorker);
   }
   return label;
@@ -251,12 +267,19 @@ function syncServiceWorkerPrecache(assetPaths) {
   const basePrecache = [
     '/',
     '/manifest.webmanifest',
+    '/icons/wallet-pionex.png',
     '/battle-ocean.svg',
     '/favicon-rudi-v460.png',
     '/apple-touch-icon-rudi-v460.png',
     '/icon-192-rudi-v460.png',
     '/icon-512.svg',
     '/icon-maskable.svg',
+    '/home-scene-morning.svg?v=2.104',
+    '/home-scene-day.svg?v=2.104',
+    '/home-scene-evening.svg?v=2.104',
+    '/home-scene-night.svg?v=2.104',
+    '/poslanie-background.png?v=1.8.9',
+    '/changan-uni-v-header.webp?v=' + String(JSON.parse(fs.readFileSync(versionConfigPath, 'utf8')).current||'v4.277').replace(/^v/i,''),
   ];
   const precache = [...new Set([...basePrecache, ...assetPaths])];
   let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');
@@ -275,9 +298,8 @@ function buildWebAssets(env = process.env) {
   const assetVersion = label.replace(/^v/i, '');
   const missingAssets = WEB_ASSETS.filter((name) => !fs.existsSync(path.join(__dirname, 'public', name)));
   if (missingAssets.length) throw new Error('Missing web assets: ' + missingAssets.join(', '));
-  // Optional financial planning modules must not compete with the home screen during SW installation.
-  const lazyAssets = new Set(['finance-decisions.css', 'finance-decisions-core.js', 'finance-decisions-ui.js']);
-  const versionedAssets = WEB_ASSETS.filter(name => !lazyAssets.has(name)).map(name => '/' + name + '?v=' + assetVersion);
+  // Noncritical finance files use Promise.allSettled, after critical shell cache.
+  const versionedAssets = WEB_ASSETS.map(name => '/' + name + '?v=' + assetVersion);
   syncServiceWorkerPrecache(versionedAssets);
 }
 

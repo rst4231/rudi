@@ -1,22 +1,25 @@
 {
-  "current": "v4.384",
-  "versionBranch": "rudi-supplements-calendar-ticktick-checklist-memory",
+  "current": "v4.385",
+  "versionBranch": "rudi-v4385-based-on-v4383-with-all-20261031-fixes",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-31",
   "basedOnProduction": "v4.383",
   "notes": [
-    "Отмечаемые приёмы БАДов по часам в календаре и по категориям Утро/День/Вечер",
-    "Отдельные отметки каждого приёма БАДов и сохранение старой истории",
-    "Подзадачи личных TickTick задач в редакторе RUDI",
-    "Встроенная цифровая клавиатура тренировки памяти"
+    "Все изменения RUDI v4.383 сохранены",
+    "БАДы по часам в личном календаре и категории Утро/День/Вечер",
+    "Отдельные отметки приёма БАДов и сохранение истории",
+    "Подзадачи личных задач TickTick в RUDI",
+    "Цифровая клавиатура тренировки памяти",
+    "Компактные текстовые заголовки БАДов без иконок"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Calendar supplement schedule and per-slot completion",
-    "Supplement category groups, upcoming courses and undated schedule",
-    "Personal TickTick checklist sync and completion",
-    "Memory trainer numeric keypad"
+    "Preserve v4.383 code and shared calendar",
+    "Supplement per-slot checkboxes and categories",
+    "TickTick private task checklists",
+    "Memory trainer keypad",
+    "Compact text-only supplement group headings"
   ]
 }

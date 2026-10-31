@@ -5,6 +5,7 @@ const {createStrictRuntimeCache}=require('./strict-runtime-cache.cjs');
 const {NS:DUEL_NS}=require('./duel-game.cjs');
 const {NS:BATTLE_NS}=require('./battleship-game.cjs');
 function summarize(room){
+ if(room?.status==='placing')return {active:true,turn:null,version:room.version||0};
  return room?.status==='playing'?
   {active:true,turn:room.turn==='Диана'?'Диана':'Рустам',version:room.version||0}:
   {active:false,turn:null,version:room?.version||0};

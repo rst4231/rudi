@@ -53,7 +53,7 @@ test('battle room keeps ships secret while reporting player presence',async()=>{
  const start=await f.call('Диана','start');assert.equal(start.code,200);
  const get=await f.call('Рустам','get',{sessionId:'session_RustamA',active:true});
  assert.equal(get.data.room.opponentShips,undefined);
- assert.equal(get.data.room.ownShips.length,7);
+ assert.equal(get.data.room.ownShips.length,0);
  assert.equal(get.data.presence['Рустам'],true);
  assert.equal(get.data.presence['Диана'],false);
 });
@@ -69,11 +69,23 @@ test('client shows other participant actual name and reuses duel online/offline 
  assert.match(js,/Игра ещё не началась/);
  assert.match(js,/scheduleBattle\(\)/);
 });
-test('one versioned HTML script and same interval, no extra presence poll',()=>{
+test('fast room reads skip presence queries but keep full presence on demand',async()=>{
+ const f=fixture();
+ await f.call('Рустам','get',{sessionId:'session_RustamA',active:true});
+ const before=f.metrics();
+ const fast=await f.call('Диана','get',{includePresence:false});
+ assert.equal(f.metrics().reads-before.reads,1);
+ assert.equal(f.metrics().writes,before.writes);
+ assert.equal(fast.data.presence,undefined);
+ assert.equal(fast.data.room.status,'waiting');
+ const full=await f.call('Диана','get');
+ assert.equal(full.data.presence['Рустам'],true);
+});
+test('one versioned HTML script and no extra presence poll',()=>{
  const html=fs.readFileSync('public/index.html','utf8'),js=fs.readFileSync('public/rudi-games-extra.js','utf8');
  assert.match(html,/rudi-games-extra\.js\?v=4\.\d+/);
  assert.match(html,/rudi-games\.js\?v=4\.\d+/);
- assert.match(js,/battleTimer=setTimeout\(\(\)=>\{battleTimer=null;void pollBattle\(\)\},5000\)/);
+ assert.doesNotMatch(js,/fetch\(['"]\/api\/battleship-presence/);
  assert.match(fs.readFileSync('VERSION','utf8').trim(),/^v4\.\d+$/);
  assert.equal(JSON.parse(fs.readFileSync('rudi-version.json','utf8')).current,fs.readFileSync('VERSION','utf8').trim());
 });

@@ -45,7 +45,7 @@ function batteryLevel(device){
   const item=(device.properties||[]).find(p=>p?.parameters?.instance==='battery_level');
   return item?.state?.value;
 }
-const lowBatterySource=smart.slice(smart.indexOf('  function lowBatteryDevices(data){'),smart.indexOf('  function syncSmartHomeBatteryBadge(data){'));
+const lowBatterySource=smart.slice(smart.indexOf('  function batteryLevel(device){'),smart.indexOf('  function syncSmartHomeBatteryBadge(data){'));
 if(!lowBatterySource.includes('function lowBatteryDevices'))throw new Error('lowBatteryDevices not found');
 const lowBatteryDevices=new Function('visibleDevices','property',lowBatterySource+';return lowBatteryDevices;')(
   data=>data.devices||[],batteryLevel
@@ -65,7 +65,7 @@ test('collapsed smart home badge has red car-style appearance and counts devices
   assert.match(smart,/badge\.textContent=low\.length\?String\(Math\.min\(low\.length,99\)\):''/);
   assert.match(smart,/badge\.hidden=low\.length===0/);
   assert.match(smartCss,/\.smart-home-battery-badge\{[\s\S]*?background:#ff3b30/);
-  assert.match(smartCss,/\.smart-home-tile:not\(\.is-collapsed\) \.smart-home-battery-badge\{display:none!important\}/);
+  assert.match(smartCss,/\.smart-home-tile:not\(\.is-compact\) \.smart-home-battery-badge\{display:none!important\}/);
 });
 
 test('low battery cards glow red and normal cards do not',()=>{

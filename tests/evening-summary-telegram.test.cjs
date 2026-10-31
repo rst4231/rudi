@@ -50,9 +50,9 @@ test('evening summary uses Telegram only, without push, buttons or links',()=>{
   assert.doesNotMatch(source,/reply_markup|buttonText|appUrlForTab/);
 });
 
-test('evening reminder cron remains scheduled for 21:00 Moscow',()=>{
+test('evening reminder cron remains scheduled for 20:00 Moscow',()=>{
   const config=JSON.parse(fs.readFileSync(path.join(root,'vercel.json'),'utf8'));
   const row=(config.crons||[]).find(item=>item.path==='/api/habit-reminder-cron');
   assert.ok(row);
-  assert.equal(row.schedule,'0 18 * * *');
+  assert.equal(row.schedule,'0 17 * * *');
 });

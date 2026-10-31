@@ -60,4 +60,3 @@ test('private TickTick editor shows checklist for selected task and supports tog
  assert.match(api,/projectId===String\(config\.projectId/);
  assert.match(api,/readPersonalToken\('Рустам'/);
 });
-

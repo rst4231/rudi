@@ -6,6 +6,8 @@ const { readRecipients } = require('./partner-notification-store.cjs');
 const { telegramSendMessage } = require('./telegram-notifications.cjs');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
+const {loadPendingCbtReminder}=require('./cbt-reminders.cjs');
+
 const ACTORS = ['Рустам','Диана'];
 const NAMESPACE = 'rudi-evening-summary-v1';
 const TTL_SECONDS = 60 * 60 * 24 * 3650;
@@ -92,6 +94,7 @@ function buildEveningSummary(actor, data = {}) {
 
   const obligationPart=eveningObligationPart(obligationRows);
   if(obligationPart)blocks.push(obligationPart);
+  if(data.cbtReminder)blocks.push('КПТ: сегодня пока нет записей. Добавь наблюдение, когда будет удобно.');
 
   return String(actor||'').trim()+', добрый вечер!\n\n'
     +'Что осталось на сегодня:\n\n'
@@ -102,10 +105,11 @@ function buildEveningSummary(actor, data = {}) {
 async function sendHabitReminder(actor, options = {}) {
   const now = Number(options.now || Date.now());
   const date = moscowDateKey(now);
-  const [state,tasks,obligationsByActor] = await Promise.all([
+  const [state,tasks,obligationsByActor,cbtReminder] = await Promise.all([
     readHabits(actor, { ...options, now }),
     loadTodayTasks({ ...options, now, includePersonal: actor === 'Рустам' }).catch(() => null),
     loadDueObligationsByActor({ ...options, now }).catch(() => ({ [actor]:[] })),
+    loadPendingCbtReminder(actor,{...options,now}),
   ]);
   const view = viewHabits(state, { ...options, now, date });
   const pendingHabits=pendingHabitNames(view);
@@ -114,7 +118,7 @@ async function sendHabitReminder(actor, options = {}) {
   const taskCounts={personal:taskDetails.personal.length,shared:taskDetails.shared.length,total:taskDetails.total};
   const obligationRows=Array.isArray(obligationsByActor?.[actor])?obligationsByActor[actor]:[];
   const unpaidObligations=obligationRows.filter(row=>!row.paid);
-  if (!pending && !taskDetails.total && !unpaidObligations.length) {
+  if (!pending && !taskDetails.total && !unpaidObligations.length && !cbtReminder) {
     return { actor, sent:false, reason:'all-done', pending:0, personalTasks:0, sharedTasks:0, unpaidObligations:0 };
   }
 
@@ -145,7 +149,7 @@ async function sendHabitReminder(actor, options = {}) {
     };
   }
 
-  const text=buildEveningSummary(actor,{pendingHabits,taskDetails,obligationRows});
+  const text=buildEveningSummary(actor,{pendingHabits,taskDetails,obligationRows,cbtReminder});
   const result = await telegramSendMessage(chatId, text, {
     ...options,
     fetchImpl: options.telegramFetchImpl || options.fetchImpl || globalThis.fetch,

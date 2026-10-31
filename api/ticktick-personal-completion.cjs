@@ -1,4 +1,5 @@
 'use strict';
+const {assertTaskCompletionAllowed}=require('../public/task-completion-policy.js');
 const { listTickTickProjects, fetchTask, completeTickTickTask, reopenTickTickTask, updateTickTickTask, tokenHasWriteScope } = require('./ticktick-client.cjs');
 
 // Never trust a project ID from the client without verifying it against
@@ -29,6 +30,7 @@ async function completeRustamPersonalTask(input = {}, deps = {}) {
     throw new Error('ticktick-personal-task-mismatch');
   const wasOpen = Number(task?.status ?? 0) === 0;
   if (wasOpen) {
+    assertTaskCompletionAllowed(task,options.now??Date.now());
     const complete = deps.completeTickTickTask || completeTickTickTask;
     await complete(token.accessToken, projectId, taskId, options);
   }

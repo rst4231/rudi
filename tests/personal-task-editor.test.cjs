@@ -50,6 +50,12 @@ test('personal update preserves task id and calls owner-only TickTick update',as
  assert.equal(calls[0][3].title,'Медитация');
  assert.equal(calls[0][3].startDate,'2026-10-12T16:15:00+0300');
 });
+test('a queued same-project save after completion preserves completion and can finish syncing',async()=>{
+ const {deps,calls}=fake({fetchTask:async(_token,project,id)=>({id,projectId:project,title:'Done',status:2,startDate:'2026-10-24T12:55:00+0300'})});
+ const result=await editPersonalTask(input,deps);
+ assert.equal(result.updated,true);assert.equal(result.completed,true);assert.equal(result.taskSnapshot.status,2);assert.equal(calls.length,1);
+ await assert.rejects(editPersonalTask({...input,targetProjectId:'biz'},deps),/task-completed/);
+});
 test('moving project creates and verifies new task before deleting old',async()=>{
  const {deps,calls}=fake();
  const result=await editPersonalTask({...input,targetProjectId:'biz'},deps);
@@ -76,7 +82,7 @@ test('personal calendar interactions and labels are wired in UI',()=>{
  assert.ok(html.includes('<span class="work-page-subtitle">Дела и события</span>'));
  assert.ok(!html.includes('id="calendarSearchButton"'));
  assert.ok(html.indexOf('id="calendarFinanceShortcut"')<html.indexOf('id="calendarConnectionsGear"'));
- assert.ok(editor.includes("element.__rudiPersonalTaskBinding?.ctx?.openTickTick?.()"));
+ assert.ok(!editor.includes("element.__rudiPersonalTaskBinding?.ctx?.openTickTick?.()"));
  assert.ok(editor.includes("element.addEventListener('contextmenu'"));
  assert.ok(editor.includes('rudiPersonalTaskProject'));
  assert.ok(app.includes('calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable)'));
@@ -104,5 +110,16 @@ test('new personal tasks use shared emoji rules and keep an existing emoji',asyn
   const {deps,calls}=fake();
   await createPersonalTask({...input,title},deps);
   assert.equal(calls.find(row=>row[0]==='create')[1].title,expected);
+ }
+});
+
+test('a checked calendar task reopens by ID and is marked active only after success',async()=>{
+ const vm=require('node:vm'),source=fs.readFileSync('public/app.js','utf8');
+ const a=source.indexOf('      function calendarTaskCanReopen('),b=source.indexOf('      async function completeTickTickTodayTask(',a);
+ for(const actor of ['Рустам','Диана']){
+  const calls=[],task={id:'done',projectId:'private',date:'2026-10-24',title:'Дело',completed:true,personal:true,privateLocal:actor==='Диана'},row={dataset:{},classList:{remove(){}}},button={setAttribute(){}};
+  const context={currentActor:actor,currentStateBackupToken:'',queueCalendarWhenOffline:async()=>false,managedJsonRequest:async(key,url,options)=>{calls.push({url,body:options.body});return {ok:true}},telegramInitData:()=>'',recentlyCompletedTickTickTaskIds:new Map(),refreshAfterTickTickTaskChange:async()=>{},document:{getElementById:()=>({})}};
+  vm.createContext(context);vm.runInContext(source.slice(a,b),context);await context.reopenCalendarTask(task,row,button);
+  assert.equal(task.completed,false);assert.equal(task.canComplete,true);assert.equal(calls[0].body.operation,'reopen');assert.equal(calls[0].body.taskId,'done');assert.equal(button.disabled,false);
  }
 });

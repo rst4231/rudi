@@ -53,10 +53,11 @@ test('Diana hides category and shares the existing delete button only for saved 
  const vm=require('node:vm'),src=fs.readFileSync('public/personal-task-editor.js','utf8');
  const start=src.indexOf('function open(task,ctx={}){'),end=src.indexOf('async function persist(',start);
  function show(actor,isNew){
-  const fields=Object.fromEntries(['title','date','time','description','project','repeat','repeatEvery'].map(key=>[key,{value:'',replaceChildren(){},closest(){return this.label||(this.label={hidden:false})}}]));
+  const fields=Object.fromEntries(['title','date','time','description','project','repeat','repeatEvery','repeatEnd','repeatUntil','repeatCount'].map(key=>[key,{value:'',replaceChildren(){},closest(){return this.label||(this.label={hidden:false})}}]));
   const nodes={rudiPersonalTaskForm:{reset(){}},rudiPersonalRepeatNote:{},rudiPersonalTaskHeading:{},rudiPersonalTaskDelete:{},rudiPersonalTaskSubtitle:{},rudiPersonalTaskRepeatFields:{}};
+  fields.repeat.options=['none','daily','weekly','monthly','yearly','keep'].map(value=>({value}));
   let projects=0;
-  const ctx={active:null,init(){},closeMenu(){},byId:id=>nodes[id],refreshTemporalInputs(){},f:key=>fields[key],normalizedEditorWhen:()=>({date:'2026-10-17',time:'09:00'}),syncTime(){},message(){},enabled(){},modal:{setAttribute(){},querySelectorAll:()=>[]},syncRepeat(){},document:{body:{classList:{add(){}}}},requestAnimationFrame(){},Option:function(){},projects:()=>{projects++;return Promise.resolve()}};
+  const ctx={readRepeatFlag:()=>({repeat:'none',repeatEvery:1,repeatDays:[],repeatEnd:'never',repeatUntil:'',repeatCount:10}),syncEditorViewport(){},active:null,init(){},closeMenu(){},byId:id=>nodes[id],refreshTemporalInputs(){},f:key=>fields[key],normalizedEditorWhen:()=>({date:'2026-10-17',time:'09:00'}),syncTime(){},message(){},enabled(){},modal:{setAttribute(){},querySelectorAll:()=>[]},syncRepeat(){},document:{body:{classList:{add(){}}}},requestAnimationFrame(){},Option:function(){},projects:()=>{projects++;return Promise.resolve()}};
   const open=vm.runInNewContext(src.slice(start,end)+';open',ctx);
   open({id:isNew?'new':'diana-task',personal:true,isNew,title:'Дело'},{actor});
   return {fields,nodes,projects};
@@ -152,7 +153,7 @@ test('both actors tap timeline task text to open their editor, while checkbox ta
  for(const actor of ['Рустам','Диана']){
   const listeners={},opened=[],completed=[],checkbox={setAttribute(){},addEventListener(name,fn){this[name]=fn},contains:target=>target==='checkbox-child'},row={classList:{add(){},contains:()=>false},style:{},setAttribute(){},prepend(){},addEventListener:(name,fn)=>listeners[name]=fn};
   const task={id:'task-a',personal:true,privateLocal:actor==='Диана',projectId:actor==='Рустам'?'rustam-list':'',title:'Дело'};
-  const ctx={currentActor:actor,calendarScope:'personal',sharedWritable:true,document:{createElement:()=>checkbox},calendarTickTickTaskWebUrl:()=>actor==='Рустам'?'https://ticktick.com/task-a':'',calendarPersonalTaskEditorContext:()=>({actor}),window:{RUDIPersonalTaskEditor:{open:(...args)=>opened.push(args),bind(){}}},completeCalendarTickTickTask:(...args)=>completed.push(args)};
+  const ctx={taskCompletionIsFuture:()=>false,dateKey:'2026-10-22',currentActor:actor,calendarScope:'personal',sharedWritable:true,document:{createElement:()=>checkbox},calendarTickTickTaskWebUrl:()=>actor==='Рустам'?'https://ticktick.com/task-a':'',calendarTaskCanReopen:()=>false,calendarPersonalTaskEditorContext:()=>({actor}),window:{RUDIPersonalTaskEditor:{open:(...args)=>opened.push(args),bind(){}}},completeCalendarTickTickTask:(...args)=>completed.push(args)};
   const attach=vm.runInNewContext(src.slice(start,end)+';attachCompletion',ctx);attach(row,task);
   listeners.click({target:{}});assert.equal(opened.length,1);assert.equal(opened[0][0].id,'task-a');
   listeners.click({target:checkbox});assert.equal(opened.length,1);
@@ -191,4 +192,13 @@ test('Diana create persists and appears in calendar using real D1 missing-record
  await personalTasks({actor:'Диана',operation:'delete',taskId:saved.taskId},{client});
  await personalTasks({actor:'Диана',operation:'create',clientId:'d1-real-contract',title:'Аптека',date:'2026-10-17'},{client});
  assert.equal((await personalTasks({actor:'Диана',operation:'list',month:'2026-10'},{client})).tasks.length,0,'a real tombstone still blocks resurrection');
+});
+
+test('Diana can reopen one completed occurrence without changing other dates',async()=>{
+ const {personalTasks}=require(apiPath),h=fixture(),options={client:h.client,now:Date.parse('2026-10-24T10:00Z')};
+ const created=await personalTasks({actor:'Диана',operation:'create',clientId:'reopen',title:'Дело',date:'2026-10-24',time:'12:00'},options);
+ await personalTasks({actor:'Диана',operation:'complete',taskId:created.taskId},options);
+ assert.equal((await personalTasks({actor:'Диана',operation:'list',month:'2026-10'},options)).tasks[0].completed,true);
+ await personalTasks({actor:'Диана',operation:'reopen',taskId:created.taskId},options);
+ const tasks=(await personalTasks({actor:'Диана',operation:'list',month:'2026-10'},options)).tasks;assert.equal(tasks.length,1);assert.notEqual(tasks[0].completed,true);assert.equal(tasks[0].startTime,'12:00');
 });

@@ -35,6 +35,12 @@
         "fra1"
       ],
       "maxDuration": 60
+    },
+    "api/crypto-live-runner.js": {
+      "regions": [
+        "fra1"
+      ],
+      "maxDuration": 60
     }
   },
   "headers": [
@@ -163,6 +169,14 @@
     }
   ],
   "rewrites": [
+    {
+      "source": "/api/cbt",
+      "destination": "/api/index?route=cbt"
+    },
+    {
+      "source": "/api/crypto-live-cron",
+      "destination": "/api/crypto-live-runner"
+    },
     {
       "source": "/api/meditation",
       "destination": "/api/index?route=meditation"

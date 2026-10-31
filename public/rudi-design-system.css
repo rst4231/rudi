@@ -8,7 +8,7 @@
 html{-webkit-text-size-adjust:100%;text-size-adjust:100%;font-synthesis:none}
 body{font-kerning:normal;font-variant-numeric:lining-nums}
 .shell,.shell>*,[data-app-tab-section],.finance-page,.car-page,
-.work-page,.wishlist-page,.fasting-page,.dates-page,.smart-saves-page{min-width:0}
+.work-page,.wishlist-page,.fasting-page,.smart-saves-page{min-width:0}
 .shell{gap:13px}
 .panel,.card,.section-block,.profile,.finance-coin-board,.finance-history-card,
 .finance-planning-card,.finance-obligations-card,.finance-category-card,
@@ -23,9 +23,7 @@ body{font-kerning:normal;font-variant-numeric:lining-nums}
  border-color:color-mix(in srgb,var(--line) 88%,transparent)
 }
 .profile{border-radius:21px!important}
-.section-heading h2,.finance-page-head h1,.car-page-head h1,
-.fasting-page-title h1,.dates-page-head h1,.wishlist-page-head h1,
-.smart-saves-page-head h1,.personal-tool-page-head h1{
+.section-heading h2,.finance-page-head h1,.car-page-head h1,.fasting-page-title h1,.wishlist-page-head h1,.smart-saves-page-head h1,.personal-tool-page-head h1{
  line-height:1.15;letter-spacing:-.033em;font-weight:820;text-wrap:balance
 }
 .section-heading h2{font-size:clamp(17px,4.4vw,19px)}
@@ -56,7 +54,7 @@ button,[role="button"],a{-webkit-tap-highlight-color:transparent;touch-action:ma
 .finance-category-card{padding:12px;gap:9px;border-radius:16px}
 .finance-category-card-icon,.finance-category-expense-row{border-radius:11px}
 .finance-coin-section-head{row-gap:7px}
-.finance-page,.car-page,.fasting-page,.dates-page,.smart-saves-page{row-gap:12px}
+.finance-page,.car-page,.fasting-page,.smart-saves-page{row-gap:12px}
 body[data-app-tab="home"] .shell{gap:12px}
 body[data-app-tab="home"] .priority-section{padding:11px!important;border-radius:19px!important}
 body[data-app-tab="home"] :is(.panel,.home-tools-tile,.card){scroll-margin-top:14px}
@@ -314,7 +312,7 @@ body[data-app-tab="home"] .profile .profile-mood .mood-self-buttons > #fastingPr
 body:is(
  [data-app-tab="finances"],[data-app-tab="schedule"],[data-app-tab="car"],
  [data-app-tab="habits"],[data-app-tab="supplements"],[data-app-tab="fasting"],
- [data-app-tab="dates"],[data-app-tab="for-di"],[data-app-tab="smart-saves"],
+ [data-app-tab="smart-saves"],
  [data-app-tab="wishlist"]
 ){
  padding-top:max(
@@ -325,10 +323,7 @@ body:is(
   calc(var(--tg-content-safe-top,0px) + 12px)
  )!important;
 }
-:is(
- .finance-page,.car-page,.fasting-page,.dates-page,
- .for-di-page,.smart-saves-page,.wishlist-page
-){padding-top:4px!important}
+
 body[data-app-tab="schedule"] .work-page{padding-top:4px!important}
 .rudi-app-page-head{
  display:grid!important;
@@ -378,18 +373,10 @@ body[data-app-tab="schedule"] .work-page{padding-top:4px!important}
  margin-bottom:2px!important;
 }
 .rudi-app-page-head > :is(.car-page-head-spacer,.work-page-head-spacer),
-.rudi-app-page-head > span:last-child:not(#forDiTotalCount){display:none!important}
-/* The 'Для Ди' counter stays at the far right without moving the title. */
-.for-di-page-head.rudi-app-page-head{
- grid-template-columns:var(--rudi-page-head-control) minmax(0,1fr) auto!important;
-}
-.for-di-page-head.rudi-app-page-head > #forDiTotalCount{justify-self:end}
+.rudi-app-page-head > span:last-child{display:none!important}
+
 /* Existing wedding-date editorial rule uses !important and higher specificity. */
-body[data-app-tab="dates"] .dates-page-head.rudi-app-page-head h1{
- font-family:inherit!important;
- font-style:normal!important;
- font-size:var(--rudi-page-head-title)!important;
-}
+
 @media(max-width:430px){
  :root{
   --rudi-page-head-control:44px;
@@ -399,12 +386,8 @@ body[data-app-tab="dates"] .dates-page-head.rudi-app-page-head h1{
  .rudi-app-page-head{
   grid-template-columns:var(--rudi-page-head-control) minmax(0,1fr)!important;
  }
- .for-di-page-head.rudi-app-page-head{
-  grid-template-columns:var(--rudi-page-head-control) minmax(0,1fr) auto!important;
- }
- body[data-app-tab="dates"] .dates-page-head.rudi-app-page-head h1{
-  font-size:var(--rudi-page-head-title)!important;
- }
+
+
 }
 
 /* RUDI v4.103 — partner fasting progress outline matches own tracker. */

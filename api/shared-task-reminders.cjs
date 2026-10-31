@@ -52,6 +52,18 @@ function deliveryKey(task,actor){
 
 async function fetchSharedTasks(options={}){
   if(typeof options.loadSharedTasksImpl==='function')return options.loadSharedTasksImpl(options);
+  const native=require('./shared-native-tasks.cjs');
+  const state=await native.ready(options).catch(()=>null);
+  if(state?.complete){
+    const {calendarDateKey}=require('./ticktick-client.cjs');
+    const day=calendarDateKey(new Date(options.now||Date.now()));
+    const agenda=(await native.agendaDates([day],'Рустам',options))[0]||[];
+    return {available:true,tasks:agenda.map(task=>({
+      id:task.id,title:task.title,status:0,isAllDay:task.allDay,
+      startDate:task.date+'T'+(task.startTime||'00:00')+':00+0300',
+      assigneeUsername:'',date:task.date
+    })),meta:{entries:Object.fromEntries(agenda.map(task=>[task.id,{responsible:task.responsible}]))}};
+  }
   const [token,config,meta]=await Promise.all([
     (options.readTokenImpl||readToken)(options),
     (options.loadTickTickConfigImpl||loadTickTickConfig)(options),

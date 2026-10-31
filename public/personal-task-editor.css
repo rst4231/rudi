@@ -68,6 +68,28 @@
 .rudi-personal-weekdays input:checked+span{background:#4578e6;color:#fff;border-color:#4578e6}
 .rudi-personal-weekdays input:focus-visible+span{outline:2px solid #4578e6;outline-offset:2px}
 
+/* Compact recurrence controls, designed for narrow iPhone sheets. */
+.rudi-personal-task-modal :is(#rudiPersonalTaskRepeatEndFields,#rudiPersonalTaskRepeatUntilField,#rudiPersonalTaskRepeatCountField)[hidden]{display:none!important}
+#rudiPersonalTaskRepeatEndFields{display:grid;gap:12px}
+.rudi-personal-task-modal .rudi-personal-interval-row{display:flex;align-items:center;gap:12px;min-width:0}
+.rudi-personal-task-modal .rudi-personal-interval-row input{width:90px;min-width:70px;min-height:42px;box-sizing:border-box;padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface-strong);color:var(--text);font:inherit}
+.rudi-personal-task-modal .rudi-personal-interval-row small{color:var(--muted);font-weight:700}
+.rudi-personal-task-modal #rudiPersonalTaskRepeatEndFields input{width:100%;max-width:100%;box-sizing:border-box;min-height:44px;color:var(--text);color-scheme:dark}
+.rudi-personal-task-modal .rudi-personal-weekdays label{flex:0 1 39px;min-width:0}
+@media(max-width:390px){.rudi-personal-weekdays{gap:4px}.rudi-personal-weekdays span{width:35px;height:35px;font-size:12px}}
+
+/* Keep the title below the status bar; only the form scrolls, even with a keyboard. */
+.rudi-personal-task-modal{top:var(--pt-top,0px);bottom:auto;height:var(--pt-height,100dvh);box-sizing:border-box;align-items:center;padding:max(14px,env(safe-area-inset-top),var(--tg-content-safe-area-inset-top,0px)) 12px max(14px,env(safe-area-inset-bottom))}
+.rudi-personal-task-modal .ticktick-task-modal-sheet{display:flex;flex-direction:column;max-height:min(680px,100%);overflow:hidden;padding:16px;border-radius:21px}
+.rudi-personal-task-modal .ticktick-task-modal-head{flex:none;margin-bottom:12px}
+.rudi-personal-task-modal .ticktick-task-form{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;gap:10px;padding:3px 3px 0;scroll-padding-block:10px 65px}
+.rudi-personal-task-modal .ticktick-task-field textarea{min-height:72px;max-height:96px;resize:none}
+/* The sheet already supplies a translucent background. Layering another surface
+   here creates a bright rectangular patch behind the footer buttons. */
+.rudi-personal-task-modal .ticktick-task-form-actions{position:sticky;bottom:0;padding:9px 0 2px;margin:0;background:transparent;z-index:1}
+.rudi-personal-task-modal #rudiPersonalTaskHeading:focus{outline:none}
+@media(max-width:430px){.rudi-personal-task-modal .ticktick-task-field :is(input,select,textarea){font-size:16px}}
+
 /* TickTick task checklist loaded from the selected private task. */
 .rudi-personal-checklist-section{display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-strong)}
 .rudi-personal-checklist-section[hidden]{display:none!important}

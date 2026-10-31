@@ -6,7 +6,7 @@ const signed=(v,pct=false)=>v===null||v===undefined?'—':(v>0?'+':'')+(pct?perc
 const marginName=mode=>mode==='cross'?'Кросс':mode==='isolated'?'Изолированная':'Не указана';
 const marketName=m=>m==='spot'?'Bybit Spot':m==='linear'?'Bybit Perpetual':'Bybit · рынок не указан';
 const statuses={won:'TP · плюс',lost:'SL · минус',open:'Открыта',unpriced:'Открыта, нет цены',
-  'not-entered':'Не вошла','insufficient-levels':'Недостаточно уровней',
+  'not-entered':'Не вошла','insufficient-levels':'Уровни заданы частично',
   conditional:'Условная идея',ambiguous:'Неясный результат',
   'awaiting-market':'Ожидает проверки','market-unavailable':'Нет котировок',
   'size-unknown':'Неизвестна доля выхода','author-closed-size-unknown':'Автор закрыл · объём части неизвестен',
@@ -53,19 +53,27 @@ function chart(paper){
   shape.setAttribute('stroke-width','2.7');shape.setAttribute('stroke-linecap','round');svg.append(shape);
   const label=document.createElementNS(ns,'text');label.setAttribute('x','12');label.setAttribute('y','15');
   label.setAttribute('font-size','11');label.setAttribute('fill','#aeb0bf');
-  label.textContent='Кривая капитала (реализованные события) · '+signed(points.at(-1)-points[0]);
+  label.textContent=(paper?.dataComplete===false?'Неполная кривая капитала · ':'Кривая капитала (реализованные события) · ')+signed(points.at(-1)-points[0]);
   svg.append(label);
 }
 function render(data){
-  if(!data)return;current=data;const s=data.signals||{},p=data.paper||{},stats=p.stats||{};
-  const e=$('cryptoVirtualEquity');if(e)e.textContent=p.equityUsd===null?'—':sum(p.equityUsd);
-  const start=$('cryptoVirtualStart');if(start)start.textContent='Старт '+sum(p.config?.initialUsd||10000);
-  const pnl=$('cryptoVirtualPnl');if(pnl){pnl.textContent=signed(p.totalPnlUsd);withColor(pnl,p.totalPnlUsd);}
-  const pct=$('cryptoVirtualPnlPct');if(pct)pct.textContent=p.totalPnlPct===null?'Нет полной оценки открытых позиций':signed(p.totalPnlPct,true);
-  const cash=$('cryptoVirtualCash');if(cash)cash.textContent=sum(p.cashUsd);
-  const invested=$('cryptoVirtualInvested');if(invested)invested.textContent='В сделках '+sum(p.investedUsd);
-  const closed=$('cryptoVirtualClosed');if(closed)closed.textContent=String(stats.closed??0);
-  const winrate=$('cryptoVirtualWinrate');if(winrate)winrate.textContent='Winrate '+(stats.winratePct===null?'—':percent(stats.winratePct));
+  if(!data)return;current=data;window.RudiCryptoLive?.render(data.live);const s=data.signals||{},p=data.paper||{},stats=p.stats||{};
+  const pending=Number(stats.authorClosedUnpriced||0),partial=p.totalPnlUsd===null;
+  const equity=p.equityUsd??p.accountedEquityUsd,pnlValue=p.totalPnlUsd??p.knownPnlUsd;
+  const equityLabel=$('cryptoVirtualEquityLabel');if(equityLabel)equityLabel.textContent=partial?'Баланс без уточняемого PNL':'Виртуальный баланс';
+  const pnlLabel=$('cryptoVirtualPnlLabel');if(pnlLabel)pnlLabel.textContent=partial?'Известная часть PNL':'Итоговый PNL';
+  const e=$('cryptoVirtualEquity');if(e)e.textContent=equity==null?'—':sum(equity);
+  const start=$('cryptoVirtualStart');if(start)start.textContent=pending?
+    'Уточняется '+sum(p.reservedUsd)+' · сделок: '+pending:'Старт '+sum(p.config?.initialUsd||10000);
+  const pnl=$('cryptoVirtualPnl');if(pnl){pnl.textContent=signed(pnlValue);withColor(pnl,pnlValue);}
+  const pct=$('cryptoVirtualPnlPct');if(pct)pct.textContent=partial?
+    (pending?'Без неизвестного результата '+pending+' закрытых сделок':'Без недоступных котировок'):signed(p.totalPnlPct,true);
+  const cashValue=p.cashUsd??p.availableCashUsd;
+  const cash=$('cryptoVirtualCash');if(cash)cash.textContent=cashValue==null?'—':sum(cashValue);
+  const invested=$('cryptoVirtualInvested');if(invested)invested.textContent='В открытых '+sum(p.investedUsd)+(pending?' · в резерве '+sum(p.reservedUsd):'');
+  const closed=$('cryptoVirtualClosed');if(closed)closed.textContent=String(stats.closedTotal??((stats.closed||0)+pending));
+  const winrate=$('cryptoVirtualWinrate');if(winrate)winrate.textContent=pending?
+    'С результатом '+(stats.closed||0)+' · уточняется '+pending:'Winrate '+(stats.winratePct===null?'—':percent(stats.winratePct));
   const bar=$('cryptoSignalsRatioBar'),txt=$('cryptoSignalsRatioText');if(bar){bar.replaceChildren();
     if((stats.wins||0)+(stats.losses||0)>0){
       const pos=document.createElement('span'),neg=document.createElement('span');
@@ -74,7 +82,7 @@ function render(data){
     }}
   if(txt)txt.textContent=stats.wins||stats.losses
     ?'В плюсе '+(stats.wins||0)+' ('+percent(stats.winratePct)+') · В минусе '+(stats.losses||0)+' ('+percent(stats.lossratePct)+') · В ноль '+(stats.breakeven||0)
-    :'Нет закрытых плюсовых или минусовых виртуальных сделок';
+    :pending?'Закрыто '+pending+' сделок. Результат уточняется; в статистику прибыли и убытка они пока не включены.':'Нет закрытых плюсовых или минусовых виртуальных сделок';
   chart(p);
   const values={
     cryptoRiskDrawdown:stats.maxDrawdownPct===undefined?'—':percent(stats.maxDrawdownPct),
@@ -90,7 +98,8 @@ function render(data){
     const left=document.createElement('p'),right=document.createElement('p');
     left.textContent='Автор сообщил: TP '+(reported.tpClaims||0)+' · SL '+(reported.slClaims||0)+
       ' · обновлений сделок '+(reported.withLinkedUpdates||0);
-    right.textContent='Модель RUDI: '+(stats.closed||0)+' закрыто · '+(stats.excluded||0)+
+    right.textContent='Модель RUDI: '+(stats.closed||0)+' закрыто с расчётом'+
+      (stats.authorClosedUnpriced?' · '+stats.authorClosedUnpriced+' закрыто автором без точного PNL':'')+' · '+(stats.excluded||0)+
       ' неоднозначных исключено · '+(stats.fundingMissing||0)+' без подтверждённого funding';
     compare.append(left,right);
   }
@@ -101,7 +110,9 @@ function render(data){
       cal.append(line(day.date,signed(day.pnlUsd),{meta:day.count+' закрытых сделок',
         color:day.pnlUsd>0?'is-positive':day.pnlUsd<0?'is-negative':''}));
     }
-    if(!cal.children.length)cal.textContent='Закрытых виртуальных сделок пока нет.';
+    if(!cal.children.length)cal.textContent=stats.authorClosedUnpriced?
+      'Автор закрыл позицию. Для результата в календаре не хватает данных о выходах.':
+      'Закрытых виртуальных сделок пока нет.';
   }
   const list=$('cryptoVirtualPositions');if(list){list.replaceChildren();
     for(const x of p.positions||[]){
@@ -120,7 +131,7 @@ function render(data){
         const point=document.createElement('p');
         point.textContent=new Date(event.at).toLocaleString('ru-RU')+' · '+
           (event.type||'Обновление')+(event.closeFraction?' · '+percent(event.closeFraction*100):'')+
-          (event.measured===false?' · объём неизвестен':'');
+          (event.measured===false&&['partial-close','collateral-addition','position-addition','unspecified-addition'].includes(event.type)?' · объём неизвестен':'');
         details.append(point);
       }
       if(x.fundingComplete===false){const n=document.createElement('p');
@@ -132,17 +143,21 @@ function render(data){
   const signals=$('cryptoSignalsList');if(signals){signals.replaceChildren();
     for(const x of s.signals||[]){
       const title=x.symbol+' '+(x.direction==='short'?'SHORT':'LONG');
-      const entry=x.entry?((x.execution==='market-at-sync'?'Вход по рынку ':'Вход ')+x.entry):'Точная цена входа отсутствует';
+      const entry=x.entry?((x.execution==='market-at-sync'?'Котировка при синхронизации ':'Вход автора ')+x.entry):
+        'Цена входа автором не задана'+(x.paperEligible&&x.market==='linear'?
+          ' · вход по текущей котировке с ограничением отклонения':'');
       const info=entry+' · '+marketName(x.market)+' · '+new Date(x.at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})+
         ' · Маржа автора: '+marginName(x.marginModeReported)+
         (x.adjustmentCount?' · Сообщений о пополнении/доборе: '+x.adjustmentCount:'');
-      const status=statuses[x.status]||x.status||'Не подтверждён';
+      const status=x.status==='insufficient-levels'&&!x.entry&&!x.take&&!x.stop?
+        'Без заданных уровней':statuses[x.status]||x.status||'Не подтверждён';
       signals.append(line(title,status,{meta:info,link:x.url,
         color:x.status==='won'?'is-positive':x.status==='lost'?'is-negative':''}));
     }
     if(!signals.children.length)signals.textContent='В доступной истории пока нет подтверждённых сигналов.';
   }
   const sv=$('cryptoSignalSummary');if(sv)sv.textContent=(s.stats?.total||0)+' сигналов · '+(s.stats?.verified||0)+' проверено · '+(s.messagesCount||0)+' сообщений';
+  const feedStatus=$('cryptoSignalsFeedStatus');if(feedStatus)feedStatus.textContent=s.sourceError?'Telegram временно недоступен. Показаны сохранённые сигналы.':s.updatedAt?'Сигналы обновлены '+new Date(s.updatedAt).toLocaleString('ru-RU'): 'Сигналы ещё не загружены.';
   const count=$('cryptoVirtualPositionsCount');if(count)count.textContent=(stats.total||0)+' виртуальных сделок';
   const updated=$('cryptoSignalsUpdated');if(updated)updated.textContent=s.updatedAt?
     'Синхр. '+new Date(s.updatedAt).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'Ещё не синхронизировано';
@@ -156,9 +171,10 @@ function render(data){
     if(s.priceError)parts.push('Некоторые котировки Bybit не удалось проверить.');
     if(s.referencePricesCount)parts.push('Bybit ограничивает доступ (HTTP 403). Для '+s.referencePricesCount+' сигналов использованы справочные котировки OKX — они не входят в подтверждённую статистику Bybit.');
     if(stats.excluded)parts.push('Исключено неопределённых сделок: '+stats.excluded+'.');
+    if(stats.authorClosedUnpriced)parts.push('Автор закрыл '+stats.authorClosedUnpriced+' позиций. Их залог '+sum(p.reservedUsd)+' учтён по стоимости входа и остаётся в резерве. Показана известная часть PNL; точный итог зависит от неизвестных долей и цен выходов.');
     if(!p.netIncludesFunding)parts.push('Funding по некоторым сделкам неизвестен; итог учитывает оценочные комиссии, но не претендует на полный net PNL.');
     if(s.gapsEstimate)parts.push('Обнаружены разрывы ID публикаций ('+s.gapsEstimate+'). Это могут быть удалённые посты, полнота истории не подтверждена.');
-    if(!p.dataComplete)parts.push('Баланс пока нельзя точно оценить: нет рыночных цен по всем открытым сделкам.');
+    if(!p.dataComplete&&!stats.authorClosedUnpriced)parts.push('Баланс пока нельзя точно оценить: нет рыночных цен по всем открытым сделкам.');
     parts.push('Bybit Spot — без плеча; фьючерсы Bybit — изолированная маржа. Неуказанный рынок не исполняется. «Докидывает» не доказывает кросс. Реальные ликвидации пока не моделируются.');
     parts.push('Виртуальный баланс не связан с реальными кошельками. История до запуска симуляции не торгуется задним числом. Отдельные выплаты и ликвидации помечаются как неподтверждённые.');
     status.textContent=parts.join('\n');
@@ -166,7 +182,7 @@ function render(data){
 }
 async function load(){
   if(loading)return;loading=true;
-  const status=$('cryptoSignalsStatus'),button=$('cryptoSignalsRefresh');
+  const status=$('cryptoSignalsFeedStatus'),button=$('cryptoSignalsRefresh');
   if(button)button.disabled=true;
   if(status&&!current)status.textContent='Получаю сигналы и виртуальный портфель…';
   try{
@@ -187,6 +203,7 @@ function show(open){
   if(open)void load();
 }
 function boot(){
+  document.addEventListener?.('rudi-crypto-live-refresh',()=>void load());
   $('financeCryptoSignalsOpen')?.addEventListener('click',()=>show(true));
   $('financeCryptoSignalsBack')?.addEventListener('click',()=>show(false));
   $('cryptoSignalsRefresh')?.addEventListener('click',async()=>{

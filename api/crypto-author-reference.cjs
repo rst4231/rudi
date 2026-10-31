@@ -2,7 +2,7 @@
 // Read-only OKX reference prices when Bybit returns a geographic HTTP 403.
 // These data are NOT Bybit fills or Bybit funding. Label every outcome.
 const {createMarketRequest}=require('./crypto-market-client.cjs');
-const VALID=/^[A-Z0-9]{2,24}USDT$/;
+const VALID=/^[A-Z0-9]{1,24}USDT$/;
 function createOkxReference({fetchImpl=globalThis.fetch,origin=process.env.RUDI_OKX_PUBLIC_API_URL||'https://www.okx.com',timeoutMs=6500}={}){
  const root=String(origin).replace(/\/+$/,'');
  if(!/^https:\/\//.test(root))throw Error('okx-reference-origin-invalid');

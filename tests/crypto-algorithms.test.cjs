@@ -4,6 +4,52 @@ const a=require('../api/crypto-algorithms.cjs');
 const {createMarketRequest}=require('../api/crypto-market-client.cjs');
 const {createOkxMarketRequest}=require('../api/crypto-okx-market.cjs');
 const NOW=Date.parse('2026-10-11T12:12:00Z');
+const M5=300000;
+function auditPosition(){
+ const start=Math.floor(NOW/M5)*M5,p=a.initial(start).portfolios.pump;
+ a.openPosition(p,{strategy:'pump',symbol:'BTCUSDT',at:start-M5,price:100,score:75,indicators:{}},start+60000,{BTCUSDT:100});
+ return {p,start,position:p.positions[0]};
+}
+test('entry candle cannot execute a stop or a take using movement before entry',()=>{
+ for(const side of ['stop','take']){
+  const {p,start,position}=auditPosition();
+  a.updatePositions(p,{BTCUSDT:[{at:start,open:100,high:side==='stop'?position.stop+1:101,
+   low:side==='take'?position.take-1:99,close:100}]},{BTCUSDT:100},start+M5);
+  assert.equal(p.trades.length,0);
+  assert.equal(p.positions.length,1);
+  assert.equal(p.positions[0].entryCandleIgnored,true);
+ }
+});
+test('stop gapped through at the next candle open fills at the worse opening price',()=>{
+ const {p,start,position}=auditPosition(),open=position.stop+5;
+ a.updatePositions(p,{BTCUSDT:[{at:start+M5,open,high:open+1,low:open-1,close:open}]},
+  {BTCUSDT:open},start+2*M5);
+ assert.equal(p.trades.length,1);
+ assert.equal(p.trades[0].exitPrice,Number((open*1.0005).toPrecision(10)));
+ assert.equal(p.trades[0].exitAt,new Date(start+M5).toISOString());
+ assert.equal(p.trades[0].executionEvidence,'stop-gap-open');
+});
+test('unfinished and future candles cannot execute an exit',()=>{
+ const {p,start,position}=auditPosition();
+ a.updatePositions(p,{BTCUSDT:[{at:start+M5,open:100,high:position.stop+1,
+  low:position.take-1,close:100}]},{BTCUSDT:100},start+M5+60000);
+ assert.equal(p.trades.length,0);
+});
+test('same complete post-entry candle hitting both levels records its ambiguity',()=>{
+ const {p,start,position}=auditPosition();
+ a.updatePositions(p,{BTCUSDT:[{at:start+M5,open:100,high:position.stop+1,
+  low:position.take-1,close:100}]},{BTCUSDT:100},start+2*M5);
+ assert.equal(p.trades[0].exitReason,'SL');
+ assert.equal(p.trades[0].executionEvidence,'same-candle-stop-first');
+ assert.equal(p.trades[0].ambiguousExit,true);
+});
+test('a current quote still exits a position while its entry candle is excluded',()=>{
+ const {p,start,position}=auditPosition();
+ a.updatePositions(p,{BTCUSDT:[{at:start,open:100,high:101,low:99,close:100}]},
+  {BTCUSDT:position.stop+1},start+M5);
+ assert.equal(p.trades[0].exitReason,'SL · котировка');
+ assert.equal(p.trades[0].entryCandleIgnored,true);
+});
 function bars(overrides={}){
   const candles=Array.from({length:50},(_,i)=>{
     const close=98+i*.18;

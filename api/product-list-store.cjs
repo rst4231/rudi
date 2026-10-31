@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const {recordProductPurchase,normalizeProductPurchase,readProductPurchaseFinances}=require('./product-purchase-expense.cjs');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 
 const NAMESPACE = 'rudi-product-list-v1';
@@ -178,6 +179,7 @@ function normalizeState(value) {
       category: normalizeEditorFields(item).categoryOverride || categorizeProduct(item?.text),
       weeklyAmount: estimateWeeklyAmount(item?.text, normalizeEditorFields(item).categoryOverride || categorizeProduct(item?.text)),
       boughtAt: String(item?.boughtAt || ''),
+      purchase: normalizeProductPurchase(item?.purchase),
     })).filter((item) => item.id && item.text && item.boughtAt).slice(0, MAX_HISTORY),
   };
 }
@@ -383,9 +385,13 @@ async function markProductsBoughtByIds(ids, boughtBy = '', options = {}) {
     if (!selected.size) return state;
 
     const bought = state.items.filter((item) => selected.has(String(item.id || '')));
-    if (!bought.length) return state;
+    if (!bought.length) return options.purchase?{...state,purchaseFinances:await readProductPurchaseFinances(boughtBy,options)}:state;
 
-    const boughtAt = new Date(options.now || Date.now()).toISOString();
+    if(options.purchase&&bought.length!==selected.size)throw Error('product-purchase-selection-changed');
+    if(options.purchase?.id&&state.history.some(item=>item.purchase?.id===options.purchase.id))throw Error('product-purchase-conflict');
+    const recorded=await recordProductPurchase(boughtBy,bought,options.purchase,options);
+    const purchase=recorded?.purchase||null;
+    const boughtAt = purchase?.occurredAt || new Date(options.now || Date.now()).toISOString();
     const boughtIds = new Set(bought.map((item) => String(item.id || '')));
     const historyRows = bought.map((item) => ({
       id: crypto.randomUUID(),
@@ -396,11 +402,13 @@ async function markProductsBoughtByIds(ids, boughtBy = '', options = {}) {
       weeklyAmount: estimateWeeklyAmount(item.text),
       ...normalizeEditorFields(item),
       boughtAt,
+      purchase,
     }));
 
     state.items = state.items.filter((item) => !boughtIds.has(String(item.id || '')));
     state.history = [...historyRows, ...state.history].slice(0, MAX_HISTORY);
-    return writeState(state, options);
+    const saved=await writeState(state, options);
+    return recorded?{...saved,purchaseFinances:recorded.finances}:saved;
   });
 }
 

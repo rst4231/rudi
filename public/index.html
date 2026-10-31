@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <style>html,body{background:#0b0d12;color:#f5f7fb}html{min-height:100%;color-scheme:dark}html body.auth-pending #appGate{display:none!important}html body.auth-pending .shell{opacity:1!important;visibility:visible!important;pointer-events:none!important}</style>
   <meta name="theme-color" content="#0b0d12">
-  <meta name="rudi-version" content="v4.384">
+  <meta name="rudi-version" content="v4.385">
   <meta name="color-scheme" content="dark light">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
@@ -15,39 +16,56 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-rudi-v460.png?v=4.260">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-rudi-v460.png?v=4.260">
-  <link rel="manifest" href="/manifest.webmanifest?v=4.384">
+  <link rel="manifest" href="/manifest.webmanifest?v=4.385">
   <script>
     (() => {
       const tg = window.Telegram?.WebApp;
       const telegramOpen = Boolean(tg?.initData);
       const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      document.documentElement.dataset.theme = telegramOpen && (tg?.colorScheme === 'dark' || tg?.colorScheme === 'light')
+      let mode='system';
+      try{mode=JSON.parse(localStorage.getItem('rudi:theme-paint:v1')||'null')?.mode||'system'}catch(_){}
+      document.documentElement.dataset.theme = mode==='dark'||mode==='light'?mode:telegramOpen && (tg?.colorScheme === 'dark' || tg?.colorScheme === 'light')
         ? tg.colorScheme
         : (dark ? 'dark' : 'light');
-      document.documentElement.style.colorScheme = document.documentElement.dataset.theme;
+      const paint=()=>{
+        const root=document.documentElement;
+        const theme=root.dataset.theme==='dark'?'dark':'light';
+        const color=theme==='dark'?'#0b0d12':'#f4f5f7';
+        root.style.colorScheme=theme;
+        root.style.backgroundColor=color;
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content',color);
+        const webApp=window.Telegram?.WebApp;
+        if(webApp?.initData){
+          try{webApp.setBackgroundColor?.(color);webApp.setHeaderColor?.(color);webApp.setBottomBarColor?.(color)}catch(_){}
+        }
+      };
+      paint();
+      window.addEventListener('pageshow',paint);
+      window.addEventListener('focus',paint);
+      document.addEventListener('visibilitychange',paint);
     })();
   </script>
-  <link rel="stylesheet" href="/app.css?v=4.384">
-  <link rel="stylesheet" href="/home-note.css?v=4.384">
-  <link rel="stylesheet" href="/rudi-effects.css?v=4.384">
-  <link rel="stylesheet" href="/product-extras.css?v=4.384">
+  <link rel="stylesheet" href="/app.css?v=4.385">
+  <link rel="stylesheet" href="/home-note.css?v=4.385">
+  <link rel="stylesheet" href="/rudi-effects.css?v=4.385">
+  <link rel="stylesheet" href="/product-extras.css?v=4.385">
 
-  <link rel="stylesheet" href="/home-hero-v2104.css?v=2.104">
-  <link rel="stylesheet" href="/home-reference-layout.css?v=4.384">
-  <link rel="stylesheet" href="/rudi-games.css?v=4.384">
-  <link rel="stylesheet" href="/mood-history-v2101.css?v=3.92">
-  <link rel="stylesheet" href="/mood-reason-v2105.css?v=2.106">
-  <link rel="stylesheet" href="/pwa-extras.css?v=4.384">
-  <link rel="stylesheet" href="/calendar.css?v=4.384">
-  <link rel="stylesheet" href="/smart-home.css?v=4.384">
-  <link rel="stylesheet" href="/car.css?v=4.384">
-  <link rel="stylesheet" href="/profile-supplements.css?v=4.384">
-  <link rel="stylesheet" href="/supplement-advanced.css?v=4.384">
-  <link rel="stylesheet" href="/rudi-design-system.css?v=4.384">
-  <link rel="stylesheet" href="/finance-cards.css?v=4.260">
-  <link rel="stylesheet" href="/crypto-signals.css?v=4.384">
-  <link rel="stylesheet" href="/crypto-algorithms.css?v=4.384">
-  <link rel="stylesheet" href="/recommendations.css?v=4.260">
+  <link rel="stylesheet" href="/home-hero-v2104.css?v=4.385">
+  <link rel="stylesheet" href="/home-reference-layout.css?v=4.385">
+  <link rel="stylesheet" href="/rudi-games.css?v=4.385">
+  <link rel="stylesheet" href="/mood-history-v2101.css?v=4.385">
+  <link rel="stylesheet" href="/mood-reason-v2105.css?v=4.385">
+  <link rel="stylesheet" href="/pwa-extras.css?v=4.385">
+  <link rel="stylesheet" href="/calendar.css?v=4.385">
+  <link rel="stylesheet" href="/smart-home.css?v=4.385">
+  <link rel="stylesheet" href="/car.css?v=4.385">
+  <link rel="stylesheet" href="/profile-supplements.css?v=4.385">
+  <link rel="stylesheet" href="/supplement-advanced.css?v=4.385">
+  <link rel="stylesheet" href="/rudi-design-system.css?v=4.385">
+  <link rel="stylesheet" href="/finance-cards.css?v=4.385">
+  <link rel="stylesheet" href="/crypto-signals.css?v=4.385">
+  <link rel="stylesheet" href="/crypto-algorithms.css?v=4.385">
+  <link rel="stylesheet" href="/recommendations.css?v=4.385">
   <script>
     (() => {
       const launchContext=String(location.search||'')+String(location.hash||'');
@@ -75,21 +93,41 @@
       });
     })();
   </script>
-  <script defer src="/wallet-brand-icons.js?v=4.384"></script>
-  <script defer src="/calendar-offline.js?v=4.384"></script>
-  <script defer src="/home-offline.js?v=4.384"></script>
-  <script defer src="/rudi-offline-content.js?v=4.384"></script>
-  <script defer src="/rudi-effects.js?v=4.384"></script>
-  <script defer src="/app.js?v=4.384"></script>
-  <script defer src="/home-note.js?v=4.384"></script>
-  <script defer src="/personal-task-editor.js?v=4.384"></script>
-  <script defer src="/meditation.js?v=4.384"></script>
-  <script defer src="/meditation-audio.js?v=4.384"></script>
-  <script defer src="/finance-wallet-currency.js?v=4.260"></script>
-  <script defer src="/finance-obligation-dates.js?v=4.260"></script>
-  <script defer src="/product-extras.js?v=4.384"></script>
-  <script defer src="/calendar-day-recap.js?v=4.384"></script>
-  <script defer src="/recommendations.js?v=4.260"></script>
+  <script defer src="/wallet-brand-icons.js?v=4.385"></script>
+  <script defer src="/task-completion-policy.js?v=4.385"></script>
+  <script defer src="/calendar-offline.js?v=4.385"></script>
+  <script defer src="/home-offline.js?v=4.385"></script>
+  <script defer src="/rudi-offline-content.js?v=4.385"></script>
+  <script defer src="/rudi-offline-saves.js?v=4.385"></script>
+  <script defer src="/rudi-offline-transactions.js?v=4.385"></script>
+  <script defer src="/rudi-effects.js?v=4.385"></script>
+  <script defer src="/rudi-offline-pin.js?v=4.385"></script>
+  <script defer src="/mood-catalog.js?v=4.385"></script>
+  <script defer src="/mood-picker.js?v=4.385"></script>
+  <link rel="stylesheet" href="/mood-picker.css?v=4.385">
+  <script defer src="/viewport.js?v=4.385"></script>
+  <link rel="stylesheet" href="/partner-profile.css?v=4.385">
+  <script defer src="/positive-emotion-chart.js?v=4.385"></script>
+  <link rel="stylesheet" href="/lulu-care.css?v=4.385">
+  <script defer src="/lulu-care.js?v=4.385"></script>
+  <script defer src="/partner-profile.js?v=4.385"></script>
+  <script defer src="/finance-month-rollover.js?v=4.385"></script>
+  <script defer src="/finance-category-limits.js?v=4.385"></script>
+  <script defer src="/fasting-history.js?v=4.385"></script>
+  <script defer src="/app.js?v=4.385"></script>
+  <script defer src="/home-note.js?v=4.385"></script>
+  <script defer src="/personal-task-editor.js?v=4.385"></script>
+  <link rel="stylesheet" href="/cbt.css?v=4.385">
+  <script defer src="/cbt-content.js?v=4.385"></script>
+  <script defer src="/cbt-core.js?v=4.385"></script>
+  <script defer src="/cbt.js?v=4.385"></script>
+  <script defer src="/meditation.js?v=4.385"></script>
+  <script defer src="/meditation-audio.js?v=4.385"></script>
+  <script defer src="/finance-wallet-currency.js?v=4.385"></script>
+  <script defer src="/finance-obligation-dates.js?v=4.385"></script>
+  <script defer src="/product-extras.js?v=4.385"></script>
+  <script defer src="/calendar-day-recap.js?v=4.385"></script>
+  <script defer src="/recommendations.js?v=4.385"></script>
   <!-- Finance decision tools are optional: load only when opening Finances. -->
   <script>
     (() => {
@@ -107,12 +145,12 @@
         loading=(async()=>{
           if(!document.querySelector('[data-rudi-finance-decisions-css]')){
             const style=document.createElement('link');style.rel='stylesheet';
-            style.href='/finance-decisions.css?v=4.384';
+            style.href='/finance-decisions.css?v=4.385';
             style.dataset.rudiFinanceDecisionsCss='1';
             document.head.appendChild(style);
           }
-          await loadScript('/finance-decisions-core.js?v=4.384');
-          await loadScript('/finance-decisions-ui.js?v=4.384');
+          await loadScript('/finance-decisions-core.js?v=4.385');
+          await loadScript('/finance-decisions-ui.js?v=4.385');
         })().catch(error=>{loading=null;console.warn('RUDI_LAZY_FINANCE_WARN',String(error?.message||error))});
         return loading;
       };
@@ -131,79 +169,62 @@
     })();
   </script>
 
-  <script defer src="/pwa-extras.js?v=4.384"></script>
-  <link rel="stylesheet" href="/weather-forecast.css?v=4.384">
-  <script defer src="/weather-forecast.js?v=4.384"></script>
-  <link rel="stylesheet" href="/bill-payment.css?v=4.384">
-  <script defer src="/bill-payment.js?v=4.384"></script>
-  <script defer src="/weather.js?v=4.384"></script>
-  <script defer src="/smart-home.js?v=4.384"></script>
-  <script defer src="/car.js?v=4.384"></script>
-  <script defer src="/profile-supplements.js?v=4.384"></script>
-  <script defer src="/mood-history.js?v=4.384"></script>
-  <script defer src="/supplement-editor.js?v=4.384"></script>
-  <script defer src="/supplement-advanced.js?v=4.384"></script>
-  <link rel="stylesheet" href="/personal-center.css?v=4.384">
-  <script defer src="/personal-center.js?v=4.384"></script>
-  <link rel="stylesheet" href="/crypto-wallets.css?v=4.384">
-  <script defer src="/crypto-wallets.js?v=4.384"></script>
-  <script defer src="/crypto-signals.js?v=4.384"></script>
-  <script defer src="/crypto-algorithms.js?v=4.384"></script>
-  <script defer src="/home-reference-layout.js?v=4.384"></script>
-  <script defer src="/rudi-games.js?v=4.384"></script>
-  <script defer src="/rudi-games-extra.js?v=4.384"></script>
+  <script defer src="/pwa-extras.js?v=4.385"></script>
+  <link rel="stylesheet" href="/weather-forecast.css?v=4.385">
+  <script defer src="/weather-forecast.js?v=4.385"></script>
+  <link rel="stylesheet" href="/bill-payment.css?v=4.385">
+  <script defer src="/bill-payment.js?v=4.385"></script>
+  <script defer src="/weather.js?v=4.385"></script>
+  <script defer src="/smart-home.js?v=4.385"></script>
+  <script defer src="/car.js?v=4.385"></script>
+  <script defer src="/supplement-course.js?v=4.385"></script>
+  <script defer src="/habit-history.js?v=4.385"></script>
+  <script defer src="/profile-supplements.js?v=4.385"></script>
+  <script defer src="/mood-history.js?v=4.385"></script>
+  <script defer src="/supplement-editor.js?v=4.385"></script>
+  <script defer src="/supplement-advanced.js?v=4.385"></script>
+  <link rel="stylesheet" href="/personal-center.css?v=4.385">
+  <script defer src="/personal-center.js?v=4.385"></script>
+  <link rel="stylesheet" href="/crypto-wallets.css?v=4.385">
+  <script defer src="/crypto-wallets.js?v=4.385"></script>
+  <script defer src="/crypto-live.js?v=4.385"></script>
+  <script defer src="/crypto-signals.js?v=4.385"></script>
+  <script defer src="/crypto-algorithms.js?v=4.385"></script>
+  <script defer src="/home-reference-layout.js?v=4.385"></script>
+  <script defer src="/rudi-games.js?v=4.385"></script>
+  <script defer src="/rudi-games-extra.js?v=4.385"></script>
   <style>
     #financeWalletList .finance-coin-amount.rudi-wallet-usd-equivalent{
       white-space:normal;overflow:visible;text-align:center;line-height:1.14;font-size:8px;
     }
   </style>
-  <link rel="stylesheet" href="/personal-task-editor.css?v=4.384">
-  <link rel="stylesheet" href="/meditation.css?v=4.384">
-  <link rel="stylesheet" href="/meditation-audio.css?v=4.384">
-  <link rel="stylesheet" href="/calendar-entertainment.css?v=4.384">
-  <script defer src="/calendar-entertainment.js?v=4.384"></script>
-  <link rel="stylesheet" href="/presence.css?v=4.384">
-  <script defer src="/presence.js?v=4.384"></script>
-  <script defer src="/rudi-interactions.js?v=4.384"></script>
-  <link rel="stylesheet" href="/finance-nav-icons.css?v=4.384">
-  <script defer src="/finance-nav-icons.js?v=4.384"></script>
+  <link rel="stylesheet" href="/personal-task-editor.css?v=4.385">
+  <link rel="stylesheet" href="/meditation.css?v=4.385">
+  <link rel="stylesheet" href="/meditation-audio.css?v=4.385">
+  <link rel="stylesheet" href="/calendar-entertainment.css?v=4.385">
+  <script defer src="/calendar-entertainment.js?v=4.385"></script>
+  <link rel="stylesheet" href="/presence.css?v=4.385">
+  <script defer src="/presence.js?v=4.385"></script>
+  <script defer src="/rudi-interactions.js?v=4.385"></script>
+  <link rel="stylesheet" href="/finance-nav-icons.css?v=4.385">
+  <script defer src="/finance-nav-icons.js?v=4.385"></script>
 </head>
-<body class="auth-pending">
+<body class="auth-pending" data-app-tab="home">
   <div id="appGate" class="app-gate" role="status" aria-live="polite">
     <div class="app-gate-card">
-      <div class="app-gate-icon app-gate-spinner" aria-hidden="true">
-        <span class="app-gate-spinner-ring"></span>
-      </div>
-      <div id="appGateTitle" class="app-gate-title">Загружаю</div>
+      <div id="appGateTitle" class="app-gate-title"></div>
       <div id="appGateText" class="app-gate-text" hidden></div>
     </div>
   </div>
-  <script>
-    // Runs independently of app.js: iPhone PWA can otherwise remain a dark screen forever.
-    (() => {
-      const showRecovery = () => {
-        if (!document.body?.classList.contains('auth-pending')) return;
-        const gate=document.getElementById('appGate');
-        if (!gate) return;
-        const title=document.getElementById('appGateTitle');
-        const text=document.getElementById('appGateText');
-        if(title)title.textContent='РуДи долго загружается';
-        if(text){text.hidden=false;text.textContent='Проверь интернет и попробуй открыть снова.'}
-        if(document.getElementById('rudiStartupRetry'))return;
-        const button=document.createElement('button');
-        button.id='rudiStartupRetry';button.type='button';button.textContent='Повторить запуск';
-        button.style.cssText='display:block;margin:16px auto 0;padding:12px 18px;min-height:44px;border:0;border-radius:12px;font:600 14px system-ui;color:#111;background:#fff';
-        button.addEventListener('click',()=>{
-          button.disabled=true;
-          window.location.replace('/?rudi-retry='+Date.now());
-        });
-        gate.querySelector('.app-gate-card')?.appendChild(button);
-      };
-      setTimeout(showRecovery,12000);
-    })();
-  </script>
 
   <main class="shell">
+    <section id="appStartupPreview" class="app-startup-preview" role="status" aria-label="Загрузка РуДи">
+      <div class="app-startup-heading"><strong>РуДи</strong><span>Открываю приложение…</span></div>
+      <div class="app-startup-card"><i class="app-startup-line wide"></i><i class="app-startup-line"></i></div>
+      <div class="app-startup-card person"><i class="app-startup-avatar"></i><div><i class="app-startup-line wide"></i><i class="app-startup-line"></i></div></div>
+      <div class="app-startup-card person"><i class="app-startup-avatar"></i><div><i class="app-startup-line wide"></i><i class="app-startup-line"></i></div></div>
+      <div class="app-startup-card"><i class="app-startup-line wide"></i><i class="app-startup-line"></i><i class="app-startup-line wide"></i></div>
+    </section>
 
     <section id="homeNoteTile" class="home-note" data-app-tab-section="home" data-home-tile="note" aria-label="Личная заметка">
       <div class="home-note-head">
@@ -244,7 +265,7 @@
           <div id="avatar" class="avatar">
             <span id="initials">R</span>
             <img id="avatarImage" alt="">
-            <button id="moodCurrentButton" class="mood-current-button partner-mood-value avatar-mood-badge" type="button" aria-label="Выбрать настроение" aria-expanded="false" aria-controls="moodChoices" hidden>
+            <button id="moodCurrentButton" class="mood-current-button partner-mood-value avatar-mood-badge" type="button" aria-label="Выбрать настроение" aria-haspopup="dialog" aria-expanded="false" aria-controls="moodPickerDialog" hidden>
               <span id="moodCurrentEmoji" class="mood-emoji" aria-hidden="true"></span>
             </button>
           </div>
@@ -272,6 +293,7 @@
               <span class="partner-mood-icon" data-partner-mood="neutral" hidden><span class="mood-emoji" aria-hidden="true">😐</span></span>
               <span class="partner-mood-icon" data-partner-mood="fatigue" hidden><span class="mood-emoji" aria-hidden="true">😩</span></span>
               <span class="partner-mood-icon" data-partner-mood="anger" hidden><span class="mood-emoji" aria-hidden="true">😡</span></span>
+              <span class="partner-mood-icon" data-partner-mood="anxiety" hidden><span class="mood-emoji" aria-hidden="true">😨</span></span>
               <span class="partner-mood-icon" data-partner-mood="joy" hidden><span class="mood-emoji" aria-hidden="true">😄</span></span>
               <span class="partner-mood-icon" data-partner-mood="love" hidden><span class="mood-emoji" aria-hidden="true">🥰</span></span>
             </button>
@@ -302,7 +324,7 @@
             </div>
           </div>
           <div id="moodPrompt" class="mood-prompt">Выбери настроение</div>
-          <div id="moodChoices" class="mood-choices" hidden>
+          <div id="moodChoices" class="mood-choices" hidden aria-hidden="true">
             <button id="moodHistoryButton" class="fasting-profile-button partner-mood-value mood-history-quick-button" type="button" aria-label="История настроения" title="История настроения"><span class="mood-emoji" aria-hidden="true">🕘</span></button>
             <button class="mood-button" type="button" data-mood="sadness" aria-label="Грусть" title="Грусть"><span class="mood-emoji" aria-hidden="true">😢</span></button>
             <button class="mood-button" type="button" data-mood="boredom" aria-label="Скука" title="Скука"><span class="mood-emoji" aria-hidden="true">🥱</span></button>
@@ -697,10 +719,12 @@
             </label>
             <label class="finance-input-field">
               <span>Лимит на месяц</span>
+              <select id="financeCategoryLimitMonth" class="finance-select" aria-label="Месяц лимита" hidden></select>
               <div class="finance-money-input">
                 <input id="financeCategoryLimit" type="number" min="0" max="100000000" step="1" inputmode="decimal" placeholder="Без лимита" aria-label="Лимит категории на месяц">
                 <b>₽</b>
               </div>
+              <small id="financeCategoryPreviousSpent" aria-live="polite" hidden></small>
             </label>
             <label id="financeCategorySpentField" class="finance-input-field finance-category-spent-field" hidden>
               <span id="financeCategorySpentLabel">Потрачено в этом месяце</span>
@@ -764,12 +788,12 @@
               </div>
               <div id="financeCryptoConnectFields" class="finance-crypto-connect-fields" hidden>
                 <label class="finance-input-field"><span>Источник</span>
-                  <select id="financeCryptoProvider" class="finance-select"><option value="bybit">Bybit</option><option value="uniswap">Uniswap</option><option value="trust">Trust Wallet</option></select>
+                  <select id="financeCryptoProvider" class="finance-select"><option value="bybit">Bybit</option><option value="pionex">Pionex</option><option value="gate">Gate</option><option value="uniswap">Uniswap</option><option value="trust">Trust Wallet</option></select>
                 </label>
                 <div id="financeCryptoBybitFields">
                   <label class="finance-input-field"><span>API Key (только чтение)</span><input id="financeCryptoApiKey" class="finance-text-input" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="150"></label>
                   <label class="finance-input-field"><span>API Secret</span><input id="financeCryptoApiSecret" class="finance-text-input" type="password" autocomplete="off" maxlength="200"></label>
-                  <small>Создай системный HMAC API-ключ Bybit.com с правами Read-only. Подключение выполняется через европейский сервер RUDI. Ключи с правами торговли или вывода отклоняются.</small>
+                  <small id="financeCryptoApiHelp">Создай системный HMAC API-ключ Bybit.com с правами Read-only. Подключение выполняется через европейский сервер RUDI. Ключи с правами торговли или вывода отклоняются.</small>
                 </div>
                 <div id="financeCryptoUniswapFields" hidden>
                   <label class="finance-input-field"><span>Сеть блокчейна</span>
@@ -1174,7 +1198,7 @@
         </section>
         <section id="financeCryptoMain">
         <button type="button" class="crypto-signals-launch" id="financeCryptoSignalsOpen">
-          <span><b>Анализ сигналов Олега Артемьева</b><small>@ne_investor · виртуальный портфель 10 000 $</small></span>
+          <span><b>Анализ сигналов Олега Артемьева</b><small>@ne_investor · OKX и Pionex по API</small></span>
           <span aria-hidden="true">↗</span>
         </button>
         <button type="button" class="crypto-signals-launch crypto-algo-launch" id="financeCryptoAlgoOpen">
@@ -1185,18 +1209,75 @@
         <div class="finance-crypto-guide">Чтобы подключить кошелёк, открой «Личные» и выбери «Подключить API». Trust Wallet подключается только через публичный адрес отдельной сети. Источники с неполным учётом обозначены индикатором.</div>
         <div id="financeCryptoStatus" class="finance-crypto-status" role="status" aria-live="polite"></div>
         </section>
-        <section id="financeCryptoSignalsPanel" class="crypto-signals-panel" hidden aria-label="Виртуальный портфель и анализ торговых сигналов">
+        <section id="financeCryptoSignalsPanel" class="crypto-signals-panel" hidden aria-label="Сканер Артемьева и торговля на бирже">
           <header class="crypto-signals-header">
             <button type="button" id="financeCryptoSignalsBack" class="crypto-signals-back">← К криптопортфелю</button>
             <a href="https://t.me/ne_investor" target="_blank" rel="noopener noreferrer">@ne_investor ↗</a>
           </header>
-          <div class="crypto-signals-intro">
-            <h3>Виртуальные сделки</h3>
-            <p>Старт 10 000 $ · 30 дней сигналов · обновление до 5 минут</p>
+          <div class="crypto-signals-intro"><h3>Сканер Артемьева</h3><p>Pionex · реальный счёт по API</p></div>
+          <div class="crypto-signals-section crypto-live-controls">
+            <div class="crypto-signals-row"><h4>Биржа</h4><button type="button" id="cryptoLiveRefresh" class="crypto-signals-inline">Обновить</button></div>
+            <div class="crypto-live-provider-label"><span>Подключение</span><strong>Pionex</strong></div><input id="cryptoLiveProvider" type="hidden" value="pionex">
+            <p id="cryptoLiveConnection" class="crypto-signals-help">Биржа не подключена</p>
+            <p class="crypto-signals-help">Подключение Pionex подтверждает чтение счёта, но не проверяет право размещать ордера. Торговое разрешение станет известно при первом реальном ордере. Пробные сделки автоматически не создаются.</p>
+            <details id="cryptoLiveKeys"><summary>Подключить или изменить API</summary>
+              <div class="crypto-live-grid">
+                <label class="crypto-live-field">API Key<input id="cryptoLiveApiKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="150"></label>
+                <label class="crypto-live-field">API Secret<input id="cryptoLiveApiSecret" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="200"></label>
+                <label class="crypto-live-field" id="cryptoLivePassphraseField" hidden>Passphrase<input id="cryptoLivePassphrase" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" maxlength="100"></label>
+              </div>
+              <p class="crypto-signals-help">Нужен ключ с чтением и торговлей фьючерсами, без вывода средств. Режим позиций: односторонний (Pionex BUYSELL). Подключение сохраняет ключи зашифрованными и оставляет торговлю выключенной.</p>
+              <button type="button" id="cryptoLiveConnect" class="crypto-signals-inline">Подключить API</button>
+              <p id="cryptoLiveConnectStatus" class="crypto-signals-status" role="status" aria-live="polite"></p>
+            </details>
           </div>
+          <div class="crypto-signals-stats" aria-label="Данные торгового счёта с биржи">
+            <article><small>Торговый баланс, USDT</small><strong id="cryptoLiveEquity">—</strong><small id="cryptoLiveUpdated">Подключи биржу</small></article>
+            <article><small>Доступно, USDT</small><strong id="cryptoLiveAvailable">—</strong><small>По данным API биржи</small></article>
+            <article><small>Открытый PNL, USDT</small><strong id="cryptoLiveUnrealized">—</strong><small>Все позиции торгового счёта</small></article>
+            <article><small>Позиций на бирже</small><strong id="cryptoLivePositionCount">—</strong><small>Реальные позиции</small></article>
+          </div>
+          <div class="crypto-signals-section">
+            <div class="crypto-signals-row"><h4>Автоматическая торговля</h4><div class="crypto-live-mode-group"><small id="cryptoLiveMode" role="status" aria-live="polite">Выключена</small><small id="cryptoLiveActivatedAt" hidden></small></div></div>
+            <div class="crypto-live-grid">
+              <label class="crypto-live-field">Маржа на сделку, USDT<input id="cryptoLiveMargin" type="number" min="1" max="100000" step="0.01" inputmode="decimal" placeholder="Укажи сумму"></label>
+              <label class="crypto-live-field">Общий лимит маржи, USDT<input id="cryptoLiveMarginCap" type="number" min="1" max="100000" step="0.01" inputmode="decimal" placeholder="Укажи лимит"></label>
+              <label class="crypto-live-field">Лимит потерь за день, USDT<input id="cryptoLiveDailyLoss" type="number" min="1" max="100000" step="0.01" inputmode="decimal" placeholder="Укажи лимит"></label>
+              <label class="crypto-live-field">Плечо<select id="cryptoLiveLeverage"><option value="1">1×</option><option value="2">2×</option><option value="3">3×</option><option value="4">4×</option><option value="5">5×</option></select></label>
+              <label class="crypto-live-field">Максимум позиций<input id="cryptoLiveMaxOpen" type="number" min="1" max="5" step="1" value="1" inputmode="numeric"></label>
+              <label class="crypto-live-field">Отклонение от входа, %<input id="cryptoLiveSlippage" type="number" min="0.05" max="2" step="0.05" value="0.5" inputmode="decimal"></label>
+            </div>
+            <label class="crypto-live-consent" id="cryptoLiveProgrammaticField" hidden><input id="cryptoLiveProgrammatic" type="checkbox"><span>На Pionex используется кросс-маржа. Если Артемьев указал стоп или тейк, их контролирует сервер RUDI. Если не указал — автоматического защитного стопа нет, позиция ждёт его команды на выход. Проверка примерно раз в минуту; при сбое связи выход может задержаться, вплоть до ликвидации.</span></label>
+            <label class="crypto-live-consent"><input id="cryptoLiveConsent" type="checkbox"><span>Включить реальные сделки за деньги на выбранной бирже с указанными лимитами.</span></label>
+            <p id="cryptoLivePreflight" class="crypto-signals-help" role="status" aria-live="polite"></p>
+            <div class="crypto-live-actions">
+              <button type="button" id="cryptoLiveSave" class="crypto-signals-inline">Сохранить настройки</button>
+              <button type="button" id="cryptoLiveStart" class="crypto-signals-inline">Включить торговлю</button>
+              <button type="button" id="cryptoLivePause" class="crypto-signals-inline">Пауза новых входов</button>
+            </div>
+            <p id="cryptoLiveStatus" class="crypto-signals-status" role="status" aria-live="assertive"></p>
+            <details class="crypto-live-extra"><summary>Управление подключением</summary><div class="crypto-live-actions">
+              <button type="button" id="cryptoLiveClose" class="crypto-signals-inline">Закрыть позиции сканера</button>
+              <button type="button" id="cryptoLiveDisconnect" class="crypto-signals-inline">Отключить API</button>
+            </div></details>
+            <p class="crypto-signals-help">Сканер отслеживает только сигналы Артемьева, а не 40 монет общего алгоритма. Вход на Pionex исполняется сразу в пределах заданного отклонения цены (IOC); неисполненный остаток отменяется. Если автор не задал цену входа, используется текущая котировка. Без стопа и тейка позиция ждёт команды автора. Выход без цены, сработавший стоп или тейк и ручное закрытие исполняются по рынку. Указанная автором цена выхода используется, пока не сработала защита. Старые и неоднозначные сигналы пропускаются, повторные входы блокируются. Пауза не прекращает сопровождение открытых позиций. Лимит потерь не гарантирует цену выхода.</p>
+
+          </div>
+          <div class="crypto-signals-section crypto-live-diagnostics">
+            <div class="crypto-signals-row"><h4>Работа сканера</h4></div>
+            <div class="crypto-live-checks"><p id="cryptoLiveChannelCheck">Канал · нет данных о проверке</p><p id="cryptoLiveExchangeCheck">Pionex · нет данных о проверке</p></div>
+            <p class="crypto-signals-help">Время последней успешной проверки указано по Москве. При выключенной торговле без открытых позиций канал не проверяется.</p>
+            <details id="cryptoLiveSignalHistory" open><summary>История сигналов</summary>
+              <p class="crypto-signals-help">Последние 60 сигналов после включения торговли. Получен означает, что сканер увидел сигнал в канале. Для старых сделок этапы не записывались.</p>
+              <div id="cryptoLiveSignalJournal" class="crypto-live-signal-journal"></div>
+            </details>
+          </div>
+          <div class="crypto-signals-section"><div class="crypto-signals-row"><h4>Позиции на бирже</h4></div><div id="cryptoLivePositions" class="crypto-signals-list"></div></div>
+          <div class="crypto-signals-section"><div class="crypto-signals-row"><h4>Сделки сканера</h4></div><div id="cryptoLiveTrades" class="crypto-signals-list"></div></div>
+          <details id="cryptoSignalsArchive" class="crypto-live-archive"><summary>Архив виртуальных сделок</summary>
           <div class="crypto-signals-stats">
-            <article><small>Виртуальный баланс</small><strong id="cryptoVirtualEquity">—</strong><small id="cryptoVirtualStart">Начальный капитал 10 000 $</small></article>
-            <article><small>Итоговый PNL</small><strong id="cryptoVirtualPnl">—</strong><small id="cryptoVirtualPnlPct">С учётом открытых позиций</small></article>
+            <article><small id="cryptoVirtualEquityLabel">Виртуальный баланс</small><strong id="cryptoVirtualEquity">—</strong><small id="cryptoVirtualStart">Начальный капитал 10 000 $</small></article>
+            <article><small id="cryptoVirtualPnlLabel">Итоговый PNL</small><strong id="cryptoVirtualPnl">—</strong><small id="cryptoVirtualPnlPct">С учётом открытых позиций</small></article>
             <article><small>Свободные средства</small><strong id="cryptoVirtualCash">—</strong><small id="cryptoVirtualInvested">В сделках —</small></article>
             <article><small>Закрытые сделки</small><strong id="cryptoVirtualClosed">—</strong><small id="cryptoVirtualWinrate">Winrate —</small></article>
           </div>
@@ -1217,9 +1298,9 @@
           <div class="crypto-signals-section">
             <div class="crypto-signals-row"><h4>Симуляция</h4><button type="button" id="cryptoSignalsRefresh" class="crypto-signals-inline">Обновить</button></div>
             <div class="crypto-signals-settings">
-              <label>Доля от свободного баланса <select id="cryptoSignalsAllocation"><option value="5">5%</option><option value="10">10%</option><option value="20">20%</option><option value="25">25%</option><option value="50">50%</option></select></label>
-              <label>Плечо <select id="cryptoSignalsLeverage"><option value="2">2×</option><option value="3">3×</option></select></label>
-              <button type="button" id="cryptoSignalsSettingsSave" class="crypto-signals-inline">Сохранить</button>
+              <label>Доля от свободного баланса <select id="cryptoSignalsAllocation" disabled><option value="5">5%</option><option value="10">10%</option><option value="20">20%</option><option value="25">25%</option><option value="50">50%</option></select></label>
+              <label>Плечо <select id="cryptoSignalsLeverage" disabled><option value="2">2×</option><option value="3">3×</option></select></label>
+              <button type="button" id="cryptoSignalsSettingsSave" hidden class="crypto-signals-inline">Сохранить</button>
             </div>
             <p class="crypto-signals-help">Только виртуальные сделки после запуска отслеживания. Расчёт — по Bybit Spot или USDT Perpetual. Оценочные комиссии и проскальзывание учитываются; funding — только при доступной истории биржи. Неуказанные объёмы и неоднозначные события не превращаются в прибыль.</p>
           </div>
@@ -1235,11 +1316,13 @@
             <div class="crypto-signals-row"><h4>Виртуальные позиции</h4><small id="cryptoVirtualPositionsCount">0 сделок</small></div>
             <div id="cryptoVirtualPositions" class="crypto-signals-list"></div>
           </div>
+          <p class="crypto-signals-status" id="cryptoSignalsStatus" role="status" aria-live="polite"></p>
+          </details>
           <div class="crypto-signals-section">
             <div class="crypto-signals-row"><h4>Сигналы за 30 дней</h4><small id="cryptoSignalSummary">—</small></div>
             <div id="cryptoSignalsList" class="crypto-signals-list"></div>
           </div>
-          <p class="crypto-signals-status" id="cryptoSignalsStatus" role="status" aria-live="polite"></p>
+          <p class="crypto-signals-status" id="cryptoSignalsFeedStatus" role="status" aria-live="polite"></p>
         </section>
         <section id="financeCryptoAlgoPanel" class="crypto-signals-panel crypto-algo-panel" hidden aria-label="Тестирование собственных шорт-алгоритмов">
           <header class="crypto-signals-header">
@@ -1392,41 +1475,7 @@
       </button>
     </section>
 
-    <section id="quickAccessTile" class="panel quick-access-tile" data-app-tab-section="home" data-home-tile="quick-access" aria-labelledby="quickAccessTitle">
-      <div class="quick-access-head">
-        <div>
-          <h2 id="quickAccessTitle">Быстрый доступ</h2>
-        </div>
-      </div>
-      <div class="quick-access-actions">
-        <button id="quickWishlistButton" class="quick-access-button is-wishlist" type="button">
-          <span class="quick-access-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.3 4.7 13.6A5.2 5.2 0 0 1 12 6.1a5.2 5.2 0 0 1 7.3 7.5L12 20.3Z"/></svg>
-          </span>
-          <span class="quick-access-copy"><strong>Вишлист</strong></span>
-        </button>
-        <button id="quickDateButton" class="quick-access-button is-date" type="button">
-          <span class="quick-access-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20.2 5.2 14A4.7 4.7 0 0 1 12 7.4 4.7 4.7 0 0 1 18.8 14L12 20.2Z"/><path d="M18.5 4.2v3.2M16.9 5.8h3.2"/></svg>
-          </span>
-          <span class="quick-access-copy"><strong>Идеи для свиданий</strong></span>
-        </button>
-        <button id="quickForDiButton" class="quick-access-button is-for-di" type="button">
-          <span class="quick-access-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 5.5h15v11h-9l-4.5 3v-3H4.5v-11Z"/><path d="M8 9h8M8 12.5h5"/></svg>
-          </span>
-          <span class="quick-access-copy"><strong>Для Ди</strong></span>
-        </button>
-        <button id="quickPhotoSessionButton" class="quick-access-button is-photo-session" type="button">
-          <span class="quick-access-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5h3l1.3-2h7.4l1.3 2h3v10H4v-10Z"/><circle cx="12" cy="13.5" r="3.1"/><path d="M19 3v3M17.5 4.5h3"/></svg>
-          </span>
-          <span class="quick-access-copy"><strong>Создать фотосессию</strong></span>
-        </button>
-      </div>
-    </section>
-
-    <section id="smartHomeTile" class="panel smart-home-tile" data-app-tab-section="home" data-home-tile="smart-home" aria-labelledby="smartHomeTitle">
+    <section id="smartHomeTile" class="panel smart-home-tile is-compact" data-app-tab-section="home" data-home-tile="smart-home" aria-labelledby="smartHomeTitle">
       <div class="smart-home-head">
         <div class="smart-home-title-wrap">
           <span class="smart-home-title-icon" aria-hidden="true">
@@ -1438,13 +1487,14 @@
             </svg>
           </span>
           <div>
-            <h2 id="smartHomeTitle">Умный дом</h2>
+            <h2 id="smartHomeTitle"><button id="smartHomeTitleOpen" class="smart-home-title-open" type="button" aria-label="Открыть умный дом">Умный дом</button></h2>
             <div id="smartHomeUpdated" class="smart-home-updated">Подключаю устройства…</div>
           </div>
         </div>
         <button id="smartHomeRefresh" class="smart-home-refresh" type="button" aria-label="Обновить умный дом" title="Обновить">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
         </button>
+        <button id="smartHomePageOpen" class="smart-home-refresh smart-home-page-open" type="button" aria-label="Открыть умный дом"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg></button>
       </div>
 
       <div class="smart-home-climate" aria-label="Климат и погода">
@@ -1490,6 +1540,66 @@
         </div>
       </div>
 
+      <div id="smartHomeSummary" class="smart-home-summary" aria-live="polite">
+        <div id="smartHomeActiveRow" class="smart-home-summary-row" hidden><div id="smartHomeActiveDevices" class="smart-home-summary-chips" aria-label="Включённые устройства"></div></div>
+        <div id="smartHomeLowBatteryRow" class="smart-home-summary-row is-battery" hidden><strong>Пора зарядить</strong><div id="smartHomeLowBattery" class="smart-home-summary-chips"></div></div>
+        <div id="smartHomeUnavailableRow" class="smart-home-summary-row is-unavailable" hidden><strong>Нет связи</strong><div id="smartHomeUnavailable" class="smart-home-summary-chips"></div></div>
+        <div id="smartHomeSummaryStatus" class="smart-home-summary-status" role="status" hidden></div>
+        <small id="smartHomeSummaryUpdated" class="smart-home-summary-updated">Подключаю устройства…</small>
+      </div>
+    </section>
+
+    <section id="smartHomePage" class="smart-home-page" data-app-tab-section="smart-home" aria-labelledby="smartHomePageTitle" hidden>
+      <header class="rudi-app-page-head smart-home-page-head">
+        <button id="smartHomePageBack" class="rudi-app-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+        <h1 id="smartHomePageTitle">Умный дом</h1>
+        <button id="smartHomePageRefresh" class="smart-home-refresh" type="button" aria-label="Обновить устройства"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg></button>
+      </header>
+      <small id="smartHomePageUpdated" class="smart-home-page-updated">Подключаю устройства…</small>
+      <div class="smart-home-climate" aria-label="Климат и погода">
+        <div class="smart-home-climate-card is-weather">
+          <span class="smart-home-climate-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <circle cx="11" cy="10" r="5" fill="currentColor" opacity=".26"/>
+              <path d="M11 2.5v2.2M11 15.3v2.2M3.5 10h2.2M16.3 10h2.2M5.7 4.7l1.6 1.6M14.7 13.7l1.6 1.6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              <path d="M9 23.5h13.2a5.3 5.3 0 0 0 .5-10.6 7.3 7.3 0 0 0-13.4 2.8A4 4 0 0 0 9 23.5Z" fill="currentColor" opacity=".17"/>
+              <path d="M9 23.5h13.2a5.3 5.3 0 0 0 .5-10.6 7.3 7.3 0 0 0-13.4 2.8A4 4 0 0 0 9 23.5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span>Погода</span>
+          <strong id="smartHomePageWeather">—</strong>
+          <small id="smartHomePageWeatherText">Загружаю…</small>
+        </div>
+        <div class="smart-home-climate-card is-temperature">
+          <span class="smart-home-climate-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M13 7.5a4 4 0 0 1 8 0v11.3a7 7 0 1 1-8 0V7.5Z" fill="currentColor" opacity=".14"/>
+              <path d="M13 7.5a4 4 0 0 1 8 0v11.3a7 7 0 1 1-8 0V7.5Z" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M17 9v12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <circle cx="17" cy="24" r="3.1" fill="currentColor"/>
+            </svg>
+          </span>
+          <span>Температура дома</span>
+          <strong id="smartHomePageTemperature">—</strong>
+          <small>Температура</small>
+          <div id="smartHomePageTemperatureAssessment" class="smart-home-climate-assessment" aria-live="polite" hidden></div>
+        </div>
+        <div class="smart-home-climate-card is-humidity">
+          <span class="smart-home-climate-icon" aria-hidden="true">
+            <svg viewBox="0 0 32 32" fill="none">
+              <path d="M16 4.5C12.7 9 8.4 13.9 8.4 19.1a7.6 7.6 0 1 0 15.2 0C23.6 13.9 19.3 9 16 4.5Z" fill="currentColor" opacity=".15"/>
+              <path d="M16 4.5C12.7 9 8.4 13.9 8.4 19.1a7.6 7.6 0 1 0 15.2 0C23.6 13.9 19.3 9 16 4.5Z" stroke="currentColor" stroke-width="1.9"/>
+              <path d="M12.8 20.2a3.8 3.8 0 0 0 3.8 3.8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span>Влажность дома</span>
+          <strong id="smartHomePageHumidity">—</strong>
+          <small id="smartHomePageHumidityHint">Влажность</small>
+          <div id="smartHomePageHumidityAssessment" class="smart-home-climate-assessment" aria-live="polite" hidden></div>
+        </div>
+      </div>
+
+      <section id="smartHomeAttention" class="smart-home-attention" hidden aria-label="Устройства с низким зарядом"><h2>Пора зарядить</h2><div id="smartHomeAttentionList" class="smart-home-summary-chips"></div></section>
       <div id="smartHomeStatus" class="smart-home-status" aria-live="polite"></div>
       <div id="smartHomeRooms" class="smart-home-rooms"></div>
 
@@ -1543,7 +1653,7 @@
           </div>
         </div>
         <div class="car-home-visual">
-          <img src="/changan-uni-v-header.webp?v=4.384" alt="" aria-hidden="true">
+          <img src="/changan-uni-v-header.webp?v=4.385" alt="" aria-hidden="true">
           <span id="carHomeTyreSticker" class="car-tyre-sticker" aria-label="Установленный комплект шин" hidden>Летние</span>
           <div class="car-home-wash">
             <span>Когда мыть</span>
@@ -1579,7 +1689,7 @@
           </div>
         </div>
         <div class="car-head-visual">
-          <img src="/changan-uni-v-header.webp?v=4.384" alt="" aria-hidden="true">
+          <img src="/changan-uni-v-header.webp?v=4.385" alt="" aria-hidden="true">
           <span id="carPageTyreSticker" class="car-tyre-sticker" aria-label="Установленный комплект шин" hidden>Летние</span>
           <div class="car-collapsed-wash">
             <span class="car-collapsed-wash-label">Когда мыть машину</span>
@@ -1737,9 +1847,9 @@
             <button id="carNoteUndoButton" type="button">Отменить</button>
           </div>
         </section>
-
-        <div id="carStatus" class="car-status" aria-live="polite"></div>
+<div id="carStatus" class="car-status" aria-live="polite"></div>
       </div>
+
 
       <section id="carWashGuidePage" class="car-wash-guide-page" aria-labelledby="carWashGuideTitle" role="dialog" aria-modal="true" hidden>
         <div class="car-wash-guide-head">
@@ -1881,7 +1991,7 @@
             <button id="calendarScopeSwitch" class="calendar-header-control calendar-scope-switch" type="button" data-calendar-scope="shared" aria-label="Переключить на совместный календарь" title="Совместный календарь"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8.3" cy="8" r="3"/><path d="M2 19v-1.7a6.3 6.3 0 0 1 12.6 0V19"/><circle cx="17.7" cy="9" r="2.4"/><path d="M15.5 14.3A5 5 0 0 1 22 19"/></svg></button>
             <button id="calendarModeSwitch" class="calendar-header-control calendar-mode-switch" type="button" data-calendar-mode="week" aria-label="Показать неделю" title="Неделя"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 3v3M16 3v3M3 13h18M3 17h18"/></svg></button>
             <button id="calendarFinanceShortcut" class="calendar-header-control calendar-finance-shortcut" data-finance-shortcut="overview" type="button" aria-label="Перейти в финансы" title="Открыть финансы"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="2.5"/><path d="M3 10h18"/><path d="M15 14h6v4h-6a2 2 0 0 1 0-4z"/><path d="M7 6V4.5A1.5 1.5 0 0 1 8.5 3H19"/></svg></button>
-          <button id="calendarConnectionsGear" class="calendar-connections-gear calendar-header-control" type="button" aria-label="Подключения календаря" title="Подключения">
+          <button id="calendarConnectionsGear" class="calendar-connections-gear calendar-header-control" type="button" aria-label="Настройки календаря" title="Настройки календаря">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.2 3.5h3.6l.5 2.2 1.7.9 2.1-.8 2.1 3.1-1.7 1.7v2l1.7 1.8-2.1 3-2.1-.7-1.7.9-.5 2.2h-3.6l-.5-2.2-1.7-.9-2.1.7-2.1-3 1.7-1.8v-2L3.8 9l2.1-3.1 2.1.8 1.7-.9z"/><circle cx="12" cy="12" r="3.1"/></svg>
           </button>
           </div>
@@ -1901,17 +2011,19 @@
         <button type="button" id="calendarConnectionsBackdrop" class="calendar-connections-backdrop" aria-label="Закрыть подключения"></button>
         <section class="calendar-connections-panel" role="dialog" aria-modal="true" aria-labelledby="calendarConnectionsTitle">
           <header class="calendar-connections-head">
-            <h2 id="calendarConnectionsTitle">Подключения календаря</h2>
-            <button type="button" id="calendarConnectionsClose" aria-label="Закрыть">×</button>
+            <button type="button" id="calendarConnectionsClose" class="calendar-settings-back" aria-label="Назад к календарю">←</button>
+            <h2 id="calendarConnectionsTitle">Настройки календаря</h2>
           </header>
+          <h3 class="calendar-settings-section-title">Личные дела</h3>
           <div class="calendar-connections-row" id="calendarPersonalTickTickRow">
             <div><strong>Личный TickTick</strong><span id="calendarPersonalTickTickStatus">Проверяем подключение</span></div>
             <button type="button" id="calendarPersonalTickTickConnect">Подключить</button>
           </div>
-          <div class="calendar-connections-row">
-            <div><strong>Совместный TickTick</strong><span id="calendarSharedTickTickStatus">Проверяем подключение</span></div>
+          <div class="calendar-connections-row" id="calendarSharedTickTickRow">
+            <div><strong>Перенос совместных дел</strong><span id="calendarSharedTickTickStatus">Проверяем данные</span></div>
             <button type="button" id="calendarSharedTickTickConnect">Подключить</button>
           </div>
+          <h3 class="calendar-settings-section-title">Календари</h3>
           <div class="calendar-connections-row">
             <div><strong>График Дианы</strong><span id="calendarWorkCalendarStatus">Проверяем подключение</span></div>
           </div>
@@ -2045,6 +2157,13 @@
             <span id="sharedAlbumMemoryLikedBy" class="reaction-names"></span>
           </div>
         </section>
+        <a class="shared-album-create" href="https://gemini.google.com/share/41a7861ea171" target="_blank" rel="noopener noreferrer">
+          <span class="shared-album-create-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3.3" y="6.4" width="17.4" height="13.1" rx="3"/><path d="m8.2 6.4 1.1-1.9h5.4l1.1 1.9"/><circle cx="12" cy="12.9" r="3.15"/><path d="M18.2 3.1v2.2M17.1 4.2h2.2"/></svg>
+          </span>
+          <span>Создать фотосессию</span>
+          <svg class="shared-album-create-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+        </a>
         <div id="sharedAlbumGrid" class="shared-album-groups" aria-live="polite">
           <div class="shared-album-grid shared-album-grid-placeholder">
             <div class="shared-album-placeholder"></div>
@@ -2058,13 +2177,7 @@
           <span>Открыть общий альбом</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M9 7h8v8"/></svg>
         </button>
-        <a class="shared-album-create" href="https://gemini.google.com/share/41a7861ea171" target="_blank" rel="noopener noreferrer">
-          <span class="shared-album-create-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3.3" y="6.4" width="17.4" height="13.1" rx="3"/><path d="m8.2 6.4 1.1-1.9h5.4l1.1 1.9"/><circle cx="12" cy="12.9" r="3.15"/><path d="M18.2 3.1v2.2M17.1 4.2h2.2"/></svg>
-          </span>
-          <span>Создать фотосессию</span>
-          <svg class="shared-album-create-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
-        </a>
+
       </article>
     </section>
 
@@ -2126,7 +2239,7 @@
         <button type="button" data-kitchen-view="products" aria-pressed="true">Продукты</button>
         <button type="button" data-kitchen-view="recipes" aria-pressed="false">Рецепты</button>
         <button type="button" data-kitchen-view="saves" aria-pressed="false">Сохранённое</button>
-        <button id="kitchenFinanceShortcut" class="kitchen-finance-shortcut" data-finance-shortcut="overview" type="button" aria-label="Перейти в финансы" title="Открыть финансы"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="6" width="18" height="15" rx="2.5"/><path d="M3 10h18"/><path d="M15 14h6v4h-6a2 2 0 0 1 0-4z"/><path d="M7 6V4.5A1.5 1.5 0 0 1 8.5 3H19"/></svg></button>
+
       </div>
 
       <article id="productsListCard" class="panel products-card kitchen-block" data-kitchen-panel="products">
@@ -2136,7 +2249,6 @@
           </div>
           <div class="products-heading-actions">
             <button id="productsBought" class="products-bought-all" type="button" disabled></button>
-            <button id="productsClear" class="products-clear" type="button" disabled>Очистить</button>
           </div>
         </div>
         <div id="productsListBody" class="kitchen-products-body">
@@ -2379,97 +2491,6 @@
       <p class="fasting-disclaimer">Стадии ориентировочные: скорость перехода от гликогена к большей доле жиров и кетонов индивидуальна. Трекер не определяет точное время аутофагии.</p>
     </section>
 
-    <section id="datesPage" class="dates-page" data-app-tab-section="dates" aria-labelledby="datesPageTitle" hidden>
-      <div class="rudi-app-page-head dates-page-head">
-        <button id="datesBackButton" class="dates-back-button rudi-app-page-back" type="button" aria-label="Назад на главную">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
-        <div><h1 id="datesPageTitle">Свидания</h1></div>
-      </div>
-
-      <section class="panel dates-generator" aria-labelledby="dateGeneratorTitle">
-        <div class="dates-generator-head">
-          <div><h2 id="dateGeneratorTitle">Придумать свидание</h2><p>3 идеи для свидания</p></div>
-        </div>
-        <div id="dateTimeChoices" class="date-time-choices" aria-label="Выбери время свидания">
-          <button type="button" data-date-period="morning">Утро</button>
-          <button type="button" data-date-period="day">День</button>
-          <button type="button" data-date-period="evening">Вечер</button>
-        </div>
-        <div id="dateIdeaStatus" class="date-idea-status" role="status" aria-live="polite"></div>
-        <div id="dateIdeaResults" class="date-idea-results" hidden></div>
-      </section>
-
-      <section class="dates-saves" aria-labelledby="datesSavedTitle">
-        <div class="dates-saves-head">
-          <div><h2 id="datesSavedTitle">Сохранённое</h2></div>
-          <span id="savesTotalCount" class="saves-total-count"></span>
-        </div>
-        <div id="savesStatus" class="saves-status" role="status" aria-live="polite"></div>
-        <section class="saved-category dates-saved-category" data-saves-category="date">
-          <button class="saved-category-head" type="button" data-saves-toggle="date" aria-expanded="true">
-            <span class="saved-category-icon" aria-hidden="true">♡</span>
-            <span class="saved-category-copy"><strong>Свидания</strong><small id="savedDatesCount">0</small></span>
-            <svg class="saved-category-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
-          </button>
-          <div id="savedDatesBody" class="saved-category-body">
-            <div id="savedDatesList" class="saved-items-list"></div>
-            <div id="savedDatesEmpty" class="saved-empty">Рецептов пока нет</div>
-          </div>
-        </section>
-      </section>
-    </section>
-
-    <section id="forDiPage" class="for-di-page" data-app-tab-section="for-di" aria-labelledby="forDiPageTitle" hidden>
-      <div class="rudi-app-page-head for-di-page-head">
-        <button id="forDiBackButton" class="for-di-back-button rudi-app-page-back" type="button" aria-label="Назад на главную">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
-        </button>
-        <div>
-          <h1 id="forDiPageTitle">Для Ди</h1>
-        </div>
-        <span id="forDiTotalCount" class="for-di-total-count"></span>
-      </div>
-      <div id="forDiStatus" class="for-di-status" role="status" aria-live="polite" hidden></div>
-
-      <section class="for-di-category is-collapsed" data-for-di-category="labor">
-        <button class="for-di-category-head" type="button" data-for-di-toggle="labor" aria-expanded="false">
-          <span class="for-di-category-icon" aria-hidden="true">§</span>
-          <span class="for-di-category-copy"><strong>Трудовой кодекс</strong><small id="forDiLaborCount">0</small></span>
-          <svg class="for-di-category-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
-        </button>
-        <div id="forDiLaborBody" class="for-di-category-body" hidden>
-          <div id="forDiLaborList" class="for-di-list"></div>
-          <div id="forDiLaborEmpty" class="for-di-empty">Пока здесь ничего нет</div>
-        </div>
-      </section>
-
-      <section class="for-di-category is-collapsed" data-for-di-category="saved">
-        <button class="for-di-category-head" type="button" data-for-di-toggle="saved" aria-expanded="false">
-          <span class="for-di-category-icon is-saved" aria-hidden="true">🔖</span>
-          <span class="for-di-category-copy"><strong>Сохранённые</strong><small id="forDiSavedCount">0</small></span>
-          <svg class="for-di-category-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
-        </button>
-        <div id="forDiSavedBody" class="for-di-category-body" hidden>
-          <div id="forDiSavedList" class="for-di-list"></div>
-          <div id="forDiSavedEmpty" class="for-di-empty">Рецептов пока нет</div>
-        </div>
-      </section>
-
-      <section class="for-di-category is-collapsed" data-for-di-category="stylist">
-        <button class="for-di-category-head" type="button" data-for-di-toggle="stylist" aria-expanded="false">
-          <span class="for-di-category-icon is-stylist" aria-hidden="true">✦</span>
-          <span class="for-di-category-copy"><strong>Развитие стилиста</strong><small id="forDiStylistCount">0</small></span>
-          <svg class="for-di-category-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
-        </button>
-        <div id="forDiStylistBody" class="for-di-category-body" hidden>
-          <div id="forDiStylistList" class="for-di-list"></div>
-          <div id="forDiStylistEmpty" class="for-di-empty">Пока здесь ничего нет</div>
-        </div>
-      </section>
-    </section>
-
-
     <footer class="footer">
       <div>© <span id="currentYear"></span></div>
       <div class="home-layout-actions">
@@ -2495,15 +2516,10 @@
           <span>Что сделать</span>
           <input id="ticktickTaskTitleInput" type="text" maxlength="500" autocomplete="off" placeholder="Например: купить продукты" required>
         </label>
+        <label class="ticktick-task-field"><span>Дата</span><input id="ticktickTaskDateInput" type="date" required></label>
         <div class="ticktick-task-field-row ticktick-task-date-time-row">
-          <label class="ticktick-task-field">
-            <span>Дата</span>
-            <input id="ticktickTaskDateInput" type="date" required>
-          </label>
-          <label class="ticktick-task-field">
-            <span>Время</span>
-            <input id="ticktickTaskTimeInput" type="time" value="08:00">
-          </label>
+          <label class="ticktick-task-field"><span>Начало</span><input id="ticktickTaskTimeInput" type="time" value="08:00"></label>
+          <label class="ticktick-task-field"><span>Окончание</span><input id="ticktickTaskEndTimeInput" type="time" aria-label="Время окончания, необязательно"></label>
         </div>
         <label class="ticktick-task-field">
           <span>Кто делает</span>
@@ -2524,16 +2540,29 @@
               <option value="none">Не повторять</option>
               <option value="daily">Каждый день</option>
               <option value="weekdays">По будням</option>
+              <option value="custom">По выбранным дням</option>
               <option value="weekly">Каждую неделю</option>
               <option value="monthly">Каждый месяц</option>
               <option value="yearly">Каждый год</option>
             </select>
           </label>
           <label id="ticktickTaskRepeatCountField" class="ticktick-task-field" hidden>
-            <span>Повторить раз</span>
-            <input id="ticktickTaskRepeatCountInput" type="number" min="1" max="365" value="1" inputmode="numeric">
+            <span>Повторить раз (пусто — без ограничения)</span>
+            <input id="ticktickTaskRepeatCountInput" type="number" min="1" max="365" value="" placeholder="Без ограничения" inputmode="numeric">
           </label>
         </div>
+        <fieldset id="ticktickTaskRepeatDaysField" class="rudi-shared-repeat-days" hidden>
+          <legend>По каким дням</legend>
+          <div class="rudi-shared-repeat-days-grid">
+            <label><input type="checkbox" value="1"><span>Пн</span></label>
+            <label><input type="checkbox" value="2"><span>Вт</span></label>
+            <label><input type="checkbox" value="3"><span>Ср</span></label>
+            <label><input type="checkbox" value="4"><span>Чт</span></label>
+            <label><input type="checkbox" value="5"><span>Пт</span></label>
+            <label><input type="checkbox" value="6"><span>Сб</span></label>
+            <label><input type="checkbox" value="0"><span>Вс</span></label>
+          </div>
+        </fieldset>
         <div class="ticktick-task-form-actions">
           <button id="ticktickTaskCancelButton" type="button">Отмена</button>
           <button id="ticktickTaskSaveButton" type="submit">Добавить</button>
@@ -2748,7 +2777,7 @@ const findCategoryExpense=(row,data)=>{
 };
 document.addEventListener('click',async e=>{
  const row=e.target.closest('#financeCategoryHistoryPage .finance-category-history-row');
- if(!row||e.target.closest('button,a,input,select,textarea'))return;
+ if(!row||row.dataset.historyReadOnly==='true'||e.target.closest('button,a,input,select,textarea'))return;
  e.preventDefault();e.stopPropagation();
  try{const data=await getState(true),expense=findCategoryExpense(row,data);
    if(expense)await open(expense);else console.warn('RUDI_FINANCE_CATEGORY_EDIT_NOT_FOUND');

@@ -151,18 +151,22 @@ async function mockRudi(page,options={}){
     if(path==='/api/ticktick/calendar'){
       state.tickCalendarCalls++;
       const next=body.view==='next-month';
-      const task=state.taskCompleted?[]:[{
-        id:'groceries',title:'🛒 Купить продукты',allDay:true,completed:false,
+      const task=[{
+        id:'groceries',title:'🛒 Купить продукты',allDay:true,completed:state.taskCompleted,canReopen:true,
         assigned:true,assignee:'rst'
       }];
       return ok({
         ok:true,connected:true,enabled:true,writable:true,view:next?'next-month':'month',
         days:next?monthDays(2026,10).map(day=>({date:day.date,events:[]})):
-          monthDays(2026,9).map(day=>({date:day.date,events:day.date==='2026-09-23'?task:[]}))
+          monthDays(2026,9).map(day=>({date:day.date,events:day.date===(options.taskDate||'2026-09-23')?[...task,{id:'together',title:'Вместе в театр',allDay:false,startTime:'19:00',assigned:false}]:[]}))
       });
     }
     if(path==='/api/ticktick/today'){
       return ok({ok:true,connected:true,enabled:true,writable:true,date:'2026-09-21',tasks:[]});
+    }
+    if(path==='/api/partner-message'&&url.searchParams.get('ticktickAction')==='task-reopen'){
+      state.taskCompleted=false;
+      return ok({ok:true,reopened:true,wasCompleted:true,taskId:body.taskId});
     }
     if(path==='/api/ticktick/task-complete'){
       state.completionCalls++;
@@ -367,6 +371,9 @@ test('market ticker renders with readable themes, no overflow and persistent tog
   await expect(tile.locator('#marketTickerTrack')).toHaveCount(1);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+2)).toBe(true);
   await page.evaluate(()=>document.documentElement.dataset.theme='light');
+ const adviceColor=await profile.locator('.rhythm-advice').first().evaluate(el=>getComputedStyle(el).color);
+ expect(adviceColor).toBe('rgb(21, 23, 28)');
+ await expect(profile.locator('#partnerHeaderName')).toHaveCSS('color','rgb(21, 23, 28)');
   await expect(tile).toBeVisible();
   await page.evaluate(()=>document.documentElement.dataset.theme='dark');
   await expect(tile).toBeVisible();
@@ -439,20 +446,37 @@ test('iPhone calendar taps, spacing and silent refresh stay stable',async({page}
   expect(state.workCalendarCalls-before).toBeLessThanOrEqual(1);
 });
 
-test('calendar task completes in TickTick and refreshes in place with confetti',async({page})=>{
-  const state=await mockRudi(page);
+test('calendar keeps checked tasks, reopens them and updates overdue date markers',async({page})=>{
+  const state=await mockRudi(page,{taskDate:'2026-09-20'});
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('schedule',{scroll:false}));
-  await expect(page.locator('#workCalendarDays .calendar-day-cell')).toHaveCount(30);
-  const day=page.locator('.calendar-day-cell[aria-label*="23 сентября"]');
+  await page.locator('#calendarScopeSwitch').click();
+  await expect(page.locator('body')).toHaveAttribute('data-calendar-scope','shared');
+  const day=page.locator('#workCalendarDays .calendar-day-cell[data-date="2026-09-20"]');
+  await expect(day.locator('.calendar-overdue-count')).toHaveText('2');
   await day.click();
-  await expect(day).toHaveClass(/selected/);
-  await expect(page.locator('#workCalendarSelected')).toContainText('Купить продукты');
-  const task=page.getByRole('checkbox',{name:/Купить продукты/});
+  const task=page.locator('#workCalendarSelected').getByRole('checkbox',{name:/Купить продукты/});
   await task.click();
   await expect.poll(()=>state.completionCalls).toBe(1);
-  await expect(page.locator('#workCalendarSelected')).not.toContainText('Купить продукты');
+  await expect(page.locator('#workCalendarSelected')).toContainText('Купить продукты');
+  await expect(task).toHaveAttribute('aria-checked','true');
+  await expect(day.locator('.calendar-overdue-count')).toHaveText('1');
+  await page.reload();
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('schedule',{scroll:false}));
+  await day.click();
+  await expect(task).toHaveAttribute('aria-checked','true');
+  await task.click();
+  await expect(task).toHaveAttribute('aria-checked','false');
+  await expect.poll(()=>state.taskCompleted).toBe(false);
+  await expect(day.locator('.calendar-overdue-count')).toHaveText('2');
+  await page.reload();
+  await expect(page.locator('body')).toHaveClass(/auth-ok/);
+  await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('schedule',{scroll:false}));
+  await expect(day.locator('.calendar-overdue-count')).toHaveText('2');
+  await day.click();
+  await expect(task).toHaveAttribute('aria-checked','false');
 });
 
 test('feed is structured, today-first and keeps five-tab layout',async({page})=>{
@@ -674,4 +698,123 @@ test('personal TickTick fields stay single and reset native node state across 10
     await page.locator('#rudiPersonalTaskModal .ticktick-task-modal-close').click();
     await expect(row).toBeHidden();
   }
+});
+
+test('partner avatar opens the dedicated live profile and its stars history',async({page})=>{
+ await mockRudi(page);
+ await page.route('**/api/partner-message?rudiAction=score',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,score:{balances:{'Диана':125,'Рустам':200},version:1,history:[],rewards:[]}})}));
+ await page.route('**/api/wishlist',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,items:[{id:'diana-gift',owner:'Диана',text:'Поездка к морю',url:'https://example.com/trip',done:false},{id:'rustam-gift',owner:'Рустам',text:'Наушники',done:false}]})}));
+ await page.route('**/api/cbt',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,actor:'Рустам',partner:'Диана',active:true})}));
+ await page.goto('/');await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ const tile=page.locator('#homeDianaTile');await expect(tile).toBeVisible();
+ await expect(tile.locator('.profile-person-details')).toBeHidden();
+ await expect(tile.locator('.profile-energy-strip')).toBeVisible();
+ await expect(page.locator('.profile-contact-button')).toHaveCount(0);
+ const widths=await page.locator('.rudi-home-self-line .profile-energy-plot').evaluateAll(nodes=>nodes.map(el=>el.getBoundingClientRect().width));
+ expect(widths).toHaveLength(2);expect(Math.abs(widths[0]-widths[1])).toBeLessThan(2);
+ await page.evaluate(()=>{void window.RudiMeditation.open()});
+ await expect(page.locator('#meditationBack')).toBeVisible();
+ const meditationBack=await page.locator('#meditationBack').boundingBox();
+ await page.evaluate(()=>window.RudiMeditation.close());
+ await tile.locator('.partner-header-avatar').click();
+ const profile=page.locator('.partner-profile-page');await expect(profile).toBeVisible();
+ await expect(profile.locator('h1')).toHaveText('Диана');
+ await expect(profile.locator('.rhythm-advice')).toHaveText(/^Диане сейчас лучше /);
+ await expect(profile.locator('.partner-birthday-copy>span')).toHaveText('30 июня');
+ await expect(profile.locator('.partner-next-event')).toHaveText('Вместе в театр');
+ await expect(profile.locator('.partner-day-off')).not.toHaveText(/недоступен|Обновляю/);
+ await expect(profile.locator('.partner-energy-card .rhythm-advice')).toBeVisible();
+ await expect(profile.locator('.partner-wish-text')).toHaveText(['Поездка к морю']);
+ await expect(profile.locator('.partner-cbt-status')).toHaveText('Сейчас проходит когнитивно-поведенческую терапию');
+ const profileBack=await profile.locator('.partner-profile-back').boundingBox();
+ for(const key of ['x','y','width','height'])expect(Math.abs(profileBack[key]-meditationBack[key])).toBeLessThan(1);
+ await expect(profile.locator('#homeDianaDetails')).toBeVisible();
+ await expect(profile.locator('.profile-energy-strip')).toBeVisible();
+ const geometry=await profile.evaluate(el=>{
+  const content=el.querySelector('.partner-profile-content').getBoundingClientRect(),details=el.querySelector('.profile-person-details').getBoundingClientRect(),graph=el.querySelector('.profile-energy-strip').getBoundingClientRect(),head=el.querySelector('.profile-person-head').getBoundingClientRect();
+  return {width:details.width,available:content.width,graphBottom:graph.bottom,headTop:head.top,bodyPosition:getComputedStyle(document.body).position};
+ });
+ expect(geometry.width).toBeGreaterThan(geometry.available-40);
+ expect(geometry.graphBottom).toBeLessThanOrEqual(geometry.headTop);
+ expect(geometry.bodyPosition).not.toBe('fixed');
+ await page.screenshot({path:test.info().outputPath('partner-full-page.png'),fullPage:false});
+ await page.evaluate(()=>document.documentElement.dataset.theme='light');
+ const adviceColor=await profile.locator('.rhythm-advice').first().evaluate(el=>getComputedStyle(el).color);
+ expect(adviceColor).toBe('rgb(21, 23, 28)');
+ await expect(profile.locator('#partnerHeaderName')).toHaveCSS('color','rgb(21, 23, 28)');
+ await page.screenshot({path:test.info().outputPath('partner-light-page.png'),fullPage:false});
+ await expect(page.locator('#partnerHeaderName')).toHaveCount(1);
+ await profile.locator('.partner-profile-stars').click();
+ await expect(profile).toBeHidden();await expect(page.locator('#scoreModal')).toBeVisible();
+ await expect(page.locator('#scoreModalTitle')).toHaveText('Диана');
+ await page.locator('#scoreModalBack').click();await expect(profile).toBeVisible();
+ await profile.locator('.partner-profile-back').click();await expect(profile).toHaveCount(0);
+ await expect(tile).toBeVisible();await expect(tile.locator('.profile-person-details')).toBeHidden();
+ await page.screenshot({path:test.info().outputPath('partner-home.png')});
+});
+
+test('partner, CBT and weather cover the same viewport as Games without fixing body',async({page})=>{
+ await mockRudi(page);await page.goto('/');await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ const surface=selector=>page.locator(selector).evaluate(el=>{const r=el.getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,body:getComputedStyle(document.body).position}});
+ await page.evaluate(()=>window.RudiGames.open());const games=await surface('#rudiGamesPage');await page.evaluate(()=>window.RudiGames.close());
+ await page.locator('#partnerHeaderName').click();const partner=await surface('.partner-profile-page');await page.locator('.partner-profile-back').click();
+ await page.evaluate(()=>window.RudiCbt.open());const cbt=await surface('#rudiCbtPage');await page.evaluate(()=>window.RudiCbt.close(true));
+ await page.evaluate(()=>{void window.RUDI_WEATHER_FORECAST.open()});const weather=await surface('.weather-forecast-backdrop');await page.evaluate(()=>window.RUDI_WEATHER_FORECAST.close());
+ for(const view of [partner,cbt,weather]){for(const key of ['top','bottom','left','right'])expect(Math.abs(view[key]-games[key])).toBeLessThan(1);expect(view.body).not.toBe('fixed')}
+ await page.evaluate(()=>window.RUDI_NAVIGATE_TO_TAB('settings',{scroll:false}));
+ await expect(page.locator('#settingsTelegramUsername')).toHaveCount(0);await expect(page.locator('#settingsContactPhone')).toHaveCount(0);
+ await expect(page.locator('#settingsCurrentPin')).toBeVisible();
+});
+
+test('home identities keep their centre and partner time axis stays below the curve',async({page})=>{
+ await mockRudi(page);await page.goto('/');await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ await expect.poll(()=>page.locator('#homeRustamTile').evaluate(tile=>{
+  const a=tile.querySelector('.score-avatar-wrap').getBoundingClientRect(),r=tile.querySelector('.rudi-home-self-line').getBoundingClientRect();return Math.abs(a.top+a.height/2-r.top-r.height/2);
+ })).toBeLessThan(1.5);
+ const partner=page.locator('#homeDianaTile');
+ const gap=await partner.evaluate(tile=>tile.querySelector('.profile-energy-times').getBoundingClientRect().top-tile.querySelector('.profile-energy-plot').getBoundingClientRect().bottom);
+ expect(gap).toBeGreaterThanOrEqual(-1);
+ await page.screenshot({path:test.info().outputPath('home-alignment.png')});
+});
+
+test('partner page keeps fasting outline on avatar and advice immediately below graph',async({page})=>{
+ await mockRudi(page);
+ await page.route('**/api/partner-message?rudiAction=fasting',route=>route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,fastingOverview:{'Диана':{active:{startedAt:'2026-09-21T07:00:00.000Z',goalHours:16}}}})}));
+ await page.goto('/');await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ await expect(page.locator('#homeDianaTile .rudi-partner-fasting-hours')).toHaveText('2 ч');
+ await page.locator('#partnerHeaderName').click();
+ const profile=page.locator('.partner-profile-page');
+ await page.evaluate(()=>document.documentElement.dataset.theme='light');
+ await expect(profile.locator('.rudi-online-dot')).toBeHidden();
+ const style=await profile.locator('#partnerMoodValue').evaluate(el=>{const s=getComputedStyle(el);return {background:s.backgroundImage,shadow:s.boxShadow}});
+ expect(style).toEqual({background:'none',shadow:'none'});
+ const shape=await profile.evaluate(el=>{
+  const wrap=el.querySelector('.score-avatar-wrap').getBoundingClientRect(),avatar=el.querySelector('.score-avatar-wrap>.avatar').getBoundingClientRect(),hours=el.querySelector('.rudi-partner-fasting-hours').getBoundingClientRect(),outline=el.querySelector('.rudi-partner-fasting-outline').getBoundingClientRect();
+  const layout=el.querySelector('.partner-profile-layout');
+  return {avatarOffset:Math.abs(wrap.top-avatar.top)+Math.abs(wrap.left-avatar.left)+Math.abs(wrap.width-avatar.width)+Math.abs(wrap.height-avatar.height),hoursTop:hours.top,avatarTop:wrap.top,outlineWidth:outline.width,avatarWidth:wrap.width,afterGraph:layout.querySelector('.profile-energy-strip').nextElementSibling.classList.contains('rhythm-advice'),fill:getComputedStyle(el.querySelector('.rudi-partner-fasting-outline path')).fill};
+ });
+ expect(shape.avatarOffset).toBeLessThan(1);expect(shape.hoursTop).toBeLessThan(shape.avatarTop);expect(Math.abs(shape.outlineWidth-shape.avatarWidth-8)).toBeLessThan(1);expect(shape.fill).toBe('none');expect(shape.afterGraph).toBe(true);
+ await page.screenshot({path:test.info().outputPath('partner-fasting.png')});
+});
+
+
+test('slow authentication keeps the initial Home visible and replaces it with the authenticated dashboard',async({page})=>{
+ await mockRudi(page);
+ let release;
+ await page.route('**/api/partner-message?rudiAction=app-auth',async route=>{
+  await new Promise(resolve=>release=resolve);
+  await route.fulfill({json:{ok:true,actor:'Рустам'}});
+ });
+ await page.goto('/');
+ await expect.poll(()=>Boolean(release)).toBe(true);
+ await expect(page.locator('body')).toHaveClass(/auth-pending/);
+ await expect(page.locator('#appStartupPreview')).toBeVisible();
+ await expect(page.locator('.priority-section')).toBeHidden();
+ await expect(page.locator('.footer')).toBeHidden();
+ release();
+ await expect(page.locator('body')).toHaveClass(/auth-ok/);
+ await expect(page.locator('#homeRustamTile')).toBeVisible();
+ await expect(page.locator('#homeDianaTile')).toBeVisible();
+ await expect(page.locator('.footer')).toBeVisible();
+ await expect(page.locator('#appStartupPreview')).toBeHidden();
 });

@@ -42,6 +42,7 @@ async function noteClipboard({clipboard=true,deny=false,fallback=true,value='П�
   classList:{toggle(){},contains(){return false}},setAttribute(){},
   addEventListener(k,fn){this.handlers[k]=fn},focus(){focused=this},select(){},setSelectionRange(){},remove(){temporary=null}});
  const get=id=>{if(!elements.has(id))elements.set(id,make(id));return elements.get(id)};
+ get('homeNoteTile').querySelector=selector=>get(selector.slice(1));
  const document={getElementById:get,readyState:'complete',visibilityState:'visible',activeElement:null,
   body:{classList:{contains(){return false}},appendChild(el){temporary=el}},
   addEventListener(){},createElement:()=>make('temporary'),
@@ -250,6 +251,7 @@ function noteUI({notes=[{id:'home',text:'Я пашол',title:'Важное',pin
   addEventListener(k,fn){this.handlers[k]=fn},focus(){},select(){},setSelectionRange(){},remove(){},
   appendChild(child){this.children.push(child)},replaceChildren(){this.children=[]}});
  const get=id=>{if(!elements.has(id))elements.set(id,make(id));return elements.get(id)};
+ get('homeNoteTile').querySelector=selector=>get(selector.slice(1));
  get('homeNoteVersions').hidden=true;
  const document={getElementById:get,readyState:'complete',visibilityState:'visible',body:{classList:{contains(){return false}},appendChild(){}},addEventListener(){},createElement:()=>make('new')};
  const window={confirm:()=>confirm,Telegram:{WebApp:{initData:'test'}},addEventListener(k,fn){events[k]=fn},rudiOfflineContent:offline};

@@ -2,7 +2,7 @@
 
 let started=false;
 let duplicatePanel=null,actionRow=null,drawer=null;
-let searchInput=null,interactionChoices=null,interactionRun=null,interactionResult=null;
+let interactionChoices=null,interactionRun=null,interactionResult=null;
 let interactionCheck=null,openActionName='',selectedInteractionIds=new Set();
 const actionButtons=new Map(),actionPanels=new Map();
 
@@ -71,7 +71,6 @@ function toggleAction(name){
   for(const [key,button] of actionButtons){const active=key===next;button.classList.toggle('is-active',active);button.setAttribute('aria-expanded',String(active))}
   for(const [key,panel] of actionPanels){const active=key===next;panel.hidden=!active;panel.classList.toggle('is-open',active)}
   drawer?.classList.toggle('is-open',Boolean(next));
-  if(next==='search')setTimeout(()=>searchInput?.focus({preventScroll:true}),120);
   if(next==='interactions')renderInteractionChoices();
 }
 
@@ -85,16 +84,11 @@ function ensureToolbar(){
   actionRow=document.createElement('div');actionRow.className='supplement-action-icons';actionRow.setAttribute('aria-label','Действия с БАДами');
   actionRow.append(
     makeActionButton('add','＋','Добавить БАД'),
-    makeActionButton('search','⌕','Поиск'),
     makeActionButton('interactions','🧪','Проверить сочетания')
   );
 
   drawer=document.createElement('div');drawer.className='supplement-action-drawer';
   const addPanel=makePanel('add');form.classList.add('supplement-action-add-form');addPanel.appendChild(form);
-
-  const searchPanel=makePanel('search');
-  searchInput=document.createElement('input');searchInput.type='search';searchInput.className='supplement-action-input';searchInput.placeholder='Поиск по названию, цели или составу';searchInput.setAttribute('aria-label','Поиск БАДов');
-  searchPanel.appendChild(searchInput);
 
   const interactionPanel=makePanel('interactions');
   const interactionHint=document.createElement('div');interactionHint.className='supplement-interaction-hint';interactionHint.textContent='Выбери минимум 2 БАДа для проверки';
@@ -103,11 +97,10 @@ function ensureToolbar(){
   interactionResult=document.createElement('div');interactionResult.className='supplement-interaction-panel';interactionResult.hidden=true;
   interactionPanel.append(interactionHint,interactionChoices,interactionRun,interactionResult);
 
-  drawer.append(addPanel,searchPanel,interactionPanel);
+  drawer.append(addPanel,interactionPanel);
   wrap.append(duplicatePanel,actionRow,drawer);
   const body=document.querySelector('.personal-supplements-body');body?.insertBefore(wrap,body.firstChild);
 
-  searchInput.addEventListener('input',applyGrouping);
   interactionRun.addEventListener('click',checkSelectedInteractions);
 }
 
@@ -214,14 +207,15 @@ function applyGrouping(){
   const rows=all.map(item=>({item,card:list.querySelector('[data-id="'+CSS.escape(item.id)+'"]')})).filter(row=>row.card);
   const matches=rows.filter(row=>{
     const sameStatus=String(row.item?.status||'active')===selectedStatusTab;
-    const sameSearch=!query||[row.item.name,row.item.goal,...(row.item.ingredients||[])].join(' ').toLowerCase().includes(query);
-    row.visible=sameStatus&&sameSearch;
+    row.visible=sameStatus;
     return row.visible;
   }).sort((a,b)=>{
     if(selectedStatusTab==='active'){
       const group=SUPPLEMENT_DAYPART_ORDER.indexOf(supplementDaypart(a.item))-SUPPLEMENT_DAYPART_ORDER.indexOf(supplementDaypart(b.item));
       if(group)return group;
     }
+    const futureA=window.RudiSupplementCourse?.state(a.item)==='future',futureB=window.RudiSupplementCourse?.state(b.item)==='future';
+    if(futureA!==futureB)return Number(futureA)-Number(futureB);
     const byTaken=selectedStatusTab==='active'?Number(handledToday(a.item))-Number(handledToday(b.item)):0;
     const byTime=supplementTimeKey(a.item).localeCompare(supplementTimeKey(b.item));
     return byTaken||byTime||a.item.name.localeCompare(b.item.name,'ru');
@@ -287,19 +281,19 @@ function applyGrouping(){
   if(!matches.length&&rows.length){
     const empty=document.createElement('div');
     empty.className='supplement-group-empty';
-    empty.textContent=query?'В этом разделе ничего не найдено.':selectedStatusTab==='paused'?'Пока нет БАДов на паузе.':selectedStatusTab==='finished'?'Архив пока пуст.':'Пока нет БАДов, которые ты принимаешь.';
+    empty.textContent=selectedStatusTab==='paused'?'Пока нет БАДов на паузе.':selectedStatusTab==='finished'?'Архив пока пуст.':'Пока нет БАДов, которые ты принимаешь.';
     list.prepend(empty);
   }
 }
 
 async function updateCardStatus(item,status,message,undoText){
-  const previousStatus=String(item?.status||'active');
+  const previousStatus=String(item?.status||'active'),previousCourse={...item.course};
   const data=await req('update',{id:item.id,patch:{status}});
   setItems(data.items||getItems());setStatus(message||'Статус обновлён.');
   document.dispatchEvent(new CustomEvent('rudi:supplements-settings-updated'));
   if(previousStatus!==status){
     app().showActionUndo?.(undoText||message||'Статус обновлён',async()=>{
-      const restored=await req('update',{id:item.id,patch:{status:previousStatus}});
+      const restored=await req('update',{id:item.id,patch:{status:previousStatus,course:previousCourse}});
       setItems(restored.items||getItems());
       setStatus('Изменение отменено.');
       document.dispatchEvent(new CustomEvent('rudi:supplements-settings-updated'));
@@ -359,7 +353,7 @@ function enhanceCards(){
       });
       skip.addEventListener('click',async event=>{event.stopPropagation();skip.disabled=true;try{const data=await req('skip',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже пропущено сегодня.':'Приём на сегодня пропущен.')}catch(error){skip.disabled=false;setStatus(String(error?.message||'')==='supplement-already-taken'?'Этот БАД уже принят сегодня.':'Не удалось отметить пропуск.',true)}});
     }else{
-      const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent='Возобновить';actions.append(resume);
+      const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent=window.RudiSupplementCourse?.state(item)==='ended'?'Возобновить с сегодняшнего дня':'Возобновить';actions.append(resume);
       resume.addEventListener('click',event=>{event.stopPropagation();resume.disabled=true;updateCardStatus(item,'active','БАД снова в разделе «Принимаю».','БАД возобновлён').catch(()=>{resume.disabled=false;setStatus('Не удалось возобновить.',true)})});
       if(item.status==='finished'){
         actions.classList.add('is-archive');
@@ -380,6 +374,7 @@ function enhanceCards(){
         });
       }else actions.classList.add('is-single');
     }
+    if(item.status==='active'&&window.RudiSupplementCourse?.state(item)!=='current'){actions.hidden=true;actions.style.setProperty('display','none','important')}
     card.appendChild(actions);
   }
   if(openActionName==='interactions')renderInteractionChoices();

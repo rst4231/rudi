@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const {dates: expandedRecurrenceDates}=require('./ticktick-recurrence.cjs');
 
 const AUTH_URL = 'https://ticktick.com/oauth/authorize';
 const TOKEN_URL = 'https://ticktick.com/oauth/token';
@@ -268,6 +269,7 @@ function checklistUpdateBody(task, itemId, completed, now = new Date()) {
 async function updateTaskChecklistItem(accessToken, projectId, taskId, itemId, completed, options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const task = await fetchTask(accessToken, projectId, taskId, options);
+  if(completed)require('../public/task-completion-policy.js').assertTaskCompletionAllowed(task,options.now??Date.now());
   const body = checklistUpdateBody(task, itemId, completed, options.now || new Date());
   const response = await fetchImpl(API_BASE_URL + '/task/' + encodeURIComponent(taskId), {
     method: 'POST',
@@ -552,6 +554,10 @@ async function fetchPersonalProjectTasks(accessToken, sharedProjectId, options =
   for(let index=0;index<projects.length;index+=4){
     const slice=projects.slice(index,index+4);
     const page=await Promise.allSettled(slice.map(row=>fetchProjectData(accessToken,row.id,options)));
+    // A failed list is unknown, not empty. Let callers retain their last
+    // complete snapshot instead of replacing it with missing tasks.
+    const failed=page.find(result=>result.status==='rejected');
+    if(failed)throw new Error('ticktick-personal-projects-unavailable',{cause:failed.reason});
     for(let i=0;i<page.length;i++){
       if(page[i].status!=='fulfilled')continue;
       const row=slice[i],data=page[i].value;
@@ -666,7 +672,7 @@ function tickTickTaskDateKey(task, timeZone = CALENDAR_TIMEZONE) {
   return tickTickTaskDateKeys(task, timeZone)[0] || '';
 }
 
-function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone = CALENDAR_TIMEZONE, monthKey = '') {
+function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone = CALENDAR_TIMEZONE, monthKey = '', options = {}) {
   const range = tickTickMonthRange(now, view, timeZone, monthKey);
   const days = Array.from({ length: range.dayCount }, (_, index) => {
     const date = new Date(Date.UTC(range.year, range.month - 1, index + 1));
@@ -681,6 +687,15 @@ function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone
 
   for (const task of Array.isArray(tasks) ? tasks : []) {
     const keys = tickTickTaskDateKeys(task, timeZone);
+    // Only generated recurrence dates inherit the parent task's clock time.
+    const generatedKeys=new Set();
+    if(options.expandRecurrence && keys.length && Number(task?.status||0)===0){
+      for(const day of expandedRecurrenceDates({flag:task?.repeatFlag,start:keys[0],
+        monthStart:days[0].date,monthEnd:days[days.length-1].date,
+        timezoneDate:raw=>calendarDateKey(raw,timeZone)})){
+        if(!keys.includes(day)){keys.push(day);generatedKeys.add(day)}
+      }
+    }
     if (!keys.length) continue;
 
     const rawStart = String(task?.startDate || task?.dueDate || '').trim();
@@ -691,11 +706,11 @@ function buildTickTickCalendar(tasks, now = new Date(), view = 'month', timeZone
       const day = byDate.get(key);
       if (!day) continue;
 
-      const startTime = allDay || !rawStart || calendarDateKey(rawStart, timeZone) !== key
+      const startTime = allDay || !rawStart || (calendarDateKey(rawStart, timeZone) !== key && !generatedKeys.has(key))
         ? null
         : calendarTime(rawStart, timeZone);
       let endTime = null;
-      if (!allDay && rawDue && calendarDateKey(rawDue, timeZone) === key) {
+      if (!allDay && rawDue && (calendarDateKey(rawDue, timeZone) === key || generatedKeys.has(key))) {
         endTime = calendarTime(rawDue, timeZone);
       }
 

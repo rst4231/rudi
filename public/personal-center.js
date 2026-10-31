@@ -10,8 +10,9 @@ function positiveShare(entry){
  const total=Number(entry?.total),positive=Number(entry?.positive);
  return Number.isFinite(total)&&total>0&&Number.isFinite(positive)?Math.round(100*positive/total):null;
 }
-let root=null,open=false,who='',data=null,report=null,lastStatus=0,loading=false,manualLoading=false,activeSheet='',cycleInfo=null,overviewAt=0,refreshing=false,overviewPromise=null,rhythmMode='habits',translatingReportId='';
+let root=null,open=false,who='',data=null,report=null,lastStatus=0,loading=false,manualLoading=false,activeSheet='',cycleInfo=null,overviewAt=0,overviewPromise=null,translatingReportId='';
 let centerCloseTimer=0,sheetCloseTimer=0;
+let selfProfileObserver=null,selfProfileSource=null,selfProfileFrame=0;
 const cachePrefix='rudi-personal-center-session:';
 const HALO_CHECK_INTERVAL_MS=90*1000;
 function setStatus(t){if($('pcStatus'))$('pcStatus').textContent=String(t||'')}
@@ -21,30 +22,134 @@ async function call(operation,extra={}){
  if(!res.ok||!result?.ok)throw new Error(res.status===401?'Требуется вход':'Не удалось получить данные');
  return result;
 }
-function markHalo(unread){const avatar=$('avatar');if(avatar){avatar.classList.toggle('pc-unread',!!unread);avatar.setAttribute('aria-label',unread?'Новая личная AI-сводка':'Открыть личный AI-центр');}}
+function markHalo(unread){const avatar=$('avatar');if(avatar){avatar.classList.toggle('pc-unread',!!unread);avatar.setAttribute('aria-label',unread?'Новый недельный обзор':'Открыть мою страницу');}}
 function formField(label,control){return '<label class="rudi-center__field">'+label+control+'</label>';}
+function renderStars(){
+ const button=$('pcStars');if(!button)return;
+ const balance=window.RudiStars?.balance?.();
+ button.textContent='⭐ '+(balance==null?'…':Number(balance).toLocaleString('ru-RU',{maximumFractionDigits:2}));
+ button.setAttribute('aria-label','Мои звёзды: '+(balance==null?'загружаются':button.textContent.slice(3))+'. Открыть историю');
+}
+
+const selfFinanceCache=new Map(),selfFinanceRequests=new Map(),selfFinanceErrors=new Set();
+function selfFinanceMoney(value,currency='RUB'){
+ try{return new Intl.NumberFormat('ru-RU',{style:'currency',currency,maximumFractionDigits:2}).format(Number(value)||0)}
+ catch(_){return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:2}).format(Number(value)||0)+' ₽'}
+}
+function renderSelfFinanceCard(card,actor){
+ if(!card)return;
+ const data=selfFinanceCache.get(actor),failed=selfFinanceErrors.has(actor);
+ const format=row=>{
+  const stamp=new Date(row.occurredAt);
+  const date=Number.isFinite(stamp.getTime())?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short'}).format(stamp):'';
+  return [selfFinanceMoney(row.amount,row.currency),row.note||row.category,date].filter(Boolean).join(' · ');
+ };
+ card.querySelector('[data-self-finance-last]').textContent=data
+  ?(data.expense?format(data.expense):'Пока нет расходов')
+  :(failed?'Не удалось загрузить расходы':'Загружаю…');
+ card.querySelector('[data-self-finance-largest]').textContent=data
+  ?(data.largestPurchase?format(data.largestPurchase):'В этом месяце пока нет покупок')
+  :(failed?'Не удалось загрузить покупки':'Загружаю…');
+}
+function refreshSelfFinance(){
+ const actor=document.body.dataset.rudiActor||who;
+ if(!open||!['Рустам','Диана'].includes(actor))return Promise.resolve();
+ if(selfFinanceRequests.has(actor))return selfFinanceRequests.get(actor);
+ const pending=fetch('/api/finances',{
+  method:'POST',credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},
+  body:JSON.stringify({operation:'self-finance-summary',initData:String(window.Telegram?.WebApp?.initData||'')})
+ }).then(async response=>{
+  const result=await response.json().catch(()=>null);
+  if(!response.ok||!result?.ok||result.actor!==actor)throw new Error('self-finance-unavailable');
+  selfFinanceCache.set(actor,result);selfFinanceErrors.delete(actor);
+ }).catch(()=>{
+  if(!selfFinanceCache.has(actor))selfFinanceErrors.add(actor);
+ }).finally(()=>{
+  selfFinanceRequests.delete(actor);
+  if(open&&(document.body.dataset.rudiActor||who)===actor)
+   renderSelfFinanceCard($('pcSelfProfile')?.querySelector('.pc-self-finances'),actor);
+ });
+ selfFinanceRequests.set(actor,pending);
+ return pending;
+}
+function renderSelfProfile(){
+ const actor=document.body.dataset.rudiActor||who;
+ const source=$(actor==='Диана'?'homeDianaTile':'homeRustamTile'),slot=$('pcSelfProfile');
+ if(!slot)return;
+ const head=source?.querySelector('.profile-person-head');
+ slot.hidden=!head;root.querySelector('.rudi-center__hero').hidden=!!head;
+ if(!head)return;
+ // Mirror the existing live Home data; never create a second request or move its nodes.
+ const clone=node=>{
+  if(!node)return null;const copy=node.cloneNode(true),original=[node,...node.querySelectorAll('*')],nodes=[copy,...copy.querySelectorAll('*')];
+  nodes.forEach((el,i)=>{
+   if(el.id){el.dataset.sourceId=el.id;el.removeAttribute('id')}
+   el.removeAttribute('aria-controls');el.removeAttribute('aria-labelledby');
+   if(el.matches('.name,.profile-work-status,.rhythm-advice')){el.style.removeProperty('color');el.style.removeProperty('-webkit-text-fill-color')}
+   if(el.matches('button,[role="button"]')&&!el.matches('.avatar,.name'))el.onclick=e=>{e.preventDefault();e.stopPropagation();closeAndNavigate(()=>original[i]?.click())};
+  });
+  copy.hidden=false;copy.removeAttribute('style');return copy;
+ };
+ const layout=document.createElement('div');layout.className='partner-profile-layout profile-person-card';
+ const details=document.createElement('div');details.className='profile-person-details';
+ const hero=document.createElement('section');hero.className='partner-hero';hero.setAttribute('aria-label','Мой профиль');
+ const identity=clone(head);
+ for(const control of identity.querySelectorAll('.block-collapse-button,.profile-person-actions,.mood-person'))control.remove();
+ hero.append(identity);
+ const person=identity.querySelector('.person'),meta=$('pcHeroMeta');
+ if(person&&meta){const metrics=document.createElement('div');metrics.className='partner-body-metrics';metrics.append(...[...meta.children].map(el=>el.cloneNode(true)));person.append(metrics)}
+ const mood=identity.querySelector('.avatar-mood-badge'),name=identity.querySelector('.name');
+ if(mood&&name){let row=name.closest('.profile-name-row');if(!row){row=document.createElement('div');row.className='profile-name-row';name.before(row);row.append(name)}row.append(mood)}
+ for(const el of identity.querySelectorAll('.avatar,.name')){el.removeAttribute('role');el.removeAttribute('tabindex');el.removeAttribute('aria-label')}
+ const energy=clone(source.querySelector('.profile-energy-strip')),advice=clone(source.querySelector('.rhythm-advice'));
+ const energyCard=document.createElement('section');energyCard.className='partner-energy-card';
+ if(energy)energyCard.append(energy);if(advice)energyCard.append(advice);
+ const today=document.createElement('section');today.className='partner-today';today.innerHTML='<h2>БАДы</h2>';
+ const intakes=clone(source.querySelector('.profile-supplement-intakes'));
+ if(intakes)today.append(intakes);else today.insertAdjacentHTML('beforeend','<p class="profile-supplement-intakes-empty">Сегодня ещё ничего не отмечено</p>');
+ details.append(hero);if(energy)details.append(energyCard);details.append(today);
+ const finances=document.createElement('section');finances.className='partner-finances pc-self-finances';
+ finances.innerHTML='<h2>Финансы</h2><div class="partner-finance-last"><h3>Последний расход</h3><p data-self-finance-last>Загружаю…</p></div><div class="partner-finance-largest"><h3>Самая крупная покупка за месяц</h3><p data-self-finance-largest>Загружаю…</p></div>';
+ details.append(finances);renderSelfFinanceCard(finances,actor);
+ layout.append(details);slot.replaceChildren(layout);
+ if(selfProfileSource!==source){
+  selfProfileObserver?.disconnect();selfProfileSource=source;
+  selfProfileObserver=new MutationObserver(()=>{if(!open)return;cancelAnimationFrame(selfProfileFrame);selfProfileFrame=requestAnimationFrame(renderSelfProfile)});
+  selfProfileObserver.observe(source,{subtree:true,childList:true,characterData:true,attributes:true});
+ }
+}
 function makeMarkup(){
  const p=[];
- p.push('<div class="rudi-center__pull" id="pcPull" hidden><span class="rudi-center__pull-dot"></span><span id="pcPullLabel">Потяните для обновления</span></div>');
- p.push('<header class="rudi-center__bar"><button id="pcBack" class="rudi-center__back" type="button">← Назад</button><b>Мой AI-центр</b><button id="pcSettings" class="rudi-center__icon" type="button" aria-label="Управление данными">⚙</button></header>');
+ p.push('<header class="rudi-center__bar rudi-app-page-head"><button id="pcBack" class="fasting-back-button rudi-center__back rudi-app-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m15 18-6-6 6-6"/></svg></button><h1>Моя страница</h1><button id="pcStars" class="partner-profile-stars" type="button" aria-label="Мои звёзды. Открыть историю">⭐ …</button></header>');
  p.push('<div class="rudi-center__wrap"><div class="rudi-center__content">');
+ p.push('<div id="pcSelfProfile" class="pc-self-profile partner-profile-page" hidden></div>');
  p.push('<div class="rudi-center__hero"><small>✦ ЛИЧНЫЙ ОБЗОР</small><div class="rudi-center__hero-identity"><div class="rudi-center__hero-avatar" aria-hidden="true"><span id="pcHeroInitial">Р</span><img id="pcHeroImage" alt="" hidden></div><div class="rudi-center__hero-name"><h1 id="pcPerson">Мой день</h1><p id="pcHeroMeta">Возраст — · Вес — · Рост —</p><div id="pcHeroAttention" class="rudi-center__hero-attention" hidden></div></div></div></div>');
- p.push('<div class="rudi-center__card rudi-center__report"><div class="rudi-center__head"><div><small class="rudi-center__eyebrow">ТВОЙ ДЕНЬ</small></div><span class="rudi-center__meta" id="pcReportDate">Сегодня</span></div><p class="rudi-center__report-lead" id="pcReport">Нажми кнопку, чтобы получить обзор.</p><div class="rudi-center__summary-grid" id="pcSummaryGrid" hidden><div class="rudi-center__summary-main" id="pcMainBlock"><small>ГЛАВНОЕ</small><p id="pcMainChange">—</p></div><div class="rudi-center__summary-action" id="pcActionBlock"><small>ЧТО СДЕЛАТЬ</small><p id="pcMainAction">—</p></div><div class="rudi-center__summary-note" id="pcObservationBlock"><small>НАБЛЮДЕНИЕ</small><p id="pcMainObservation">—</p></div><div class="rudi-center__summary-note" id="pcForecastBlock"><small>ЧТО ДАЛЬШЕ</small><p id="pcForecast">—</p></div></div><button id="pcReportMore" class="rudi-center__report-more" data-open="report" type="button" hidden>Открыть подробности →</button><button id="pcGenerateReport" class="rudi-center__btn rudi-center__generate-report" type="button" hidden>Получить обзор</button><div class="rudi-center__status" id="pcStatus" role="status" aria-live="polite"></div></div>');
- p.push('<section class="rudi-center__card rudi-center__rhythm" aria-labelledby="pcRhythmTitle"><div class="rudi-center__head"><div><small class="rudi-center__eyebrow">7 ДНЕЙ</small><h2 id="pcRhythmTitle">Ритм недели</h2></div><span class="rudi-center__rhythm-period" id="pcRhythmPeriod">За неделю</span></div><div class="rudi-center__rhythm-tabs" role="group" aria-label="Показатель графика"><button type="button" data-rhythm="habits" class="active" aria-pressed="true">Привычки</button><button type="button" data-rhythm="expenses" aria-pressed="false">Расходы</button><button type="button" data-rhythm="mood" aria-pressed="false">Настроение</button></div><div class="rudi-center__rhythm-head"><strong id="pcRhythmMetric">—</strong><span id="pcRhythmSub">Отмеченные дни</span></div><svg id="pcRhythmGraph" class="rudi-center__rhythm-chart" viewBox="0 0 350 188" role="img" aria-label="График записей за семь дней"></svg><p class="rudi-center__rhythm-empty" id="pcRhythmEmpty" hidden>Пока нет записей за эту неделю.</p><small class="rudi-center__rhythm-foot" id="pcRhythmFoot">Отображаются только сохранённые записи.</small></section>');
+ p.push('<div class="rudi-center__card rudi-center__report"><div class="rudi-center__head"><div><small class="rudi-center__eyebrow">ТВОЯ НЕДЕЛЯ</small></div><span class="rudi-center__meta" id="pcReportDate">Сегодня</span></div><p class="rudi-center__report-lead" id="pcReport">Обзор недели формируется по воскресеньям.</p><div class="rudi-center__summary-grid" id="pcSummaryGrid" hidden><div class="rudi-center__summary-main" id="pcMainBlock"><small>ГЛАВНОЕ</small><p id="pcMainChange">—</p></div><div class="rudi-center__summary-action" id="pcActionBlock"><small>ЧТО СДЕЛАТЬ</small><p id="pcMainAction">—</p></div><div class="rudi-center__summary-note" id="pcObservationBlock"><small>НАБЛЮДЕНИЕ</small><p id="pcMainObservation">—</p></div><div class="rudi-center__summary-note" id="pcForecastBlock"><small>ЧТО ДАЛЬШЕ</small><p id="pcForecast">—</p></div></div><button id="pcReportMore" class="rudi-center__report-more" data-open="report" type="button" hidden>Открыть подробности →</button><button id="pcGenerateReport" class="rudi-center__btn rudi-center__generate-report" type="button" hidden>Получить обзор</button><div class="rudi-center__status" id="pcStatus" role="status" aria-live="polite"></div></div>');
  p.push('<div class="rudi-center__tile-grid"><button class="rudi-center__tile" data-open="symptoms"><span class="rudi-center__tile-icon">♡</span><strong>Здоровье</strong><small id="pcSymptomsCount">Дневник здоровья</small></button><button class="rudi-center__tile" data-open="weight"><span class="rudi-center__tile-icon">↟</span><strong>Моё тело</strong><small id="pcWeight">Вес и рост</small></button></div>');
  p.push('<div class="rudi-center__card"><div class="rudi-center__head"><h2>Динамика позитивных эмоций</h2></div><svg class="rudi-center__chart" id="pcGraph" viewBox="0 0 350 168" role="img" aria-label="График доли позитивных эмоций с датами"></svg></div>');
  p.push('<div id="pcDianaCycleSlot" class="rudi-center__cycle-slot" hidden><section class="rudi-center__card rudi-center__cycle-card"><div class="rudi-center__head"><h2>Цикл Дианы</h2><span class="rudi-center__meta">Прогноз</span></div><div class="rudi-center__cycle-grid"><div><span>Фаза</span><strong id="pcCyclePhase">—</strong></div><div><span>День цикла</span><strong id="pcCycleDay">—</strong></div><div><span>До следующих месячных</span><strong id="pcCycleCountdown">—</strong></div><div><span>Последнее начало</span><strong id="pcCyclePeriod">—</strong></div></div><p id="pcCycleNote" class="rudi-center__meta">Прогноз ориентировочный.</p><button id="pcCycleRecord" class="rudi-center__btn" type="button" hidden>Отметить начало сегодня</button></section></div>');
+ p.push('<section class="pc-gifts"><h2>🎁 Подарки</h2><div class="pc-birthday"><span aria-hidden="true">🎂</span><div><strong>До дня рождения</strong><small id="pcBirthdayDate"></small></div><b id="pcBirthdayDays"></b></div><div class="pc-wishes"><div class="pc-wishes-head"><h3>♡ Желания</h3><span id="pcWishCount"></span></div><form id="pcWishForm"><input id="pcWishText" maxlength="180" placeholder="Добавить желание…" aria-label="Желание" required><button type="submit" aria-label="Добавить желание">+</button><button id="pcWishLinkToggle" type="button" aria-expanded="false">+ Добавить ссылку</button><input id="pcWishUrl" type="url" maxlength="1200" placeholder="https://…" aria-label="Ссылка на подарок" hidden></form><p id="pcWishStatus" role="status"></p><div id="pcWishList"></div></div></section>');
  p.push('</div></div>');
- p.push('<div class="rudi-center__overlay" id="pcOverlay" hidden><div class="rudi-center__sheet" role="dialog" aria-modal="true" aria-labelledby="pcSheetTitle"><div class="rudi-center__sheet-head"><button id="pcSheetClose" class="rudi-center__back" type="button">← Назад</button><h2 id="pcSheetTitle">Данные</h2><span class="rudi-center__sheet-spacer" aria-hidden="true"></span></div><div id="pcSheetContent" class="rudi-center__sheet-content"></div></div></div>');
+ p.push('<div class="rudi-center__overlay" id="pcOverlay" hidden><div class="rudi-center__sheet" role="dialog" aria-modal="true" aria-labelledby="pcSheetTitle"><div class="rudi-center__sheet-head rudi-app-page-head"><button id="pcSheetClose" class="fasting-back-button rudi-center__back rudi-app-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m15 18-6-6 6-6"/></svg></button><h1 id="pcSheetTitle">Данные</h1></div><div id="pcSheetContent" class="rudi-center__sheet-content"></div></div></div>');
  return p.join('');
 }
 function attach(){
  if(root)return;
  root=document.createElement('section');root.id='personalAICenter';root.className='rudi-center';root.hidden=true;root.dataset.noPullRefresh='true';
  root.innerHTML=makeMarkup();document.body.appendChild(root);
- $('pcBack').onclick=hide;$('pcSettings').onclick=()=>sheet('settings');
+ $('pcBack').onclick=hide;
+ $('pcStars').onclick=()=>{if(!window.RudiStars?.openHistory)return;root.hidden=true;document.body.classList.remove('rudi-center-open');window.RudiStars.openHistory()};
+ document.addEventListener('rudi:stars-changed',renderStars);
  $('pcGenerateReport').onclick=()=>void requestDailyReport();
- root.querySelectorAll('[data-rhythm]').forEach(btn=>btn.onclick=()=>{rhythmMode=btn.dataset.rhythm;renderRhythm();});
+ $('pcWishLinkToggle').onclick=()=>{const input=$('pcWishUrl');input.hidden=!input.hidden;$('pcWishLinkToggle').setAttribute('aria-expanded',String(!input.hidden));if(!input.hidden)input.focus()};
+ $('pcWishForm').onsubmit=async event=>{
+  event.preventDefault();const text=$('pcWishText').value.trim(),url=$('pcWishUrl').value.trim(),actor=who;
+  if(!text||!window.RudiWishlist)return;
+  const button=$('pcWishForm').querySelector('[type=submit]');button.disabled=true;
+  try{const items=await window.RudiWishlist.add(text,url);if(actor!==who)return;$('pcWishText').value='';$('pcWishUrl').value='';$('pcWishUrl').hidden=true;$('pcWishLinkToggle').setAttribute('aria-expanded','false');renderGiftWishes(items);$('pcWishStatus').textContent='Желание добавлено';}
+  catch(_){$('pcWishStatus').textContent='Не удалось добавить желание. Попробуй ещё раз.'}finally{button.disabled=false}
+ };
+
  $('pcCycleRecord').onclick=()=>void recordPersonalCycle();
  $('pcSheetClose').onclick=closeSheet;$('pcOverlay').addEventListener('click',e=>{if(e.target===$('pcOverlay'))closeSheet();});
  root.addEventListener('click',e=>{
@@ -54,6 +159,11 @@ function attach(){
   if(btn.dataset.tab)closeAndNavigate(()=>{if(typeof window.RUDI_NAVIGATE_TO_TAB==='function')window.RUDI_NAVIGATE_TO_TAB(btn.dataset.tab,{scroll:true});else document.querySelector('[data-app-tab="'+btn.dataset.tab+'"]')?.click();});
  });
  document.addEventListener('keydown',e=>{if(!open||e.key!=='Escape')return;if(activeSheet)closeSheet();else hide();});
+ const name=$('displayName');if(name){
+  name.setAttribute('role','button');name.tabIndex=0;name.setAttribute('aria-label','Открыть мою страницу');name.removeAttribute('aria-controls');name.removeAttribute('aria-expanded');
+  name.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();void show()},{capture:true});
+  name.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopImmediatePropagation();void show()}},{capture:true});
+ }
  const av=$('avatar');if(av){
   av.style.cursor='pointer';av.setAttribute('role','button');av.setAttribute('tabindex','0');
   av.addEventListener('click',e=>{if(e.target.closest('button'))return;show();});
@@ -72,10 +182,11 @@ function attach(){
  // within the PWA, before loading the next account's unread state.
  new MutationObserver(()=>{lastStatus=0;markHalo(false);void checkStatus(true);})
    .observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
- installCenterPullRefresh();
  installCenterSwipeBack();
+ new MutationObserver(()=>{if(open)renderSelfProfile()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
  window.addEventListener('popstate',()=>{
   const state=history.state;
+  if(open&&state?.rudiOverlay==='personal-ai'){root.hidden=false;document.body.classList.add('rudi-center-open');renderStars();renderSelfProfile()}
   if(open&&state?.rudiOverlay!=='personal-ai'){hide({fromHistory:true});return;}
   if(!open&&state?.rudiOverlay==='personal-ai'){void show({fromHistory:true});return;}
   if(!open)return;
@@ -126,6 +237,7 @@ async function show({fromHistory=false}={}){
  clearTimeout(centerCloseTimer);
  root.classList.remove('is-closing');
  open=true;root.hidden=false;document.body.classList.add('rudi-center-open');
+ renderStars();renderSelfProfile();void refreshSelfFinance();
  if(!fromHistory){
   try{
    const state=history.state&&typeof history.state==='object'?history.state:{};
@@ -137,7 +249,7 @@ async function show({fromHistory=false}={}){
  if(!data)showOffline();
  updateReportButton();
  setStatus('');
- try{await fetchOverview(false);}
+ try{await fetchOverview(false);void refreshGifts();}
  catch(_){if(!data&&!showOffline())setStatus('Нет соединения с RUDI · попробуй позже');}
 }
 function motionReduced(){
@@ -185,69 +297,11 @@ function safeNarrative(row){
   n.forecast='Недостаточно данных для медицинского прогноза.';
  return n;
 }
-// A seven-day chart of recorded facts only. Missing days are gaps, never fabricated zeros.
 function reportHasText(v){
  const text=String(v||'').trim();
  return !!text&&!/^(Недостаточно данных|AI-анализ временно недоступен|Данных пока нет|Нет данных)[.!]?$|^Недостаточно подтверждённых/i.test(text);
 }
-function renderRhythm(){
- const svg=$('pcRhythmGraph');if(!svg)return;
- const start=dayKey(),base=Date.parse(start+'T12:00:00Z');
- const dates=Array.from({length:7},(_,i)=>new Date(base-(6-i)*86400000).toISOString().slice(0,10));
- const label=day=>new Date(day+'T12:00:00Z').toLocaleDateString('ru-RU',{weekday:'short',timeZone:'UTC'}).replace('.','').slice(0,2);
- const dateLabel=day=>day.slice(8,10)+'.'+day.slice(5,7);
- const observations=report?.observations||{};
- const habits=new Map((observations.habits?.recent||[]).map(x=>[x.day,Number(x.completed)||0]));
- const expenses=new Map((observations.finances?.recentExpenseDays||[]).map(x=>[x.day,Number(x.rub)||0]));
- const moods=new Map((data?.emotions?.daily||[]).map(x=>[x.date,positiveShare(x)]).filter(([,value])=>Number.isFinite(value)));
- const maps={habits,expenses,mood:moods},units={habits:'отметок',expenses:'₽',mood:'%'};
- const mode=maps[rhythmMode]?rhythmMode:'habits',series=maps[mode],values=dates.map(d=>series.has(d)?series.get(d):null);
- const valid=values.filter(Number.isFinite),max=Math.max(mode==='mood'?100:1,...valid);
- const title={habits:'Привычки',expenses:'Расходы',mood:'Позитивные отметки'}[mode];
- const renderValue=n=>mode==='expenses'?Math.round(n).toLocaleString('ru-RU')+' ₽':mode==='mood'?Math.round(n)+'%':Math.round(n)+'';
- root.querySelectorAll('[data-rhythm]').forEach(btn=>{const active=btn.dataset.rhythm===mode;btn.classList.toggle('active',active);btn.setAttribute('aria-pressed',active?'true':'false');});
- showText('pcRhythmMetric',valid.length?valid.length+' из 7 дней':'Нет отметок');
- showText('pcRhythmSub',title+' · '+(valid.length?units[mode]:'нет записей'));
- showText('pcRhythmPeriod','7 дней');
- showText('pcRhythmFoot',mode==='expenses'?'Показаны только дни с записанными расходами.':mode==='mood'?'Доля позитивных отметок из дневника настроения.':'Показаны дни с отмеченными результатами привычек.');
- const empty=$('pcRhythmEmpty');if(empty)empty.hidden=valid.length>0;
- svg.hidden=!valid.length;
- svg.replaceChildren();if(!valid.length)return;
- const ns='http://www.w3.org/2000/svg',create=(tag,attrs,text)=>{
-   const item=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs||{}))item.setAttribute(k,String(v));
-   if(text!==undefined)item.textContent=String(text);svg.appendChild(item);return item;
- };
- const px=44,step=43.5,bottom=132,usable=97;
- for(const t of [0,.5,1]){
-  const y=bottom-t*usable;
-  create('line',{x1:8,y1:y,x2:342,y2:y,stroke:'currentColor','stroke-opacity':.09,'stroke-width':1,'stroke-dasharray':t===0?'':'3 6'});
- }
- for(let i=0;i<7;i++){
-  const x=px+i*step,d=dates[i],v=values[i],present=Number.isFinite(v),height=present?Math.max(v===0?3:6,usable*v/max):0;
-  if(present){
-   create('rect',{x:x-13,y:bottom-height,width:26,height,rx:7,fill:'var(--pc-rhythm-color)'});
-   create('text',{x,y:Math.max(15,bottom-height-8),'text-anchor':'middle',fill:'var(--pc-text)','font-size':10,'font-weight':750},renderValue(v));
-  }else create('circle',{cx:x,cy:bottom-5,r:2.5,fill:'var(--pc-muted)','fill-opacity':.34});
-  create('text',{x,y:154,'text-anchor':'middle',fill:'var(--pc-muted)','font-size':11,'font-weight':700},label(d));
-   create('text',{x,y:173,'text-anchor':'middle',fill:'var(--pc-muted)','font-size':10},dateLabel(d));
- }
- svg.setAttribute('aria-label',title+': '+valid.length+' дней с данными из семи');
-}
-function graph(){
- const svg=$('pcGraph');if(!svg)return;svg.replaceChildren();
- const points=(data?.emotions?.daily||[]).map(x=>({day:x.date,value:positiveShare(x)})).filter(x=>Number.isFinite(x.value)&&/^\d{4}-\d{2}-\d{2}$/.test(String(x.day))).slice(-30);
- const ns='http://www.w3.org/2000/svg',add=(tag,attrs,body)=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs||{}))el.setAttribute(k,String(v));if(body!==undefined)el.textContent=String(body);svg.append(el);return el;};
- svg.setAttribute('viewBox','0 0 350 168');
- if(points.length<2){add('text',{x:12,y:65,fill:'currentColor','font-size':12},'График появится после двух записей настроения');return;}
- const x=i=>22+310*i/(points.length-1),y=n=>110-93*n/100;
- for(const n of [0,50,100])add('line',{x1:22,y1:y(n),x2:332,y2:y(n),stroke:'currentColor','stroke-opacity':.09,'stroke-dasharray':'3 5'});
- add('polyline',{points:points.map((p,i)=>x(i).toFixed(1)+','+y(p.value).toFixed(1)).join(' '),fill:'none',stroke:'var(--pc-accent)','stroke-width':3,'stroke-linecap':'round','stroke-linejoin':'round'});
- const ticks=[0,Math.floor((points.length-1)/4),Math.floor((points.length-1)/2),Math.floor((points.length-1)*3/4),points.length-1].filter((v,i,a)=>a.indexOf(v)===i);
- for(const i of ticks){const p=points[i],cx=x(i),day=new Date(p.day+'T12:00:00Z').toLocaleDateString('ru-RU',{weekday:'short',timeZone:'UTC'}).replace('.','');
-  add('circle',{cx,cy:y(p.value),r:3.3,fill:'var(--pc-accent)'});
-  add('text',{x:cx,y:138,'text-anchor':'middle',fill:'var(--pc-muted)','font-size':11,'font-weight':700},day.slice(0,2));
-  add('text',{x:cx,y:154,'text-anchor':'middle',fill:'var(--pc-muted)','font-size':10},p.day.slice(8,10)+'.'+p.day.slice(5,7));}
-}
+function graph(){window.RudiPositiveEmotions?.render($('pcGraph'),data?.emotions?.daily||[])}
 function syncHero(){
  const image=$('pcHeroImage'),initial=$('pcHeroInitial'),source=$('avatarImage');
  if(image&&initial){
@@ -278,33 +332,7 @@ function syncHero(){
   if(activeSymptoms)notes.push('Активных записей о самочувствии: '+activeSymptoms+'.');
   for(const note of notes){const el=document.createElement('span');el.textContent='● '+note;attention.append(el);}attention.hidden=!notes.length;
  }
-}
-function installCenterPullRefresh(){
- const viewport=root.querySelector('.rudi-center__wrap'),indicator=$('pcPull'),label=$('pcPullLabel');
- if(!viewport||!indicator||!label)return;
- let start=0,dragging=false,armed=false;
- const reset=()=>{dragging=false;armed=false;if(!refreshing){indicator.hidden=true;indicator.style.removeProperty('--pc-pull-distance');}};
- viewport.addEventListener('touchstart',event=>{
-  if(!open||activeSheet||refreshing||viewport.scrollTop>2||event.touches.length!==1||event.target.closest('input,textarea,select,button,[contenteditable]'))return;
-  start=event.touches[0].clientY;dragging=true;armed=false;
- },{passive:true});
- viewport.addEventListener('touchmove',event=>{
-  if(!dragging||event.touches.length!==1)return;
-  const delta=event.touches[0].clientY-start;if(delta<=0||viewport.scrollTop>2){reset();return;}
-  armed=delta>=110;indicator.hidden=false;indicator.style.setProperty('--pc-pull-distance',Math.min(78,delta*.4)+'px');
-  label.textContent=armed?'Отпустите для обновления':'Потяните для обновления';
-  if(delta>14&&event.cancelable)event.preventDefault();
- },{passive:false});
- const finish=async()=>{
-  if(!dragging)return;
-  const trigger=armed;dragging=false;if(!trigger){reset();return;}
-  refreshing=true;label.textContent='Обновляю…';indicator.hidden=false;
-  try{await fetchOverview(true);label.textContent='Обновлено';}
-  catch(_){label.textContent='Нет соединения';}
-  finally{setTimeout(()=>{refreshing=false;reset();},500);}
- };
- viewport.addEventListener('touchend',()=>void finish(),{passive:true});
- viewport.addEventListener('touchcancel',reset,{passive:true});
+ renderSelfProfile();
 }
 // iOS/PWA: an edge swipe goes back one level without disrupting vertical scroll.
 function installCenterSwipeBack(){
@@ -386,13 +414,14 @@ async function recordPersonalCycle(){
  }catch(_){setStatus('Не удалось сохранить запись цикла');}
  finally{btn.disabled=false;mountDianaCycle();}
 }
+function isReportSunday(){return new Date(dayKey()+'T12:00:00Z').getUTCDay()===0;}
 function updateReportButton(){
  const button=$('pcGenerateReport');if(!button)return;
  button.hidden=!['Рустам','Диана'].includes(who);
  if(button.hidden)return;
- const current=report?.date===dayKey()&&report?.slot==='morning'&&report?.model!=='deterministic'&&Boolean(report?.narrative);
- button.disabled=manualLoading||Boolean(current);
- button.textContent=manualLoading?'Анализирую…':'Обновить анализ';
+ const current=report?.date===dayKey()&&report?.slot==='weekly'&&report?.model!=='deterministic'&&Boolean(report?.narrative);
+ button.disabled=manualLoading||Boolean(current)||!isReportSunday();
+ button.textContent=manualLoading?'Анализирую…':current?'Обзор недели готов':isReportSunday()?'Получить обзор недели':'Новый обзор в воскресенье';
  button.setAttribute('aria-busy',manualLoading?'true':'false');
 }
 async function requestDailyReport(){
@@ -401,8 +430,9 @@ async function requestDailyReport(){
  try{
   // The initial read may still be running. Wait before deciding whether AI is needed.
   if(overviewPromise)await overviewPromise.catch(()=>{});
-  setStatus('Готовлю сводку за сегодня…');
+  setStatus('Готовлю обзор недели…');
   const result=await call('generate-report');
+  if(result.status==='scheduled'){setStatus('Новый обзор формируется только по воскресеньям');return;}
   if(result.status==='already-running'){
    setStatus('Сводка уже формируется. Попробуй ещё раз через минуту.');return;
   }
@@ -420,30 +450,54 @@ async function requestDailyReport(){
   setStatus(report?.model==='deterministic'?'AI пока недоступен. Нажми «Обновить анализ» немного позже.':
    result.status==='upgraded'?'Полноценный AI-анализ готов!':
    result.status==='regenerated'?'AI-сводка обновлена!':
-   result.status==='created'?'Сводка за сегодня готова':'Сегодняшняя сводка уже сохранена');
+   result.status==='created'?'Обзор недели готов':'Обзор этой недели уже сохранён');
  }catch(error){
   setStatus(error?.message==='Требуется вход'?'Нужно войти в RUDI':'Не удалось получить сводку. Попробуй позже.');
  }finally{manualLoading=false;updateReportButton();}
 }
+function renderGiftWishes(items){
+ const list=$('pcWishList');list.replaceChildren();const own=(items||[]).filter(item=>item.owner===who);
+ $('pcWishCount').textContent=String(own.filter(item=>!item.done).length);
+ for(const item of own){const row=document.createElement('div');row.className='pc-wish'+(item.done?' is-done':'');
+  const icon=document.createElement('span');icon.textContent='🎁';icon.setAttribute('aria-hidden','true');row.append(icon);
+  const copy=document.createElement('span');copy.textContent=String(item.text||'');row.append(copy);
+  if(item.url&&/^https?:\/\//i.test(item.url)){const link=document.createElement('a');link.href=item.url;link.textContent='↗';link.setAttribute('aria-label','Открыть: '+item.text);link.onclick=e=>{e.preventDefault();window.RudiWishlist?.open(item.url)};row.append(link)}
+  if(item.done){const done=document.createElement('small');done.textContent='Исполнено';row.append(done)}list.append(row);
+  const remove=document.createElement('button');remove.type='button';remove.className='wish-remove';remove.textContent='×';remove.setAttribute('aria-label','Удалить желание: '+item.text);
+  remove.onclick=async()=>{if(remove.disabled)return;remove.disabled=true;const actor=who;try{const items=await window.RudiWishlist.remove(item.id);if(actor===who)renderGiftWishes(items)}catch(_){remove.disabled=false;$('pcWishStatus').textContent='Не удалось удалить желание. Попробуй ещё раз.'}};row.append(remove);
+ }
+ if(!own.length)list.textContent='Пока нет желаний';
+}
+async function refreshGifts(){
+ const actor=who;if(!actor||!window.RudiWishlist)return;
+ try{const items=await window.RudiWishlist.list();if(actor===who&&open){renderGiftWishes(items);$('pcWishStatus').textContent=''}}catch(_){if(actor===who)$('pcWishStatus').textContent='Не удалось загрузить желания'}
+}
+function renderGiftBirthday(){
+ if(!who)return;const today=dayKey(),year=Number(today.slice(0,4)),date=String(data?.profile?.birthDate||''),fallback=who==='Диана'?'06-30':'03-03',md=/^\d{4}-\d{2}-\d{2}$/.test(date)?date.slice(5):fallback;
+ let target=year+'-'+md;if(target<today)target=(year+1)+'-'+md;
+ const days=Math.round((Date.parse(target+'T12:00:00Z')-Date.parse(today+'T12:00:00Z'))/86400000);
+ $('pcBirthdayDate').textContent=new Date(target+'T12:00:00Z').toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+ $('pcBirthdayDays').textContent=days===0?'Сегодня':days+' '+(days%100>=11&&days%100<=14?'дней':days%10===1?'день':days%10>=2&&days%10<=4?'дня':'дней');
+}
 function draw(){
  if(!data)return;
  showText('pcPerson',who||'Мой день');
+ renderGiftBirthday();
  const emotions=data.emotions;
  syncHero();
  mountDianaCycle();
  const activeSymptoms=(data.symptoms||[]).filter(x=>x.state!=='resolved');
  showText('pcSymptomsCount',activeSymptoms.some(x=>Date.now()-Date.parse(x.updatedAt)>24*3600*1000)?'Как самочувствие сегодня?':activeSymptoms.length+' активных записей');
  showText('pcWeight',data.weights?.length?data.weights.at(-1).kg+' кг':'Добавить вес');
- showText('pcReportDate',report?asDate(report.createdAt):'Сегодня');
+ showText('pcReportDate',report?.period?asDate(report.period.start)+' – '+asDate(report.period.end):report?asDate(report.createdAt):'По воскресеньям');
  const translating=Boolean(report?.translationPending),ready=Boolean(report?.narrative&&report.model!=='deterministic'&&!translating),insight=ready?safeNarrative(report):null;
- showText('pcReport',translating?report.narrative.overview:ready?(reportHasText(insight?.overview)?insight.overview:'Вот самое важное из твоих записей.'):(report?'Обзор пока не готов. Попробуй ещё раз.':'Твой обзор появится здесь после первого запуска.'));
+ showText('pcReport',translating?report.narrative.overview:ready?(reportHasText(insight?.overview)?insight.overview:'Вот самое важное из твоих записей.'):(report?'Обзор пока не готов. Попробуй ещё раз.':'Недельный обзор появится здесь в воскресенье.'));
  const blocks=[['pcMainChange','pcMainBlock',insight?.mainChange],['pcMainObservation','pcObservationBlock',insight?.mainObservation],['pcMainAction','pcActionBlock',insight?.mainAction],['pcForecast','pcForecastBlock',insight?.forecast]];
  let visible=0;
  for(const [id,block,value] of blocks){const show=Boolean(ready&&reportHasText(value));const el=$(block);if(el)el.hidden=!show;if(show){showText(id,value);visible++;}}
  if($('pcSummaryGrid'))$('pcSummaryGrid').hidden=!visible;
  if($('pcReportMore'))$('pcReportMore').hidden=!ready;
  updateReportButton();
- renderRhythm();
  graph();
 }
 async function mutate(operation,payload={}){
@@ -496,11 +550,12 @@ function sheet(name,{fromHistory=false}={}){
   else {
     const n=safeNarrative(report),ctx=report.observations||{},source=ctx.moodHistory;
     const section=(head,value,kind='')=>reportHasText(value)?'<section class="rudi-center__report-section'+(kind?' rudi-center__report-section--'+kind:'')+'"><h3>'+esc(head)+'</h3><p>'+esc(value)+'</p></section>':'';
-    html='<div class="rudi-center__report-cover"><small>✦ РАСШИРЕННЫЙ АНАЛИЗ</small><strong>Что стоит за выводами</strong><span>'+esc(asDate(report.createdAt))+' · '+(report.slot==='morning'?'Утро':'Вечер')+'</span></div>';
+    html='<div class="rudi-center__report-cover"><small>✦ РАСШИРЕННЫЙ АНАЛИЗ</small><strong>Что стоит за выводами</strong><span>'+esc(asDate(report.createdAt))+' · '+(report.slot==='weekly'?'Обзор недели':report.slot==='morning'?'Утро':'Вечер')+'</span></div>';
     if(report.model==='deterministic'){
       html+=section('Анализ пока недоступен','AI-модель не ответила. Факты сохранены, но персональные выводы и рекомендации пока не сформированы.');
     }else{
-      // The short AI overview already appears on the personal page. Do not repeat it here.
+      // The page shows a compact preview; preserve every summary in the full report.
+      html+=section('Обзор недели',n.overview)+section('Главное',n.mainChange)+section('Что сделать',n.mainAction)+section('Наблюдение',n.mainObservation)+section('Что дальше',n.forecast);
       const domains={mood:'Настроение',habits:'Привычки',tasks:'Дела и планы',health:'Самочувствие',supplements:'Добавки',cycle:'Цикл',finances:'Финансы'};
       const deep=(Array.isArray(n.deepAnalysis)?n.deepAnalysis:[]).filter(x=>domains[x?.domain]&&reportHasText(x.analysis)&&reportHasText(x.evidence)).slice(0,4);
       if(deep.length){

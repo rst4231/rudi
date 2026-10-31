@@ -9,16 +9,15 @@ const smartCss=fs.readFileSync('public/smart-home.css','utf8');
 const api=fs.readFileSync('api/index.js','utf8');
 const client=fs.readFileSync('api/smart-home-client.cjs','utf8');
 
-test('smart home is movable and persistently collapsible',()=>{
-  assert.match(html,/id="smartHomeTile"[^>]*data-app-tab-section="home"[^>]*data-home-tile="smart-home"/);
-  assert.match(app,/HOME_TILE_DEFAULT_ORDER = \['dashboard','rustam','diana','lulu','nearest','priority','partner','new','quick-access','smart-home','car','markets'\]/);
-  assert.match(app,/return 'rudi-home-layout-v3-'\+actor/);
-  assert.match(app,/selector:'#smartHomeTile',key:'smart-home'/);
-  assert.match(app,/hostSelector:'\.smart-home-head'/);
-  assert.match(app,/bodySelectors:\['#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'\]/);
-  assert.match(smartCss,/\.smart-home-tile\.is-collapsed \.smart-home-title-wrap\{display:flex\}/);
-  assert.match(smartCss,/\.smart-home-tile\.is-collapsed \.smart-home-title-icon,[\s\S]*?\.smart-home-updated\{display:none!important\}/);
-  assert.match(smartCss,/\.smart-home-tile\.is-collapsed \.smart-home-climate\{/);
+test('home card and device page keep separate content',()=>{
+  const {JSDOM}=require('jsdom');
+  const dom=new JSDOM(html),d=dom.window.document;
+  assert.equal(d.getElementById('smartHomeTile').dataset.homeTile,'smart-home');
+  assert.equal(d.getElementById('smartHomeTile').dataset.appTabSection,'home');
+  assert.ok(d.getElementById('smartHomePage').contains(d.getElementById('smartHomeRooms')));
+  assert.ok(d.getElementById('smartHomePage').contains(d.getElementById('smartHomeScenarios')));
+  assert.equal(d.getElementById('smartHomeTile').contains(d.getElementById('smartHomeRooms')),false);
+  dom.window.close();
 });
 
 test('smart home starts with weather and climate and uses device cards',()=>{
@@ -120,7 +119,7 @@ test('smart home climate and devices have distinct SVG artwork',()=>{
 test('smart home uses compact rows with clear power states and no technical type text',()=>{
   assert.match(smart,/smart-home-state-dot/);
   assert.match(smart,/power\.state\.value\?'is-on':'is-off'/);
-  assert.match(smart,/indicator\.setAttribute\('aria-label',power\.state\.value\?'Включено':'Выключено'\)/);
+  assert.match(smart,/indicator\.setAttribute\('aria-label',unavailable\?'Нет связи':power\.state\.value\?'Включено':'Выключено'\)/);
   assert.doesNotMatch(smart,/replace\('devices\.types\.'/);
   assert.match(smart,/list\.className='smart-home-device-list'/);
   assert.match(smartCss,/\.smart-home-device-list/);

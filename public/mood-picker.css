@@ -1,0 +1,26 @@
+.mood-picker-dialog{height:min(780px,100%)}
+.mood-picker-dialog>header{gap:10px}
+.mood-picker-dialog h2{flex:1}
+.mood-picker-back{border:0;background:transparent;color:inherit;font:600 14px system-ui;padding:10px 0;cursor:pointer}
+.mood-picker-progress{flex:none;margin:0 16px 12px;color:var(--muted,#626b7e);font:12px system-ui}
+.mood-picker-selection{margin:0 4px 14px;font:600 14px/1.5 system-ui;color:var(--muted,#626b7e)}
+.mood-picker-selection:empty{display:none}
+.mood-picker-question{margin:0 4px 16px;font:650 18px/1.35 system-ui;outline:none}
+.mood-picker-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:0 2px 4px}
+.mood-picker-options button,.mood-picker-custom button,.mood-picker-analyze,.mood-picker-skip{min-height:46px;border:1px solid var(--line,#dce0eb);border-radius:14px;background:var(--soft,#f3f4f8);color:inherit;padding:12px;font:550 14px/1.35 system-ui;text-align:left;cursor:pointer;overflow-wrap:anywhere}
+.mood-picker-options button:hover{border-color:#7864d9}
+.mood-picker-dialog button:focus-visible,.mood-picker-dialog input:focus-visible{outline:2px solid #7864d9;outline-offset:2px}
+.mood-picker-dialog button:disabled{opacity:.55;cursor:wait}
+.mood-picker-custom:not([hidden]){display:grid;gap:10px;margin:14px 2px}
+.mood-picker-custom label{font:14px system-ui}
+.mood-picker-custom input{box-sizing:border-box;width:100%;min-width:0;min-height:46px;border:1px solid var(--line,#dce0eb);border-radius:12px;background:var(--soft,#f3f4f8);color:inherit;padding:10px;font:16px system-ui}
+.mood-picker-custom button{background:#7864d9;color:white;text-align:center}
+.mood-picker-skip{width:100%;margin-top:12px;text-align:center;background:transparent}
+.mood-picker-error{font:13px/1.5 system-ui;color:var(--danger,#bd354c);margin:10px 4px}
+.mood-picker-error:empty{display:none}
+.mood-picker-dialog>footer{padding:12px}
+.mood-picker-analyze{width:100%;text-align:center;background:transparent}
+@media(max-width:360px){.mood-picker-options{gap:6px}.mood-picker-options button{padding:10px 8px;font-size:13px}}
+
+/* Emotion, detailed feeling and reason selectors use emoji without changing labels or values. */
+.mood-picker-options .mood-picker-option-emoji{display:inline-block;margin-right:6px;font-size:1.12em;line-height:1;vertical-align:-.04em;pointer-events:none}

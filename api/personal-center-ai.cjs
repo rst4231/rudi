@@ -14,6 +14,7 @@ const {loadTodayTasks,filterTasksForActor}=require('./morning-summary.cjs');
 const {getWorkWeek}=require('./work-calendar.cjs');
 const {analyzeConnections}=require('./personal-center-connections.cjs');
 const WHO_SOURCE='https://www.who.int/news-room/fact-sheets/detail/self-care-health-interventions';
+const {weekPeriod,weeklyFacts}=require('./personal-center-weekly.cjs');
 function summaries(data,a,date,slot,moodHistory=[]){
  const signals=computeEmotionSignals(moodHistory);
  const symptoms=data.symptoms||[],weights=data.weights||[],weight=weights.at(-1)||null;
@@ -78,7 +79,7 @@ async function gather(a,date,slot,options={}){
     supplements:supp?{items:supp.items.map(x=>({name:x.name,status:x.status,goal:x.goal,intakes:x.intakes.length,latestIntake:x.intakes.at(-1)?.date||null,skips:x.skips.length})).slice(0,80)}:null,
     habits:habits?buildHabitDigest(habits,date):null,
     moodHistory:Array.isArray(mood)?(()=>{
-    const labels={sadness:'Грусть',boredom:'Скука',neutral:'Нейтрально',fatigue:'Усталость',anger:'Злость',joy:'Радость',love:'Любовь'};
+    const labels={sadness:'Грусть',boredom:'Скука',neutral:'Нейтрально',fatigue:'Усталость',anger:'Злость',joy:'Радость',love:'Любовь',anxiety:'Страх'};
     const month=new Map();
     for(const row of mood){const k=String(row.date||'').slice(0,7);if(!k)continue;const entry=month.get(k)||{month:k,entries:0,positive:0,negative:0,neutral:0};entry.entries++;const value=row.mood;if(['joy','love'].includes(value))entry.positive++;else if(value==='neutral')entry.neutral++;else if(labels[value])entry.negative++;month.set(k,entry);}
     return {entries:mood.length,monthly:[...month.values()].sort((a,b)=>a.month.localeCompare(b.month)),latest:mood.slice(-21).map(v=>({date:v.date,mood:labels[v.mood]||'Не отмечено',reasons:(v.samples||[]).map(s=>({mood:labels[s.mood]||'',reason:s.reason==='other'?s.reasonText:s.reason})).filter(x=>x.reason).slice(-5)}))};
@@ -90,6 +91,7 @@ async function gather(a,date,slot,options={}){
       minutes:Math.round(meditationSessions.reduce((n,row)=>n+(row.durationSeconds||0),0)/60*10)/10,
       recentDays:(meditation.history||[]).filter(row=>meditationDay(row.endedAt)<=date).slice(0,30).map(row=>({date:meditationDay(row.endedAt),minutes:Math.round(row.durationSeconds/60*10)/10}))}:null,
   };
+  named.weekly=weeklyFacts({date,actor:a,finances:f,supplements:supp,habits,moods:mood,meditation,profile:base});
   return {data:named,missing:['Финансы','БАДы','Привычки','Настроение'].filter((_,i)=>sources[i].status!=='fulfilled').concat(sources[8].status==='fulfilled'?[]:['Медитация'])};
 }
 function cycleDigest(state,date,moods,symptoms=[]){
@@ -106,7 +108,7 @@ function cycleDigest(state,date,moods,symptoms=[]){
   x.days++;
   if(['joy','love'].includes(row.mood))x.positive++;
   else if(row.mood==='neutral')x.neutral++;
-  else if(['sadness','boredom','fatigue','anger'].includes(row.mood))x.negative++;
+  else if(['sadness','boredom','fatigue','anger','anxiety'].includes(row.mood))x.negative++;
   const percent=computeEmotionSignals([row]).latest?.negativePercent;
   if(Number.isFinite(percent)){x.negativePctCount++;x.negativePctTotal+=percent;}
   buckets.set(phase,x);
@@ -128,7 +130,7 @@ function availableReviewDomains(data={}){
  ];
  return entries.filter(([,present])=>present).map(([domain])=>domain);
 }
-function makeFallback(payload){const p=payload.data.profile;const slot=p.slot==='morning'?'Утро':'Вечер';return {headline:slot+' · личный обзор',overview:'Данные сохранены. AI-анализ временно недоступен.',mainChange:'Недостаточно данных',mainObservation:'AI-анализ временно недоступен',mainAction:'Недостаточно данных',forecast:'Недостаточно данных',focus:[],connectionsText:payload.data.connections?.findings?.length?payload.data.connections.findings[0].text:'Пока недостаточно данных для сопоставления разных разделов.',financeText:payload.data.finances?('Сегодня учтено расходов: '+payload.data.finances.todayExpensesRub+' ₽.'):'Нет данных по финансам.',habitsText:payload.data.habits?('Отслеживается привычек: '+payload.data.habits.items.length+'.'):'Нет данных по привычкам.',confidence:'insufficient'};}
+function makeFallback(payload){const p=payload.data.profile;const slot=p.slot==='weekly'?'Обзор недели':p.slot==='morning'?'Утро':'Вечер';return {headline:slot+' · личный обзор',overview:'Данные сохранены. AI-анализ временно недоступен.',mainChange:'Недостаточно данных',mainObservation:'AI-анализ временно недоступен',mainAction:'Недостаточно данных',forecast:'Недостаточно данных',focus:[],connectionsText:payload.data.connections?.findings?.length?payload.data.connections.findings[0].text:'Пока недостаточно данных для сопоставления разных разделов.',financeText:payload.data.finances?('Сегодня учтено расходов: '+payload.data.finances.todayExpensesRub+' ₽.'):'Нет данных по финансам.',habitsText:payload.data.habits?('Отслеживается привычек: '+payload.data.habits.items.length+'.'):'Нет данных по привычкам.',confidence:'insufficient'};}
 function sanitize(out,payload){
  const x=out&&typeof out==='object'?out:{},fallback=makeFallback(payload);
  const str=(v,limit)=>String(v||'').replace(/[\u0000-\u001f]/g,' ').slice(0,limit);
@@ -192,6 +194,8 @@ async function generate(a,date,slot,options={}){
   const list=(rows,max=8)=>Array.isArray(rows)?rows.slice(-max):[];
   const evidence={
     date,slot,actor:a,availableDomains,
+    reportPeriod:weekPeriod(date),
+    weekly:d.weekly?{...d.weekly,habits:list(d.weekly.habits,12),supplements:list(d.weekly.supplements,12),mood:{recordedDays:d.weekly.mood.recordedDays,days:list(d.weekly.mood.days,7).map(x=>({date:x.date,mood:x.mood,reasons:list(x.samples,3).map(s=>clip(s.reasonText||s.reason,100))}))}}:null,
     profile:{
       body:{height:d.profile?.body?.height,weight:d.profile?.body?.weight,
         weightChange:d.profile?.body?.weightChange,vision:d.profile?.body?.vision},
@@ -202,7 +206,7 @@ async function generate(a,date,slot,options={}){
         activeSymptoms:list(d.profile?.health?.activeSymptoms,5).map(x=>({description:clip(x.description,120),state:x.state,startedAt:x.startedAt})),
         monthlyStats:list(d.profile?.health?.monthlyStats,4)}
     },
-    habits:d.habits?{items:list(d.habits.items,12).map(x=>({name:clip(x.name,65),status:x.status,streak:x.streak,
+    habits:d.habits?{items:list(d.habits.items,12).map(x=>({name:clip(x.name,65),last7:x.last7,previous7:x.previous7,status:x.status,streak:x.streak,
       done:x.done,notDone:x.notDone,archivedAt:x.archivedAt})),summary:d.habits.summary}:null,
     tasks:list(d.tasks,10).map(x=>({title:clip(x.title,95),startTime:x.startTime,status:x.status})),
     meditation:d.meditation?{meditated:d.meditation.meditated,minutes:d.meditation.minutes,sessions:d.meditation.sessions,
@@ -221,6 +225,8 @@ async function generate(a,date,slot,options={}){
       interpretation:clip(x.interpretation,160),confidence:x.confidence}))}
   };
   const prompt='Ты RUDI — личный коуч. Отвечай ТОЛЬКО ПО-РУССКИ, верни JSON строго по схеме. '+
+    'Это НЕДЕЛЬНЫЙ обзор за reportPeriod.start–reportPeriod.end включительно, с понедельника по воскресенье. Подведи итоги недели и предложи ориентир на следующую неделю. '+
+    'Для итоговых чисел используй weekly. Остальная история нужна только для контекста и сравнений: не выдавай её за события этой недели. Текущие планы не равны завершённым делам. '+
     'Составь содержательный персональный разбор, а не каталог показателей. Это личный обзор ВСЕЙ жизни, а НЕ отчёт о расходах. '+
     'Деньги — только один из разделов. КРИТИЧНО: дай ДВА РАЗНЫХ УРОВНЯ АНАЛИЗА: краткий обзор и независимый глубокий разбор. '+
     'Главный приоритет, короткий обзор, одно выполнимое действие, осторожный прогноз. '+

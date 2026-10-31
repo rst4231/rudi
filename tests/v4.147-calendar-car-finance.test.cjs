@@ -12,7 +12,8 @@ test('each calendar entry starts at current local day regardless of last browsed
 
 });
 test('finance navigation buttons in calendar, products and car have a wallet icon',()=>{
-  for(const id of ['calendarFinanceShortcut','kitchenFinanceShortcut','carTransportFinanceShortcut']){
+  assert.doesNotMatch(html,/id="kitchenFinanceShortcut"/);
+  for(const id of ['calendarFinanceShortcut','carTransportFinanceShortcut']){
     const button=html.match(new RegExp('<button[^>]*id="'+id+'"[^>]*>[\\s\\S]*?<\\/button>'));
     assert.ok(button,id);
     assert.match(button[0],/<rect x="3" y="6" width="18" height="15"/);

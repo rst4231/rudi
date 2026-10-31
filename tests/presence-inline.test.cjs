@@ -36,7 +36,7 @@ function fixture(){
  const context=vm.createContext({document,navigator:{onLine:true},Date:class extends Date{static now(){return clock}},Intl});
  vm.runInContext(source.slice(source.indexOf(' const ACTORS='),source.indexOf(' async function ping'))+`
   lastResponse=Date.now();lastSeen={'Рустам':'2026-10-17T10:16:00Z','Диана':'2026-10-17T10:16:00Z'};
-  globalThis.api={open,dismiss,paint,formatDate,onKeyDown,setOnline(actor,value){status[actor]=value},
+  globalThis.api={open,dismiss,paint,formatDate,onKeyDown,mountProfile,setOnline(actor,value){status[actor]=value},
    clearSeen(actor){lastSeen[actor]=null},expire(){lastResponse=Date.now()-ACTIVE_WINDOW_MS-1}};`,context);
  context.api.paint();return {api:context.api,document,events,tiles};
 }
@@ -77,4 +77,28 @@ test('inline disclosure has no focus trap, overlay style or new request path',()
  assert.match(css,/has-presence-detail[\s\S]*?grid-row:3!important/);
  assert.match(source,/rudi:app-tab-change/);
  assert.equal((source.match(/fetch\(/g)||[]).length,1);
+});
+test('partner hero shows live status from the shared heartbeat and retains last visit on expiry',()=>{
+ const f=fixture(),person=new Element('div','person');
+ const unmount=f.api.mountProfile(person,'Диана');
+ const line=person.querySelector('.partner-presence-status');
+ assert.ok(line);assert.equal(line.textContent,'Была в сети в 13:16');
+ assert.equal(line.getAttribute('role'),'status');
+ f.api.setOnline('Диана',true);f.api.paint();
+ assert.equal(line.textContent,'Онлайн');assert.ok(line.classList.contains('is-online'));
+ f.api.expire();f.api.paint();
+ assert.equal(line.textContent,'Была в сети в 13:16');
+ assert.equal(line.classList.contains('is-online'),false);
+ unmount();assert.equal(person.querySelector('.partner-presence-status'),null);
+});
+test('partner hero uses the correct actor and clears online status when the viewer loses connection',()=>{
+ const f=fixture(),person=new Element('div','person');
+ const unmount=f.api.mountProfile(person,'Рустам');
+ const line=person.querySelector('.partner-presence-status');
+ assert.equal(line.textContent,'Был в сети в 13:16');
+ f.api.setOnline('Рустам',true);f.api.paint();assert.equal(line.textContent,'Онлайн');
+ f.document.body.dataset.offlineMode='1';f.api.paint();
+ assert.equal(line.classList.contains('is-online'),false);
+ f.api.clearSeen('Рустам');f.api.paint();assert.equal(line.textContent,'Не в сети');
+ unmount();f.api.paint();assert.equal(person.children.length,0);
 });

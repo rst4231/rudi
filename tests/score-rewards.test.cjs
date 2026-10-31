@@ -43,6 +43,25 @@ function memoryCache(initial=null) {
   };
 }
 
+test('completed habits earn 0.1 star once and undo reverses the actual award for both actors', async () => {
+  const {reconcileHabitScore} = require('../api/habit-rules.cjs');
+  for (const actor of ['Рустам','Диана']) {
+    resetMutationQueueForTests();
+    const options = {scoreCache:memoryCache(),now:Date.parse('2026-10-24T18:00:00Z')};
+    const habit = {id:'habit-reward-test',name:'Прогулка'};
+    const done = await reconcileHabitScore(actor,habit,'2026-10-24','done',true,options);
+    assert.equal(done.deltaPoints,0.1);
+    assert.equal(done.score.balances[actor],0.1);
+    const repeated = await reconcileHabitScore(actor,habit,'2026-10-24','done',true,options);
+    assert.equal(repeated.deltaPoints,0);
+    const undo = await reconcileHabitScore(actor,habit,'2026-10-24','pending',true,options);
+    assert.equal(undo.deltaPoints,-0.1);
+    assert.equal(undo.score.balances[actor],0);
+    const retry = await reconcileHabitScore(actor,habit,'2026-10-24','done',true,options);
+    assert.equal(retry.deltaPoints,0.1);
+  }
+});
+
 test('daily star earning limit is 15 stars', () => {
   assert.equal(DAILY_LIMIT_UNITS,150);
   const view=scoreView({}, { now: Date.parse('2026-09-26T12:00:00Z') });
@@ -78,7 +97,7 @@ test('home actions use the configured fractional star rewards', () => {
   const app = fs.readFileSync(path.join(__dirname,'..','public','app.js'),'utf8');
 
   assert.match(api,/reward:\{stars:0,awarded:false\}/);
-  assert.match(api,/awardScoreSafe\(actor,1,\{\s*label:'Послание'/s);
+  assert.doesNotMatch(api,/label:'Послание'/);
   assert.match(api,/const walkRewardUnits=actor==='Рустам'\?20:10;/);
   assert.match(api,/awardScoreSafe\(actor,walkRewardUnits,\{label:'Прогулка с Лулу'/);
   assert.match(app,/Ответ сохранён/);
@@ -148,4 +167,35 @@ test('products API does not call product score award when adding positions', () 
   const api = fs.readFileSync(path.join(__dirname,'..','api','partner-message.js'),'utf8');
   assert.doesNotMatch(api,/awardProductScoreSafe/);
   assert.doesNotMatch(api,/for\s*\(const item of addedItems\)\s*await awardProductScore/);
+});
+
+test('missed habits deduct two stars once and undo refunds the actual penalty for both actors',async()=>{
+ const {reconcileHabitScore}=require('../api/habit-rules.cjs');
+ for(const actor of ['Рустам','Диана']){
+  resetMutationQueueForTests();
+  const options={scoreCache:memoryCache(),now:Date.parse('2026-10-28T18:00:00Z')},habit={id:'habit-penalty-test',name:'Прогулка'};
+  const failed=await reconcileHabitScore(actor,habit,'2026-10-28','notdone',true,options);
+  assert.equal(failed.deltaPoints,-2);assert.equal(failed.score.balances[actor],-2);
+  assert.equal((await reconcileHabitScore(actor,habit,'2026-10-28','notdone',true,options)).deltaPoints,0);
+  assert.equal((await reconcileHabitScore(actor,habit,'2026-10-28','pending',true,options)).deltaPoints,2);
+  assert.equal((await reconcileHabitScore(actor,habit,'2026-10-28','notdone',false,options)).deltaPoints,0);
+ }
+});
+test('habit loss statistics preserve old penalties and record new two-star failures',async()=>{
+ const H=require('../api/habit-tracker-store.cjs');let saved={initialized:true,habits:[{id:'habit-penalty-test',name:'Прогулка',createdAt:'2026-09-01T00:00:00Z'}],failures:{'2026-10-27':['habit-penalty-test']},bonusIdsByDate:{'2026-10-27':['habit-penalty-test'],'2026-10-28':['habit-penalty-test']}};
+ const stateStore={read:async()=>saved,write:async value=>{saved=value;return value}},options={stateStore,now:Date.parse('2026-10-28T18:00:00Z'),date:'2026-10-28'};
+ const state=await H.setHabitStatus('Рустам','habit-penalty-test','notdone',options);
+ assert.deepEqual(H.habitHistoryStats(state,'habit-penalty-test','2026-10-28'),{notDone:2,lostStars:3});
+ const repeated=await H.setHabitStatus('Рустам','habit-penalty-test','notdone',options);
+ assert.equal(H.habitHistoryStats(repeated,'habit-penalty-test','2026-10-28').lostStars,3);
+});
+test('automatic day finalization deducts two stars for an unmarked habit only once',async()=>{
+ const H=require('../api/habit-tracker-store.cjs'),R=require('../api/habit-rules.cjs');
+ let saved={initialized:true,habits:[{id:'habit-finalize-test',name:'Прогулка',createdAt:'2026-09-01T00:00:00Z'}]};
+ const stateStore={read:async()=>saved,write:async value=>{saved=value;return value}},options={stateStore,scoreCache:memoryCache(),now:Date.parse('2026-10-29T08:00:00Z')};
+ resetMutationQueueForTests();
+ const first=await R.finalizeHabitDay('Диана','2026-10-28',options);
+ assert.equal(first.penalized,2);
+ assert.equal((await R.finalizeHabitDay('Диана','2026-10-28',options)).penalized,0);
+ assert.deepEqual(H.habitHistoryStats(await H.readHabits('Диана',options),'habit-finalize-test','2026-10-28'),{notDone:1,lostStars:2});
 });

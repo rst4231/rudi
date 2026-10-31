@@ -30,6 +30,22 @@ test('transport wash-tag expenses appear in car spending by month without double
   ]);
   assert.deepEqual(groups[0].operations.map(row=>row.label),['Мойка','Бензин']);
   assert.deepEqual(groups[1].operations.map(row=>row.label),['Мойка']);
+  assert.deepEqual(groups[0].categoryTotals,[{label:'Бензин',total:1600},{label:'Мойка',total:850}]);
+  assert.deepEqual(groups[1].categoryTotals,[{label:'Мойка',total:650}]);
+});
+
+test('monthly category totals combine repeated labels and match the month total',()=>{
+  const finance={categories:[{id:'transport',name:'Транспорт'}],personalExpenses:[
+    ...[1499,2000,2036].map(amount=>({categoryId:'transport',label:'Бензин',amount,month:'2026-10'})),
+    {categoryId:'transport',label:'Мойка',amount:180,month:'2026-10'},
+    {categoryId:'transport',label:' страховка ',amount:12085.34,month:'2026-10'},
+    {categoryId:'transport',label:'Бензин',amount:6800,month:'2026-09'},
+    {categoryId:'transport',label:'Паркинг',amount:360,month:'2026-09'},
+  ]};
+  const groups=JSON.parse(JSON.stringify(carExpenseGroups(finance)));
+  assert.deepEqual(groups[0].categoryTotals,[{label:'Бензин',total:5535},{label:'Мойка',total:180},{label:'Страховка',total:12085.34}]);
+  assert.deepEqual(groups[1].categoryTotals,[{label:'Бензин',total:6800},{label:'Паркинг',total:360}]);
+  for(const group of groups) assert.equal(Math.round(group.categoryTotals.reduce((sum,row)=>sum+row.total,0)*100)/100,group.total);
 });
 
 test('empty-state description includes car wash expenses',()=>{

@@ -335,3 +335,155 @@ body.rudi-center-open{overflow:hidden!important}
 .rudi-center__chart{aspect-ratio:350/168;max-height:none;padding:4px 2px;overflow:visible}
 .rudi-center__deep-card{box-shadow:0 4px 17px rgba(16,38,46,.04);border-radius:18px}
 @media(max-width:520px){.rudi-center__hero{padding:22px 19px;border-radius:24px}.rudi-center__hero-avatar{width:64px;height:64px}.rudi-center__head{flex-wrap:wrap}.rudi-center__rhythm-chart{min-height:155px}.rudi-center__tile-grid{gap:10px}}
+
+/* Match the partner page: lavender glass identity, colored sections and compact cards. */
+.rudi-center{
+ --pc-bg:#f1f3fa;--pc-panel:#fff;--pc-text:#26324a;--pc-muted:#4d5a70;--pc-border:#c9cbe3;
+ --pc-hero:linear-gradient(120deg,#e2dcfa,#e3edff);--pc-hero-edge:#b2acd4;
+ --pc-mint:#d5f2e4;--pc-mint-edge:#91ccb9;--pc-lavender:#e3e4fb;--pc-rose:#f9e6f0;--pc-gold:#fff0cc;
+ --pc-accent:#146b5b;--pc-blue:#4857af;
+}
+:root[data-theme="dark"] .rudi-center,.rudi-center[data-theme="dark"]{
+ --pc-bg:#10151d;--pc-panel:#1b222d;--pc-text:#f3f5fc;--pc-muted:#b2bfd1;--pc-border:#354053;
+ --pc-hero:linear-gradient(125deg,#202733,#171d29);--pc-hero-edge:#45475e;
+ --pc-mint:#172e2d;--pc-mint-edge:#2a5149;--pc-lavender:#24283f;--pc-rose:#302332;--pc-gold:#332d21;
+ --pc-accent:#83debd;--pc-blue:#b0baff;
+}
+.rudi-center__wrap{padding:12px 12px calc(28px + env(safe-area-inset-bottom))}
+.rudi-center__content{max-width:760px}
+.rudi-center__hero{isolation:isolate;padding:16px 14px;border:1px solid var(--pc-hero-edge);border-radius:23px;background:var(--pc-hero);color:var(--pc-text);box-shadow:inset 0 1px 0 rgba(255,255,255,.25),0 6px 16px rgba(49,55,97,.09);margin-bottom:12px}
+.rudi-center__hero::before,.rudi-center__hero::after{content:'';position:absolute;z-index:-1;width:28px;height:28px;right:12px;top:10px;border-radius:50%;background:radial-gradient(circle at 28% 23%,rgba(186,172,255,.85),rgba(77,66,141,.32) 35%,transparent 75%);pointer-events:none}
+.rudi-center__hero::after{width:45px;height:45px;top:auto;bottom:-20px;right:30%;opacity:.6}
+.rudi-center__hero small{color:var(--pc-blue);font-size:9px;letter-spacing:.1em}
+.rudi-center__hero-identity{gap:12px;margin-top:9px;min-width:0}
+.rudi-center__hero-avatar{height:56px;width:56px;flex:0 0 56px;border-radius:50%;border:2px solid #a59af9;box-shadow:0 0 0 3px rgba(165,154,249,.22);overflow:hidden}
+.rudi-center__hero-avatar img{border-radius:inherit}
+.rudi-center__hero-name{min-width:0}
+.rudi-center__hero-name h1{font-size:24px;margin:0 0 7px;color:var(--pc-text);-webkit-text-fill-color:var(--pc-text);line-height:1.15}
+.rudi-center__hero-name #pcHeroMeta{font-size:11px;gap:5px;opacity:1;color:var(--pc-text)}
+.rudi-center__hero-metric{padding:4px 7px;border:1px solid var(--pc-hero-edge);border-radius:999px;background:color-mix(in srgb,var(--pc-panel) 55%,transparent);font-weight:400;line-height:1.3}
+.rudi-center__hero-metric:not(:last-child)::after{content:none}
+.rudi-center__hero-attention{color:var(--pc-text);background:var(--pc-rose);padding:9px;border-radius:12px;margin-top:9px}
+.rudi-center__card{padding:15px 14px;margin-bottom:12px;border:1px solid var(--pc-border);border-radius:20px;box-shadow:none}
+.rudi-center__card h2{font-size:15px}
+.rudi-center__report{background:linear-gradient(130deg,var(--pc-mint),var(--pc-panel));border-color:var(--pc-mint-edge)}
+.rudi-center__report:before{display:none}
+.rudi-center__report p{font-size:13px;line-height:1.6}
+.rudi-center__head{gap:8px;margin-bottom:10px}
+.rudi-center__tile-grid{gap:9px;margin-bottom:12px}
+.rudi-center__tile{padding:13px;border:1px solid var(--pc-border);border-radius:17px;background:var(--pc-lavender);box-shadow:none;color:var(--pc-text)}
+.rudi-center__tile:nth-child(3n+2){background:var(--pc-rose)}
+.rudi-center__tile:nth-child(3n){background:var(--pc-gold)}
+.rudi-center__tile strong{font-size:13px;color:var(--pc-text)}
+.rudi-center__tile small{font-size:11px;color:var(--pc-muted)}
+.rudi-center__tile-icon{display:inline-flex;align-items:center;justify-content:center;align-self:flex-start;width:28px;height:28px;background:transparent;border-radius:0}
+.rudi-center__meta{color:var(--pc-muted)}
+@media(prefers-reduced-motion:no-preference){
+ .rudi-center__hero::before,.rudi-center__hero::after{animation:pc-glass-drift 7s ease-in-out infinite alternate}
+ .rudi-center__hero::after{animation-delay:-3s}
+ @keyframes pc-glass-drift{to{transform:translate(-5px,4px)}}
+}
+/* Same page geometry as the dedicated partner page, including iPhone safe areas. */
+.rudi-center{--pc-page-top:max(28px,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px),calc(var(--tg-content-safe-top,0px) + 10px));--pc-page-side:max(16px,env(safe-area-inset-left));display:flex;flex-direction:column;box-sizing:border-box;padding:var(--pc-page-top) var(--pc-page-side) 0}
+.rudi-center__bar{height:auto;flex:none;width:100%;max-width:760px;align-self:center;grid-template-columns:var(--rudi-page-head-control,48px) minmax(0,1fr) auto!important;background:transparent;border:0}
+.rudi-center__bar h1{white-space:nowrap;font-size:clamp(19px,5vw,25px)!important}
+.rudi-center__wrap{height:auto;flex:1;min-height:0;padding:12px 0 max(16px,env(safe-area-inset-bottom));width:100%}
+@media(max-width:420px){.rudi-center__content{padding:0 8px;box-sizing:border-box}}
+@media(min-width:1000px){.rudi-center__bar,.rudi-center__content{max-width:760px}}
+.pc-gifts{padding:14px;border:1px solid #d9af75;border-radius:24px;background:radial-gradient(ellipse at 100% 0,#f5cfdf,transparent 65%),linear-gradient(140deg,#fbe5ad,#fff2d7);color:var(--pc-text);margin-bottom:12px}
+.pc-gifts h2{margin:0 0 12px;font-size:16px;color:#7b5b2d}
+.pc-birthday{position:relative;display:flex;align-items:center;gap:10px;padding:12px 12px 12px 20px;background:#fffaf0;border:1px solid #e5c38c;border-radius:16px;overflow:hidden;margin-bottom:10px}
+.pc-birthday::before{content:'';position:absolute;left:0;top:0;bottom:0;width:6px;background:linear-gradient(#a5346c,#95630c)}
+.pc-birthday>span{font-size:24px}.pc-birthday>div{flex:1;min-width:0}.pc-birthday strong{font-size:13px}.pc-birthday small{display:block;font-size:11px;color:var(--pc-muted);margin-top:4px}.pc-birthday>b{font-size:16px;color:#946313;text-align:center;max-width:80px;background:var(--pc-gold);padding:8px;border-radius:12px}
+.pc-wishes{background:var(--pc-panel);padding:12px;border-radius:16px}.pc-wishes-head{display:flex;align-items:center;justify-content:space-between;color:#a5346c;margin-bottom:10px}.pc-wishes h3{font-size:14px;margin:0}.pc-wishes-head>span{font-size:11px;border-radius:99px;padding:4px 8px;background:var(--pc-rose)}
+#pcWishForm{display:grid;grid-template-columns:minmax(0,1fr) 36px;gap:8px;margin-bottom:10px}#pcWishForm input{min-width:0;width:100%;padding:10px;border:1px solid var(--pc-border);border-radius:12px;background:var(--pc-bg);color:var(--pc-text);font-size:13px}#pcWishForm button{border:0;border-radius:12px;background:var(--pc-rose);color:var(--pc-text)}#pcWishForm button[type=submit]{font-size:24px;min-height:40px}#pcWishLinkToggle,#pcWishUrl{grid-column:1/-1}#pcWishLinkToggle{justify-self:start;padding:3px 0;background:none!important;font-size:11px;color:var(--pc-muted)}#pcWishStatus{font-size:12px;line-height:1.4;margin:8px 0;color:var(--pc-muted)}
+#pcWishList{display:grid;gap:8px;font-size:13px}.pc-wish{display:flex;align-items:center;gap:10px;background:var(--pc-rose);border:1px solid color-mix(in srgb,#a5346c 22%,transparent);padding:11px 10px;border-radius:13px;font-size:13px;line-height:1.45}.pc-wish>span:nth-child(2){min-width:0;flex:1;overflow-wrap:anywhere}.pc-wish>a{font-size:22px;text-decoration:none;color:#a5346c}.pc-wish small{font-size:10px;color:var(--pc-muted)}.pc-wish.is-done{opacity:.65}
+:root[data-theme=dark] .pc-gifts{background:radial-gradient(ellipse at 100% 0,#302332,transparent 65%),#332d21;border-color:#655335}:root[data-theme=dark] .pc-gifts h2{color:#f4d080}:root[data-theme=dark] .pc-birthday{background:#26231e;border-color:#655335}:root[data-theme=dark] .pc-birthday>b{color:#f4d080}:root[data-theme=dark] .pc-wishes-head,:root[data-theme=dark] .pc-wish>a{color:#eea1c4}
+.rudi-center .rudi-center__btn:not(.rudi-center__btn--ghost):not(.rudi-center__btn--danger){color:#fff}
+:root[data-theme=dark] .rudi-center .rudi-center__btn:not(.rudi-center__btn--ghost):not(.rudi-center__btn--danger){color:#103329}
+
+/* The nested pages use exactly the same header and safe area as the profile. */
+.rudi-center__sheet-head.rudi-app-page-head{border:0;background:transparent}
+.rudi-center__sheet-head h1{white-space:normal}
+.rudi-center__bar .partner-profile-stars{background:#fff5d9;border-color:color-mix(in srgb,#95630c 20%,transparent);color:#95630c;box-shadow:none;letter-spacing:-.02em}
+:root[data-theme=dark] .rudi-center__bar .partner-profile-stars{background:#332d21;border-color:color-mix(in srgb,#f4d080 20%,transparent);color:#f4d080}
+.pc-self-profile{margin-bottom:20px;--pp-panel:var(--pc-panel);--pp-edge:var(--pc-border);--pp-muted:var(--pc-muted);--pp-mint:var(--pc-accent);--pp-mint-soft:var(--pc-mint);--pp-mint-edge:var(--pc-mint-edge);--pp-blue:var(--pc-blue);--text:var(--pc-text);--muted:var(--pc-muted);--surface-strong:var(--pc-panel);--line:var(--pc-border)}
+.pc-self-profile .partner-profile-layout{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:20px!important;padding:0!important;background:transparent!important;border:0!important;border-radius:0!important;box-shadow:none!important;overflow:visible;min-height:0}
+.pc-self-profile .profile-person-details{padding:0!important;border:0!important;background:transparent!important}
+.pc-self-profile .profile-person-details>.partner-hero{order:0;display:block;min-height:0!important;height:auto!important;padding:20px 16px!important}
+.pc-self-profile .profile-person-details>.partner-energy-card{order:1;padding:0!important}
+.pc-self-profile .profile-person-details>.partner-today{order:2}
+.pc-self-profile .partner-hero .profile-person-head{width:100%;margin:0!important;border:0!important;background:transparent!important;padding:0!important}
+.pc-self-profile .partner-hero .identity{display:grid!important;width:100%!important;min-width:0}
+.pc-self-profile .partner-hero .identity-self{grid-template-columns:52px minmax(0,1fr)!important}
+.pc-self-profile .partner-body-metrics .rudi-center__hero-metric{padding:0;border:0;background:none}
+.pc-self-profile .partner-body-metrics .rudi-center__hero-metric:not(:last-child)::after{content:'·';margin-left:5px}
+.pc-self-profile .partner-hero .avatar,.pc-self-profile .partner-hero .avatar img{border-radius:50%!important}
+.pc-self-profile .partner-energy-card .profile-energy-strip{position:relative!important;inset:auto!important;transform:none!important}
+@media(max-width:799px){
+ .rudi-center__sheet{padding:var(--pc-page-top) var(--pc-page-side) 0}
+ .rudi-center__sheet-head{width:100%;max-width:760px;align-self:center}
+ .rudi-center__sheet-content{width:100%;max-width:760px;align-self:center;padding:12px 0 max(16px,env(safe-area-inset-bottom))}
+}
+@media(max-width:350px){.rudi-center__bar{column-gap:8px!important}.rudi-center__bar h1{font-size:18px!important}}
+.pc-wish .wish-remove{flex:none;width:26px;height:26px;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--pc-muted);font-size:21px;cursor:pointer}
+
+/* Keep readable overview text and comfortable spacing independently of the shell theme. */
+.pc-self-profile .partner-hero .profile-rhythm-status{color:var(--hero-muted)!important;-webkit-text-fill-color:var(--hero-muted)!important}
+.pc-self-profile .partner-body-metrics{color:var(--hero-muted)!important}
+.rudi-center__content>.rudi-center__card,.rudi-center__content>.rudi-center__tile-grid,.rudi-center__content>.pc-gifts{margin-bottom:20px}
+.rudi-center__wrap{padding-top:20px}
+
+/* Compact personal-page cards share one spacing and heading scale. */
+.rudi-center__content{--pc-card-padding:14px;--pc-card-radius:20px}
+.rudi-center__content>.rudi-center__card,.rudi-center__content>.pc-gifts{padding:var(--pc-card-padding);border-radius:var(--pc-card-radius)}
+.rudi-center__content .rudi-center__head{margin-bottom:10px}
+.rudi-center__content .rudi-center__head h2,.rudi-center__content .pc-gifts>h2{font-size:15px;line-height:1.3;margin:0}
+.rudi-center__content .pc-gifts>h2{margin-bottom:10px}
+.rudi-center__content>.rudi-center__report .rudi-center__report-lead{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;font-size:14px!important;line-height:1.5!important;margin:0}
+.rudi-center__content>.rudi-center__report .rudi-center__summary-grid{display:none}
+.rudi-center__content>.rudi-center__report .rudi-center__report-more{margin-top:10px;padding-top:10px;min-height:36px}
+.rudi-center__content .rudi-center__generate-report{min-height:38px;font-size:12px;padding:9px 12px;margin-top:10px}
+.rudi-center__content .rudi-center__rhythm-head{margin:10px 0 4px}
+.rudi-center__content .rudi-center__rhythm-head strong{font-size:18px}
+.rudi-center__content .rudi-center__rhythm-chart{height:140px;min-height:0;max-height:140px}
+.rudi-center__content .rudi-center__rhythm-empty{padding:12px 8px}
+.rudi-center__content .rudi-center__rhythm-tabs button{min-height:32px;padding:6px 3px}
+.rudi-center__content .rudi-center__chart{height:120px;max-height:120px;margin-top:10px}
+.rudi-center__content .rudi-center__tile{display:grid;grid-template-columns:28px minmax(0,1fr);align-content:center;column-gap:9px;row-gap:3px;min-height:78px;padding:12px}
+.rudi-center__content .rudi-center__tile-icon{grid-row:1/3;align-self:center}
+.rudi-center__content .rudi-center__tile strong,.rudi-center__content .rudi-center__tile small{grid-column:2}
+#pcSelfProfile .profile-person-details>.partner-today{padding:14px!important;border-radius:20px!important}
+#pcSelfProfile .partner-today>h2{margin:0 0 10px!important;font-size:15px!important;line-height:1.3;text-transform:none;letter-spacing:-.015em}
+#pcSelfProfile .partner-today>.profile-supplement-intakes{padding:0!important}
+#pcSelfProfile .partner-today>.profile-supplement-intakes-empty{padding:0!important;font-size:12px!important;line-height:1.5!important}
+#pcSelfProfile .partner-today .profile-supplement-intake-row{padding:8px!important;min-height:0!important;border-radius:12px}
+#pcSelfProfile .partner-today .profile-supplement-intake-name{font-size:12px!important}
+#pcSelfProfile .partner-today :is(time,.profile-supplement-intake-time){font-size:10px!important}
+#pcSelfProfile .partner-profile-layout .partner-energy-card>.profile-energy-strip{height:88px!important;min-height:88px!important;max-height:88px!important;grid-template-rows:18px 42px 12px!important}
+#pcSelfProfile .partner-profile-layout .partner-energy-card .profile-energy-plot{height:42px!important;max-height:42px!important}
+#pcSelfProfile .partner-energy-card{border-radius:20px}
+#pcSelfProfile .partner-energy-card>.rhythm-advice{padding:9px 14px!important;font-size:12px!important;line-height:1.5!important}
+.rudi-center__content .pc-birthday{padding:10px 10px 10px 18px}
+.rudi-center__content .pc-wishes{padding:10px}
+.rudi-center__content .pc-wish{padding:9px 10px;line-height:1.4}
+
+/* Energy has a lavender tint; the weekly preview uses the neutral card surface. */
+#pcSelfProfile .partner-energy-card{
+ --pp-mint:#6257a8;--pp-mint-soft:#eeebf8;--pp-mint-edge:#c9c2e5;--pc-energy-text:#4c456c;
+ background:linear-gradient(130deg,#ece8fa,#f3f1fc)!important;border-color:var(--pp-mint-edge)!important;box-shadow:none!important;
+}
+#pcSelfProfile .partner-energy-card>.rhythm-advice{color:var(--pc-energy-text)!important;-webkit-text-fill-color:var(--pc-energy-text)!important;border-top-color:var(--pp-mint-edge)!important}
+.rudi-center__content>.rudi-center__report{--pc-accent:#6558b5;background:var(--pc-panel);border-color:var(--pc-border)}
+.rudi-center__content>.rudi-center__report .rudi-center__generate-report{background:#6d5fc2;color:#fff}
+:root[data-theme=dark] #pcSelfProfile .partner-energy-card{
+ --pp-mint:#c2b8f5;--pp-mint-soft:#272439;--pp-mint-edge:#4b446b;--pc-energy-text:#ded8f3;
+ background:linear-gradient(130deg,#2c283f,#252434)!important;
+}
+:root[data-theme=dark] .rudi-center__content>.rudi-center__report{--pc-accent:#c2b8f5}
+
+/* My Page: same compact finance card as Partner Page, without the monthly budget. */
+#pcSelfProfile .profile-person-details>.pc-self-finances{order:3;display:grid;gap:14px;padding:14px!important;border-radius:20px;background:var(--pc-panel)!important;border:1px solid var(--pc-border)!important;min-width:0}
+#pcSelfProfile .pc-self-finances h2{font-size:15px;line-height:1.3;color:var(--pc-text)}
+#pcSelfProfile .pc-self-finances h3{font-size:12px;color:var(--pc-muted);font-weight:500;line-height:1.4}
+#pcSelfProfile .pc-self-finances p{font-size:13px;line-height:1.5;margin:5px 0 0;color:var(--pc-text);overflow-wrap:anywhere}

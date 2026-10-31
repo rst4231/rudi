@@ -4,13 +4,15 @@ const {isGitHubActionsRequestAuthorized}=require('./github-actions-oidc.cjs');
 const {createRudiStateClient}=require('./rudi-state-client.cjs');
 const state=require('./personal-center-store.cjs');
 const {generate}=require('./personal-center-ai.cjs');
-function slotAt(now=Date.now()){const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hourCycle:'h23'}).format(new Date(now)));return hour>=6&&hour<10?'morning':'';}
+const {isSunday,weekPeriod}=require('./personal-center-weekly.cjs');
+function slotAt(now=Date.now()){const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Moscow',hour:'2-digit',hourCycle:'h23'}).format(new Date(now)));return isSunday(state.moscowDate(now))&&hour>=6&&hour<10?'weekly':'';}
 // Scheduled and manual requests are idempotent for both authenticated actors.
 const RETRY_LIMIT=3,RETRY_WAIT_MS=90*1000;
 async function generateForActor(actor,date,options={}){
  if(!state.ACTORS.includes(actor))throw Error('rudi-access-denied');
  const manual=options.manual===true;
- const now=options.now||Date.now(),slot='morning';
+ const now=options.now||Date.now(),slot='weekly';
+ if(!isSunday(state.moscowDate(now))||date!==state.moscowDate(now))return {actor,status:'scheduled',report:null};
  const client=options.client||createRudiStateClient({env:options.env||process.env,fetchImpl:options.fetchImpl||globalThis.fetch});
  const key=state.reportKey(actor,date,slot),lockKey='lock:'+key,retryKey='retry:'+key;
  const initial=(await client.getRecord(state.NS,key))?.value||null;
@@ -37,7 +39,8 @@ async function generateForActor(actor,date,options={}){
    // Persist the attempt BEFORE using any provider tokens.
    await client.set(state.NS,retryKey,{attempts:attempts+1,notBefore:now+RETRY_WAIT_MS,updatedAt:new Date(now).toISOString()},{tags:['personal-ai-retry',actor]});
   }
-  const result=await (options.generate||generate)(actor,date,slot,{env:options.env||process.env,fetchImpl:options.fetchImpl||globalThis.fetch,client});
+  const generated=await (options.generate||generate)(actor,date,slot,{env:options.env||process.env,fetchImpl:options.fetchImpl||globalThis.fetch,client});
+  const result={...generated,cadence:'weekly',period:weekPeriod(date)};
   if(retry){
    if(result.model==='deterministic')
     return {actor,status:'unavailable',report:existing,retryAfterSeconds:Math.ceil(RETRY_WAIT_MS/1000),failureReason:result.failureReason||''};
@@ -66,7 +69,7 @@ async function generateForActor(actor,date,options={}){
 }
 async function run(options={}){
  const now=options.now||Date.now(),date=state.moscowDate(now),slot=slotAt(now);
- if(!slot)return {ok:true,skipped:'outside-morning-window',date};
+ if(!slot)return {ok:true,skipped:'outside-weekly-window',date};
  const client=options.client||createRudiStateClient({env:options.env||process.env,fetchImpl:options.fetchImpl||globalThis.fetch});
  const results=[];
  for(const actor of state.ACTORS){

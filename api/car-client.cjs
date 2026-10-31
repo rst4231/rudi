@@ -432,7 +432,8 @@ async function carDocumentsSafe(config) {
   }
 }
 
-async function handleCarRequest(req, res) {
+async function handleCarRequest(req, res, options = {}) {
+  res.setHeader('Content-Type','application/json; charset=utf-8');
   res.setHeader('Cache-Control','no-store, no-cache, must-revalidate, max-age=0');
   if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
 
@@ -455,6 +456,8 @@ async function handleCarRequest(req, res) {
   }
 
   const operation = String(body.operation || 'get');
+  if (['create-device-pairing','revoke-car-device','get-location'].includes(operation))
+    return res.status(410).json({ok:false,error:'car-device-removed'});
   let previousSnapshot=null;
   if(body.backupToken){
     try{

@@ -3,7 +3,7 @@
 // Rustam's private TickTick mutations. Never fall back to the shared OAuth token.
 const {
   listTickTickProjects, fetchTask, updateTickTickTask, createTickTickTask,
-  deleteTickTickTask, tokenHasWriteScope
+  deleteTickTickTask, tokenHasWriteScope, calendarDateKey, calendarTime
 }=require('./ticktick-client.cjs');
 
 function personalLists(projects,sharedProjectId){
@@ -20,17 +20,59 @@ function dateTime(date,time){
   if(time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))throw Error('ticktick-personal-time-invalid');
   return date+'T'+(time||'00:00')+':00+0300';
 }
+const WEEKDAY_CODES=['SU','MO','TU','WE','TH','FR','SA'];
+function personalRepeatFlag(input,previousFlag='',date=''){
+  if(!Object.prototype.hasOwnProperty.call(input,'repeat'))return String(previousFlag||'');
+  const frequency=String(input.repeat||'none').toLowerCase();
+  if(frequency==='none')return '';
+  if(!['daily','weekly','monthly','yearly'].includes(frequency))
+    throw Error('ticktick-personal-repeat-invalid');
+  if(!date)throw Error('ticktick-personal-repeat-date-required');
+  dateTime(date,'');
+  const max={daily:365,weekly:52,monthly:60,yearly:20}[frequency];
+  const interval=Number(input.repeatEvery??1);
+  if(!Number.isInteger(interval)||interval<1||interval>max)
+    throw Error('ticktick-personal-repeat-interval-invalid');
+  let rule='RRULE:FREQ='+frequency.toUpperCase()+';INTERVAL='+interval;
+  if(frequency==='weekly'){
+    if(!Array.isArray(input.repeatDays)||!input.repeatDays.length)
+      throw Error('ticktick-personal-repeat-weekdays-required');
+    const days=[...new Set(input.repeatDays.map(Number))];
+    if(days.some(day=>!Number.isInteger(day)||day<0||day>6))
+      throw Error('ticktick-personal-repeat-weekdays-invalid');
+    rule+=';BYDAY='+days.sort((a,b)=>(a+6)%7-(b+6)%7).map(day=>WEEKDAY_CODES[day]).join(',');
+  }
+  const ending=String(input.repeatEnd||'never');
+  if(ending==='never')return rule;
+  if(ending==='count'){
+    const count=Number(input.repeatCount);
+    if(!Number.isInteger(count)||count<1||count>365)
+      throw Error('ticktick-personal-repeat-count-invalid');
+    return rule+';COUNT='+count;
+  }
+  if(ending==='date'){
+    const until=String(input.repeatUntil||'');
+    dateTime(until,'');
+    if(!until||until<date)throw Error('ticktick-personal-repeat-until-invalid');
+    // End of selected Moscow day in UTC. All occurrences on this day remain valid.
+    const stamp=Date.parse(until+'T23:59:59+03:00');
+    const utc=new Date(stamp).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z');
+    return rule+';UNTIL='+utc;
+  }
+  throw Error('ticktick-personal-repeat-end-invalid');
+}
 function editable(input,task){
   const title=String(input.title??task.title??'').trim().slice(0,500);
   if(!title)throw Error('ticktick-personal-title-required');
   const date=String(input.date??'').trim();
   const time=date?String(input.time||'').trim():'';
-  if(!date&&String(task.repeatFlag||'').trim())throw Error('ticktick-personal-repeat-date-required');
+  const repeatFlag=personalRepeatFlag(input,task.repeatFlag,date);
+  if(!date&&repeatFlag.trim())throw Error('ticktick-personal-repeat-date-required');
   const datetime=dateTime(date,time);
   const changes={
     title,desc:String(input.description??task.desc??'').slice(0,5000),
     isAllDay:!time,startDate:datetime,dueDate:datetime,
-    timeZone:'Europe/Moscow',repeatFlag:String(task.repeatFlag||'')
+    timeZone:'Europe/Moscow',repeatFlag
   };
   return changes;
 }
@@ -51,7 +93,10 @@ async function editPersonalTask(input,deps={}){
   const original=await (deps.fetchTask||fetchTask)(token.accessToken,projectId,taskId,input.options||{});
   if(String(original?.id||'')!==taskId||String(original?.projectId||'')!==projectId)
     throw Error('ticktick-personal-task-mismatch');
-  if(Number(original.status??0)!==0)throw Error('ticktick-personal-task-completed');
+  const completed=Number(original.status??0)!==0;
+  // A delayed save may arrive after completion. Updating this same ID keeps
+  // TickTick's status intact; copying or deleting a completed task is disallowed.
+  if(completed&&(input.operation!=='save'||targetId!==projectId))throw Error('ticktick-personal-task-completed');
   if(input.operation==='delete'){
     await (deps.deleteTickTickTask||deleteTickTickTask)(token.accessToken,projectId,taskId,input.options||{});
     return {ok:true,deleted:true,taskId};
@@ -60,7 +105,7 @@ async function editPersonalTask(input,deps={}){
   const changes=editable(input,original);
   if(targetId===projectId){
     await (deps.updateTickTickTask||updateTickTickTask)(token.accessToken,projectId,taskId,changes,input.options||{});
-    return {ok:true,updated:true,taskId,projectId,date:String(input.date||'')};
+    return {ok:true,updated:true,taskId,projectId,date:String(input.date||''),...(completed?{completed:true,taskSnapshot:{...original,...changes}}:{})};
   }
   // The documented Open API does not reliably support changing projectId by UPDATE.
   // Copy first and verify before deleting the original; on failure the source remains.
@@ -111,4 +156,26 @@ async function createPersonalTask(input,deps={}){
  if(!taskId)throw Error('ticktick-personal-create-unconfirmed');
  return {ok:true,created:true,taskId,projectId,date};
 }
-module.exports={personalLists,dateTime,editable,editPersonalTask,createPersonalTask};
+// A lost mutation reply is checked against this task alone. Loading every
+// project/month here can exhaust the provider's read limit before checking it.
+async function readPersonalTaskState(input,deps={}){
+ if(input.actor!=='Рустам')throw Error('ticktick-personal-owner-forbidden');
+ const token=input.token;
+ if(!token?.accessToken)throw Error('ticktick-personal-not-connected');
+ const projectId=String(input.projectId||''),taskId=String(input.taskId||'');
+ if(!/^[A-Za-z0-9_-]{1,200}$/.test(projectId)||!/^[A-Za-z0-9_-]{1,200}$/.test(taskId))
+  throw Error('ticktick-personal-task-invalid');
+ if(projectId===String(input.sharedProjectId||''))throw Error('ticktick-personal-project-forbidden');
+ const options=input.options||{};
+ const lists=personalLists(await (deps.listTickTickProjects||listTickTickProjects)(token.accessToken,options),input.sharedProjectId);
+ if(!lists.some(row=>row.id===projectId))throw Error('ticktick-personal-project-forbidden');
+ let task;
+ try{task=await (deps.fetchTask||fetchTask)(token.accessToken,projectId,taskId,options)}
+ catch(error){if(error?.message==='ticktick-task-not-found')return {ok:true,found:false};throw error;}
+ if(String(task?.id||'')!==taskId||String(task?.projectId||'')!==projectId)throw Error('ticktick-personal-task-mismatch');
+ const raw=String(task.startDate||task.dueDate||'');
+ return {ok:true,found:true,task:{id:taskId,projectId,date:raw?calendarDateKey(raw):'',
+  startTime:raw&&!task.isAllDay?calendarTime(raw):'',completed:Number(task.status||0)!==0,
+  recurring:Boolean(String(task.repeatFlag||'').trim())}};
+}
+module.exports={personalLists,dateTime,personalRepeatFlag,editable,editPersonalTask,createPersonalTask,readPersonalTaskState};

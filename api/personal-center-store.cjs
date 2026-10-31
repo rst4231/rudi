@@ -37,7 +37,7 @@ function change(s,op,p={},now=Date.now()){const t=new Date(now).toISOString(),to
  throw Error('invalid-operation');
 }
 async function mutate(a,op,p,o={}){return serial(a,async()=>write(a,change(await read(a,o),op,p,o.now||Date.now()),o));}
-function reportKey(a,d,slot){if(!validDate(d)||!['morning','evening'].includes(slot))throw Error('invalid-slot');return 'report:'+actorOf(a)+':'+d+':'+slot;}
+function reportKey(a,d,slot){if(!validDate(d)||!['morning','evening','weekly'].includes(slot))throw Error('invalid-slot');return 'report:'+actorOf(a)+':'+d+':'+slot;}
 function latestKey(a){return 'latest:'+actorOf(a);}
 function seenKey(a){return 'seen:'+actorOf(a);}
 async function latest(a,o={}){return (await client(o).getRecord(NS,latestKey(a)))?.value||null;}

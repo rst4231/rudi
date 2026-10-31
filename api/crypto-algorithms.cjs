@@ -112,13 +112,25 @@ function updatePositions(portfolio,barsBySymbol,prices,now){
     const bars=barsBySymbol[p.symbol]||[];
     // Never close a position using remembered prices when current candles failed.
     if(!bars.length||!(num(prices[p.symbol])>0))continue;
-    const relevant=bars.filter(b=>b.at+INTERVAL> Date.parse(p.entryAt)&&b.at>num(p.lastBarAt||0));
+    const entryAt=Date.parse(p.entryAt);
+    // OHLC cannot order an entry placed inside a candle against that candle's
+    // earlier high/low. Keep the uncertainty and check only later full bars.
+    if(bars.some(b=>b.at<entryAt&&b.at+INTERVAL>entryAt))p.entryCandleIgnored=true;
+    const relevant=bars.filter(b=>b.at>=entryAt&&b.at+INTERVAL<=now&&
+      b.at>num(p.lastBarAt||0)).sort((a,b)=>a.at-b.at);
     let closed=false;
     for(const candle of relevant){
       p.lastBarAt=candle.at;
       const hitStop=candle.high>=p.stop,hitTake=candle.low<=p.take;
+      if(Number.isFinite(candle.open)&&candle.open>=p.stop){
+        p.executionEvidence='stop-gap-open';
+        settle(portfolio,p,candle.open,candle.at,'SL');
+        closed=true;break;
+      }
       if(hitStop||hitTake){
         // Conservative intrabar order when TP and SL coexist: stop wins.
+        p.ambiguousExit=hitStop&&hitTake;
+        p.executionEvidence=p.ambiguousExit?'same-candle-stop-first':'complete-post-entry-candle';
         settle(portfolio,p,hitStop?p.stop:p.take,candle.at+INTERVAL,hitStop?'SL':'TP');
         closed=true;break;
       }
@@ -189,6 +201,8 @@ function report(state,provider='okx'){
     createdAt:s.createdAt,marketCount:s.marketCount||0,error:s.error||null,
     warning:s.warning||null,
     assumptions:{leverage:LEV,feeRate:FEE,slippageRate:SLIPPAGE,
+      executionModel:'post-entry-complete-candles-v2',entryCandle:'excluded-unknown-order',
+      stopGapFill:'worse-candle-open',ambiguousExit:'stop-first-labelled',
       riskPct:1,maxPositions:2,stopPct:3.5,takePct:6,maxHoldHours:8,
       note:'Только paper trading: вход по котировке после закрытого 5м бара; SL при двусмысленной свече исполняется первым. Нет реальных ордеров. Funding и реальные ликвидации не учтены.'},
     portfolios:Object.fromEntries(STRATEGIES.map(x=>[x.id,summarize(s.portfolios[x.id])] ))};

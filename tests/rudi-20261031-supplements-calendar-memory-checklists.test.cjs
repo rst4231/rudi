@@ -60,4 +60,3 @@ test('personal TickTick task editor can view and complete real checklist entries
  assert.match(client,/renderPersonalChecklist/);
  assert.match(client,/response\.checklist/);
 });
-

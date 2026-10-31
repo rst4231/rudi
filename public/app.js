@@ -142,12 +142,13 @@
         lulu:null,
         nearestStatic:null,
         partnerLastExpense:null,
+        partnerFinance:null,
         personalPush:[]
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home','nearest','car','habits','supplements','new','partner','daily-question','smart-saves','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','priority','recommendations','note','smart-home','nearest','car','quick-access','habits','supplements','new','partner','daily-question','smart-saves','markets'];
+        return ['dashboard',...people,'lulu','priority','recommendations','note','smart-home','nearest','car','habits','supplements','new','partner','daily-question','smart-saves','markets'];
       }
       function homePrimaryBlocksMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -226,7 +227,7 @@
         if(quickIndex>=0&&luluIndex>=0){
           source.splice(quickIndex,1);
           const nextLuluIndex=source.indexOf('lulu');
-          source.splice(nextLuluIndex+1,0,'quick-access');
+          source.splice(nextLuluIndex+1,0);
         }
         try{localStorage.setItem(quickAccessAfterLuluMigrationKey(),'1')}catch(_){}
         return source;
@@ -251,7 +252,7 @@
         try{localStorage.setItem(homeTopOrderMigrationKey(),'1')}catch(_){}
         return next;
       }
-      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,dates:0,'for-di':0,'smart-saves':0,car:0,settings:0,habits:0,finances:0,supplements:0,score:0};
+      const appTabScroll = {home:0,feed:0,schedule:0,wishlist:0,photos:0,products:0,fasting:0,'smart-saves':0,car:0,'smart-home':0,settings:0,habits:0,finances:0,supplements:0,score:0};
       const APP_TAB_SCROLL_SESSION_KEY='rudi:tab-scroll:v1';
       try{
         const saved=JSON.parse(sessionStorage.getItem(APP_TAB_SCROLL_SESSION_KEY)||'{}');
@@ -913,10 +914,6 @@
         const legacy={
           'products-history':productsHistoryCollapsedStorageKey(),
           'fasting-history':fastingHistoryCollapsedStorageKey(),
-          'for-di:labor':'rudi:for-di:collapsed:v1:'+actor+':labor',
-          'for-di:saved':'rudi:for-di:collapsed:v1:'+actor+':saved',
-          'for-di:stylist':'rudi:for-di:collapsed:v1:'+actor+':stylist',
-          'saves:date':'rudi:saves:collapsed:v1:'+actor+':date',
           'saves:recipe':'rudi:saves:collapsed:v1:'+actor+':recipe'
         };
         for(const [key,storageKey] of Object.entries(legacy)){
@@ -1085,7 +1082,10 @@
       }
 
       function currentThemeMode(){
-        if(!currentActor) return 'system';
+        if(!currentActor){
+          try{const mode=JSON.parse(localStorage.getItem('rudi:theme-paint:v1')||'null')?.mode;if(['light','dark'].includes(mode))return mode}catch(_){}
+          return 'system';
+        }
         try{
           const value=String(localStorage.getItem(themeModeStorageKey())||'system');
           return ['system','light','dark'].includes(value)?value:'system';
@@ -2147,9 +2147,9 @@
         setTimeout(()=>section.classList.remove(className),560);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','dates','for-di','score','settings','smart-saves','car'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','score','settings','smart-saves','car','smart-home'];
       const PRIMARY_NAV_TABS=new Set(['home','feed','schedule','products','photos']);
-      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','wishlist','dates','for-di','smart-saves']);
+      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','smart-home','wishlist','smart-saves']);
       const STARTUP_TABS=['home','finances','supplements','habits','car','schedule','feed','products','photos','fasting'];
       function startupTabStorageKey(){
         return 'rudi:startup-tab:v1:'+(currentActor==='Диана'?'diana':'rustam');
@@ -2185,7 +2185,7 @@
         try{
           const params=new URLSearchParams(window.location.search);
           const rawTab=String(params.get('tab')||'home').trim();
-          const tab=rawTab==='saves'?'dates':rawTab;
+          const tab=rawTab==='saves'?'products':rawTab;
           if(rawTab!=='home'&&!APP_TABS.includes(tab)){
             const clean=new URL(window.location.href);
             clean.searchParams.delete('tab');
@@ -2230,7 +2230,7 @@
           const url=new URL(window.location.href);
           if(next==='home') url.searchParams.delete('tab');
           else url.searchParams.set('tab',next);
-          if(item&&['home','wishlist','products','dates','for-di','schedule','score','smart-saves'].includes(next)) url.searchParams.set('item',String(item));
+          if(item&&['home','wishlist','products','schedule','score','smart-saves'].includes(next)) url.searchParams.set('item',String(item));
           else url.searchParams.delete('item');
           const target=url.pathname+(url.search||'')+(url.hash||'');
           const current=window.location.pathname+window.location.search+window.location.hash;
@@ -2268,7 +2268,7 @@
           }else if(tab==='schedule'){
             const selector=scheduleSelectors[id];
             if(selector) target=document.querySelector(selector);
-          }else if(['wishlist','products','dates','for-di','smart-saves'].includes(tab)){
+          }else if(['wishlist','products','smart-saves'].includes(tab)){
             target=[...document.querySelectorAll('[data-rudi-item-id]')]
               .find(node=>String(node.dataset.rudiItemId||'')===id)||null;
           }
@@ -2804,15 +2804,20 @@
         financeSaveTimers.set(key,setTimeout(()=>{financeSaveTimers.delete(key);Promise.resolve(fn()).catch(()=>{})},delay));
       }
       async function financeRequest(operation='list',payload={}){
+        const requestLive=async(nextPayload=payload)=>{
         const response=await fetch('/api/finances',{
           method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'
+          body:JSON.stringify({initData:tg?.initData||'',operation,...nextPayload}),cache:'no-store'
         });
         const data=await response.json().catch(()=>({}));
         if(!response.ok||!data.ok){const error=new Error(data.error||'finance-request-failed');error.status=response.status;throw error}
         if(data.score) renderScoreStickers(data.score);
         if(/expense|categor/i.test(operation))document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
         return data;
+        };
+        if(window.rudiOfflineTransactions&&['list','save-expense','delete-expense','save-wallet-income','delete-wallet-income'].includes(operation))
+          return window.rudiOfflineTransactions.request('finances',operation,payload,requestLive);
+        return requestLive();
       }
       function financeRowForMonth(month){return (financeState.months||[]).find(row=>String(row?.month||'')===String(month||''))||null}
       function financePersonalRowForMonth(month){return (financeState.personalMonths||[]).find(row=>String(row?.month||'')===String(month||''))||null}
@@ -2851,6 +2856,9 @@
         const live=financeExpensesForMonth(month).filter(row=>row.categoryId===categoryId).reduce((sum,row)=>sum+Number(row.rubAmount??row.amount??0),0);
         const archive=Number(coinKeeperMonthly(month)?.categories?.[categoryId]?.total||0);
         return Math.round((live+archive)*100)/100;
+      }
+      function financeCategoryLimitForMonth(category,month){
+        return window.RudiFinanceCategoryLimits.limitForMonth(category,month);
       }
       function financeCategoryMonthTrend(categoryId,month){
         const previousMonth=financePreviousMonthKey(month);
@@ -2993,6 +3001,7 @@
       function financeExpenseSaveError(error){
         const code=String(error?.message||'');
         return code.includes('wallet-insufficient')?'Превышен кредитный лимит'
+          :code.includes('offline-')?'Не удалось сохранить операцию на устройстве'
           :code.includes('currency')||code.includes('rate')?'Не удалось получить курс валют'
           :'Не удалось сохранить расход';
       }
@@ -3561,7 +3570,7 @@
         const row=financePersonalRowForMonth(month)||{};
         const income=Math.max(0,Number(row.income||0));
         const plannedLimit=(Array.isArray(financeState.categories)?financeState.categories:[])
-          .reduce((sum,category)=>sum+Math.max(0,Number(category?.monthlyLimit||0)),0);
+          .reduce((sum,category)=>sum+financeCategoryLimitForMonth(category,month),0);
         const actualSpent=financeExpenseTotal(month);
         const plannedRemaining=Math.round((plannedLimit-actualSpent)*100)/100;
         const coinIncome=document.getElementById('financeCoinIncomeValue');
@@ -3667,17 +3676,47 @@
         const spentField=document.getElementById('financeCategorySpentField'),spent=document.getElementById('financeCategorySpent'),spentLabel=document.getElementById('financeCategorySpentLabel');
         const status=document.getElementById('financeCategoryComposerStatus');
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
+        modal.dataset.expenseMonth=month;
         if(title)title.textContent=category?'Редактировать категорию':'Категория расхода';
         if(name)name.value=category?.name||'';
         if(icon)icon.value=category?.icon||'💳';
         if(currency)currency.value=category?.currency||'RUB';
-        if(limit)limit.value=Number(category?.monthlyLimit||0)>0?String(category.monthlyLimit):'';
+        if(limit)limit.value=category?String(financeCategoryLimitForMonth(category,month)||''):'';
+        configureFinanceCategoryLimitMonth(category,month);
         if(spentField)spentField.hidden=!category;
-        if(spent)spent.value=category?String(Math.max(0,financeCategorySpent(category.id,month))):'';
+        if(spent){spent.value=category?String(Math.max(0,financeCategorySpent(category.id,month))):'';spent.dataset.initialValue=spent.value}
         if(spentLabel)spentLabel.textContent='Потрачено · '+financeMonthTitle(month);
         if(button)button.textContent=category?'Сохранить':'Создать категорию';
         if(status)status.textContent='';
         mountFinanceCoinModal(modal,name);
+      }
+
+      function configureFinanceCategoryLimitMonth(category,selectedMonth){
+        const select=document.getElementById('financeCategoryLimitMonth');
+        const hint=document.getElementById('financeCategoryPreviousSpent');
+        const limit=document.getElementById('financeCategoryLimit');
+        if(!select||!hint||!limit)return;
+        select.hidden=!category;hint.hidden=!category;select.replaceChildren();select.onchange=null;
+        if(!category)return;
+        const current=financeCurrentMonthKey(),[year,month]=current.split('-').map(Number);
+        const next=new Date(Date.UTC(year,month,1)).toISOString().slice(0,7);
+        for(const key of [...new Set([selectedMonth,current,next])].sort()){
+          const option=document.createElement('option');option.value=key;option.textContent=financeMonthTitle(key);select.append(option);
+        }
+        select.value=selectedMonth;
+        const owner=currentActor;
+        const updateHint=()=>{
+          if(currentActor!==owner||financeCategoryEditingId!==category.id)return;
+          const previous=financePreviousMonthKey(select.value);
+          hint.textContent=financeMonthTitle(previous)+' · потрачено '+financeOverviewMoney(financeCategorySpent(category.id,previous));
+        };
+        select.onchange=()=>{limit.value=String(financeCategoryLimitForMonth(category,select.value)||'');updateHint()};
+        updateHint();
+        if(currentActor==='Рустам'&&!coinKeeperOverview){
+          loadCoinKeeperOverview().then(()=>{
+            if(currentActor===owner&&financeCategoryEditingId===category.id&&document.getElementById('financeCategoryComposer')?.dataset.expenseMonth===selectedMonth)updateHint();
+          }).catch(()=>{});
+        }
       }
 
       function financeMonthFromOccurredAt(value){
@@ -3859,7 +3898,7 @@
         const wallet=financeWalletById(row.walletId);
         const date=financeDateTimeLabel(row.occurredAt||row.createdAt);
         const values=[
-          row.label,row.note,wallet?.name,
+          row.manualAdjustment?'Расход':row.label,row.manualAdjustment?'':row.note,wallet?.name,
           row.sourceCurrency,row.targetCurrency,row.currency,
           row.amount,row.rubAmount,row.sourceAmount,row.exchangeRate,
           date.key,date.time
@@ -3891,7 +3930,7 @@
         const ckMonthRows=coinKeeperRows.get(month);
         if(!searching&&currentActor==='Рустам'&&!ckMonthRows)loadCoinKeeperMonth(month).catch(()=>{});
         let rows=(financeState.personalExpenses||[])
-          .filter(row=>row.categoryId===category.id&&!row.manualAdjustment);
+          .filter(row=>row.categoryId===category.id);
         if(!searching&&Array.isArray(ckMonthRows))rows=rows.concat(ckMonthRows.filter(row=>row.categoryId===category.id));
         if(searching){
           rows=rows.filter(row=>financeCategoryHistorySearchText(row).includes(query));
@@ -3905,7 +3944,7 @@
         }
         rows.sort((a,b)=>String(b.occurredAt||b.createdAt||'').localeCompare(String(a.occurredAt||a.createdAt||'')));
 
-        const visibleTotal=rows.reduce((sum,row)=>sum+Number(row.rubAmount||row.amount||0),0);
+        const visibleTotal=rows.reduce((sum,row)=>sum+Number(row.rubAmount??row.amount??0),0);
         if(total)total.textContent=financeOverviewMoney(visibleTotal);
         if(empty){
           empty.hidden=rows.length>0;
@@ -3928,14 +3967,17 @@
           const head=document.createElement('div');head.className='finance-category-history-day-head';
           const title=document.createElement('strong');title.textContent=financeOperationDayTitle(dateKey,todayKey,yesterdayKey,month);
           const dayTotal=document.createElement('b');
-          dayTotal.textContent='−'+financeOverviewMoney(entries.reduce((sum,{row})=>sum+Number(row.rubAmount||row.amount||0),0));
+          const dayAmount=entries.reduce((sum,{row})=>sum+Number(row.rubAmount??row.amount??0),0);
+          dayTotal.textContent=(dayAmount<0?'+':'−')+financeOverviewMoney(Math.abs(dayAmount));
           head.append(title,dayTotal);section.append(head);
           const host=document.createElement('div');host.className='finance-category-history-day-list';
           for(const {row,meta} of entries){
             const item=document.createElement('div');item.className='finance-category-history-row';
+            item.dataset.expenseId=row.id||'';
+            if(row.manualAdjustment)item.dataset.historyReadOnly='true';
             const copy=document.createElement('div');copy.className='finance-category-history-copy';
             const rowTitle=document.createElement('strong');
-            rowTitle.textContent=row.label?(row.label+(row.note?' · '+row.note:'')):(row.note||'Расход');
+            rowTitle.textContent=row.manualAdjustment?'Расход':row.label?(row.label+(row.note?' · '+row.note:'')):(row.note||'Расход');
             const detail=document.createElement('small');
             const wallet=financeWalletById(row.walletId);
             const sourceCurrency=String(row.sourceCurrency||'').toUpperCase();
@@ -3946,7 +3988,8 @@
             detail.textContent=[row.historicalImport?'CoinKeeper':'',wallet?.name||row.fromName,sourcePart?sourcePart+financeMoney(row.amount,targetCurrency):'',meta.time].filter(Boolean).join(' · ');
             copy.append(rowTitle,detail);
             const value=document.createElement('b');
-            value.textContent='−'+financeOverviewMoney(row.rubAmount||row.amount);
+            const rowAmount=Number(row.rubAmount??row.amount??0);
+            value.textContent=(rowAmount<0?'+':'−')+financeOverviewMoney(Math.abs(rowAmount));
             if(row.unconverted)value.textContent='−'+financeMoney(row.sourceAmount,row.sourceCurrency)+' · без курса RUB';
             const del=document.createElement('button');del.type='button';del.className='finance-category-history-delete';del.textContent='×';del.setAttribute('aria-label','Удалить расход');
             if(row.historicalImport){del.hidden=true;del.disabled=true;del.setAttribute('aria-hidden','true')}
@@ -5009,7 +5052,7 @@
           remove.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();openFinanceCategoryDeleteChooser(category.id)});
           const label=document.createElement('span');label.className='finance-coin-label';label.textContent=category.name||'Категория';
           const coin=document.createElement('span');coin.className='finance-coin finance-category-coin';coin.textContent=category.icon||'💳';
-          const limitValue=Math.max(0,Number(category.monthlyLimit||0));
+          const limitValue=financeCategoryLimitForMonth(category,month);
           const limitRub=financeAmountToRub(limitValue,category.currency||'RUB');
           const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeBalanceHidden?'••••':financeOverviewMoney(spent);
           if(limitValue>0&&Number.isFinite(limitRub)&&spent>limitRub)amount.classList.add('is-over-limit');
@@ -5768,6 +5811,16 @@
         document.addEventListener('rudi-finance-plan-saved',()=>loadFinances({silent:true}).catch(()=>{}));
         const personalMonth=document.getElementById('financePersonalMonthInput');
         if(personalMonth)personalMonth.value=financeCurrentMonthKey();
+        if(!window.__rudiFinancePeriodWatcher){
+          const setMonth=input=>value=>{input.value=value;input.dispatchEvent(new Event('change',{bubbles:true}))};
+          const controls=[{get:()=>month.value,set:setMonth(month),canChange:()=>{
+            const row=financeRowForMonth(month.value);
+            return Number(rent?.value||0)===Number(row?.rent||0)&&Number(utilities?.value||0)===Number(row?.utilities||0)&&financeSharedItemsEqual(row?.items,financeSharedItemsFromInputs());
+          }}];
+          if(personalMonth)controls.push({get:()=>personalMonth.value,set:setMonth(personalMonth)});
+          window.__rudiFinancePeriodWatcher=window.RudiFinancePeriod.start({controls});
+        }
+
         applyFinancePermissions();setFinanceTab('personal');
         document.getElementById('financeOrderEditToggle')?.addEventListener('click',()=>{
           setFinanceOrderEditMode(!(financeWalletEditMode&&financeCategoryEditMode));
@@ -5961,10 +6014,16 @@
           financeExpenseMutationInFlight=true;
           button.disabled=true;
           if(status)status.textContent='Сохраняю…';
-          if(preview)financeApplyExpensePreview(preview);
-          closeFinanceCoinModal('financeExpenseComposer');
+          if(preview){
+            payload.offlineConversion={
+              amount:preview.amount,sourceAmount:preview.sourceAmount,
+              rubAmount:preview.rubAmount,exchangeRate:preview.exchangeRate
+            };
+            financeApplyExpensePreview(preview);
+          }
           try{
             const data=await financeRequest('save-expense',payload);
+            closeFinanceCoinModal('financeExpenseComposer');
             delete button.dataset.rudiExpenseSignature;
             delete button.dataset.rudiExpenseRequestId;
             renderFinanceState(data,{personalMonth:expenseMonth,preserveIncome:true,preservePlan:true});
@@ -5991,11 +6050,13 @@
           const limit=document.getElementById('financeCategoryLimit'),spent=document.getElementById('financeCategorySpent'),status=document.getElementById('financeCategoryComposerStatus');
           const value=String(name?.value||'').trim();if(!value){name?.focus();return}
           const editing=Boolean(financeCategoryEditingId);
-          const selectedMonth=personalMonth?.value||financeCurrentMonthKey();
+          const selectedMonth=document.getElementById('financeCategoryComposer')?.dataset.expenseMonth||personalMonth?.value||financeCurrentMonthKey();
           categoryCreate.disabled=true;if(status)status.textContent=editing?'Сохраняю…':'Создаю…';
           try{
             const data=await financeRequest(editing?'update-category':'save-category',{
-              ...(editing?{id:financeCategoryEditingId,month:selectedMonth,spent:Number(spent?.value||0)}:{}),
+              ...(editing?{id:financeCategoryEditingId,month:selectedMonth,
+                limitMonth:document.getElementById('financeCategoryLimitMonth')?.value||selectedMonth,
+                ...(Number(spent?.value||0)!==Number(spent?.dataset.initialValue??Math.max(0,financeCategorySpent(financeCategoryEditingId,selectedMonth)))?{spent:Number(spent?.value||0)}:{})}:{}),
               name:value,icon:icon?.value||'💳',currency:document.getElementById('financeCategoryCurrency')?.value||'RUB',monthlyLimit:Number(limit?.value||0)
             });
             financeCategoryEditingId='';
@@ -6060,7 +6121,13 @@
           const occurredAt=financeIncomeOccurredAt(),monthKey=financeMonthFromOccurredAt(occurredAt);
           financeIncomeMutationInFlight=true;button.disabled=true;if(status)status.textContent='Сохраняю…';
           try{
-            const data=await financeRequest('save-wallet-income',{id:editingId||undefined,walletId,amount:value,month:monthKey,occurredAt,note:note?.value||''});
+            const currency=String(financeWalletById(walletId)?.currency||'RUB').toUpperCase();
+            const rate=Number(financeWalletRubRates()[currency]||0);
+            const offlineConversion=rate>0?{exchangeRate:rate,rubAmount:Math.round(value*rate*100)/100}:null;
+            const data=await financeRequest('save-wallet-income',{
+              id:editingId||undefined,walletId,amount:value,month:monthKey,occurredAt,
+              note:note?.value||'',...(offlineConversion?{offlineConversion}:{})
+            });
             renderFinanceState(data,{personalMonth:financeSelectedPersonalMonth(),preservePlan:true});
             closeFinanceCoinModal('financeIncomeComposer');
             financeIncomeEditingId='';
@@ -6248,8 +6315,6 @@
           }).catch(()=>{});
         }
         if(tab==='photos') loadSharedAlbum();
-        if(tab==='dates') Promise.resolve(window.RUDI_SAVES?.load?.()).finally(()=>focusDeepLinkedItem('dates',item));
-        if(tab==='for-di') Promise.resolve(window.RUDI_FOR_DI?.load?.()).finally(()=>focusDeepLinkedItem('for-di',item));
         if(tab==='settings') refreshSettingsPageUi();
         if(tab==='finances'){
           const financeShortcut=pendingFinanceShortcut;
@@ -6447,6 +6512,7 @@
 
       window.RUDI_NAVIGATE_TO_TAB=(tab,options={})=>navigateToAppTab(tab,options);
       function navigateBackInApp(fallback='home'){
+        if(luluProfilePage){closeLuluProfile();return}
         const depth=Number(history.state?.rudiNavDepth);
         if(Number.isInteger(depth)&&depth>0){
           history.back();
@@ -6685,6 +6751,8 @@
             appTabScroll[currentAppTab]=window.scrollY||0;
             persistAppTabScroll();
             const route=routeFromLocation();
+            if(route.tab==='schedule'&&route.item==='calendar-settings')openCalendarConnections({fromRoute:true});
+            else closeCalendarConnections({navigation:false});
             const previous=currentAppTab;
             const nextDepth=Number.isInteger(history.state?.rudiNavDepth)?Math.max(0,history.state.rudiNavDepth):routeHistoryDepth;
             const direction=nextDepth<routeHistoryDepth?'back':'forward';
@@ -6829,11 +6897,22 @@
         return dianaCycleMoodWord(modelOrPhase);
       }
 
-      function dianaCycleDailyAdvice(modelOrPhase){
-        return dianaCycleStatus(modelOrPhase).advice;
+      function dianaCycleDailyAdvice(modelOrPhase,forPartner=false){
+        const status=dianaCycleStatus(modelOrPhase);
+        if(!forPartner)return status.advice;
+        return {
+          'Месячные':'Если Диана чувствует усталость, ей сейчас лучше снизить нагрузку и больше отдыхать. Предложи помощь с делами и уточни, как она себя чувствует.',
+          'Ожидаются сегодня':'Сегодня прогнозируется начало месячных у Дианы. Уточни её самочувствие и согласуй с ней планы на день.',
+          'Прогнозная дата прошла':'Прогнозная дата начала месячных у Дианы прошла, но начало пока не отмечено. Это календарный прогноз, а не подтверждение задержки.',
+          'Восстановление':'Диане сейчас лучше поддерживать комфортный темп и возвращаться к нагрузке постепенно. Согласуй планы с её самочувствием.',
+          'Энергии больше':'Если Диана чувствует прилив сил, ей могут подойти важные дела, прогулки и встречи. Уточни, чего ей самой хочется.',
+          'Овуляция':'Сегодня по прогнозу у Дианы возможна овуляция. Календарные даты приблизительны; ориентируйся на то, как она себя чувствует.',
+          'Фертильные дни':'Сейчас по календарю у Дианы могут быть фертильные дни. Даты приблизительны: этот прогноз нельзя использовать для контрацепции.',
+          'Скоро месячные':'До ожидаемых месячных у Дианы осталось немного времени. Ей может быть комфортнее оставить запас сил; предложи помощь и обсуди нагрузку.'
+        }[status.label]||'';
       }
 
-      function dianaCycleBrainNote(modelOrPhase){
+      function dianaCycleBrainNote(modelOrPhase,forPartner=false){
         const model=modelOrPhase&&typeof modelOrPhase==='object'?modelOrPhase:{phase:String(modelOrPhase||'')};
         const phase=String(model.phase||'');
         const day=Number(model.cycleDay);
@@ -6844,44 +6923,44 @@
 
         if(phase==='Месячные'){
           if(Number.isFinite(periodDay)&&periodDay<=2){
-            return '🧠 Мозг: в первые 1–2 дня месячных вы можете сильнее ощущать усталость, боль или снижение концентрации. Делайте короткие задачи и чаще отдыхайте.';
+            return forPartner?"🧠 Мозг: в первые 1–2 дня месячных Диана может сильнее ощущать усталость, боль или трудности с концентрацией. Ей могут подойти короткие задачи и частый отдых; предложи взять часть дел на себя.":'🧠 Мозг: в первые 1–2 дня месячных вы можете сильнее ощущать усталость, боль или снижение концентрации. Делайте короткие задачи и чаще отдыхайте.';
           }
-          return '🧠 Мозг: ближе к окончанию месячных вам может становиться легче сосредоточиться. Наращивайте нагрузку постепенно, если чувствуете себя хорошо.';
+          return forPartner?"🧠 Мозг: ближе к окончанию месячных Диане может становиться легче сосредоточиться. Нагрузку ей лучше увеличивать постепенно, по самочувствию.":'🧠 Мозг: ближе к окончанию месячных вам может становиться легче сосредоточиться. Наращивайте нагрузку постепенно, если чувствуете себя хорошо.';
         }
 
         if(phase==='Фолликулярная фаза'){
           if(Number.isFinite(day)&&day<=periodLength+2){
-            return '🧠 Мозг: сейчас вы можете постепенно ощущать больше энергии и мотивации, хотя восстановление ещё продолжается. Не требуйте от себя максимума.';
+            return forPartner?"🧠 Мозг: у Дианы могут постепенно возвращаться энергия и мотивация, хотя восстановление ещё продолжается. Не рассчитывай, что она сразу готова к полной нагрузке.":'🧠 Мозг: сейчас вы можете постепенно ощущать больше энергии и мотивации, хотя восстановление ещё продолжается. Не требуйте от себя максимума.';
           }
           if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day<=ovulationDay-4){
-            return '🧠 Мозг: в этот период вам может быть проще сосредоточиться, учиться и начинать новые задачи. Планируйте их с учётом своего самочувствия.';
+            return forPartner?"🧠 Мозг: в этот период Диане может быть проще сосредоточиться, учиться и начинать новые задачи. Обсуди с ней планы и учитывай её самочувствие.":'🧠 Мозг: в этот период вам может быть проще сосредоточиться, учиться и начинать новые задачи. Планируйте их с учётом своего самочувствия.';
           }
-          return '🧠 Мозг: ближе к фертильным дням у вас могут повыситься энергия и желание общаться. Если чувствуете себя хорошо, используйте это время для встреч и важных дел.';
+          return forPartner?"🧠 Мозг: ближе к фертильным дням у Дианы могут повыситься энергия и желание общаться. Если она чувствует себя хорошо, можно предложить встречу или совместные дела.":'🧠 Мозг: ближе к фертильным дням у вас могут повыситься энергия и желание общаться. Если чувствуете себя хорошо, используйте это время для встреч и важных дел.';
         }
 
         if(phase==='Фертильное окно'){
           if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day===ovulationDay){
-            return '🧠 Мозг: сегодня по прогнозу овуляция. Вы можете чувствовать больше энергии, но также возможны усталость или дискомфорт. Всё индивидуально.';
+            return forPartner?"🧠 Мозг: сегодня по прогнозу у Дианы овуляция. Она может чувствовать больше энергии, но также возможны усталость или дискомфорт. Уточни её самочувствие: всё индивидуально.":'🧠 Мозг: сегодня по прогнозу овуляция. Вы можете чувствовать больше энергии, но также возможны усталость или дискомфорт. Всё индивидуально.';
           }
-          return '🧠 Мозг: в фертильные дни вам могут легче даваться общение и активные задачи. Это не гарантировано, поэтому ориентируйтесь прежде всего на свои ощущения.';
+          return forPartner?"🧠 Мозг: в фертильные дни Диане могут легче даваться общение и активные задачи. Это не гарантировано — ориентируйся на её ощущения, а не только на календарь.":'🧠 Мозг: в фертильные дни вам могут легче даваться общение и активные задачи. Это не гарантировано, поэтому ориентируйтесь прежде всего на свои ощущения.';
         }
 
         if(phase==='Лютеиновая фаза'){
           if(Number.isFinite(daysToNext)&&daysToNext<=2){
-            return '🧠 Мозг: за 1–2 дня до месячных вы можете быстрее уставать или раздражаться. Оставьте запас времени и уменьшите количество переключений.';
+            return forPartner?"🧠 Мозг: за 1–2 дня до месячных Диана может быстрее уставать или раздражаться. Оставь в совместных планах больше свободного времени и предложи помощь с делами.":'🧠 Мозг: за 1–2 дня до месячных вы можете быстрее уставать или раздражаться. Оставьте запас времени и уменьшите количество переключений.';
           }
           if(Number.isFinite(daysToNext)&&daysToNext<=5){
-            return '🧠 Мозг: перед месячными у вас может усилиться чувствительность к стрессу. Разбивайте сложные дела на небольшие этапы.';
+            return forPartner?"🧠 Мозг: перед месячными у Дианы может усилиться чувствительность к стрессу. Согласуйте посильную нагрузку и разделите сложные дела на небольшие этапы.":'🧠 Мозг: перед месячными у вас может усилиться чувствительность к стрессу. Разбивайте сложные дела на небольшие этапы.';
           }
           if(Number.isFinite(daysToNext)&&daysToNext<=10){
-            return '🧠 Мозг: в середине этой фазы вам может потребоваться больше сна и восстановления. Старайтесь поддерживать комфортный ритм.';
+            return forPartner?"🧠 Мозг: в середине этой фазы Диане может потребоваться больше сна и восстановления. Поддержи комфортный для неё ритм.":'🧠 Мозг: в середине этой фазы вам может потребоваться больше сна и восстановления. Старайтесь поддерживать комфортный ритм.';
           }
-          return '🧠 Мозг: после овуляции вы можете ощущать сонливость или более спокойный темп. Сейчас удобнее выполнять последовательные, привычные задачи.';
+          return forPartner?"🧠 Мозг: после овуляции Диана может ощущать сонливость или предпочитать более спокойный темп. Ей могут подойти привычные, последовательные задачи.":'🧠 Мозг: после овуляции вы можете ощущать сонливость или более спокойный темп. Сейчас удобнее выполнять последовательные, привычные задачи.';
         }
         return '';
       }
 
-      function dianaCycleAppetiteNote(modelOrPhase){
+      function dianaCycleAppetiteNote(modelOrPhase,forPartner=false){
         const model=modelOrPhase&&typeof modelOrPhase==='object'?modelOrPhase:{phase:String(modelOrPhase||'')};
         const phase=String(model.phase||'');
         const day=Number(model.cycleDay);
@@ -6892,39 +6971,39 @@
 
         if(phase==='Месячные'){
           if(Number.isFinite(periodDay)&&periodDay<=2){
-            return '🍽 Аппетит: в первые дни месячных у вас может меняться чувство голода и желание сладкого. Ешьте так, чтобы вам было комфортно.';
+            return forPartner?"🍽 Аппетит: в первые дни месячных у Дианы могут меняться чувство голода и желание сладкого. Уточни, что ей хочется поесть, и помоги организовать комфортное питание.":'🍽 Аппетит: в первые дни месячных у вас может меняться чувство голода и желание сладкого. Ешьте так, чтобы вам было комфортно.';
           }
-          return '🍽 Аппетит: к концу месячных вы можете заметить, что тяга к перекусам ослабевает. Ориентируйтесь на свой голод.';
+          return forPartner?"🍽 Аппетит: к концу месячных Диана может замечать, что тяга к перекусам ослабевает. При совместных приёмах пищи учитывай её голод и предпочтения.":'🍽 Аппетит: к концу месячных вы можете заметить, что тяга к перекусам ослабевает. Ориентируйтесь на свой голод.';
         }
 
         if(phase==='Фолликулярная фаза'){
           if(Number.isFinite(day)&&day<=periodLength+2){
-            return '🍽 Аппетит: после месячных вам может быть проще придерживаться обычного режима питания. Не забывайте о регулярных приёмах пищи.';
+            return forPartner?"🍽 Аппетит: после месячных Диане может быть проще придерживаться обычного режима питания. Можно вместе запланировать регулярные приёмы пищи.":'🍽 Аппетит: после месячных вам может быть проще придерживаться обычного режима питания. Не забывайте о регулярных приёмах пищи.';
           }
           if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day<=ovulationDay-4){
-            return '🍽 Аппетит: в середине этой фазы у вас может быть более ровный аппетит. Лучше ориентироваться на чувство голода, а не на календарь.';
+            return forPartner?"🍽 Аппетит: в середине этой фазы у Дианы может быть более ровный аппетит. Ориентируйся на её чувство голода, а не на календарь.":'🍽 Аппетит: в середине этой фазы у вас может быть более ровный аппетит. Лучше ориентироваться на чувство голода, а не на календарь.';
           }
-          return '🍽 Аппетит: ближе к овуляции вы можете замечать меньший голод. Даже если есть хочется меньше, старайтесь питаться регулярно.';
+          return forPartner?"🍽 Аппетит: ближе к овуляции Диана может замечать меньший голод. Уточни её пожелания к еде; даже при меньшем аппетите питание лучше оставлять регулярным.":'🍽 Аппетит: ближе к овуляции вы можете замечать меньший голод. Даже если есть хочется меньше, старайтесь питаться регулярно.';
         }
 
         if(phase==='Фертильное окно'){
           if(Number.isFinite(day)&&Number.isFinite(ovulationDay)&&day===ovulationDay){
-            return '🍽 Аппетит: около овуляции у вас может уменьшиться аппетит, но он также может остаться прежним. Ориентируйтесь на свои потребности.';
+            return forPartner?"🍽 Аппетит: около овуляции у Дианы может уменьшиться аппетит, но он также может остаться прежним. Учитывай её потребности.":'🍽 Аппетит: около овуляции у вас может уменьшиться аппетит, но он также может остаться прежним. Ориентируйтесь на свои потребности.';
           }
-          return '🍽 Аппетит: сейчас у вас может быть привычный или чуть меньший аппетит. После овуляции он иногда постепенно усиливается.';
+          return forPartner?"🍽 Аппетит: сейчас у Дианы может быть привычный или чуть меньший аппетит. После овуляции он иногда постепенно усиливается.":'🍽 Аппетит: сейчас у вас может быть привычный или чуть меньший аппетит. После овуляции он иногда постепенно усиливается.';
         }
 
         if(phase==='Лютеиновая фаза'){
           if(Number.isFinite(daysToNext)&&daysToNext<=2){
-            return '🍽 Аппетит: за 1–2 дня до месячных у вас может усилиться тяга к сладкому или сытной пище. Это возможно, но необязательно.';
+            return forPartner?"🍽 Аппетит: за 1–2 дня до месячных у Дианы может усилиться тяга к сладкой или сытной пище. Это возможно, но необязательно — уточни, чего ей хочется.":'🍽 Аппетит: за 1–2 дня до месячных у вас может усилиться тяга к сладкому или сытной пище. Это возможно, но необязательно.';
           }
           if(Number.isFinite(daysToNext)&&daysToNext<=5){
-            return '🍽 Аппетит: перед месячными вам может чаще хотеться перекусов. Попробуйте более сытные регулярные приёмы пищи.';
+            return forPartner?"🍽 Аппетит: перед месячными Диане может чаще хотеться перекусов. Можно предложить более сытную еду и вместе спланировать регулярные приёмы пищи.":'🍽 Аппетит: перед месячными вам может чаще хотеться перекусов. Попробуйте более сытные регулярные приёмы пищи.';
           }
           if(Number.isFinite(daysToNext)&&daysToNext<=10){
-            return '🍽 Аппетит: в середине этой фазы вы можете замечать, что голод усиливается и хочется больше углеводной еды.';
+            return forPartner?"🍽 Аппетит: в середине этой фазы Диана может замечать усиление голода и желание более углеводной еды. Учитывай её пожелания при совместном выборе еды.":'🍽 Аппетит: в середине этой фазы вы можете замечать, что голод усиливается и хочется больше углеводной еды.';
           }
-          return '🍽 Аппетит: после овуляции вы можете постепенно ощущать больше голода. Если ближе к месячным хочется сладкого, это тоже бывает.';
+          return forPartner?"🍽 Аппетит: после овуляции Диана может постепенно ощущать больше голода. Ближе к месячным ей иногда хочется сладкого — это тоже бывает.":'🍽 Аппетит: после овуляции вы можете постепенно ощущать больше голода. Если ближе к месячным хочется сладкого, это тоже бывает.';
         }
         return '';
       }
@@ -6987,6 +7066,18 @@
         return base;
       }
 
+      function profileRhythmAdvice(person,recommendation){
+        if(!recommendation)return '';
+        if(currentActor===person)return 'Лучше сейчас: '+recommendation;
+        const name=person==='Диана'?'Диане':'Рустаму';
+        const text=recommendation
+          .replace('подходящее окно для прогулки или физической активности','выбрать прогулку или физическую активность')
+          .replace('лучшее окно для сложной работы и концентрации','заняться сложной работой и задачами на концентрацию')
+          .replace('это лучшее окно дня по её ритму, но во время месячных лучше выбрать одну важную задачу без перегруза','выбрать одну важную задачу без перегруза: по ритму это подходящее время, но сейчас у неё месячные')
+          .replace('активность подходит по времени, но лучше оставить её лёгкой и ориентироваться на самочувствие','выбрать лёгкую активность и ориентироваться на её самочувствие');
+        return name+' сейчас лучше '+text;
+      }
+
       function dianaRhythmRecommendation(now=new Date(),model=dianaRhythmCycleModel){
         const base=dianaRhythmBaseStatus(now);
         const adjustment=dianaRhythmCycleAdjustment(model);
@@ -7025,7 +7116,7 @@
         node.title=recommendation?'Лучше сейчас: '+recommendation:'';
         const advice=document.getElementById('dianaRhythmAdvice');
         if(advice){
-          advice.textContent=recommendation?'Лучше сейчас: '+recommendation:'';
+          advice.textContent=profileRhythmAdvice('Диана',recommendation);
           advice.hidden=!recommendation;
         }
       }
@@ -7193,7 +7284,7 @@
         const advice=document.getElementById('rustamRhythmAdvice');
         const recommendation=rustamRhythmRecommendation(text);
         if(advice){
-          advice.textContent=recommendation?'Лучше сейчас: '+recommendation:'';
+          advice.textContent=profileRhythmAdvice('Рустам',recommendation);
           advice.hidden=!recommendation;
         }
       }
@@ -7223,6 +7314,18 @@
         }
       }
 
+      let completionPolicyDay='';
+      function taskCompletionIsFuture(task,date=''){
+        const candidate=task?.date||!date?task:{...task,date};
+        return window.RUDITaskCompletionPolicy?.isFutureTask(candidate)===true;
+      }
+      function blockFutureTaskCompletion(task,statusId){
+        if(!taskCompletionIsFuture(task))return false;
+        const status=document.getElementById(statusId);
+        if(status){status.hidden=false;status.textContent=window.RUDITaskCompletionPolicy.MESSAGE;}
+        try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
+        return true;
+      }
       function tickTickTaskCanComplete(task){
         if(!task||task.completed) return false;
         if(!task.assigned) return true;
@@ -7296,7 +7399,7 @@
       }
 
       function homeMoodView(value){
-        return {sadness:'😢',boredom:'🥱',neutral:'😐',fatigue:'😩',anger:'😡',joy:'😄',love:'🥰'}[String(value||'')==='fear'?'boredom':String(value||'')]||'—';
+        return {sadness:'😢',boredom:'🥱',neutral:'😐',fatigue:'😩',anger:'😡',anxiety:'😨',joy:'😄',love:'🥰'}[String(value||'')==='fear'?'boredom':String(value||'')]||'—';
       }
 
       function homeDashboardDateLabel(){
@@ -7387,7 +7490,7 @@
         if(clock.minutes<rise.minutes) return '🌅 Восход в '+rise.label;
         if(clock.minutes<set.minutes) return '🌇 Закат в '+set.label;
         const nextRise=sunTimeParts(sunrise[todayIndex+1]);
-        return nextRise?'🌅 Восход завтра в '+nextRise.label:'🌅 Восход в '+rise.label;
+        return nextRise?'🌅 Восход в '+nextRise.label:'🌅 Восход в '+rise.label;
       }
 
       function renderHomeSunEvent(){
@@ -7453,7 +7556,7 @@
       function homeNearestRows(){
         const rows=[];
         const nowMinutes=homeCurrentMinutes();
-        const tasks=homeDashboardState.tasks.filter(homeTaskForActor);
+        const tasks=homeDashboardState.tasks.filter(task=>homeTaskForActor(task)&&(task.personal===true||tickTickAssigneeLabel(task)==='Вместе'));
         for(const task of tasks){
           const start=String(task?.startTime||'').trim();
           const match=start.match(/^(\d{1,2}):(\d{2})$/u);
@@ -7589,6 +7692,8 @@
         if(score) acceptScoreState(score);
         if(!currentScoreState) return;
         renderFinanceStarsWallet();
+        window.RudiPartnerProfile?.refresh();
+        document.dispatchEvent(new CustomEvent('rudi:stars-changed'));
         if(scoreModalActor) renderScoreModal(scoreModalActor,currentScoreState);
       }
 
@@ -7702,18 +7807,15 @@
                 <h3><span class="score-rules-group-symbol">＋</span> Звёзды прибавляются</h3>
                 <div class="score-rules-item"><span class="score-rules-emoji">✅</span><span>Выполнил задачу</span><strong>+2 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🐾</span><span>Погулял с Лулу<small>Рустам: +2 · Диана: +1</small></span><strong>⭐</strong></div>
-                <div class="score-rules-item"><span class="score-rules-emoji">🟢</span><span>Выполнил привычку</span><strong>+0,2 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">🟢</span><span>Выполнил привычку</span><strong>+0,1 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🔥</span><span>21 день подряд выполнял привычку</span><strong>+5 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">⏱️</span><span>Закончил голодание<small>12 ч: +0,5 · 16 ч: +1,5 · 24 ч: +3 · 40 ч: +5</small></span><strong>до +5 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🧘</span><span>Медитация<small>5 мин: +0,1 · 10 мин: +0,2 · 20 мин: +0,3 · 30 мин: +0,4 · 60 мин: +0,5 ⭐</small><small>По фактическому времени. Только одна награда в день на человека.</small></span><strong>до +0,5 ⭐</strong></div>
-                <div class="score-rules-item"><span class="score-rules-emoji">🙂</span><span>Отметил настроение<small>Утром, днём или вечером</small></span><strong>+0,1 ⭐</strong></div>
-                <div class="score-rules-item"><span class="score-rules-emoji">💌</span><span>Написал послание<small>Один раз в день</small></span><strong>+0,1 ⭐</strong></div>
-                <div class="score-rules-item"><span class="score-rules-emoji">💳</span><span>Записал первый расход за день</span><strong>+0,2 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🎁</span><span>Исполнил желание партнёра из вишлиста</span><strong>+100 ⭐</strong></div>
               </section>
               <section class="score-rules-group score-rules-spend" aria-label="Когда звёзды уменьшаются">
                 <h3><span class="score-rules-group-symbol">−</span> Звёзды уменьшаются</h3>
-                <div class="score-rules-item"><span class="score-rules-emoji">🔴</span><span>Не выполнил привычку</span><strong>−1 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">🔴</span><span>Не выполнил привычку</span><strong>−2 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🛍️</span><span>Купил награду<small>Снимается столько звёзд, сколько она стоит</small></span><strong>−⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">💝</span><span>Подарил звёзды партнёру<small>Они переходят партнёру</small></span><strong>−⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">↩️</span><span>Отменил действие<small>Выданные за него звёзды могут забрать обратно</small></span><strong>−⭐</strong></div>
@@ -7758,6 +7860,12 @@
           .replace(/Подарок от Рустам/g,'Подарок от Рустама')
           .replace(/Подарено Диана/g,'Подарено Диане')
           .replace(/Подарено Рустам/g,'Подарено Рустаму');
+      }
+
+      function scoreHistoryTitle(item){
+        const detail=String(item?.detail||''),label=String(item?.label||'');
+        const legacySession=/^Сеанс\s+\S+$/u.test(detail)&&/^Медитация(?:\s|$)/u.test(label);
+        return normalizeGiftGrammar(normalizeLegacyMoodText((legacySession?label:detail)||label||'Звезды'));
       }
 
       function renderScoreModal(actor,score=currentScoreState){
@@ -7948,7 +8056,7 @@
               const copy=document.createElement('div');
               copy.className='score-history-copy';
               const title=document.createElement('strong');
-              title.textContent=normalizeGiftGrammar(normalizeLegacyMoodText(item.detail||item.label||'Звезды'));
+              title.textContent=scoreHistoryTitle(item);
               const meta=document.createElement('span');
               meta.textContent=scoreHistoryTime(item.createdAt);
               copy.append(title,meta);
@@ -8046,6 +8154,16 @@
           renderScoreModal(actor,currentScoreState);
         }catch(_){}
       }
+
+      // The personal page always opens the authenticated actor's existing ledger.
+      window.RudiStars={
+        balance:()=>currentScoreState?Number(currentScoreState.balances?.[currentActor]||0):null,
+        openHistory:()=>{
+          if(!currentActor)return;
+          void openScoreModal(currentActor);
+          document.querySelector('#scoreModal [data-score-tab="history"]')?.click();
+        }
+      };
 
       async function activityRequest(){
         const response=await fetch('/api/partner-message?rudiAction=activity',{
@@ -8212,7 +8330,7 @@
             const toilet=[row.peed?'💧':'',row.pooped?'💩':''].filter(Boolean).join(' ');
             const text=document.createElement('div');
             text.className='lulu-walk-history-text';
-            text.textContent=time+' · с '+companion+(toilet?' · '+toilet:'');
+            text.textContent=time+' · с '+companion+(toilet?' · '+toilet:'')+(row.pooped?' · '+luluStoolLabel(row.stool):'');
             item.appendChild(text);
             if(actor===currentActor){
               const cancel=document.createElement('button');
@@ -8228,20 +8346,184 @@
         }
       }
 
-      function toggleLuluWalkHistory(){
-        const panel=document.getElementById('luluWalkHistory');
-        const toggle=document.getElementById('luluWalkHistoryToggle');
-        if(!panel||!toggle) return;
-        const open=!panel.classList.contains('is-open');
-        panel.classList.toggle('is-open',open);
-        panel.setAttribute('aria-hidden',open?'false':'true');
-        toggle.setAttribute('aria-expanded',open?'true':'false');
-        toggle.setAttribute('aria-label',open?'Лулу, скрыть историю прогулок':'Лулу, показать историю прогулок');
+      let luluHealthData=null,luluHealthActor='';
+      function renderLuluHealth(value,status=''){
+        const panel=luluProfilePage?.querySelector('.lulu-profile-health');if(!panel)return;
+        const input=panel.querySelector('textarea');
+        if(!input.dataset.dirty)input.value=String(value?.text||'');
+        panel.querySelector('.lulu-health-status').textContent=status||(!value?.text?'Пока проблем не указано':value.actor?(value.actor==='Диана'?'Обновила Диана':'Обновил Рустам'):'');
+        panel.querySelector('.lulu-health-save').disabled=false;
       }
+      async function loadLuluHealth(){
+        const actor=currentActor,page=luluProfilePage;
+        if(luluHealthActor!==actor){luluHealthData=null;luluHealthActor=actor}
+        try{
+          const [cached,pending]=await Promise.all([window.rudiOfflineContent?.cached?.('lulu-health',actor),window.rudiOfflineContent?.pending?.('lulu','health',actor)]);
+          if(currentActor!==actor||page!==luluProfilePage)return;
+          if(cached)luluHealthData=cached;
+          if(pending?.length){
+            const row=pending.at(-1);luluHealthData={...luluHealthData,text:row.data.text,updatedAt:row.data.expectedUpdatedAt};
+            renderLuluHealth(luluHealthData,'Сохранено на устройстве · ожидает синхронизации');
+            if(row.error==='lulu-health-conflict'){
+              const latest=await luluRequest('health-get');if(currentActor!==actor||page!==luluProfilePage)return;
+              luluHealthData=latest.health||{text:'',updatedAt:''};
+              page.querySelector('#luluHealthText').dataset.dirty='1';
+              renderLuluHealth(luluHealthData,'На другом устройстве записано: '+(luluHealthData.text||'проблем нет')+'. Сверь свой текст и нажми Сохранить.');
+            }
+            return;
+          }
+          renderLuluHealth(luluHealthData);
+          const data=await luluRequest('health-get');
+          if(currentActor!==actor||page!==luluProfilePage)return;
+          luluHealthData=data.health||{text:'',updatedAt:''};
+          await window.rudiOfflineContent?.capture?.('lulu-health',luluHealthData,actor);
+          renderLuluHealth(luluHealthData);
+        }catch(_){if(currentActor===actor&&page===luluProfilePage)renderLuluHealth(luluHealthData,luluHealthData?'Офлайн · показана сохранённая запись':'Не удалось загрузить. Можно записать проблемы на устройстве.')}
+      }
+      async function saveLuluHealthFromProfile(){
+        const panel=luluProfilePage?.querySelector('.lulu-profile-health');if(!panel)return;
+        const actor=currentActor,input=panel.querySelector('textarea'),button=panel.querySelector('.lulu-health-save');if(button.disabled)return;
+        const detail={operation:'health-save',text:input.value.trim(),expectedUpdatedAt:luluHealthData?.updatedAt||''};
+        button.disabled=true;panel.querySelector('.lulu-health-status').textContent='Сохраняю…';
+        try{
+          let data;
+          if(window.rudiOfflineContent?.isOffline?.())throw new TypeError('offline');
+          data=await luluRequest('health-save',detail);
+          if(currentActor!==actor)return;
+          luluHealthData=data.health;luluHealthActor=actor;delete input.dataset.dirty;
+          await window.rudiOfflineContent?.capture?.('lulu-health',luluHealthData,actor);
+          const pending=await window.rudiOfflineContent?.pending?.('lulu','health',actor);
+          for(const row of pending||[])await window.rudiOfflineContent?.discard?.(row.id,actor);
+          renderLuluHealth(luluHealthData,'Сохранено');
+        }catch(error){
+          if(currentActor!==actor)return;
+          const network=['TypeError','AbortError'].includes(error?.name)||/network|fetch|offline|timeout/i.test(error?.message||'');
+          if(network&&window.rudiOfflineContent?.enqueue){
+            try{
+              const pending=await window.rudiOfflineContent.pending('lulu','health',actor);
+              if(pending.some(row=>row.error==='lulu-health-conflict'))await window.rudiOfflineContent.rebaseNote(detail.expectedUpdatedAt,actor,'health','lulu');
+              await window.rudiOfflineContent.enqueue('lulu','health',detail,actor);
+              luluHealthData={text:detail.text,updatedAt:detail.expectedUpdatedAt,actor};luluHealthActor=actor;delete input.dataset.dirty;
+              await window.rudiOfflineContent.capture('lulu-health',luluHealthData,actor);
+              renderLuluHealth(luluHealthData,'Сохранено на устройстве · ожидает синхронизации');
+            }catch(_){panel.querySelector('.lulu-health-status').textContent='Не удалось сохранить. Текст остался в поле.'}
+          }else panel.querySelector('.lulu-health-status').textContent=error?.message==='lulu-health-conflict'?'Запись изменена на другом устройстве. Скопируй свой текст и открой страницу заново.':'Не удалось сохранить. Попробуй ещё раз.';
+        }finally{if(panel.isConnected)button.disabled=false}
+      }
+
+      let luluFinanceData=null,luluFinancePromise=null,luluFinanceLoadedAt=0,luluFinanceActor='';
+      function renderLuluFinances(){
+        const card=luluProfilePage?.querySelector('.lulu-profile-finances');if(!card)return;
+        const month=sharedAlbumDateKey(new Date()).slice(0,7);
+        const data=luluFinanceActor===currentActor&&luluFinanceData?.month===month?luluFinanceData:null;
+        const status=card.querySelector('.lulu-food-total'),list=card.querySelector('.lulu-food-transactions');list.replaceChildren();
+        if(!data){status.textContent='Нет данных';return}
+        const money=amount=>new Intl.NumberFormat('ru-RU',{style:'currency',currency:'RUB',maximumFractionDigits:2}).format(amount);
+        status.textContent=money(data.totalRub);
+        for(const row of data.transactions||[]){
+          const item=document.createElement('div');item.className='lulu-food-transaction';
+          const copy=document.createElement('div'),note=document.createElement('span'),date=document.createElement('small'),amount=document.createElement('strong');
+          note.textContent=row.note|| (row.kind==='vet'?'Ветеринария':row.kind==='food'?'Корм для Лулу':'Расход на Лулу');const stamp=new Date(row.occurredAt);
+          date.textContent=Number.isNaN(stamp.getTime())?'':new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,day:'numeric',month:'short'}).format(stamp);
+          amount.textContent=money(row.rubAmount);copy.append(note,date);item.append(copy,amount);list.append(item);
+        }
+      }
+      async function loadLuluFinances({force=false}={}){
+        const month=sharedAlbumDateKey(new Date()).slice(0,7),actor=currentActor;
+        if(!force&&luluFinanceActor===actor&&luluFinanceData?.month===month&&Date.now()-luluFinanceLoadedAt<60000){renderLuluFinances();return}
+        if(luluFinancePromise)return luluFinancePromise;
+        luluFinancePromise=(async()=>{
+          try{
+            const saved=await window.rudiOfflineContent?.cached?.('lulu-finances',actor);
+            if(currentActor===actor&&saved?.month===month){luluFinanceData=saved;luluFinanceActor=actor;renderLuluFinances()}
+            const data=await financeRequest('lulu-food-summary');
+            if(currentActor!==actor||data.month!==sharedAlbumDateKey(new Date()).slice(0,7))return;
+            luluFinanceData=data;luluFinanceActor=actor;luluFinanceLoadedAt=Date.now();
+            await window.rudiOfflineContent?.capture?.('lulu-finances',data,actor);
+          }catch(_){}finally{luluFinancePromise=null;renderLuluFinances()}
+        })();
+        return luluFinancePromise;
+      }
+      document.addEventListener('rudi-finances-updated',()=>{luluFinanceLoadedAt=0;if(luluProfilePage)void loadLuluFinances({force:true})});
+
+      function luluStoolLabel(value){
+        return ({hard:'Твёрдый',formed:'Оформленный',soft:'Мягкий',mushy:'Кашицеобразный',liquid:'Жидкий'})[value]||'Не указан';
+      }
+
+      function luluMonthWalks(state){
+        const month=sharedAlbumDateKey(new Date()).slice(0,7),rows=new Map();
+        for(const row of [...(state?.walksMonth||[]),...(state?.walksToday||[]),state?.lastWalk]){
+          const date=new Date(String(row?.walkedAt||''));
+          if(row&&['Рустам','Диана'].includes(row.actor)&&!Number.isNaN(date.getTime())&&sharedAlbumDateKey(date).slice(0,7)===month)
+            rows.set(row.walkedAt,row);
+        }
+        return [...rows.values()].sort((a,b)=>Date.parse(a.walkedAt)-Date.parse(b.walkedAt));
+      }
+
+      let luluProfilePage=null,luluProfileTrigger=null,luluProfileTimer=null,luluCareUnmount=null;
+      function renderLuluProfile(){
+        if(!luluProfilePage)return;
+        renderLuluFinances();
+        const rows=luluMonthWalks(homeDashboardState.lulu),today=sharedAlbumDateKey(new Date());
+        luluProfilePage.querySelector('.lulu-profile-month').textContent=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,month:'long',year:'numeric'}).format(new Date());
+        for(const actor of ['Диана','Рустам'])luluProfilePage.querySelector('[data-lulu-count="'+actor+'"]').textContent=String(rows.filter(row=>row.actor===actor).length);
+        const list=luluProfilePage.querySelector('.lulu-profile-history');list.replaceChildren();
+        if(!rows.length){const empty=document.createElement('p');empty.textContent='В этом месяце прогулок пока нет';list.append(empty);return}
+        let day='';
+        for(const row of rows.slice().reverse()){
+          const date=new Date(row.walkedAt),key=sharedAlbumDateKey(date);
+          if(day!==key){day=key;const heading=document.createElement('h3');heading.textContent=key===today?'Сегодня':new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,day:'numeric',month:'long'}).format(date);list.append(heading)}
+          const item=document.createElement('article');item.className='lulu-profile-walk';
+          const copy=document.createElement('div'),title=document.createElement('strong'),detail=document.createElement('p');
+          title.textContent=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(date)+' · '+row.actor;
+          detail.textContent=(row.peed?'💧 Писала':'Не писала')+' · '+(row.pooped?'💩 Какала · Стул: '+luluStoolLabel(row.stool):'Не какала')+(row.offlinePending?' · Ожидает синхронизации':'');
+          copy.append(title,detail);item.append(copy);
+          if(key===today&&row.actor===currentActor){
+            const cancel=document.createElement('button');cancel.type='button';cancel.className='lulu-walk-history-cancel';cancel.textContent='Отменить';
+            cancel.addEventListener('click',()=>cancelLuluWalkEntry(row,cancel));item.append(cancel);
+          }
+          list.append(item);
+        }
+      }
+
+      function closeLuluProfile(fromHistory=false){
+        if(!luluProfilePage)return;
+        luluCareUnmount?.();luluCareUnmount=null;
+        luluProfilePage.remove();luluProfilePage=null;clearInterval(luluProfileTimer);
+        document.body.classList.remove('lulu-profile-open');
+        if(!fromHistory&&history.state?.rudiLuluProfile)history.back();
+        luluProfileTrigger?.focus?.({preventScroll:true});
+      }
+
+      function openLuluProfile(event){
+        if(luluProfilePage)return;
+        luluProfileTrigger=event?.currentTarget||document.getElementById('luluWalkHistoryToggle');
+        const page=document.createElement('section');page.className='rudi-meditation-page partner-profile-page lulu-profile-page';
+        page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';page.setAttribute('aria-label','Профиль Лулу');
+        page.innerHTML='<header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head partner-profile-bar"><button type="button" class="fasting-back-button rudi-app-page-back lulu-profile-back" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="fasting-page-title"><h1>Лулу</h1></div></header><div class="partner-profile-content"><div class="partner-profile-layout"><section class="lulu-profile-hero"><img src="/lulu-normal.webp?v=2.118" width="72" height="72" alt="Лулу"><div><small class="lulu-profile-eyebrow">🐾 Моя собачья жизнь</small><h2>Лулу</h2><p>Французский бульдог · '+luluAgeLabel()+'</p></div></section><section class="lulu-profile-health"><h2>Здоровье</h2><label for="luluHealthText">Текущие проблемы</label><textarea id="luluHealthText" rows="4" maxlength="2000" placeholder="Укажи, что сейчас беспокоит Лулу. Каждую проблему можно написать с новой строки."></textarea><div class="lulu-health-actions"><button type="button" class="lulu-health-save" disabled>Сохранить</button><span class="lulu-health-status" role="status">Загружаю…</span></div></section><div class="lulu-care-root"></div><section class="lulu-profile-finances"><h2>Расходы за месяц</h2><strong class="lulu-food-total">Загружаю…</strong><div class="lulu-food-transactions"></div></section><section class="lulu-profile-summary"><h2>Прогулки за месяц</h2><p class="lulu-profile-month"></p><div class="lulu-profile-counts"><div><span>Диана</span><strong data-lulu-count="Диана">0</strong></div><div><span>Рустам</span><strong data-lulu-count="Рустам">0</strong></div></div></section><section class="lulu-profile-journal"><h2>История прогулок</h2><div class="lulu-profile-history"></div></section></div></div>';
+        luluProfilePage=page;document.body.append(page);document.body.classList.add('lulu-profile-open');
+        history.pushState({...history.state,rudiLuluProfile:true},'','#lulu');
+        page.querySelector('.lulu-profile-back').onclick=()=>closeLuluProfile();
+        page.querySelector('.lulu-health-save').onclick=saveLuluHealthFromProfile;
+        page.querySelector('#luluHealthText').oninput=event=>{event.target.dataset.dirty='1'};
+        luluCareUnmount=window.RudiLuluCare?.mount(page.querySelector('.lulu-care-root'),{actor:currentActor,request:luluRequest})||null;
+        renderLuluProfile();void loadLuluFinances();void loadLuluHealth();page.querySelector('.lulu-profile-back').focus({preventScroll:true});
+        luluProfileTimer=setInterval(()=>{renderLuluProfile();if(luluFinanceData?.month!==sharedAlbumDateKey(new Date()).slice(0,7))void loadLuluFinances()},60000);
+        window.RudiViewport?.sync?.();
+      }
+      window.addEventListener('popstate',()=>{if(luluProfilePage&&!history.state?.rudiLuluProfile)closeLuluProfile(true)});
+      window.addEventListener('focus',()=>{renderLuluProfile();if(luluProfilePage)void loadLuluFinances()});
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden){renderLuluProfile();if(luluProfilePage)void loadLuluFinances()}});
+      window.addEventListener('rudi:app-tab-change',()=>closeLuluProfile(true));
+      document.addEventListener('keydown',event=>{if(event.key==='Escape'&&luluProfilePage)closeLuluProfile()});
 
       function renderLulu(value){
         const state=value&&typeof value==='object'?value:{};
+        state.walksMonth=luluMonthWalks(state);
+        state.walksToday=state.walksMonth.filter(row=>sharedAlbumDateKey(new Date(row.walkedAt))===sharedAlbumDateKey(new Date()));
+        state.lastWalk=state.walksMonth.at(-1)||null;
         homeDashboardState.lulu=state;
+        renderLuluProfile();
         syncLuluToiletStatus();
         renderLuluWalkHistory(state);
         const status=document.getElementById('luluWalkStatus');
@@ -8276,6 +8558,7 @@
               '<button type="button" data-lulu-toilet="peed" aria-pressed="false"><span>💧</span><strong>Писала</strong></button>'+
               '<button type="button" data-lulu-toilet="pooped" aria-pressed="false"><span>💩</span><strong>Какала</strong></button>'+
             '</div>'+
+            '<fieldset class="lulu-stool-picker" hidden><legend>Какой стул?</legend><div>'+['hard','formed','soft','mushy','liquid'].map(value=>'<button type="button" data-lulu-stool="'+value+'" aria-pressed="false">'+luluStoolLabel(value)+'</button>').join('')+'</div></fieldset>'+
             '<button class="lulu-walk-modal-confirm" type="button" disabled>Сохранить прогулку</button>'+
           '</section>';
         document.body.appendChild(modal);
@@ -8285,6 +8568,9 @@
         const sync=()=>{
           const active=[...modal.querySelectorAll('[data-lulu-toilet][aria-pressed="true"]')];
           modal.querySelector('.lulu-walk-modal-confirm').disabled=!active.length;
+          const pooped=modal.querySelector('[data-lulu-toilet="pooped"]')?.getAttribute('aria-pressed')==='true';
+          modal.querySelector('.lulu-stool-picker').hidden=!pooped;
+          if(!pooped)modal.querySelectorAll('[data-lulu-stool]').forEach(button=>button.setAttribute('aria-pressed','false'));
         };
         modal.querySelectorAll('[data-lulu-toilet]').forEach(button=>{
           button.addEventListener('click',()=>{
@@ -8294,15 +8580,24 @@
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         });
+        modal.querySelectorAll('[data-lulu-stool]').forEach(button=>button.addEventListener('click',()=>{
+          const selected=button.getAttribute('aria-pressed')==='true';
+          modal.querySelectorAll('[data-lulu-stool]').forEach(item=>item.setAttribute('aria-pressed','false'));
+          button.setAttribute('aria-pressed',selected?'false':'true');
+        }));
         modal.querySelector('.lulu-walk-modal-confirm')?.addEventListener('click',async()=>{
           const confirm=modal.querySelector('.lulu-walk-modal-confirm');
           if(confirm.disabled) return;
+          confirm.textContent='Сохранение…';
           const peed=modal.querySelector('[data-lulu-toilet="peed"]')?.getAttribute('aria-pressed')==='true';
           const pooped=modal.querySelector('[data-lulu-toilet="pooped"]')?.getAttribute('aria-pressed')==='true';
           confirm.disabled=true;
           try{
-            await saveLuluWalk({peed,pooped});
+            await saveLuluWalk({peed,pooped,stool:pooped?modal.querySelector('[data-lulu-stool][aria-pressed="true"]')?.dataset.luluStool||'':''});
             close();
+          }catch(error){
+            console.warn('RUDI_LULU_SAVE_WARN',String(error?.message||error));
+            confirm.textContent='Не удалось сохранить · повторить';
           }finally{sync()}
         });
         return modal;
@@ -8311,19 +8606,28 @@
       function openLuluWalkModal(){
         const modal=ensureLuluWalkModal();
         modal.querySelectorAll('[data-lulu-toilet]').forEach(button=>button.setAttribute('aria-pressed','false'));
+        modal.querySelectorAll('[data-lulu-stool]').forEach(button=>button.setAttribute('aria-pressed','false'));
+        modal.querySelector('.lulu-stool-picker').hidden=true;
         modal.querySelector('.lulu-walk-modal-confirm').disabled=true;
+        modal.querySelector('.lulu-walk-modal-confirm').textContent='Сохранить прогулку';
         modal.hidden=false;
         document.body.classList.add('lulu-walk-modal-open');
       }
 
       async function luluRequest(operation,payload={}){
         const backupContext=backupRequestContext();
-        const response=await fetch('/api/partner-message?rudiAction=lulu',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,...payload}),
-          cache:'no-store'
-        });
+        const controller=['walk','health-get','health-save','care-get','care-command'].includes(operation)?new AbortController():null;
+        const timer=controller?setTimeout(()=>controller.abort(),6000):null;
+        let response;
+        try{
+          response=await fetch('/api/partner-message?rudiAction=lulu',{
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({initData:tg?.initData||'',backupToken:backupContext.token,operation,...payload}),
+            cache:'no-store',
+            ...(controller?{signal:controller.signal}:{})
+          });
+        }finally{if(timer!==null)clearTimeout(timer)}
         const result=await response.json().catch(()=>({}));
         if(!response.ok||!result.ok) throw new Error(result.error||'lulu-request-failed');
         if(result.backupToken) await storeStateBackupToken(result.backupToken,backupContext);
@@ -8333,7 +8637,17 @@
       async function cancelLuluWalkEntry(row,button){
         const walkedAt=String(row?.walkedAt||'').trim();
         const owner=String(row?.actor||'').trim();
-        if(!walkedAt||owner!==currentActor||button?.disabled) return;
+        if(!walkedAt||owner!==currentActor||button?.disabled||sharedAlbumDateKey(new Date(walkedAt))!==sharedAlbumDateKey(new Date())) return;
+        if(row?.offlinePending&&row?.offlineOperationId){
+          const removed=await window.rudiOfflineContent?.discard?.(row.offlineOperationId,currentActor).catch(()=>false);
+          if(removed){
+            const disk=await window.rudiHomeOffline?.snapshot?.(currentActor).catch(()=>null);
+            const baseline=disk?.home?.activity?.lulu||{};
+            renderLulu(baseline);
+            await renderPendingLuluWalks();
+          }
+          return;
+        }
         if(button){
           button.disabled=true;
           button.classList.add('is-canceling');
@@ -8360,18 +8674,90 @@
         }
       }
 
+      function applyLocalLuluWalk(base,row){
+        const state=base&&typeof base==='object'?{...base}:{};
+        const walkedAt=String(row?.data?.walkedAt||'');
+        const date=new Date(walkedAt);
+        if(!row||Number.isNaN(date.getTime()))return state;
+        const walk={actor:row.actor,walkedAt,peed:row.data.peed===true,pooped:row.data.pooped===true,
+          stool:row.data.pooped===true?String(row.data.stool||''):'',
+          offlinePending:true,offlineOperationId:row.id};
+        const today=sharedAlbumDateKey(new Date());
+        if(sharedAlbumDateKey(date).slice(0,7)!==today.slice(0,7))return state;
+        state.walksMonth=[...luluMonthWalks(state).filter(item=>item.walkedAt!==walk.walkedAt),walk];
+        const existing=(Array.isArray(state.walksToday)?state.walksToday:[])
+          .filter(item=>item.walkedAt!==walk.walkedAt&&sharedAlbumDateKey(new Date(item.walkedAt))===today);
+        if(sharedAlbumDateKey(date)===today)existing.push(walk);
+        const last=state.lastWalk;
+        const isLast=!last||Date.parse(walkedAt)>=Date.parse(last.walkedAt);
+        state.walksToday=existing.sort((a,b)=>Date.parse(a.walkedAt)-Date.parse(b.walkedAt));
+        if(isLast)state.lastWalk=walk;
+        if(walk.peed&&(!state.lastPeeAt||Date.parse(walkedAt)>=Date.parse(state.lastPeeAt)))state.lastPeeAt=walkedAt;
+        if(walk.pooped&&(!state.lastPoopAt||Date.parse(walkedAt)>=Date.parse(state.lastPoopAt)))state.lastPoopAt=walkedAt;
+        return state;
+      }
+
+      async function renderPendingLuluWalks(){
+        const who=currentActor;
+        if(!who||!window.rudiOfflineContent?.pending)return;
+        const rows=await window.rudiOfflineContent.pending('lulu','',who).catch(()=>[]);
+        if(currentActor!==who||!rows.length)return;
+        let base={...(homeDashboardState.lulu||{})};
+        const regular=(Array.isArray(base.walksToday)?base.walksToday:[]).filter(row=>!row.offlinePending);
+        base.walksToday=regular;
+        base.walksMonth=luluMonthWalks(base).filter(row=>!row.offlinePending);
+        if(base.lastWalk?.offlinePending)base.lastWalk=regular[regular.length-1]||null;
+        for(const row of rows.filter(r=>r.data?.operation==='walk'))
+          base=applyLocalLuluWalk(base,row);
+        renderLulu(base);
+      }
+
+      window.addEventListener('rudi-content-operation-synced',event=>{
+        if(event.detail?.kind!=='lulu'||event.detail.actor!==currentActor)return;
+        if(event.detail.operation==='care-command')return;
+        if(event.detail.result?.health){luluHealthData=event.detail.result.health;void window.rudiOfflineContent?.capture?.('lulu-health',luluHealthData,currentActor);renderLuluHealth(luluHealthData,'Синхронизировано');return}
+        if(event.detail.result?.lulu)renderLulu(event.detail.result.lulu);
+        void loadActivityJournal({silent:true}).catch(()=>{});
+        void renderPendingLuluWalks();
+        void loadHomeBootstrap({force:true}).catch(()=>{});
+      });
+
       async function saveLuluWalk(toilet){
         const button=document.getElementById('luluWalkButton');
         if(!button||button.disabled) return;
         button.disabled=true;
         button.classList.add('is-saving');
+        const walkedAt=new Date().toISOString();
+        const offlineOperationId=window.crypto?.randomUUID?.()||('walk-'+Date.now()+'-'+Math.random().toString(36).slice(2));
+        const detail={operation:'walk',peed:toilet?.peed===true,pooped:toilet?.pooped===true,
+          stool:toilet?.pooped===true?String(toilet?.stool||''):'',walkedAt,offlineOperationId};
         try{
-          const payload=await luluRequest('walk',{
-            peed:toilet?.peed===true,
-            pooped:toilet?.pooped===true,
-          });
-          renderLulu(payload.lulu);
-          setTimeout(()=>loadActivityJournal({silent:true}),120);
+          const offline=window.rudiHomeOffline?.isOffline?.()||window.rudiOfflineContent?.isOffline?.();
+          if(!offline){
+            try{
+              const payload=await luluRequest('walk',detail);
+              renderLulu(payload.lulu);
+              void renderPendingLuluWalks();
+              setTimeout(()=>loadActivityJournal({silent:true}),120);
+              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+              return;
+            }catch(error){
+              const networkFailure=['TypeError','AbortError'].includes(String(error?.name||''))
+                ||/network|fetch|timeout|aborted|load failed|offline/i.test(String(error?.message||''));
+              if(!networkFailure)throw error;
+              document.body.dataset.offlineMode='1';
+            }
+          }
+          if(!window.rudiOfflineContent?.enqueue)throw Error('offline-storage-unavailable');
+          const queued=await window.rudiOfflineContent.enqueue('lulu',offlineOperationId,detail,currentActor);
+          renderLulu(applyLocalLuluWalk(homeDashboardState.lulu,queued));
+          showUndoSnackbar('Офлайн режим · прогулка сохранена',async()=>{
+            if(await window.rudiOfflineContent.discard(queued.id,currentActor)){
+              const disk=await window.rudiHomeOffline?.snapshot?.(currentActor).catch(()=>null);
+              renderLulu(disk?.home?.activity?.lulu||{});
+              await renderPendingLuluWalks();
+            }
+          },10000);
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
         }catch(error){
           try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
@@ -8612,12 +8998,67 @@
         })();
         return settingsSecuritySessionsFlight;
       }
+      function setupOfflinePinSettings(){
+        const anchor=document.getElementById('settingsFaceIdRow');
+        if(!anchor||!iphoneFaceIdActor()||telegramInitData())return;
+        let row=document.getElementById('settingsOfflinePinRow');
+        if(!row){
+          row=document.createElement('div');
+          row.id='settingsOfflinePinRow';
+          row.className='home-settings-row settings-faceid-row';
+          const info=document.createElement('div');info.className='home-settings-copy';
+          const title=document.createElement('strong');title.textContent='PIN без интернета';
+          const detail=document.createElement('small');detail.id='settingsOfflinePinStatus';
+          info.append(title,detail);
+          const button=document.createElement('button');
+          button.id='settingsOfflinePinButton';button.type='button';button.className='settings-faceid-action';
+          const form=document.createElement('form');form.id='settingsOfflinePinForm';form.className='rudi-offline-pin-settings-form';form.style.cssText='gap:8px;';form.hidden=true;
+          const input=pinInputNode();input.id='settingsOfflinePinInput';
+          const save=document.createElement('button');save.type='submit';save.className='settings-faceid-action';
+          save.textContent='Подтвердить PIN';
+          const message=document.createElement('small');message.id='settingsOfflinePinMessage';
+          form.append(input,save,message);
+          row.append(info,button,form);
+          anchor.insertAdjacentElement('beforebegin',row);
+          button.addEventListener('click',()=>{
+            if(window.rudiOfflinePin?.isOffline()){message.textContent='Для настройки нужен интернет.';return;}
+            form.hidden=!form.hidden;
+            if(!form.hidden)input.focus();
+          });
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();
+            const pin=String(input.value||'');
+            if(!/^\d{6}$/.test(pin)){message.textContent='PIN должен содержать 6 цифр.';return;}
+            save.disabled=true;button.disabled=true;message.textContent='Проверяю…';
+            try{
+              const response=await browserAuthRequest('login',{actor:currentActor,pin});
+              if(String(response.actor||'')!==currentActor||!window.rudiOfflinePin?.has(currentActor))throw new Error('offline-pin-enroll-failed');
+              input.value='';form.hidden=true;message.textContent='';
+              updateOfflinePinSettingsState();
+            }catch(error){
+              message.textContent=String(error?.message||'')==='rudi-pin-rate-limited'?'Слишком много попыток.':
+                'Не удалось настроить. Проверь PIN и подключение.';
+              input.value='';
+            }finally{save.disabled=false;updateOfflinePinSettingsState();}
+          });
+        }
+        updateOfflinePinSettingsState();
+      }
+      function updateOfflinePinSettingsState(){
+        const row=document.getElementById('settingsOfflinePinRow'),status=document.getElementById('settingsOfflinePinStatus'),button=document.getElementById('settingsOfflinePinButton');
+        if(!row||!status||!button)return;
+        const active=Boolean(window.rudiOfflinePin?.has(currentActor));
+        status.textContent=active?'Готов к работе без интернета (30 дней)':'Не настроен на этом iPhone';
+        button.textContent=active?'Обновить PIN':'Настроить';
+        button.disabled=Boolean(window.rudiOfflinePin?.isOffline());
+      }
 
       function refreshSettingsPageUi(){
         updateSettingsPlatform149();
         updateSettingsVersion();
         updatePwaInstallUi();
         updateSettingsFaceIdUi();
+        setupOfflinePinSettings();
         updateSettingsFaceIdIntervalUi();
         refreshSecuritySessions();
         setupExtendedSettings();
@@ -8828,7 +9269,7 @@
               const url=new URL(String(row.url||'/'),location.origin);
               if(url.origin===location.origin){
                 const value=String(url.searchParams.get('tab')||'').trim();
-                if(['home','feed','schedule','wishlist','photos','products','saves','smart-saves','score','messenger','fasting','dates','car'].includes(value))targetTab=value;
+                if(['home','feed','schedule','wishlist','photos','products','saves','smart-saves','score','messenger','fasting','car'].includes(value))targetTab=value;
                 targetItem=String(url.searchParams.get('item')||'').slice(0,120);
               }
             }catch(_){}
@@ -9214,7 +9655,7 @@
       }
 
       function renderActivityJournal(payload){
-        renderLulu(payload?.lulu);if(payload?.score)renderScoreStickers(payload.score);
+        renderLulu(payload?.lulu);void renderPendingLuluWalks();if(payload?.score)renderScoreStickers(payload.score);
         const items=(Array.isArray(payload?.items)?payload.items:[]).slice(0,80);
         homeDashboardState.activity=items;homeDashboardState.activityVersion=Math.max(0,Number(payload?.version||0));
         migrateLegacyActivitySeenMarker(items,homeDashboardState.activityVersion);
@@ -9468,9 +9909,9 @@
           const brain=document.getElementById('homeCycleBrain');
           const appetite=document.getElementById('homeCycleAppetite');
           if(status) status.textContent=word?'🌸 '+word:'';
-          if(advice) advice.textContent=dianaCycleDailyAdvice(cycleModel);
-          if(brain) brain.textContent=dianaCycleBrainNote(cycleModel);
-          if(appetite) appetite.textContent=dianaCycleAppetiteNote(cycleModel);
+          if(advice) advice.textContent=dianaCycleDailyAdvice(cycleModel,currentActor!=='Диана');
+          if(brain) brain.textContent=dianaCycleBrainNote(cycleModel,currentActor!=='Диана');
+          if(appetite) appetite.textContent=dianaCycleAppetiteNote(cycleModel,currentActor!=='Диана');
           cycle.hidden=!word;
           const open=document.getElementById('homeCycleOpen');
           if(open)open.hidden=currentActor!=='Диана';
@@ -9565,7 +10006,8 @@
         });
         document.getElementById('homeMessageNew')?.addEventListener('click',()=>openHomeQuickAction('message'));
         document.getElementById('luluWalkButton')?.addEventListener('click',markLuluWalk);
-        document.getElementById('luluWalkHistoryToggle')?.addEventListener('click',toggleLuluWalkHistory);
+        document.getElementById('luluWalkHistoryToggle')?.addEventListener('click',openLuluProfile);
+        document.getElementById('luluProfileAvatar')?.addEventListener('click',openLuluProfile);
         document.getElementById('homeCycleOpen')?.addEventListener('click',()=>{
           navigateToAppTab('schedule',{scroll:true});
           setTimeout(()=>document.getElementById('dianaCycleCard')?.scrollIntoView({behavior:'smooth',block:'center'}),160);
@@ -9895,21 +10337,6 @@
             '</section>'+
 
             '<section class="settings-group settings-contact-group">'+
-              '<div class="settings-group-title">Контакты</div>'+
-              '<label class="settings-contact-field" for="settingsTelegramUsername">'+
-                '<span>Telegram</span>'+
-                '<div class="settings-contact-input"><b>@</b><input id="settingsTelegramUsername" type="text" maxlength="32" autocomplete="off" inputmode="text" placeholder="username"></div>'+
-              '</label>'+
-              '<label class="settings-contact-field" for="settingsContactPhone">'+
-                '<span>Телефон</span>'+
-                '<div class="settings-contact-input"><input id="settingsContactPhone" type="tel" maxlength="20" autocomplete="tel" inputmode="tel" placeholder="+7 900 000-00-00"></div>'+
-              '</label>'+
-              '<div class="settings-contact-footer">'+
-                '<small id="settingsContactStatus" aria-live="polite"></small>'+
-              '</div>'+
-            '</section>'+
-
-            '<section class="settings-group settings-contact-group">'+
               '<div class="settings-group-title">Безопасность</div>'+
               '<label class="settings-contact-field"><span>Текущий PIN</span><div class="settings-contact-input"><input id="settingsCurrentPin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="••••••"></div></label>'+
               '<label class="settings-contact-field"><span>Новый PIN</span><div class="settings-contact-input"><input id="settingsNewPin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
@@ -10132,7 +10559,7 @@
             const actions=document.createElement('div');
             actions.className='profile-person-actions';
             // Fasting now lives on the partner's avatar, not beside Telegram.
-            actions.append(makeProfileContactButton('telegram',actor),makeProfileContactButton('phone',actor));
+
             head.appendChild(actions);
           }
           const energy=document.createElement('div');
@@ -10193,7 +10620,7 @@
         rhythmAdvice.style.setProperty('opacity','1','important');
         const currentRhythm=rustamRhythmStatus();
         const currentRecommendation=rustamRhythmRecommendation(currentRhythm);
-        rhythmAdvice.textContent=currentRecommendation?'Лучше сейчас: '+currentRecommendation:'';
+        rhythmAdvice.textContent=profileRhythmAdvice('Рустам',currentRecommendation);
         rhythmAdvice.hidden=!currentRecommendation;
         rustamCard.details.appendChild(rhythmAdvice);
 
@@ -10204,7 +10631,7 @@
         dianaRhythmAdvice.style.setProperty('-webkit-text-fill-color','#eef2ff','important');
         dianaRhythmAdvice.style.setProperty('opacity','1','important');
         const dianaRecommendation=dianaRhythmRecommendation(new Date(),dianaRhythmCycleModel);
-        dianaRhythmAdvice.textContent=dianaRecommendation?'Лучше сейчас: '+dianaRecommendation:'';
+        dianaRhythmAdvice.textContent=profileRhythmAdvice('Диана',dianaRecommendation);
         dianaRhythmAdvice.hidden=!dianaRecommendation;
         dianaCard.details.appendChild(dianaRhythmAdvice);
 
@@ -10283,8 +10710,8 @@
         luluTile.innerHTML=
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
-              '<img class="lulu-avatar" src="/lulu-normal.webp?v=2.118" alt="Лулу" width="58" height="58">'+
-              '<div class="lulu-copy"><h2><button id="luluWalkHistoryToggle" class="lulu-name lulu-name-button" type="button" aria-controls="luluWalkHistory" aria-expanded="false" aria-label="Лулу, показать историю прогулок">Лулу</button><span class="lulu-age">'+luluAgeLabel()+'</span></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет пока не отмечен</div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
+              '<button id="luluProfileAvatar" class="lulu-avatar-button" type="button" aria-label="Открыть профиль Лулу"><img class="lulu-avatar" src="/lulu-normal.webp?v=2.118" alt="Лулу" width="58" height="58"></button>'+
+              '<div class="lulu-copy"><h2><button id="luluWalkHistoryToggle" class="lulu-name lulu-name-button" type="button" aria-label="Открыть профиль Лулу">Лулу</button></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет пока не отмечен</div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
             '</div>'+
             '<div class="lulu-head-actions">'+
               '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
@@ -10293,7 +10720,7 @@
 
             '</div>'+
           '</div>'+
-          '<div id="luluWalkHistory" class="lulu-walk-history" aria-hidden="true"></div>';
+          '';
 
         const nearest=document.createElement('section');
         nearest.id='homeNearestBlock';
@@ -10314,6 +10741,8 @@
           if(title==='курсы'||title==='курсы валют')row.remove();
         });
         document.body.dataset.profileSplitReady='1';
+        homeSectionRenderSignatures.clear();
+        if(homeBootstrapPayload)applyHomeBootstrap(homeBootstrapPayload,{fromCache:!homeBootstrapLoadedAt});
         try{window.dispatchEvent(new CustomEvent('rudi:profile-ready'))}catch(_){}
         syncStaticProfileWorkStatus();
         setupHomeDashboardActions();
@@ -10408,9 +10837,46 @@
         host.appendChild(button);
       }
 
+      async function loadPartnerProfilePlans(actor){
+        const viewer=currentActor,today=todayState().key,months=[today.slice(0,7),calendarMonthShift(today,1).slice(0,7)];
+        const results=await Promise.all(months.map(async month=>{
+          const base={initData:telegramInitData(),backupToken:currentStateBackupToken,view:'month',month};
+          const [work,shared]=await Promise.allSettled([
+            actor==='Диана'?fetchCalendarJson('work-calendar:'+month,'/api/work-calendar',base,60000):Promise.resolve(null),
+            fetchCalendarJson('ticktick-calendar:'+month+':shared','/api/ticktick/calendar',{...base,scope:'shared'},60000)
+          ]);
+          return {work:work.status==='fulfilled'?work.value:null,shared:shared.status==='fulfilled'?shared.value:null};
+        }));
+        if(currentActor!==viewer)throw Error('actor-changed');
+        return {work:{configured:results.some(r=>r.work?.configured),days:results.flatMap(r=>r.work?.days||[])},shared:{connected:results.some(r=>r.shared?.connected!==false&&r.shared?.days),unavailable:results.some(r=>!r.shared||r.shared?.ok===false),days:results.flatMap(r=>r.shared?.days||[])}};
+      }
+
       function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,resetCollapsedOnInit=false,persist=true}){
         const section=document.querySelector(selector);
         if(!section||section.dataset.collapseReady==='1') return;
+        if(key.startsWith('profile-')&&section.querySelector('#partnerHeaderName')&&window.RudiPartnerProfile){
+          const actor=key==='profile-diana'?'Диана':'Рустам';
+          window.RudiPartnerProfile.bind(section,actor,{
+            loadFinances:async()=>{await loadHomePartnerLastExpense();return homeDashboardState.partnerFinance},
+            openStars:openScoreModal,
+            loadPlans:()=>loadPartnerProfilePlans(actor),
+            loadWishes:()=>wishlistRequest('list').then(data=>data.items||[]),
+            openWish:openWishlistUrl,
+            loadCbtStatus:async()=>{
+              const expectedActor=currentActor,controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
+              try{
+                const response=await fetch('/api/cbt',{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'partner-status',expectedActor,initData:tg?.initData||''})});
+                const data=await response.json();
+                if(!response.ok||!data.ok||data.actor!==expectedActor)throw Error('partner-cbt-unavailable');
+                return data;
+              }finally{clearTimeout(timeout)}
+            },
+            refreshBalance:()=>scoreRequest('state').then(data=>renderScoreStickers(data.score)).catch(()=>{}),
+            balance:()=>currentScoreState?Number(currentScoreState.balances?.[actor]||0):null
+          });
+          section.dataset.collapseReady='1';
+          return;
+        }
         const body=wrapCollapseBody(section,bodySelectors);
         const host=section.querySelector(hostSelector);
         if(!body||!host) return;
@@ -10420,7 +10886,7 @@
         const button=collapseButton('Свернуть или развернуть блок');
         addHeaderCollapseButton(section,host,button);
         const titleTrigger=key.startsWith('profile-')
-          ?host.querySelector('#displayName,#partnerHeaderName')
+          ?host.querySelector('#partnerHeaderName')
           :key==='smart-home'?host.querySelector('#smartHomeTitle')
           :key==='daily-question'?host.querySelector('#dailyQuestionTitle')
           :null;
@@ -10514,13 +10980,6 @@
           persist:false
         });
         setupPersistentCollapsible({
-          selector:'#smartHomeTile',key:'smart-home',
-          bodySelectors:['#smartHomeStatus','#smartHomeRooms','#smartHomeScenarios'],
-          hostSelector:'.smart-home-head',
-          defaultCollapsed:true,
-          resetCollapsedOnInit:true
-        });
-        setupPersistentCollapsible({
           selector:'#dailyQuestionTile',key:'daily-question',
           bodySelectors:['#dailyQuestionBody'],
           hostSelector:'.daily-question-head',
@@ -10599,6 +11058,8 @@
         root.dataset.theme=theme;
         root.dataset.themeMode=mode;
         root.style.colorScheme=theme;
+        root.style.backgroundColor=theme==='dark'?'#0b0d12':'#f4f5f7';
+        try{localStorage.setItem('rudi:theme-paint:v1',JSON.stringify({mode,theme}))}catch(_){}
         metaTheme?.setAttribute('content',theme==='dark'?'#0b0d12':'#f4f5f7');
         updateThemeSettingControls();
         if(!telegramOpen) return;
@@ -11566,6 +12027,9 @@
       const IPHONE_FACEID_GRANT_KEY_PREFIX='rudi:iphone:faceid-grant:v2:';
       let iphoneFaceIdGrant=null,iphoneFaceIdImmediateActor='',iphoneFaceIdTimer=null,iphoneFaceIdGuardPromise=null;
       function iphoneFaceIdActor(){
+        // Telegram has already authenticated the actor through app-auth.
+        // Keep the extra device lock for Safari/PWA only, including resume.
+        if(telegramInitData())return '';
         const actor=String(currentActor||'');
         return /iPhone/i.test(String(navigator?.userAgent||''))&&['Рустам','Диана'].includes(actor)?actor:'';
       }
@@ -11730,12 +12194,16 @@
             if(!/^\d{6}$/.test(value)){status.textContent='Введи PIN из 6 цифр.';return;}
             working=true;pinSubmit.disabled=true;status.textContent='Проверяю PIN…';
             try{
-              const response=await browserAuthRequest('login',{actor:lockedActor,pin:value});
-              if(String(response.actor||'')!==lockedActor)throw new Error('rudi-actor-mismatch');
+              if(window.rudiOfflinePin?.isOffline()){
+                await window.rudiOfflinePin.verify(lockedActor,value);
+              }else{
+                const response=await browserAuthRequest('login',{actor:lockedActor,pin:value});
+                if(String(response.actor||'')!==lockedActor)throw new Error('rudi-actor-mismatch');
+              }
               done();
             }catch(error){
               const message=String(error?.message||'');
-              status.textContent=message==='rudi-pin-rate-limited'
+              status.textContent=(message==='rudi-pin-rate-limited'||message==='offline-pin-locked')
                 ?'Слишком много попыток. Попробуй позже.'
                 :message==='rudi-pin-not-configured'
                   ?'PIN ещё не создан. Открой Руди через Telegram и создай PIN.'
@@ -11753,9 +12221,57 @@
           }else prepare();
         });
       }
+      // Offline iPhone access never accepts an identity without local PIN verification.
+      function showIphoneOfflinePinUnlock(){
+        return new Promise(resolve=>{
+          const actor=iphoneFaceIdActor(),verifier=window.rudiOfflinePin;
+          const available=Boolean(verifier?.has(actor));
+          setAuthGate('Вход без интернета',available
+            ?'Введи 6-значный PIN. Он проверяется на iPhone без сервера.'
+            :'PIN для офлайн-входа ещё не настроен. Подключи интернет и открой Настройки → Безопасность.');
+          const form=document.createElement('form');form.className='rudi-auth-form';
+          const status=document.createElement('div');status.className='rudi-auth-status';
+          const button=document.createElement('button');button.className='rudi-auth-submit';button.type='submit';
+          button.textContent=available?'Войти по PIN':'Повторить подключение';
+          const pin=available?pinInputNode():null;
+          if(pin)form.append(pin);
+          form.append(button,status);
+          document.querySelector('.app-gate-card')?.appendChild(form);
+          let busy=false;
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();if(busy)return;
+            if(!available){
+              if(navigator.onLine===false){status.textContent='Чтобы включить офлайн-вход, один раз нужен интернет.';return;}
+              delete document.body.dataset.offlineMode;
+              clearAuthGateForm();resolve(false);return;
+            }
+            const value=String(pin.value||'');
+            if(!/^\d{6}$/.test(value)){status.textContent='Введи PIN из 6 цифр.';return;}
+            busy=true;pin.disabled=true;button.disabled=true;status.textContent='Проверяю PIN…';
+            try{
+              await verifier.verify(actor,value);
+              grantIphoneFaceIdWindow(actor);
+              clearAuthGateForm();
+              document.body.classList.remove('auth-login');
+              document.body.classList.add('auth-pending');
+              resolve(true);
+            }catch(error){
+              const code=String(error?.message||'');
+              status.textContent=code==='offline-pin-locked'?'Слишком много попыток. Попробуй позже.':
+                code==='offline-pin-not-configured'?'Офлайн-PIN нужно настроить с интернетом.':'Неверный PIN.';
+              pin.value='';pin.disabled=false;button.disabled=false;pin.focus();
+            }finally{busy=false;}
+          });
+          pin?.focus();
+        });
+      }
       async function ensureIphoneFaceIdAccess(){
         if(!isProtectedIphoneAccount()||iphoneFaceIdDeadline())return true;
         while(!iphoneFaceIdDeadline()){
+          if(window.rudiOfflinePin?.isOffline()){
+            await showIphoneOfflinePinUnlock();
+            continue;
+          }
           if(!passkeySupported()){
             // No WebAuthn on this iPhone browser: require a verified Rustam PIN
             // instead of trapping the owner on an impossible Face ID setup.
@@ -11764,7 +12280,15 @@
           }
           let configured;
           try{configured=Boolean((await passkeyRequest('status')).configured)}
-          catch(error){await showIphoneFaceIdErrorRetry(error);continue;}
+          catch(error){
+            const isNetworkError=['AbortError','TypeError'].includes(String(error?.name||''))||
+              /network|fetch|load failed|timeout|aborted/i.test(String(error?.message||''));
+            if(isNetworkError){
+              document.body.dataset.offlineMode='1';
+              await showIphoneOfflinePinUnlock();
+            }else await showIphoneFaceIdErrorRetry(error);
+            continue;
+          }
           if(!configured){
             await showFaceIdSetup({mandatory:true});
             continue;
@@ -11813,7 +12337,7 @@
         document.body.classList.remove('auth-pending','auth-denied','auth-login');
         document.body.classList.add('auth-ok');
         if(isProtectedIphoneAccount())scheduleIphoneFaceIdExpiry();
-        if(!wasAuthenticated)try{window.dispatchEvent(new Event('rudi:auth-ready'))}catch(_){}
+        if(!wasAuthenticated&&document.body.dataset.rudiActor===currentActor&&document.body.dataset.profileSplitReady==='1')try{window.dispatchEvent(new Event('rudi:auth-ready'))}catch(_){}
         return true;
       }
 
@@ -11848,6 +12372,14 @@
           error.status=response.status;
           throw error;
         }
+        // A verifier is enrolled only after successful online server validation.
+        const pinActor=String(data.actor||currentActor||'');
+        const verifiedPin=operation==='login'?payload.pin:operation==='create-pin'?payload.pin:operation==='change-pin'?payload.newPin:'';
+        if(['Рустам','Диана'].includes(pinActor)&&verifiedPin&&/iPhone/i.test(String(navigator?.userAgent||''))){
+          try{await window.rudiOfflinePin?.enroll(pinActor,verifiedPin)}
+          catch(error){console.warn('RUDI_OFFLINE_PIN_ENROLL_WARN',String(error?.message||error))}
+        }
+        if(operation==='status'&&data.pinConfigured===false&&currentActor)window.rudiOfflinePin?.forget(currentActor);
         if(data.backupToken) await storeStateBackupToken(data.backupToken,backupContext);
         return data;
       }
@@ -12335,8 +12867,7 @@
         const amount=Number(row?.amount||0),category=String(row?.category||'').trim(),occurredAt=String(row?.occurredAt||'');
         if(!row||amount<=0||!occurredAt){node.hidden=true;node.textContent='';return}
         const meta=financeDateTimeLabel(occurredAt);
-        const shortDate=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'long'}).format(new Date(occurredAt));
-        node.textContent='💸 '+financeMoney(amount,row.currency||'RUB')+' · '+(category||'Расход')+' · '+shortDate+' · '+meta.time;
+        node.textContent='💸 '+financeMoney(amount,row.currency||'RUB')+' · '+(category||'Расход')+' · '+meta.time;
         node.hidden=false;
       }
 
@@ -12347,7 +12878,7 @@
         if(!summary||summary.date!==currentDate){node.hidden=true;node.textContent='';return}
         const done=Math.max(0,Math.round(Number(summary.done)||0));
         const total=Math.max(done,Math.round(Number(summary.total)||0));
-        node.textContent='🌱 Привычки сегодня: '+done+' из '+total;
+        node.textContent='🌱 Привычки: '+done+' из '+total;
         node.hidden=false;
       }
 
@@ -12360,10 +12891,14 @@
         if(homePartnerExpensePromise)return homePartnerExpensePromise;
         homePartnerExpensePromise=(async()=>{
           try{
+            const expectedActor=currentActor;
             const data=await financeRequest('partner-last-expense');
+            if(currentActor!==expectedActor||data.actor!==expectedActor)return null;
+            homeDashboardState.partnerFinance=data;
             homeDashboardState.partnerLastExpense=data?.expense||null;
             homePartnerExpenseLoadedAt=Date.now();
             renderHomePartnerLastExpense(homeDashboardState.partnerLastExpense);
+            window.RudiPartnerProfile?.refreshFinance?.(data);
             return homeDashboardState.partnerLastExpense;
           }catch(error){
             console.warn('RUDI_PARTNER_EXPENSE_WARN',String(error?.message||error));
@@ -12381,6 +12916,8 @@
         homeBootstrapLoadedAt=fromCache?0:Date.now();
         homeBootstrapLoadedDay=fromCache?'':todayState().key;
         homeBootstrapActor=currentActor;
+        // Preserve early snapshots, but do not mark sections rendered before their DOM exists.
+        if(document.body.dataset.profileSplitReady!=='1')return true;
         if(home.activity&&homeBootstrapSectionChanged('activity',home.activity))renderActivityJournal(home.activity);
         if(home.mood&&homeBootstrapSectionChanged('mood',home.mood)){
           currentMoodDateKey=String(home.mood?.date||todayState().key);
@@ -12431,6 +12968,7 @@
           if(!homeBootstrapPayload||window.rudiHomeOffline.isOffline()){
             homeBootstrapHashes=null;
             applyHomeBootstrap(snapshot.home,{fromCache:true});
+            void renderPendingLuluWalks();
           }
           window.rudiHomeOffline.showCachedStatus(snapshot.savedAt);
           return snapshot;
@@ -12500,7 +13038,7 @@
 
       let homeReconnectPromise=null,lastHomeReconnectAt=0;
       function reconnectHome({force=false}={}){
-        if(!currentActor||!appAccessReady||navigator.onLine===false)return Promise.resolve(false);
+        if(!currentActor||!appAccessReady)return Promise.resolve(false);
         if(homeReconnectPromise)return homeReconnectPromise;
         if(!force&&Date.now()-lastHomeReconnectAt<12000)return Promise.resolve(false);
         lastHomeReconnectAt=Date.now();
@@ -12512,10 +13050,11 @@
             const response=await fetch('/version.json?homeReconnect='+Date.now(),{
               cache:'no-store',signal:controller.signal
             });
-            connected=Boolean(response?.ok);
+            connected=Boolean(response?.ok&&response.headers?.get?.('X-RUDI-Offline')!=='1');
           }catch(_){connected=false}
           finally{clearTimeout(timer)}
           if(!connected)return false;
+          window.__rudiNetworkReachable=true;
           document.body.dataset.offlineMode='0';
           window.dispatchEvent(new CustomEvent('rudi-home-network-recovered'));
           // Never discard IndexedDB, and let the existing outboxes flush first.
@@ -12553,6 +13092,21 @@
         if(appAccessReady&&currentAppTab==='home'&&document.visibilityState==='visible'&&
           window.rudiHomeOffline?.isOffline?.())reconnectHome();
       },15000);
+
+      let unlockHomeRefreshPromise=null;
+      function refreshHomeAfterUnlock(){
+        if(!currentActor||!appAccessReady||!document.body.classList.contains('auth-ok')||
+          document.body.dataset.rudiActor!==currentActor||document.body.dataset.profileSplitReady!=='1')return Promise.resolve(false);
+        if(unlockHomeRefreshPromise)return unlockHomeRefreshPromise;
+        homeSectionRenderSignatures.clear();
+        syncStaticProfileWorkStatus();
+        unlockHomeRefreshPromise=Promise.allSettled([
+          Promise.resolve().then(()=>ensureHomeBootstrap()),
+          Promise.resolve().then(()=>window.RudiSupplementApp?.loadHomeTools?.({force:false}))
+        ]).finally(()=>{unlockHomeRefreshPromise=null});
+        return unlockHomeRefreshPromise;
+      }
+      window.addEventListener('rudi:auth-ready',()=>{void refreshHomeAfterUnlock()});
 
       async function ensureHomeBootstrap({force=false}={}){
         if(window.rudiHomeOffline?.isOffline?.())return loadHomeBootstrap({force:true});
@@ -12708,6 +13262,7 @@
         }
         if(!currentActor) return false;
         window.rudiHomeOffline?.init(currentActor);
+        window.rudiOfflineTransactions?.init(currentActor,()=>telegramInitData());
         restoreHomeFromDisk().catch(()=>{});
         window.rudiCalendarOffline?.init(currentActor)
           .then(()=>flushCalendarOffline()).catch(error=>console.warn('RUDI_CALENDAR_OFFLINE_INIT_WARN',String(error?.message||error)));
@@ -12718,7 +13273,8 @@
               .catch(error=>console.warn('RUDI_PUSH_RESYNC_WARN',String(error?.message||error)));
           },0);
         }
-        if(telegramInitData()) await ensureTelegramPin();
+        if(isProtectedIphoneAccount()&&window.rudiOfflinePin?.isOffline())clearIphoneFaceIdWindow();
+        // PIN enrollment is optional; never interrupt a Telegram launch for it.
         if(isProtectedIphoneAccount())await ensureIphoneFaceIdAccess();
         appAccessReady=true;
         showAuthenticatedApp();
@@ -12914,6 +13470,12 @@
 
       function updateClock(){
         const now=new Date();
+        const completionDay=todayState().key;
+        if(completionPolicyDay&&completionPolicyDay!==completionDay&&currentActor){
+          if(currentAppTab==='schedule')void loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true});
+          if(currentAppTab==='home'||currentAppTab==='schedule')void loadTickTickNext({preserveExpanded:true,force:true});
+        }
+        completionPolicyDay=completionDay;
         const weekdayRaw=new Intl.DateTimeFormat('ru-RU',{weekday:'long',timeZone:TZ}).format(now);
         const weekday=weekdayRaw.charAt(0).toLocaleUpperCase('ru-RU')+weekdayRaw.slice(1);
         const date=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:TZ}).format(now);
@@ -13122,19 +13684,21 @@
 
       function dianaPeriodDateKeys(cfg){
         const source=cfg&&typeof cfg==='object'?cfg:{};
+        if(source.enabled===false) return new Set();
         const length=Math.max(1,Math.min(10,Math.round(Number(source.periodLengthDays)||5)));
-        const starts=(Array.isArray(source.historyStarts)?source.historyStarts:[])
-          .map(parseCycleDate).filter(Number.isFinite).sort((a,b)=>a-b);
-        const latest=starts.length?starts[starts.length-1]:null;
-        const explicitEnd=parseCycleDate(source.lastPeriodEnd);
         const todayUtc=todayState().utc;
+        const starts=(Array.isArray(source.historyStarts)?source.historyStarts:[])
+          .map(parseCycleDate).filter(value=>Number.isFinite(value)&&value<=todayUtc).sort((a,b)=>a-b);
+        const latest=starts.length?starts[starts.length-1]:null;
+        const model=dianaCycleModel(source);
         const keys=new Set();
         for(const start of starts){
-          // Only recorded cycles, never predicted dates. A recorded end shortens the latest one.
-          const last=Number.isFinite(explicitEnd)&&start===latest&&explicitEnd>=start
-            ?Math.min(start+(length-1)*DAY,explicitEnd)
+          // A recorded start marks its full range, including remaining days of the current period.
+          // Match the cycle model's end; never mark the next unconfirmed cycle.
+          const last=start===latest&&Number.isFinite(model.periodEnd)
+            ?model.periodEnd
             :start+(length-1)*DAY;
-          for(let date=start;date<=last&&date<=todayUtc;date+=DAY){
+          for(let date=start;date<=last;date+=DAY){
             keys.add(new Date(date).toISOString().slice(0,10));
           }
         }
@@ -13147,11 +13711,19 @@
         document.querySelectorAll('#workCalendarDays .calendar-day-cell[data-date]').forEach(cell=>{
           const active=keys.has(String(cell.dataset.date||''));
           const existing=cell.querySelector('.calendar-period-dot');
+          let indicators=cell.querySelector('.calendar-day-indicators');
+          if(active&&!indicators){
+            indicators=document.createElement('span');
+            indicators.className='calendar-day-indicators';
+            cell.appendChild(indicators);
+          }
           if(active&&!existing){
             const dot=document.createElement('span');
             dot.className='calendar-period-dot';
             dot.setAttribute('aria-hidden','true');
-            cell.appendChild(dot);
+            indicators.appendChild(dot);
+          }else if(active&&existing&&existing.parentElement!==indicators){
+            indicators.appendChild(existing);
           }else if(!active&&existing){
             existing.remove();
           }
@@ -13562,6 +14134,7 @@
 
       async function toggleTickTickChecklistItem(task,item,row,writable){
         if(!task?.id||!item?.id||row?.dataset?.busy==='1') return;
+        if(!item.completed&&blockFutureTaskCompletion(task,'ticktickBadge'))return;
         if(writable===false){
           showTickTickWritePermission();
           try{tg?.HapticFeedback?.notificationOccurred?.('warning')}catch(_){}
@@ -13579,7 +14152,7 @@
         const previousMeta=meta?.textContent||'';
         if(meta){
           meta.hidden=false;
-          meta.textContent='Сохраняю в TickTick…';
+          meta.textContent='Сохраняю в RUDI…';
         }
 
         try{
@@ -13647,7 +14220,8 @@
           const row=document.createElement('button');
           row.type='button';
           row.className='ticktick-check-item'+(item.completed?' done':'');
-          row.disabled=!item?.id||!task?.id;
+          row.disabled=!item?.id||!task?.id||(!item.completed&&taskCompletionIsFuture(task));
+          if(!item.completed&&taskCompletionIsFuture(task))row.title=window.RUDITaskCompletionPolicy.MESSAGE;
           row.setAttribute('aria-pressed',item.completed?'true':'false');
           row.setAttribute('aria-label',(item.completed?'Снять отметку: ':'Отметить: ')+item.title);
 
@@ -13893,6 +14467,7 @@
           const restored=await requestTickTickTaskCompletionUndo(undoToken);
           if(!restored?.ok)throw new Error(restored?.error||'ticktick-task-undo-failed');
           recentlyCompletedTickTickTaskIds.delete(String(task?.id||''));
+          recentlyCompletedTickTickTaskIds.delete(task.id+'|'+String(task.date||''));
           if(restored?.score){
             acceptScoreState(restored.score);
             document.dispatchEvent(new CustomEvent('rudi:score-updated',{detail:{score:restored.score}}));
@@ -13903,22 +14478,25 @@
 
       let calendarReachabilityAt=0,calendarReachabilityOk=true;
       async function calendarNetworkUnavailable(forceProbe=false){
-        if(navigator.onLine===false)return true;
-        if(!forceProbe&&(window.rudiCalendarOffline?.isOffline?.()||
-          document.body.dataset.offlineMode==='1'))return true;
         if(!forceProbe&&calendarReachabilityAt&&Date.now()-calendarReachabilityAt<4000)return !calendarReachabilityOk;
+        // The UI's offline flag is not proof of network failure.
+        // Recheck a real uncached endpoint, including when iOS navigator.onLine is stale.
         const controller=new AbortController();
         const timer=setTimeout(()=>controller.abort(),1600);
         try{
           const response=await fetch('/version.json?calendarProbe='+Date.now(),{
             method:'GET',cache:'no-store',signal:controller.signal
           });
-          calendarReachabilityOk=response.ok;
-          if(calendarReachabilityOk&&document.body.dataset.offlineMode==='1'){
-            document.body.dataset.offlineMode='';
+          calendarReachabilityOk=Boolean(response.ok&&response.headers?.get?.('X-RUDI-Offline')!=='1');
+          if(calendarReachabilityOk){
+            window.__rudiNetworkReachable=true;
+            document.body.dataset.offlineMode='0';
+            if(typeof window.dispatchEvent==='function')
+              window.dispatchEvent(new CustomEvent('rudi-calendar-network-recovered'));
           }
         }catch(_){
           calendarReachabilityOk=false;
+          window.__rudiNetworkReachable=false;
           document.body.dataset.offlineMode='1';
         }finally{
           clearTimeout(timer);calendarReachabilityAt=Date.now();
@@ -13926,14 +14504,15 @@
         return !calendarReachabilityOk;
       }
       async function queueCalendarWhenOffline(kind,details){
-        if(!await calendarNetworkUnavailable())return null;
+        if(!await calendarNetworkUnavailable(true))return null;
         if(!window.rudiCalendarOffline)throw new Error('calendar-offline-unavailable');
         return window.rudiCalendarOffline.enqueue(currentActor,kind,details);
       }
-      async function requestTickTickTaskCompletion(taskId){
+      async function requestTickTickTaskCompletion(taskId,task={id:taskId}){
         const id=String(taskId||'').trim();
         if(!id) throw new Error('ticktick-task-complete-invalid');
-        const queued=await queueCalendarWhenOffline('complete',{taskId:id});
+        window.RUDITaskCompletionPolicy?.assertTaskCompletionAllowed(task);
+        const queued=await queueCalendarWhenOffline('complete',{taskId:id,task});
         if(queued)return queued;
         return managedJsonRequest('ticktick-task-complete:'+id,'/api/ticktick/task-complete',{
           body:{initData:tg?.initData||'',backupToken:currentStateBackupToken,taskId:id},
@@ -13943,6 +14522,7 @@
       }
 
       async function requestPersonalTickTickTaskCompletion(task){
+        window.RUDITaskCompletionPolicy?.assertTaskCompletionAllowed(task);
         const taskId=String(task?.id||'').trim();
         const projectId=String(task?.projectId||'').trim();
         if(task?.privateLocal===true&&currentActor==='Диана'){
@@ -13963,6 +14543,7 @@
       }
 
       async function requestTickTickTaskCreate(value){
+        value={...value,clientId:value?.clientId||(window.crypto?.randomUUID?.()||String(Date.now())+Math.random().toString(36).slice(2))};
         const queued=await queueCalendarWhenOffline('create',{value});
         if(queued)return queued;
         return managedJsonRequest('ticktick-task-create','/api/ticktick/task-create',{
@@ -13970,12 +14551,14 @@
             initData:telegramInitData(),
             backupToken:currentStateBackupToken,
             title:String(value?.title||'').trim(),
+            clientId:String(value?.clientId||'').trim(),
             date:String(value?.date||'').trim(),
             time:String(value?.time||'').trim(),
+            endTime:String(value?.endTime||'').trim(),
             responsible:String(value?.responsible||'').trim(),
             description:String(value?.description||'').trim(),
             repeat:String(value?.repeat||'none').trim(),
-            repeatCount:Number(value?.repeatCount||1)
+            repeatCount:Number(value?.repeatCount??0),repeatDays:Array.isArray(value?.repeatDays)?value.repeatDays:[]
           },
           ttlMs:0,
           timeoutMs:12000
@@ -13990,9 +14573,9 @@
         return managedJsonRequest('ticktick-task-update:'+id,'/api/ticktick/task-update',{
           body:{initData:telegramInitData(),backupToken:currentStateBackupToken,taskId:id,
             title:String(value?.title||'').trim(),date:String(value?.date||'').trim(),
-            time:String(value?.time||'').trim(),responsible:String(value?.responsible||'').trim(),
+            time:String(value?.time||'').trim(),endTime:String(value?.endTime||'').trim(),responsible:String(value?.responsible||'').trim(),
             description:String(value?.description||'').trim(),repeat:String(value?.repeat||'none'),
-            repeatCount:Number(value?.repeatCount||1),preserveRepeat:value?.preserveRepeat===true},
+            repeatCount:Number(value?.repeatCount??0),repeatDays:Array.isArray(value?.repeatDays)?value.repeatDays:[],preserveRepeat:value?.preserveRepeat===true},
           ttlMs:0,timeoutMs:12000
         });
       }
@@ -14075,24 +14658,38 @@
           }));
         }catch(error){console.warn('RUDI_CALENDAR_OFFLINE_FLUSH_WARN',String(error?.message||error));return null}
       }
+      let lastCalendarQueueReport='';
+      window.addEventListener('rudi-calendar-queue',event=>{
+        const state=event.detail;
+        if(currentActor!=='Рустам'||state?.actor!==currentActor||!state?.issues?.length||window.rudiCalendarOffline?.isOffline?.())return;
+        // Only operation types/error codes, never task names, IDs or credentials.
+        const issues=state.issues.slice(0,20),signature=JSON.stringify(issues);
+        if(signature===lastCalendarQueueReport)return;
+        lastCalendarQueueReport=signature;
+        fetch('/api/partner-message?ticktickAction=personal-task-state',{
+          method:'POST',headers:{'Content-Type':'application/json'},cache:'no-store',
+          body:JSON.stringify({initData:telegramInitData(),operation:'queue-report',issues})
+        }).catch(()=>{});
+      });
       // iOS can restore connectivity without emitting the browser "online" event.
       // Recheck the server from the calendar itself; never require an app restart.
       let reconnectCalendarPromise=null,lastReconnectAttemptAt=0;
       function reconnectCalendar({force=false}={}){
-        if(!currentActor||!appAccessReady||navigator.onLine===false)return Promise.resolve(false);
+        if(!currentActor||!appAccessReady)return Promise.resolve(false);
         if(reconnectCalendarPromise)return reconnectCalendarPromise;
         if(!force&&Date.now()-lastReconnectAttemptAt<5000)return Promise.resolve(false);
         lastReconnectAttemptAt=Date.now();
         reconnectCalendarPromise=(async()=>{
           calendarReachabilityAt=0;
           if(await calendarNetworkUnavailable(true))return false;
-          window.dispatchEvent(new CustomEvent('rudi-calendar-network-recovered'));
           // Clearing the stale flag is not enough: flush the local queue
           // and re-read TickTick, keeping all queued rows until acknowledged.
           const synced=await flushCalendarOffline();
           if(currentAppTab==='schedule'&&!synced?.sent){
             await loadWorkCalendar(currentWorkCalendarView,{silent:true,force:true});
           }
+          if(typeof window.dispatchEvent==='function')
+            window.dispatchEvent(new CustomEvent('rudi-calendar-network-recovered'));
           return true;
         })().catch(error=>{
           console.warn('RUDI_CALENDAR_RECONNECT_WARN',String(error?.message||error));
@@ -14145,7 +14742,9 @@
       }
 
       async function completeCalendarTickTickTask(task,row,button,writable){
-        if(!task?.id||task.completed||task.externalCalendar||row?.dataset?.busy==='1') return;
+        if(task?.completed){await reopenCalendarTask(task,row,button);return;}
+        if(!task?.id||task.externalCalendar||row?.dataset?.busy==='1') return;
+        if(blockFutureTaskCompletion(task,'workCalendarStatus'))return;
         if(!tickTickTaskCanComplete(task)||(task?.personal===true&&currentActor!=='Рустам'&&!(task.privateLocal===true&&currentActor==='Диана'))){
           const status=document.getElementById('workCalendarStatus');
           status.hidden=false;
@@ -14166,7 +14765,7 @@
         try{
           const payload=task?.personal===true
             ?await requestPersonalTickTickTaskCompletion(task)
-            :await requestTickTickTaskCompletion(task.id);
+            :await requestTickTickTaskCompletion(task.id,task);
           if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
           if(payload?.score){
             acceptScoreState(payload.score);
@@ -14178,20 +14777,44 @@
           playCalendarConfetti();
           try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
           await new Promise(resolve=>setTimeout(resolve,300));
-          if(row.isConnected) row.remove();
+          task.completed=true;task.canComplete=false;task.canEdit=false;task.canReopen=true;
+          row.classList.add('is-completed');
+          button.setAttribute('aria-label','Вернуть в активные: '+String(task.title||'Дело'));
           // Keep Undo available immediately, even if TickTick refresh is slow or down.
           showTickTickCompletionUndo(task,payload);
           await refreshAfterTickTickTaskChange({preserveExpanded:false});
         }catch(error){
           const status=document.getElementById('workCalendarStatus');
           status.hidden=false;
-          status.textContent=(Number(error?.status)===401||Number(error?.status)===403)?'Нужно разрешение TickTick':'Ошибка TickTick';
+          status.textContent=String(error?.message||'').includes('task-completion-future-forbidden')?window.RUDITaskCompletionPolicy.MESSAGE:(Number(error?.status)===401||Number(error?.status)===403)?'Нужно разрешение TickTick':'Ошибка TickTick';
           try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
         }finally{
           row.dataset.busy='0';
           row.classList.remove('is-completing');
-          if(row.isConnected) button.disabled=false;
+          if(row.isConnected) button.disabled=task.completed?!calendarTaskCanReopen(task):false;
         }
+      }
+
+      function calendarTaskCanReopen(task){return Boolean(task?.completed&&!task.externalCalendar&&(task.personal?(currentActor==='Рустам'||currentActor==='Диана'&&task.privateLocal):task.canReopen===true));}
+      async function reopenCalendarTask(task,row,button){
+        if(!calendarTaskCanReopen(task)||row?.dataset?.busy==='1')return;
+        row.dataset.busy='1';button.disabled=true;
+        try{
+          const details={operation:'reopen',taskId:task.id,projectId:task.projectId||'',date:task.date,task};
+          const kind=task.privateLocal?'diana-reopen':task.personal?'personal-reopen':'reopen';
+          const queued=await queueCalendarWhenOffline(kind,details);
+          if(!queued){
+            const payload=await managedJsonRequest('calendar-task-reopen:'+task.id,'/api/partner-message?ticktickAction='+(task.personal?'personal-task-edit':'task-reopen'),{body:{initData:telegramInitData(),backupToken:currentStateBackupToken,operation:'reopen',taskId:task.id,projectId:task.projectId||'',date:task.date},ttlMs:0,timeoutMs:12000});
+            if(!payload?.ok)throw new Error(payload?.error||'calendar-task-reopen');
+          }
+          task.completed=false;task.canComplete=true;task.canEdit=true;
+          delete task.completedAt;delete task.expiresAt;
+          recentlyCompletedTickTickTaskIds.delete(String(task.id));recentlyCompletedTickTickTaskIds.delete(task.id+'|'+String(task.date||''));
+          row.classList.remove('is-completed');button.textContent='';button.setAttribute('aria-checked','false');button.setAttribute('aria-label','Отметить выполненным: '+task.title);
+          if(queued){void flushCalendarOffline();return;}
+          await refreshAfterTickTickTaskChange({preserveExpanded:true});
+        }catch(_){const status=document.getElementById('workCalendarStatus');status.hidden=false;status.textContent='Не удалось вернуть дело в активные. Попробуй ещё раз.';}
+        finally{delete row.dataset.busy;button.disabled=false;}
       }
 
       async function completeTickTickTodayTask(task,row,button,writable){
@@ -14206,6 +14829,7 @@
         }
         if(task?.personal===true)return completeCalendarTickTickTask(task,row,button,writable);
         if(!task?.id||row?.dataset?.busy==='1') return;
+        if(blockFutureTaskCompletion(task,'ticktickBadge'))return;
         if(!tickTickTaskCanComplete(task)){
           const badge=document.getElementById('ticktickBadge');
           badge.hidden=false;
@@ -14222,7 +14846,7 @@
         row.classList.add('syncing');
         button.disabled=true;
         try{
-          const payload=await requestTickTickTaskCompletion(task.id);
+          const payload=await requestTickTickTaskCompletion(task.id,task);
           if(!payload?.ok) throw new Error(payload?.error||'ticktick-task-complete');
           if(payload?.score){
             acceptScoreState(payload.score);
@@ -14284,6 +14908,8 @@
           .sort((a,b)=>String(a.startTime||'99:99').localeCompare(String(b.startTime||'99:99')));
         return {ok:true,configured:true,connected:true,enabled:true,writable:true,date:personal?.date||shared?.date||todayState().key,
           tomorrowDate:personal?.tomorrowDate||shared?.tomorrowDate||calendarDateShift(todayState().key,1),
+          offlinePending:Number(personal?.offlinePending||0)+Number(shared?.offlinePending||0),
+          offlineNeedsReview:Number(personal?.offlineNeedsReview||0)+Number(shared?.offlineNeedsReview||0),
           agendaPartial:!personal||!shared,offlineStale:!!(personal?.offlineStale||shared?.offlineStale),tasks:merge('tasks'),tomorrowTasks:merge('tomorrowTasks')};
       }
       async function cachedHomeAgenda(actor,scope){
@@ -14308,6 +14934,8 @@
         const days=snapshots.filter(Boolean).flatMap(payload=>payload.ticktickDays||[]);
         const forDay=key=>homeAgendaTasks(days.filter(day=>day.date===key).flatMap(day=>(day.events||[]).map(task=>({...task,date:key}))),actor,scope);
         return {ok:true,configured:true,connected:true,enabled:true,writable:true,offlineStale:true,date,tomorrowDate,
+          offlinePending:Math.max(0,...snapshots.map(payload=>Number(payload?.offlinePending||0))),
+          offlineNeedsReview:Math.max(0,...snapshots.map(payload=>Number(payload?.offlineNeedsReview||0))),
           tasks:forDay(date),tomorrowTasks:forDay(tomorrowDate),agendaActor:actor,agendaScope:scope};
       }
       async function setHomeAgendaScope(scope){
@@ -14426,9 +15054,11 @@
           :todayTasks;
         homeDashboardState.tasks=todayTasks;
         renderHomeDashboard();
+        const syncPending=Number(payload?.offlinePending||0);
+        const syncLabel=syncPending?'Синхронизация · '+syncPending:'';
         if(!tasks.length){
-          title.textContent=payload?.agendaLoading?'Загружаю дела…':payload?.agendaPartial?'Часть календарей недоступна':sharedAgendaSelectedDay==='tomorrow'?'Завтра дел нет':'Сегодня дел нет';
-          badge.hidden=!payload?.offlineStale;badge.textContent=payload?.offlineStale?'Офлайн':'';
+          title.textContent=payload?.agendaLoading?'Загружаю дела…':syncPending?'Изменения ожидают синхронизации':payload?.agendaPartial?'Часть календарей недоступна':sharedAgendaSelectedDay==='tomorrow'?'Завтра дел нет':'Сегодня дел нет';
+          badge.hidden=!payload?.offlineStale&&!syncPending;badge.textContent=syncLabel||(payload?.offlineStale?'Офлайн':'');
           if(payload?.writable===false&&!payload?.personalUnavailable) showTickTickWritePermission();
           return;
         }
@@ -14436,7 +15066,7 @@
         title.hidden=true;list.hidden=false;
         panel.classList.add('is-list-visible');
         badge.hidden=false;
-        badge.textContent=(tasks.length===1?'1 дело':(tasks.length<5?tasks.length+' дела':tasks.length+' дел'))+(payload?.agendaPartial?' · Часть данных недоступна':'');
+        badge.textContent=syncLabel||((tasks.length===1?'1 дело':(tasks.length<5?tasks.length+' дела':tasks.length+' дел'))+(payload?.agendaPartial?' · Часть данных недоступна':''));
         let reopenTask=null;
 
         for(const task of tasks){
@@ -14464,7 +15094,9 @@
           complete.setAttribute('aria-label',canComplete
             ?(task.financeObligation?'Отметить оплаченным: ':'Отметить выполненным: ')+String(task?.title||'Дело')
             :'Эта задача назначена другому участнику');
-          complete.disabled=!canComplete||(!task.financeObligation&&payload?.writable===false);
+          const futureCompletion=!task.financeObligation&&taskCompletionIsFuture(task);
+          complete.disabled=futureCompletion||!canComplete||(!task.financeObligation&&payload?.writable===false);
+          if(futureCompletion)complete.setAttribute('aria-label',window.RUDITaskCompletionPolicy.MESSAGE);
           const agendaAvatars=ownerLabel==='Диана'?['Д']:ownerLabel==='Рустам'?['Р']:['Р','Д'];
           complete.classList.toggle('is-shared-avatar',agendaAvatars.length>1);
           complete.replaceChildren(...agendaAvatars.map(name=>{
@@ -14481,6 +15113,7 @@
             return avatar;
           }));
           complete.title=canComplete?(task.financeObligation?'Отметить оплаченным':'Отметить выполненным'):ownerLabel;
+          if(futureCompletion)complete.title=window.RUDITaskCompletionPolicy.MESSAGE;
           complete.addEventListener('click',event=>{
             event.stopPropagation();
             completeTickTickTodayTask(task,row,complete,(task.financeObligation===true||payload?.writable!==false)&&task.agendaWritable!==false);
@@ -14501,9 +15134,14 @@
           const taskTitle=document.createElement('div');
           taskTitle.className='ticktick-today-title';
           taskTitle.textContent=String(task?.title||'Дело');
+          if(task.financeObligation&&!taskTitle.textContent.startsWith('💵'))taskTitle.textContent='💵 '+taskTitle.textContent;
           const meta=document.createElement('div');
           meta.className='ticktick-today-meta';
           meta.textContent=task.financeObligation?'Счёт на оплату · '+financeOverviewMoney(task.amount):task.externalCalendar?'iCloud · только просмотр':ownerLabel;
+          if(task.personal!==true&&!task.financeObligation&&!task.externalCalendar){
+            meta.classList.add('ticktick-today-reward');
+            meta.textContent='+2 ⭐ за выполнение';
+          }
           meta.hidden=!meta.textContent;
           copy.append(taskTitle,meta);
           const placeText=String(task?.location||'').trim();
@@ -14598,9 +15236,12 @@
         const titleInput=document.getElementById('ticktickTaskTitleInput');
         const dateInput=document.getElementById('ticktickTaskDateInput');
         const timeInput=document.getElementById('ticktickTaskTimeInput');
+        const endTimeInput=document.getElementById('ticktickTaskEndTimeInput');
         const responsibleInput=document.getElementById('ticktickTaskResponsibleInput');
         const descriptionInput=document.getElementById('ticktickTaskDescriptionInput');
         const repeatInput=document.getElementById('ticktickTaskRepeatInput');
+        const repeatDaysField=document.getElementById('ticktickTaskRepeatDaysField');
+        const getRepeatDays=()=>[...(repeatDaysField?.querySelectorAll('input:checked')||[])].map(i=>Number(i.value)).sort((a,b)=>a-b);
         const repeatCountField=document.getElementById('ticktickTaskRepeatCountField');
         const repeatCountInput=document.getElementById('ticktickTaskRepeatCountInput');
         const save=document.getElementById('ticktickTaskSaveButton');
@@ -14614,7 +15255,8 @@
         const syncRepeat=()=>{
           const repeating=String(repeatInput?.value||'none')!=='none';
           if(repeatCountField) repeatCountField.hidden=!repeating;
-          if(repeatCountInput) repeatCountInput.required=repeating;
+          if(repeatCountInput) repeatCountInput.required=false;
+          if(repeatDaysField)repeatDaysField.hidden=repeatInput?.value!=='custom';
         };
         const close=()=>{
           editingTask=null;
@@ -14631,12 +15273,15 @@
           const chosenDate=/^\d{4}-\d{2}-\d{2}$/.test(String(date))?date:currentDateTime.date;
           if(dateInput)dateInput.value=editingTask?.date||chosenDate;
           if(timeInput)timeInput.value=editingTask?(editingTask.allDay?'':String(editingTask.startTime||'')):(time||currentDateTime.time);
-          syncRudiTemporalControl(dateInput);syncRudiTemporalControl(timeInput);
+          if(endTimeInput)endTimeInput.value=editingTask?(editingTask.allDay?'':String(editingTask.endTime||'')):'';
+          syncRudiTemporalControl(dateInput);syncRudiTemporalControl(timeInput);syncRudiTemporalControl(endTimeInput);
           if(titleInput)titleInput.value=editingTask?.title||'';
           if(responsibleInput)responsibleInput.value=editingTask?.responsible||'';
           if(descriptionInput)descriptionInput.value=editingTask?.description||'';
           if(repeatInput)repeatInput.value=editingTask?.repeat||'none';
-          if(repeatCountInput)repeatCountInput.value=String(editingTask?.repeatCount||1);
+          const selectedDays=Array.isArray(editingTask?.repeatDays)?editingTask.repeatDays:[];
+          repeatDaysField?.querySelectorAll('input').forEach(checkbox=>checkbox.checked=selectedDays.includes(Number(checkbox.value)));
+          if(repeatCountInput)repeatCountInput.value=editingTask?.repeatCount?String(editingTask.repeatCount):'';
           if(heading)heading.textContent=editingTask?'Редактировать дело':'Новое дело';
           if(save)save.textContent=editingTask?'Сохранить':'Добавить';
           if(deleteButton){
@@ -14697,16 +15342,23 @@
           const date=String(dateInput?.value||currentDateTime.date).trim();
           const time=editingTask?String(timeInput?.value||'').trim():String(timeInput?.value||currentDateTime.time).trim();
           if(!title||!date) return;
+          const endTime=String(endTimeInput?.value||'').trim();
+          if(endTime&&(!time||endTime<=time)){
+            if(status)status.textContent='Окончание должно быть позже начала.';
+            endTimeInput?.focus();return;
+          }
           const repeating=String(repeatInput?.value||'none')!=='none';
-          const repeatCount=repeating?Math.max(1,Math.min(365,Math.round(Number(repeatCountInput?.value)||1))):1;
+          const repeatDays=getRepeatDays();
+          if(repeatInput?.value==='custom'&&!repeatDays.length){if(status)status.textContent='Выбери хотя бы один день недели.';return;}
+          const repeatCount=repeating?Math.max(0,Math.min(365,Math.round(Number(repeatCountInput?.value)||0))):0;
           if(save) save.disabled=true;
           if(status) status.textContent=editingTask?'Сохраняю…':'Добавляю…';
           const editedId=editingTask?.id||'';
           try{
-            const data={title,date,time,responsible:String(responsibleInput?.value||'').trim(),
-              description:String(descriptionInput?.value||'').trim(),repeat:String(repeatInput?.value||'none'),repeatCount,
-              preserveRepeat:Boolean(editingTask&&String(repeatInput?.value||'none')===String(editingTask.repeat||'none')
-                &&(!repeating||repeatCount===Math.max(1,Math.min(365,Math.round(Number(editingTask.repeatCount)||1)))))};
+            const data={title,date,time,endTime,responsible:String(responsibleInput?.value||'').trim(),
+              description:String(descriptionInput?.value||'').trim(),repeat:String(repeatInput?.value||'none'),repeatCount,repeatDays,
+              preserveRepeat:Boolean(editingTask&&(repeatInput?.value!=='custom'||JSON.stringify(repeatDays)===JSON.stringify([...(editingTask.repeatDays||[])].sort((a,b)=>a-b)))&&String(repeatInput?.value||'none')===String(editingTask.repeat||'none')
+                &&(!repeating||repeatCount===Math.max(0,Math.min(365,Math.round(Number(editingTask.repeatCount)||0)))))};
             const payload=editedId?await requestTickTickTaskUpdate(editedId,data,editingTask):await requestTickTickTaskCreate(data);
             if(!payload?.ok) throw new Error(payload?.error||(editedId?'ticktick-task-update':'ticktick-task-create'));
             close();
@@ -14715,7 +15367,7 @@
           }catch(error){
             if(status){
               const code=String(error?.message||'');
-              status.textContent=code.includes('permission')?'Нужно заново разрешить запись в TickTick':(editedId?'Не удалось сохранить изменения':'Не удалось добавить задачу');
+              status.textContent=code.includes('time-range')?'Окончание должно быть позже начала.':(editedId?'Не удалось сохранить изменения':'Не удалось добавить задачу');
             }
             try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
           }finally{
@@ -14738,13 +15390,27 @@
         }
         if(force) invalidateManagedRequests('ticktick-today');
         try{
+          // Display durable edits immediately, before waiting for TickTick.
+          if(window.rudiCalendarOffline?.hasPendingSync?.()){
+            const local=await cachedHomeAgenda(agendaActor,agendaScope).catch(()=>null);
+            if(local&&stillCurrent())renderTickTickTodayState(local,{preserveExpanded});
+          }
           const fetchScope=async scope=>{
             const payload=await managedJsonRequest(scope==='shared'?'ticktick-today':'ticktick-today:personal:'+agendaActor,'/api/ticktick/today',{
               body:{initData:telegramInitData(),backupToken:currentStateBackupToken,...(scope==='personal'?{scope:'personal'}:{})},
               ttlMs:2*60*1000,timeoutMs:7000
             });
+            if(payload?.personalUnavailable===true){
+              const previous=await cachedHomeAgenda(agendaActor,scope).catch(()=>null);
+              if(previous){
+                const retain=key=>[...(previous[key]||[]).filter(task=>!task.financeObligation),...(payload[key]||[])];
+                return {...payload,offlineStale:true,agendaPartial:true,tasks:retain('tasks'),tomorrowTasks:retain('tomorrowTasks')};
+              }
+              return payload;
+            }
             if(stillCurrent())await window.rudiCalendarOffline?.captureAgenda?.(agendaActor,scope,payload).catch(()=>{});
-            return payload;
+            const store=window.rudiCalendarOffline;
+            return store?.materializeAgenda?store.materializeAgenda(agendaActor,scope,payload):payload;
           };
           let payload;
           if(agendaScope==='combined'){
@@ -14780,7 +15446,7 @@
           }
           const title=document.getElementById('ticktickTitle');
           const list=document.getElementById('ticktickTodayList');
-          title.hidden=false;title.textContent='Не удалось обновить TickTick.';
+          title.hidden=false;title.textContent='Не удалось обновить дела.';
           list.hidden=true;list.replaceChildren();
           const badge=document.getElementById('ticktickBadge');
           badge.hidden=false;badge.textContent='Ошибка';
@@ -15110,11 +15776,15 @@
       }
 
       let calendarConnectionsRefreshPromise=null;
-      function closeCalendarConnections(){
+      function closeCalendarConnections({navigation=true}={}){
         const modal=document.getElementById('calendarConnectionsModal');
         if(!modal)return;
         modal.hidden=true;modal.setAttribute('aria-hidden','true');
         document.body.classList.remove('calendar-connections-open');
+        if(navigation&&new URLSearchParams(window.location.search).get('item')==='calendar-settings'){
+          if(Number(history.state?.rudiNavDepth||0)>0)window.history.back();
+          else updateAppRoute('schedule',{replace:true});
+        }
       }
       async function refreshCalendarConnections(){
         if(calendarConnectionsRefreshPromise)return calendarConnectionsRefreshPromise;
@@ -15130,13 +15800,13 @@
           calendarPersonalTickTickConnected=currentActor==='Рустам'&&data.personalConnected===true;
           calendarUpdateCreateButtons();
           const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value};
-          const sharedButton=document.getElementById('calendarSharedTickTickConnect');
-          if(sharedButton)sharedButton.hidden=currentActor!=='Рустам';
+          const sharedRow=document.getElementById('calendarSharedTickTickRow');
+          if(sharedRow)sharedRow.hidden=data.sharedNativeReady===true||currentActor!=='Рустам';
+          set('calendarSharedTickTickStatus',data.sharedConnected?'Источник подключён':'Нужно подключить источник');
+          set('calendarSharedTickTickConnect',data.sharedConnected?'Переподключить':'Подключить');
           set('calendarPersonalTickTickStatus',data.personalConnected?'Подключён':'Не подключён');
-          set('calendarSharedTickTickStatus',data.sharedConnected?'Подключён':'Не подключён');
           set('calendarWorkCalendarStatus',data.dianaWorkConnected?'Подключён':'Не подключён');
           set('calendarPersonalTickTickConnect',data.personalConnected?'Переподключить':'Подключить');
-          set('calendarSharedTickTickConnect',data.sharedConnected?'Переподключить':'Подключить');
           const work=document.getElementById('calendarWorkCalendarSetup');
           if(work)work.hidden=Boolean(data.dianaWorkConnected);
           return data;
@@ -15144,9 +15814,10 @@
           .finally(()=>{calendarConnectionsRefreshPromise=null});
         return calendarConnectionsRefreshPromise;
       }
-      function openCalendarConnections(){
+      function openCalendarConnections({fromRoute=false}={}){
         const modal=document.getElementById('calendarConnectionsModal');
         if(!modal)return;
+        if(!fromRoute)updateAppRoute('schedule',{item:'calendar-settings'});
         modal.hidden=false;modal.setAttribute('aria-hidden','false');
         document.body.classList.add('calendar-connections-open');
         const personalRow=document.getElementById('calendarPersonalTickTickRow');
@@ -15162,9 +15833,9 @@
         const gear=document.getElementById('calendarConnectionsGear');
         if(!gear||gear.dataset.bound==='1')return;
         gear.dataset.bound='1';
-        gear.addEventListener('click',openCalendarConnections);
+        gear.addEventListener('click',()=>openCalendarConnections());
         document.getElementById('calendarConnectionsClose')?.addEventListener('click',closeCalendarConnections);
-        document.getElementById('calendarConnectionsBackdrop')?.addEventListener('click',closeCalendarConnections);
+        document.getElementById('calendarConnectionsBackdrop')?.addEventListener('click',()=>closeCalendarConnections());
         document.addEventListener('keydown',event=>{
           if(event.key==='Escape'&&!document.getElementById('calendarConnectionsModal')?.hidden)closeCalendarConnections();
         });
@@ -15187,6 +15858,8 @@
             button.disabled=false;
           }
         };
+        if(routeFromLocation().tab==='schedule'&&routeFromLocation().item==='calendar-settings')
+          queueMicrotask(()=>openCalendarConnections({fromRoute:true}));
         const personal=document.getElementById('calendarPersonalTickTickConnect');
         const shared=document.getElementById('calendarSharedTickTickConnect');
         personal?.addEventListener('click',()=>connectTickTick('personal',personal));
@@ -15511,10 +16184,22 @@
           return false;
         }
       }
+      function calendarOverdueTaskCount(date,tasks,today){
+        if(!date||date>=today)return 0;
+        return (Array.isArray(tasks)?tasks:[]).filter(task=>task&&!task.completed&&!task.externalCalendar).length;
+      }
+      function appendCalendarOverdueMarker(cell,count){
+        if(!count)return;
+        const marker=document.createElement('span');
+        marker.className='calendar-overdue-count';
+        marker.textContent=String(count);
+        marker.setAttribute('aria-hidden','true');
+        cell.appendChild(marker);
+      }
       function workCalendarRenderSignature(payload){
         try{
           return JSON.stringify({
-            view:String(payload?.view||'month'),scope:calendarScope,mode:calendarDisplayMode,cursor:calendarDateCursor,
+            view:String(payload?.view||'month'),scope:calendarScope,mode:calendarDisplayMode,cursor:calendarDateCursor,today:todayState().key,
             stale:Boolean(payload?.stale),ticktickUnavailable:Boolean(payload?.ticktickUnavailable),icloudUnavailable:Boolean(payload?.icloudUnavailable),
             days:Array.isArray(payload?.days)?payload.days:[],
             ticktickDays:Array.isArray(payload?.ticktickDays)?payload.ticktickDays:[],
@@ -15615,8 +16300,8 @@
         const maxStart=Math.max(0,Math.floor((1440-duration)/15)*15);
         const timeLabel=minutes=>String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0');
         const HOLD_MS=420;
-        let gesture=null,holdTimer=null,longOpenTimer=null,busy=false,suppressClickUntil=0;
-        const clearHold=()=>{if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null}if(longOpenTimer!==null){clearTimeout(longOpenTimer);longOpenTimer=null}};
+        let gesture=null,holdTimer=null,busy=false,suppressClickUntil=0;
+        const clearHold=()=>{if(holdTimer!==null){clearTimeout(holdTimer);holdTimer=null}};
         const restorePreview=()=>{
           block.style.top=originalTop;
           stamp.textContent=originalTime;
@@ -15640,27 +16325,13 @@
             block.classList.add('is-dragging');
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           },HOLD_MS);
-          // Stationary hold opens the exact TickTick task; moving retains time-drag.
-          if(task.personal===true&&calendarScope==='personal'&&currentActor==='Рустам'&&calendarTickTickTaskWebUrl(task)){
-            longOpenTimer=setTimeout(()=>{
-              longOpenTimer=null;
-              const g=gesture;
-              if(!g||g.id!==pointerEvent.pointerId||g.scrolling||g.changed)return;
-              if(calendarOpenPersonalTickTickTask(task)){
-                suppressClickUntil=Date.now()+1300;
-                gesture=null;clearHold();restorePreview();
-                try{block.releasePointerCapture(g.id)}catch(_){}
-                try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-              }
-            },700);
-          }
+
         });
         block.addEventListener('pointermove',pointerEvent=>{
           const g=gesture;
           if(!g||g.id!==pointerEvent.pointerId)return;
           const movedY=pointerEvent.clientY-g.startY;
           const movedX=pointerEvent.clientX-g.startX;
-          if(Math.hypot(movedX,movedY)>10&&longOpenTimer!==null){clearTimeout(longOpenTimer);longOpenTimer=null}
           if(!g.dragging){
             if(Math.abs(movedY)>8||Math.abs(movedX)>8){
               clearHold();
@@ -15816,11 +16487,11 @@
         panel.setAttribute('aria-label','Расписание на '+dateKey);
         const allDayItems=[];
         const timed=[];
-        const put=(kind,title,startTime,endTime,task=null)=>{
+        const put=(kind,title,startTime,endTime,task=null,amount='')=>{
           const start=calendarAgendaMinutes(startTime);
           const finish=calendarAgendaMinutes(endTime);
           if(start===null){
-            allDayItems.push({kind,title,task});
+            allDayItems.push({kind,title,task,amount});
           }else{
             timed.push({kind,title,task,start,end:finish!==null&&finish>start?finish:Math.min(start+45,1440)});
           }
@@ -15829,12 +16500,12 @@
           if(!task)return;
           row.classList.add('calendar-agenda-task');
           const isPersonal=task.personal===true;
-          const writable=isPersonal?task.canComplete!==false:sharedWritable;
+          const writable=Boolean(task.supplementId)||calendarTaskCanReopen(task)||(isPersonal?task.canComplete!==false:sharedWritable);
           const allowed=task.supplementId
             ?task.date===todayState().key
-            :isPersonal
+            :calendarTaskCanReopen(task)||(isPersonal
             ?(currentActor==='Рустам'||task.privateLocal===true&&currentActor==='Диана')&&task.canComplete!==false
-            :tickTickTaskCanComplete(task);
+            :tickTickTaskCanComplete(task));
           const checkbox=document.createElement('button');
           checkbox.type='button';
           checkbox.className='calendar-agenda-task-checkbox';
@@ -15842,9 +16513,12 @@
           checkbox.setAttribute('aria-checked',task.completed?'true':'false');
           if(task.completed){row.classList.add('is-completed');checkbox.textContent='✓'}
           checkbox.setAttribute('aria-label','Отметить выполненным: '+String(task.title||'Дело'));
+          const futureCompletion=taskCompletionIsFuture(task,dateKey);
           checkbox.disabled=task.supplementId
             ?task.date!==todayState().key
-            :Boolean(task.completed)||!task.id||!writable||!allowed;
+            :task.completed?!calendarTaskCanReopen(task):futureCompletion||!task.id||!writable||!allowed;
+          if(!task.supplementId&&calendarTaskCanReopen(task))checkbox.setAttribute('aria-label','Вернуть в активные: '+String(task.title||'Дело'));
+          if(!task.supplementId&&futureCompletion){checkbox.title=window.RUDITaskCompletionPolicy.MESSAGE;checkbox.setAttribute('aria-label',checkbox.title);}
           checkbox.addEventListener('click',event=>{
             event.stopPropagation();
             if(task.supplementId){void calendarToggleSupplement(task,checkbox);return}
@@ -15876,7 +16550,7 @@
           }
         };
         // Weekly timeline shows tasks, shifts and obligations; holidays remain in month view.
-        for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':''),'','');
+        for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':''),'','',null,financeOverviewMoney(entry.amount));
         for(const item of tasks)put(item.supplementId?'supplement':'task',String(item.title||'Задача'),item.allDay?'':item.startTime,item.endTime,item);
         if(calendarScope==='shared'||currentActor==='Диана'){
           for(const event of workEvents){
@@ -15899,6 +16573,12 @@
             const title=document.createElement('span');
             title.textContent=item.title;
             pill.appendChild(title);
+            if(item.kind==='payment'){
+              const amount=document.createElement('small');
+              amount.className='calendar-obligation-amount';
+              amount.textContent=item.amount;
+              pill.appendChild(amount);
+            }
             const ownerLabel=calendarSharedTaskOwnerLabel(item.task);
             if(ownerLabel){
               const owner=document.createElement('small');
@@ -15951,7 +16631,7 @@
             block.appendChild(owner);
           }
           attachCompletion(block,event.task);
-          // Keep the existing vertical time drag; long hold with no movement opens TickTick.
+          // Keep vertical drag for normal tasks; supplements are read-only time slots.
           if(!event.task?.supplementId)calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable);
           track.appendChild(block);
         }
@@ -16090,6 +16770,7 @@
             // Each occurrence gets the day shown on its calendar card.
             .map(event=>({...event,date:String(day.date)}))
             .concat(calendarSupplementDayEntries(String(day.date)));
+          const overdueCount=calendarOverdueTaskCount(day.date,tasks,today);
           const holidays=(Array.isArray(holidayDays.get(String(day.date))?.items)?holidayDays.get(String(day.date)).items:[])
             .slice(0,5)
             .filter(Boolean);
@@ -16106,6 +16787,7 @@
             (calendarScope==='shared'&&payload?.workReady&&!day.working?' diana-day-off':'')+
             ([0,6].includes(date.getUTCDay())?' calendar-weekend':'')+
             (tasks.length?' has-tasks':'')+
+            (overdueCount?' has-overdue-tasks':'')+
             (holidays.length?' has-holidays':'')+
 
             (day.date===today?' today':'');
@@ -16113,6 +16795,7 @@
             calendarScope==='shared'||currentActor==='Диана'?(day.working?timeText:'Выходной'):'Личный календарь',
             tasks.length?tasks.map(event=>event.title).filter(Boolean).join(' · '):'',
             holidays.length?holidays.join(' · '):'',
+            overdueCount?'Просроченных дел: '+overdueCount:'',
             obligations.length?obligations.map(row=>String(row.title||'Платёж')+(row.paid?' ✓':'')).join(' · '):''
           ].filter(Boolean).join(' · ');
           cell.title=tooltip;
@@ -16121,6 +16804,7 @@
             (calendarScope==='shared'||currentActor==='Диана'?(day.working?'Работа ':'Выходной '):'Дата ')+
             new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+
             (tasks.length?', дел: '+tasks.length:'')+
+            (overdueCount?', просроченных дел: '+overdueCount:'')+
             (holidays.length?', праздников: '+holidays.length:'')+
             (unpaidObligations.length?', неоплаченных обязательных расходов: '+unpaidObligations.length:'')
           );
@@ -16137,6 +16821,7 @@
           number.textContent=String(date.getUTCDate());
           cell.appendChild(number);
 
+          appendCalendarOverdueMarker(cell,overdueCount);
           if(tasks.length||unpaidObligations.length){
             const indicators=document.createElement('span');
             indicators.className='calendar-day-indicators';
@@ -16239,8 +16924,13 @@
                 complete.setAttribute('aria-label',canComplete
                   ?'Отметить выполненным: '+String(event.title||'Дело')
                   :isPersonalTask?'Недостаточно прав для выполнения личной задачи':'Эта задача назначена другому участнику');
-                const taskWritable=event.supplementId?true:isPersonalTask?event?.canComplete!==false:payload?.ticktickWritable!==false;
-                complete.disabled=(Boolean(event.completed)&&!event.supplementId)||!event?.id||!taskWritable||!canComplete;
+                const taskWritable=event.supplementId?true:calendarTaskCanReopen(event)||(isPersonalTask?event?.canComplete!==false:payload?.ticktickWritable!==false);
+                const futureCompletion=taskCompletionIsFuture(event,day.date);
+                complete.disabled=event.supplementId
+                  ?event.date!==todayState().key
+                  :event.completed?!calendarTaskCanReopen(event):futureCompletion||!event?.id||!taskWritable||!canComplete;
+                if(!event.supplementId&&calendarTaskCanReopen(event))complete.setAttribute('aria-label','Вернуть в активные: '+String(event.title||'Дело'));
+                if(!event.supplementId&&futureCompletion){complete.title=window.RUDITaskCompletionPolicy.MESSAGE;complete.setAttribute('aria-label',complete.title);}
 
                 const taskCopy=document.createElement('button');
                 taskCopy.type='button';
@@ -16346,7 +17036,8 @@
             if(details.childElementCount) selected.appendChild(details);
             selected.classList.toggle('calendar-week-view',calendarDisplayMode==='week');
             selected.classList.toggle('is-off',!day.working);
-            selected.hidden=calendarScope==='personal'&&calendarDisplayMode!=='week'&&details.childElementCount===0;
+            void window.RUDI_WEATHER_FORECAST?.renderCalendarDay(selected,day.date);
+            selected.hidden=false;
             if(!selected.hidden)restartRudiMotion(selected,'rudi-data-refresh',360);
             if(withHaptic){
               try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
@@ -16397,7 +17088,7 @@
         const requested='month',month=monthOverride||calendarActiveMonth();
         const offlineStore=window.rudiCalendarOffline;
         const offlineScope=calendarScope;
-        if(offlineStore?.isOffline?.()){
+        if(offlineStore?.isOffline?.()&&await calendarNetworkUnavailable(true)){
           const local=await offlineStore.cached(currentActor,offlineScope,month).catch(()=>null);
           if(local)return offlineStore.materialize(currentActor,month,local,offlineScope);
           return {configured:true,view:requested,days:[],ticktickDays:[],holidayDays:[],
@@ -16510,6 +17201,7 @@
         if(force){
           invalidateManagedRequests('ticktick-calendar:'+calendarActiveMonth()+':'+sourceScope);
           calendarViewLoadedAt.delete(key);
+          calendarCombinedPending.clear();
         }
         let offlineSnapshot=null;
         const offlineStore=window.rudiCalendarOffline;
@@ -16522,9 +17214,8 @@
             }
           }
         }
-        if(offlineStore?.isOffline?.()){
-          // Render cached data immediately, then probe connectivity asynchronously.
-          // iOS sometimes fails to dispatch the "online" event after airplane mode.
+        if(offlineStore?.isOffline?.()&&await calendarNetworkUnavailable(true)){
+          // Keep the cached calendar visible while actually disconnected.
           reconnectCalendar();
           if(offlineSnapshot)return offlineSnapshot;
           if(cached){
@@ -16642,14 +17333,16 @@
           const events=(Array.isArray(day.events)?day.events:[])
             .filter(event=>event?.completed||!tickTickTaskRecentlyCompleted(event?.id+'|'+String(day.date||'')));
           const hasEvents=events.length>0;
+          const overdueCount=calendarOverdueTaskCount(day.date,events,today);
           const cell=document.createElement('button');
           cell.type='button';
-          cell.className='calendar-day-cell shared-day-cell'+(hasEvents?' shared-event':'')+(day.date===today?' today':'');
+          cell.className='calendar-day-cell shared-day-cell'+(hasEvents?' shared-event':'')+(overdueCount?' has-overdue-tasks':'')+(day.date===today?' today':'');
           cell.title=hasEvents?events.map(event=>event.title).join(' · '):'Совместных дел нет';
           cell.setAttribute(
             'aria-label',
             new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'long',timeZone:'UTC'}).format(date)+
-            (hasEvents?', '+events.length+' совместных дел':' — совместных дел нет')
+            (hasEvents?', '+events.length+' совместных дел':' — совместных дел нет')+
+            (overdueCount?', просроченных дел: '+overdueCount:'')
           );
 
           const number=document.createElement('span');
@@ -16657,6 +17350,7 @@
           number.textContent=String(date.getUTCDate());
           cell.appendChild(number);
 
+          appendCalendarOverdueMarker(cell,overdueCount);
           if(hasEvents){
             const dot=document.createElement('span');
             dot.className='calendar-work-dot';
@@ -16698,6 +17392,7 @@
 
             copy.append(heading,info);
             selected.replaceChildren(icon,copy);
+            void window.RUDI_WEATHER_FORECAST?.renderCalendarDay(selected,day.date);
             selected.hidden=false;
             restartRudiMotion(selected,'rudi-data-refresh',360);
             if(withHaptic){
@@ -17204,7 +17899,19 @@
           return Number.isFinite(time)&&Number.isFinite(todayMs)&&todayMs-time>=7*DAY;
         });
         if(!candidates.length) return null;
-        return candidates[sharedAlbumHash(todayKey)%candidates.length]||null;
+        // Walk a stable shuffled deck one slot per Moscow calendar day.
+        // Hashing each date independently can pick the same photo repeatedly
+        // before other memories ever receive a turn.
+        const byId=new Map();
+        for(const photo of candidates){
+          const key=String(photo.id||photo.originalUrl||photo.fullUrl||photo.url||'').trim().split(/[?#]/)[0];
+          if(key&&!byId.has(key))byId.set(key,photo);
+        }
+        const deck=[...byId.entries()].sort(([a],[b])=>
+          sharedAlbumHash('memory:'+a)-sharedAlbumHash('memory:'+b)||(a<b?-1:a>b?1:0));
+        if(!deck.length)return null;
+        const dayNumber=Math.floor(todayMs/DAY);
+        return deck[((dayNumber%deck.length)+deck.length)%deck.length]?.[1]||null;
       }
 
       function sharedAlbumPeriodWord(value,one,few,many){
@@ -17679,6 +18386,14 @@
       }
 
       function setupWishlist(){
+        window.RudiWishlist={
+          list:async()=>{const data=await wishlistRequest('list');renderWishlist(data);return data.items||[];},
+          add:async(text,url)=>{const data=await wishlistRequest('add',{text,url});renderWishlist(data);return data.items||[];},
+          remove:async id=>{const data=await wishlistRequest('remove',{id});renderWishlist(data);return data.items||[];},
+          toggle:async id=>{const data=await wishlistRequest('toggle',{id});renderWishlist(data);if(data.score)renderScoreStickers(data.score);else scoreRequest('state').then(result=>renderScoreStickers(result.score)).catch(()=>{});return data.items||[];},
+          open:openWishlistUrl
+        };
+
         const form=document.getElementById('wishlistForm');
         const input=document.getElementById('wishlistInput');
         const urlInput=document.getElementById('wishlistUrl');
@@ -18408,7 +19123,8 @@
         boredom:{emoji:'🥱',label:'Скука'},
         neutral:{emoji:'😐',label:'Нейтрально'},
         fatigue:{emoji:'😩',label:'Усталость'},
-        anger:{emoji:'😡',label:'Злость'},
+        anger:{emoji:'😡',label:'Гнев'},
+        anxiety:{emoji:'😨',label:'Страх'},
         joy:{emoji:'😄',label:'Радость'},
         love:{emoji:'🥰',label:'Любовь'}
       };
@@ -18420,14 +19136,33 @@
       function setMoodChoicesOpen(open){
         const choices=document.getElementById('moodChoices');
         const trigger=document.getElementById('moodCurrentButton');
-        if(!choices||!trigger)return;
+        if(!trigger)return;
         const next=Boolean(open);
-        choices.hidden=!next;
-        choices.classList.toggle('is-open',next);
+        if(choices){choices.hidden=true;choices.classList.remove('is-open')}
         trigger.setAttribute('aria-expanded',next?'true':'false');
         trigger.classList.toggle('is-open',next);
         const prompt=document.getElementById('moodPrompt');
         if(prompt)prompt.hidden=next||Boolean(trigger.dataset.mood);
+        if(!next){window.RudiMoodPicker?.close();return}
+        window.RudiMoodPicker?.open({
+          onClose(){trigger.setAttribute('aria-expanded','false');trigger.classList.remove('is-open');if(prompt)prompt.hidden=Boolean(trigger.dataset.mood)},
+          onAnalyze(){window.RUDI_MOOD_HISTORY?.open?.()},
+          async onSave(draft){
+            const {mood,...extra}=draft;
+            try{
+              const payload=await moodRequest('set',mood,extra);
+              renderDailyMood(payload);
+            }catch(error){
+              if(!error?.rudiQueued)throw error;
+              const previous=homeDashboardState.moods||homeBootstrapPayload?.mood||{};
+              const sample={...draft,updatedAt:new Date().toISOString()};
+              renderDailyMood({...previous,date:todayState().key,mine:{...sample,samples:[...(previous.mine?.samples||[]),sample]}});
+            }
+            showMoodMessage(mood);
+            setTimeout(()=>loadActivityJournal({silent:true}),180);
+            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
+          }
+        });
       }
 
       let moodReasonTimer=0;
@@ -18519,8 +19254,7 @@
             event.preventDefault();
             event.stopPropagation();
             if(moodLongPressActivated){moodLongPressActivated=false;return;}
-            const choices=document.getElementById('moodChoices');
-            setMoodChoicesOpen(Boolean(choices?.hidden));
+            setMoodChoicesOpen(!window.RudiMoodPicker?.isOpen());
             try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
           });
         }
@@ -18539,45 +19273,9 @@
           prompt.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')openPicker(event)});
         }
 
-        moodButtons().forEach(button=>{
-          if(button.dataset.moodPickerBound==='1')return;
-          button.dataset.moodPickerBound='1';
-          button.addEventListener('click',async(event)=>{
-            event.preventDefault();
-            event.stopPropagation();
-            const mood=button.dataset.mood;
-            const buttons=moodButtons();
-            buttons.forEach(item=>item.disabled=true);
-            selectOwnMood(mood);
-            setMoodChoicesOpen(false);
-            showMoodMessage(mood);
-            try{
-              const payload=await moodRequest('set',mood);
-              renderDailyMood(payload);
-              showMoodReasonPrompt();
-              setTimeout(()=>loadActivityJournal({silent:true}),180);
-              try{
-                if(mood==='joy'||mood==='love') tg?.HapticFeedback?.notificationOccurred?.('success');
-                else tg?.HapticFeedback?.selectionChanged?.();
-              }catch(_){}
-            }catch(error){
-              if(error?.rudiQueued){
-                const previous=homeDashboardState.moods||homeBootstrapPayload?.mood||{};
-                const optimistic={...previous,date:todayState().key,mine:{...(previous.mine||{}),mood}};
-                renderDailyMood(optimistic);
-                showMoodReasonPrompt();
-              }else{
-                await refreshDailyMood();
-                try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-              }
-            }finally{
-              buttons.forEach(item=>item.disabled=false);
-            }
-          });
-        });
       }
 
-      function selectOwnMood(value){
+      function selectOwnMood(value,entry=null){
         const mood=String(value||'');
         const meta=MOOD_META[mood]||null;
         const trigger=document.getElementById('moodCurrentButton');
@@ -18588,7 +19286,7 @@
           trigger.hidden=false;
           trigger.classList.toggle('is-empty',!meta);
           trigger.setAttribute('aria-label',meta?'Текущее настроение: '+meta.label+'. Изменить':'Выбрать настроение');
-          trigger.title=meta?.label||'Выбрать настроение';
+          trigger.title=[meta?.label,entry?.submood].filter(Boolean).join(' · ')||'Выбрать настроение';
         }
         moodButtons().forEach(button=>{
           const selected=button.dataset.mood===mood;
@@ -18621,7 +19319,8 @@
         const meta=MOOD_REASON_META[reason];
         const reasonLabel=reason==='other'?reasonText:(meta?(meta[0]+' '+meta[1]):'');
         const mood=String(latest?.mood||entry?.mood||moodValue||'');
-        const label=reasonLabel||MOOD_META[mood==='fear'?'boredom':mood]?.label||'';
+        const subtype=String(latest?.submood||entry?.submood||'').trim();
+        const label=subtype?[subtype,reasonLabel].filter(Boolean).join(' · '):(reasonLabel||MOOD_META[mood==='fear'?'boredom':mood]?.label||'');
         const stamp=String(latest?.updatedAt||entry?.updatedAt||'').trim();
         const timestamp=stamp?new Date(stamp):null;
         const time=timestamp&&Number.isFinite(timestamp.getTime())?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(timestamp):'';
@@ -18665,7 +19364,7 @@
         const mood=String(value||'');
         const normalizedMood=mood==='fear'?'boredom':mood;
         const visiblePartner=partnerProfileName||partner||'Партнёр';
-        const hasMood=['sadness','boredom','neutral','fatigue','anger','joy','love'].includes(normalizedMood);
+        const hasMood=['sadness','boredom','neutral','fatigue','anger','anxiety','joy','love'].includes(normalizedMood);
         if(label) label.textContent='';
         holder.dataset.mood=normalizedMood;
         holder.dataset.moodReasonText=partnerMoodReasonText(entry,normalizedMood);
@@ -18680,7 +19379,7 @@
         holder.setAttribute(
           'aria-label',
           visiblePartner+': '+(
-            mood==='sadness'?'грусть':(mood==='boredom'||mood==='fear')?'скука':mood==='neutral'?'нейтрально':mood==='fatigue'?'усталость':mood==='anger'?'злость':mood==='joy'?'радость':mood==='love'?'любовь':'настроение ещё не выбрано'
+            mood==='sadness'?'грусть':(mood==='boredom'||mood==='fear')?'скука':mood==='neutral'?'нейтрально':mood==='fatigue'?'усталость':mood==='anger'?'гнев':mood==='anxiety'?'страх':mood==='joy'?'радость':mood==='love'?'любовь':'настроение ещё не выбрано'
           )+'. Нажмите, чтобы увидеть подробности.'
         );
         if(holder.dataset.moodReasonBound!=='1'){
@@ -18694,7 +19393,7 @@
         homeDashboardState.moods=payload||null;
         const mine=String(payload?.mine?.mood||'');
         const partnerMood=String(payload?.partnerMood?.mood||'');
-        selectOwnMood(mine);
+        selectOwnMood(mine,payload?.mine);
         renderPartnerMood(partnerMood,String(payload?.partner||''),payload?.partnerMood);
         renderHomeDashboard();
         window.dispatchEvent(new Event('rudi:mood-updated'));
@@ -19673,19 +20372,36 @@
       }
 
       async function productsRequest(operation,payload={}){
+        const request=async(epoch)=>{
+          const data=window.rudiOfflineTransactions
+            ?await window.rudiOfflineTransactions.request('products',operation,payload,next=>
+               executeProductsRequest(operation,next||payload,epoch))
+            :await executeProductsRequest(operation,payload,epoch);
+          if(data&&typeof data==='object'){
+            data.__clientProductsOperation=operation;
+            data.__clientProductsEpoch=epoch;
+          }
+          return data;
+        };
         if(operation==='list'){
           const clientEpoch=productsMutationEpoch;
           await productsMutationChain.catch(()=>{});
-          return executeProductsRequest(operation,payload,clientEpoch);
+          return request(clientEpoch);
         }
         const clientEpoch=++productsMutationEpoch;
         const task=productsMutationChain.then(
-          ()=>executeProductsRequest(operation,payload,clientEpoch),
-          ()=>executeProductsRequest(operation,payload,clientEpoch)
+          ()=>request(clientEpoch),()=>request(clientEpoch)
         );
         productsMutationChain=task.then(()=>undefined,()=>undefined);
         return task;
       }
+
+      window.addEventListener('rudi-transactions-updated',event=>{
+        if(event.detail?.actor!==currentActor)return;
+        if(!event.detail?.synced&&!event.detail?.error)return;
+        if(event.detail.area==='products'&&currentAppTab==='products')void loadProducts({silent:true});
+        if(event.detail.area==='finances'&&currentAppTab==='finances')void loadFinances({silent:true});
+      });
 
       function setProductsBadge(count){
         const badge=document.getElementById('productsTabBadge');
@@ -19726,16 +20442,86 @@
         const byDay=new Map();
         for(const item of Array.isArray(history)?history:[]){
           const day=productBoughtDay(item);
-          let group=byDay.get(day.key);
+          const purchase=item?.purchase&&Number(item.purchase.amount)>0?item.purchase:null;
+          const key=purchase?.id?'purchase-'+purchase.id:day.key;
+          let group=byDay.get(key);
           if(!group){
-            group={key:day.key,label:day.label,items:[]};
-            byDay.set(day.key,group);
+            group={key:day.key,label:day.label,items:[],purchase};
+            byDay.set(key,group);
             groups.push(group);
           }
           const text=String(item?.text||'').trim();
           if(text) group.items.push(text);
         }
         return groups;
+      }
+
+      function productPurchaseMoney(amount,currency='RUB'){
+        return new Intl.NumberFormat('ru-RU',{style:'currency',currency,maximumFractionDigits:currency==='RUB'?2:8}).format(Number(amount));
+      }
+
+      function renderProductHistoryMonths(historyList,history){
+        const monthNames=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+        const months=new Map();
+        const days=groupProductHistory(history).sort((a,b)=>{
+          const aKnown=/^\d{4}-\d{2}-\d{2}$/.test(a.key),bKnown=/^\d{4}-\d{2}-\d{2}$/.test(b.key);
+          return Number(bKnown)-Number(aKnown)||(aKnown&&bKnown?b.key.localeCompare(a.key):0);
+        });
+        for(const day of days){
+          const known=/^\d{4}-\d{2}-\d{2}$/.test(day.key);
+          const key=known?day.key.slice(0,7):'unknown';
+          let month=months.get(key);
+          if(!month){
+            month={key,label:known?monthNames[Number(key.slice(5,7))-1]+' '+key.slice(0,4):'Без даты',days:[]};
+            months.set(key,month);
+          }
+          month.days.push(day);
+        }
+        for(const month of months.values()){
+          const section=document.createElement('section');
+          section.className='products-history-month';
+          section.dataset.month=month.key;
+          section.setAttribute('aria-label',month.label);
+          const heading=document.createElement('h3');
+          heading.className='products-history-month-title';
+          heading.textContent=month.label;
+          const list=document.createElement('div');
+          list.className='products-history-month-list';
+          for(const group of month.days){
+            const row=document.createElement('div');
+            row.className='product-history-item';
+            const date=document.createElement('strong');
+            date.className='product-history-date';
+            date.textContent=group.label;
+            const separator=document.createElement('span');
+            separator.className='product-history-separator';
+            separator.textContent=' · ';
+            const itemsText=document.createElement('span');
+            itemsText.className='product-history-items';
+            itemsText.textContent=group.items.join(', ');
+            row.append(date,separator,itemsText);
+            if(group.purchase){
+              const amount=document.createElement('strong');
+              amount.className='product-history-amount';
+              amount.textContent=productPurchaseMoney(group.purchase.amount,group.purchase.currency);
+              const wallet=document.createElement('span');
+              wallet.className='product-history-wallet';
+              wallet.textContent=group.purchase.walletName||'';
+              row.append(amount,wallet);
+            }
+            list.appendChild(row);
+          }
+          const receipts=new Map(month.days.filter(day=>day.purchase?.id&&Number(day.purchase.rubAmount)>0).map(day=>[day.purchase.id,day.purchase]));
+          if(receipts.size){
+            const total=document.createElement('span');
+            total.className='products-history-month-total';
+            const sum=[...receipts.values()].reduce((sum,purchase)=>sum+Math.round(Number(purchase.rubAmount)*100),0)/100;
+            total.textContent=(month.days.some(day=>!day.purchase)?'Учтено: ':'')+productPurchaseMoney(sum);
+            heading.appendChild(total);
+          }
+          section.append(heading,list);
+          historyList.appendChild(section);
+        }
       }
 
       function productsHistoryCollapsedStorageKey(){
@@ -19779,7 +20565,7 @@
             String(item?.addedBy||''),String(item?.category||''),String(item?.weeklyAmount||''),String(item?.quantity||''),String(item?.unit||''),String(item?.note||''),String(item?.categoryOverride||'')
           ]),
           history:(Array.isArray(history)?history:[]).map(item=>[
-            String(item?.id||''),String(item?.text||''),String(item?.boughtAt||''),String(item?.boughtBy||'')
+            String(item?.id||''),String(item?.text||''),String(item?.boughtAt||''),String(item?.boughtBy||''),JSON.stringify(item?.purchase||null)
           ])
         });
       }
@@ -19836,7 +20622,6 @@
         const groups=document.getElementById('productsGroups');
         const empty=document.getElementById('productsEmpty');
         const status=document.getElementById('productsStatus');
-        const clear=document.getElementById('productsClear');
         const boughtAll=document.getElementById('productsBought');
         const historyList=document.getElementById('productsHistory');
         const historyEmpty=document.getElementById('productsHistoryEmpty');
@@ -19844,7 +20629,6 @@
         if(!groups||!empty||!historyList) return;
 
         setProductsBadge(items.length);
-        if(clear) clear.disabled=!items.length;
         if(boughtAll){
           boughtAll.textContent=currentActor==='Диана'?'Купила':'Купил';
           const checkedCount=items.filter(item=>Boolean(item.checked)).length;
@@ -19866,6 +20650,10 @@
           const category=String(item?.category||'Другое');
           if(!byCategory.has(category)) byCategory.set(category,[]);
           byCategory.get(category).push(item);
+        }
+        const productNameOrder=new Intl.Collator('ru-RU',{sensitivity:'base',numeric:true,ignorePunctuation:true});
+        for(const categoryItems of byCategory.values()){
+          categoryItems.sort((a,b)=>productNameOrder.compare(String(a.text||'').trim(),String(b.text||'').trim()));
         }
         const ordered=[
           ...PRODUCT_CATEGORY_ORDER.filter(category=>byCategory.has(category)),
@@ -19941,16 +20729,20 @@
               if(!Number.isFinite(day)||Date.now()-day>14*86400000)return false;
               return String(previous?.text||'').replace(/\s+/g,' ').trim().toLocaleLowerCase('ru-RU')===normalizedName;
             });
-            amount.textContent=quantityLabel?'Купить: '+quantityLabel
+            amount.textContent=weeklyAmount?'На неделю для двоих: ≈ '+weeklyAmount:'';
+            amount.hidden=!amount.textContent;
+            const purchase=document.createElement('small');
+            purchase.className='product-added-by';
+            purchase.textContent=quantityLabel?'Купить: '+quantityLabel
               :recentlyBought?'Покупали недавно · возможно, запас ещё есть'
               :'';
-            amount.hidden=!amount.textContent;
+            purchase.hidden=!purchase.textContent;
             const meta=document.createElement('small');
             meta.className='product-added-by';
             meta.textContent=productAddedByLabel(item.addedBy);
             const noteText=String(item.note||'').trim();
-            if(noteText){ const note=document.createElement('small'); note.className='product-added-by'; note.textContent=noteText; main.append(text,amount,note,meta); }
-            else main.append(text,amount,meta);
+            if(noteText){ const note=document.createElement('small'); note.className='product-added-by'; note.textContent=noteText; main.append(text,amount,purchase,note,meta); }
+            else main.append(text,amount,purchase,meta);
 
             const actions=document.createElement('div');
             actions.className='product-actions';
@@ -19994,21 +20786,7 @@
         if(historyCount) historyCount.textContent=history.length?String(history.length):'';
         const historyToggle=document.getElementById('productsHistoryToggle');
         if(historyToggle) historyToggle.dataset.historyCount=String(history.length);
-        for(const group of groupProductHistory(history)){
-          const row=document.createElement('div');
-          row.className='product-history-item';
-          const date=document.createElement('strong');
-          date.className='product-history-date';
-          date.textContent=group.label;
-          const separator=document.createElement('span');
-          separator.className='product-history-separator';
-          separator.textContent=' · ';
-          const itemsText=document.createElement('span');
-          itemsText.className='product-history-items';
-          itemsText.textContent=group.items.join(', ');
-          row.append(date,separator,itemsText);
-          historyList.appendChild(row);
-        }
+        renderProductHistoryMonths(historyList,history);
         setProductsHistoryCollapsed(readProductsHistoryCollapsed(),{persist:false});
         animateRudiCollection(groups,'.product-category',7);
         animateRudiCollection(groups,'.product-item',14);
@@ -20090,18 +20868,14 @@
       let fastingOverviewState={'Рустам':null,'Диана':null};
       let selectedFastingGoal=16;
       let fastingReturnTab='products';
+      let fastingHistoryView={actor:''};
 
       function fastingPad(value){
         return String(Math.max(0,Math.floor(value))).padStart(2,'0');
       }
 
       function fastingDurationLabel(minutes){
-        const total=Math.max(0,Math.round(Number(minutes)||0));
-        const hours=Math.floor(total/60);
-        const mins=total%60;
-        if(!hours) return mins+' мин';
-        if(!mins) return hours+' ч';
-        return hours+' ч '+mins+' мин';
+        return window.RudiFastingHistory.durationLabel(minutes);
       }
 
       function fastingDateTimeLabel(value){
@@ -20659,45 +21433,19 @@
             (sum,row)=>sum+fastingMinutesInYear(row,currentYear),
             0
           );
-          const totalHours=Math.round((totalMinutes/60)*10)/10;
-          const hoursLabel=Number.isInteger(totalHours)?String(totalHours):String(totalHours).replace('.',',');
+          const timeLabel=fastingDurationLabel(totalMinutes);
           const totalStars=rows.reduce((sum,row)=>{
             const ended=new Date(String(row?.endedAt||''));
             if(Number.isNaN(ended.getTime())||ended.getFullYear()!==currentYear) return sum;
             return sum+Math.max(0,Number(row?.earnedStars)||0);
           },0);
           const starsLabel=Number.isInteger(totalStars)?String(totalStars):String(totalStars).replace('.',',');
-          historyTitle.textContent='История · '+hoursLabel+' ч · '+starsLabel+' ⭐ за '+currentYear;
+          historyTitle.textContent='История · '+timeLabel+' · '+starsLabel+' ⭐ за '+currentYear;
         }
 
         if(history){
-          history.replaceChildren();
-          rows.forEach(row=>{
-            const item=document.createElement('article');
-            item.className='fasting-history-item';
-
-            const copy=document.createElement('div');
-            copy.className='fasting-history-copy';
-
-            const duration=document.createElement('strong');
-            duration.textContent=fastingDurationLabel(row.durationMinutes);
-
-            const meta=document.createElement('span');
-            meta.textContent=fastingDateTimeLabel(row.startedAt)+' → '+fastingDateTimeLabel(row.endedAt);
-
-            const stars=document.createElement('span');
-            stars.className='fasting-history-stars';
-            const earnedStars=Math.max(0,Number(row?.earnedStars)||0);
-            stars.textContent=(Number.isInteger(earnedStars)?String(earnedStars):String(earnedStars).replace('.',','))+' ⭐ получено';
-
-            const goal=document.createElement('span');
-            goal.className='fasting-history-goal'+(row.goalReached?' is-reached':'');
-            goal.textContent=(row.goalReached?'✓ ':'')+String(row.goalHours||16)+' ч';
-
-            copy.append(duration,meta,stars);
-            item.append(copy,goal);
-            history.appendChild(item);
-          });
+          if(fastingHistoryView.actor!==currentActor)fastingHistoryView={actor:currentActor};
+          history.replaceChildren(window.RudiFastingHistory.render({history:rows,view:fastingHistoryView}));
         }
 
         const historyToggle=document.getElementById('fastingHistoryToggle');
@@ -20995,17 +21743,88 @@
       }
 
       window.RUDI_PRODUCTS_API={request:productsRequest,reload:loadProducts};
+      async function openProductPurchaseDialog(checkedIds){
+        const actor=currentActor;
+        const overlay=document.createElement('div');
+        overlay.className='rudi-product-editor-overlay';
+        overlay.innerHTML='<section class="rudi-product-editor product-purchase-dialog" role="dialog" aria-modal="true" aria-labelledby="productPurchaseTitle"><div class="rudi-product-editor-head"><strong id="productPurchaseTitle">Покупка продуктов</strong><button type="button" data-purchase-close aria-label="Закрыть">×</button></div><form><label>Из какого кошелька<select name="walletId" required aria-label="Кошелёк"><option value="">Загружаю кошельки…</option></select></label><label>Категория<input value="Продукты" readonly aria-label="Категория расхода"></label><label>Потрачено <span data-purchase-currency>₽</span><input name="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" required aria-label="Сумма покупки"></label><div class="rudi-product-editor-error" role="status" aria-live="polite"></div><div class="rudi-product-editor-footer"><button type="button" data-purchase-cancel>Отмена</button><button type="submit" data-purchase-save disabled>Сохранить покупку</button></div></form></section>';
+        document.body.appendChild(overlay);
+        const previousFocus=document.activeElement;
+        document.body.classList.add('rudi-product-modal-open');
+        const form=overlay.querySelector('form'),select=form.elements.walletId,amount=form.elements.amount;
+        const save=overlay.querySelector('[data-purchase-save]'),status=overlay.querySelector('[role="status"]');
+        let busy=false,finished=false;
+        const draftKey='rudi-product-purchase-'+actor+'-'+checkedIds.slice().sort().join(',');
+        let draft=null;try{draft=JSON.parse(localStorage.getItem(draftKey)||'null')}catch(_){}
+        const purchaseId=draft?.id||window.crypto?.randomUUID?.()||'purchase-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+        const occurredAt=draft?.occurredAt||new Date().toISOString();
+        if(draft?.amount)amount.value=String(draft.amount);
+        return new Promise(resolve=>{
+          const close=result=>{
+            if(finished)return;finished=true;
+            document.removeEventListener('keydown',onKey);
+            overlay.remove();document.body.classList.remove('rudi-product-modal-open');
+            previousFocus?.focus?.();resolve(result);
+          };
+          const onKey=event=>{
+            if(event.key==='Escape'&&!busy){event.preventDefault();event.stopPropagation();close(null)}
+            if(event.key==='Tab'){
+              const focusable=[...overlay.querySelectorAll('button:not(:disabled),select,input:not([readonly])')];
+              const first=focusable[0],last=focusable[focusable.length-1];
+              if(event.shiftKey&&document.activeElement===first){event.preventDefault();last?.focus()}
+              else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first?.focus()}
+            }
+          };
+          document.addEventListener('keydown',onKey);
+          overlay.querySelectorAll('[data-purchase-close],[data-purchase-cancel]').forEach(button=>button.addEventListener('click',()=>{if(!busy)close(null)}));
+          overlay.addEventListener('click',event=>{if(event.target===overlay&&!busy)close(null)});
+          let wallets=[];
+          const syncCurrency=()=>{
+            const currency=wallets.find(wallet=>wallet.id===select.value)?.currency||'RUB';
+            overlay.querySelector('[data-purchase-currency]').textContent=currency==='RUB'?'₽':currency;
+          };
+          select.addEventListener('change',syncCurrency);
+          form.addEventListener('submit',async event=>{
+            event.preventDefault();if(busy||finished)return;
+            if(currentActor!==actor){close(null);return}
+            const raw=amount.value.replace(/\s/g,'').replace(',','.');
+            const value=Number(raw);
+            if(!/^\d+(?:\.\d{1,8})?$/.test(raw)||!Number.isFinite(value)||value<=0||value>100000000){status.textContent='Введи сумму больше нуля';amount.focus();return}
+            if(!wallets.some(wallet=>wallet.id===select.value)){status.textContent='Выбери кошелёк';return}
+            busy=true;save.disabled=true;select.disabled=true;amount.disabled=true;status.textContent='Сохраняю покупку…';
+            try{
+              try{localStorage.setItem(draftKey,JSON.stringify({id:purchaseId,occurredAt,amount:value,walletId:select.value}))}catch(_){}
+              const result=await productsRequest('buy-checked',{checkedIds,purchase:{id:purchaseId,walletId:select.value,walletName:wallets.find(wallet=>wallet.id===select.value)?.name||'',currency:wallets.find(wallet=>wallet.id===select.value)?.currency||'RUB',rubAmount:Math.round(value*Number(financeWalletRubRates()[wallets.find(wallet=>wallet.id===select.value)?.currency||'RUB']||0)*100)/100,amount:value,occurredAt}});
+              try{localStorage.removeItem(draftKey)}catch(_){}
+              close(currentActor===actor?result:null);
+            }catch(error){
+              const code=String(error?.message||'');
+              status.textContent=code.includes('insufficient')?'Недостаточно средств в кошельке':code.includes('selection-changed')?'Список покупок изменился. Закрой окно и проверь галочки':code.includes('conflict')?'Эта покупка уже записана с другой суммой или кошельком. Проверь историю расходов':'Не удалось сохранить покупку. Попробуй ещё раз';
+            }finally{busy=false;if(!finished){save.disabled=false;select.disabled=false;amount.disabled=false}}
+          });
+          financeRequest('list').then(data=>{
+            if(finished)return;if(currentActor!==actor){close(null);return}
+            wallets=(data.wallets||[]).filter(wallet=>!wallet.archived);
+            select.replaceChildren();
+            for(const wallet of wallets){const option=document.createElement('option');option.value=wallet.id;option.textContent=wallet.name+' · '+(wallet.currency==='RUB'?'₽':wallet.currency);select.appendChild(option)}
+            if(!wallets.length){status.textContent='Сначала добавь кошелёк в разделе Финансы';return}
+            const rubWallet=wallets.find(wallet=>wallet.currency==='RUB');if(rubWallet)select.value=rubWallet.id;
+            if(draft?.walletId&&wallets.some(wallet=>wallet.id===draft.walletId))select.value=draft.walletId;
+            syncCurrency();save.disabled=false;amount.focus();
+          }).catch(()=>{if(!finished)status.textContent='Не удалось загрузить кошельки. Закрой окно и попробуй ещё раз'});
+        });
+      }
+
       function setupProducts(){
         const form=document.getElementById('productsForm');
         const input=document.getElementById('productsInput');
         const add=document.getElementById('productsAdd');
-        const clear=document.getElementById('productsClear');
         const boughtAll=document.getElementById('productsBought');
         const recoveryPanel=document.getElementById('productsRecovery');
         const recoveryButton=document.getElementById('productsRecoveryButton');
         const recoveryText=document.getElementById('productsRecoveryText');
         const historyToggle=document.getElementById('productsHistoryToggle');
-        if(!form||!input||!add||!clear||!boughtAll) return;
+        if(!form||!input||!add||!boughtAll) return;
         boughtAll.textContent=currentActor==='Диана'?'Купила':'Купил';
 
         historyToggle?.addEventListener('click',()=>{
@@ -21068,52 +21887,17 @@
             return;
           }
           boughtAll.disabled=true;
-          const selectedRows=[...document.querySelectorAll('.product-item.is-checked[data-rudi-item-id]')];
-          selectedRows.forEach(row=>row.remove());
-          try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
           try{
-            renderProducts(await productsRequest('buy-checked',{checkedIds}));
-            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-          }catch(_){
-            await loadProducts({silent:true}).catch(()=>{});
-            boughtAll.disabled=false;
-            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-          }
-        });
-
-        clear.addEventListener('click',async()=>{
-          if(clear.disabled) return;
-          clear.disabled=true;
-          const groups=document.getElementById('productsGroups');
-          const empty=document.getElementById('productsEmpty');
-          const status=document.getElementById('productsStatus');
-          if(groups) groups.replaceChildren();
-          if(empty) empty.hidden=false;
-          if(status){status.textContent='';status.hidden=true}
-          setProductsBadge(false);
-          homeDashboardState.productCount=0;
-          renderHomeDashboard();
-          try{tg?.HapticFeedback?.impactOccurred?.('light')}catch(_){}
-          try{
-            const data=await productsRequest('clear');
-            renderProducts(data);
-            productsRecoveryChecked=true;
-            productsRecoveryCandidate='';
-            hideProductsRecovery();
-            const removed=Array.isArray(data?.removedItems)?data.removedItems:[];
-            if(removed.length){
-              showUndoSnackbar('Удалено',async()=>{
-                const restored=await productsRequest('restore',{items:removed});
-                renderProducts(restored);
-              });
+            const result=await openProductPurchaseDialog(checkedIds);
+            if(result){
+              renderProducts(result);
+              void loadFinances({silent:true}).catch(()=>{});
+              document.dispatchEvent(new Event('rudi:calendar-recap-dirty'));
+              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             }
-          }catch(_){
-            await loadProducts({silent:true}).catch(()=>{});
-            clear.disabled=false;
-            try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-          }
-        });
+          }finally{boughtAll.disabled=false}
 
+        });
       }
 
       let currentRecipeSet=[];
@@ -21798,293 +22582,6 @@
       }
 
 
-      const DATE_IDEAS_CACHE_PREFIX='rudi:date-ideas:v1:';
-      const DATE_IDEAS_EXPANDED_PREFIX='rudi:date-ideas-expanded:v1:';
-      let currentDateGenerationQuota=null;
-      let dateQuotaRefreshTimer=0;
-
-      function dateIdeasCacheKey(){
-        return DATE_IDEAS_CACHE_PREFIX+(currentActor==='Диана'?'diana':'rustam');
-      }
-
-      function dateIdeasExpandedKey(){
-        return DATE_IDEAS_EXPANDED_PREFIX+(currentActor==='Диана'?'diana':'rustam');
-      }
-
-      function readDateIdeasExpanded(hasIdeas=false){
-        let fallback=Boolean(hasIdeas);
-        try{
-          const saved=localStorage.getItem(dateIdeasExpandedKey());
-          if(saved==='1') fallback=true;
-          if(saved==='0') fallback=false;
-        }catch(_){}
-        return uiViewState('date-ideas-expanded',fallback);
-      }
-
-      function writeDateIdeasExpanded(expanded){
-        const value=Boolean(expanded);
-        try{localStorage.setItem(dateIdeasExpandedKey(),value?'1':'0')}catch(_){}
-        setUiViewState('date-ideas-expanded',value);
-      }
-
-      function normalizeDateIdeasCache(value){
-        const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
-        const ideas=(Array.isArray(source.ideas)?source.ideas:[])
-          .map((idea,index)=>({
-            id:String(idea?.id||('date-'+(index+1))).slice(0,80),
-            title:String(idea?.title||'').trim().slice(0,140),
-            description:String(idea?.description||'').trim().slice(0,700),
-            duration:String(idea?.duration||'').trim().slice(0,80)
-          }))
-          .filter(idea=>idea.title&&idea.description)
-          .slice(0,3);
-        if(ideas.length!==3) return null;
-        const period=['morning','day','evening'].includes(String(source.period||''))?String(source.period):'';
-        return {period,ideas,generatedAt:String(source.generatedAt||'')};
-      }
-
-      function readDateIdeasCache(){
-        try{return normalizeDateIdeasCache(JSON.parse(localStorage.getItem(dateIdeasCacheKey())||'null'))}
-        catch(_){return null}
-      }
-
-      function writeDateIdeasCache(value){
-        const normalized=normalizeDateIdeasCache(value);
-        if(!normalized) return;
-        try{localStorage.setItem(dateIdeasCacheKey(),JSON.stringify(normalized))}catch(_){}
-      }
-
-      function datePeriodLabel(period){
-        return period==='morning'?'Утро':period==='day'?'День':period==='evening'?'Вечер':'';
-      }
-
-      function setDateIdeasExpanded(_expanded,{persist=false}={}){
-        const choices=document.getElementById('dateTimeChoices');
-        const results=document.getElementById('dateIdeaResults');
-        const status=document.getElementById('dateIdeaStatus');
-        const hasIdeas=Boolean(readDateIdeasCache());
-        if(!choices||!results) return;
-
-        choices.hidden=false;
-        results.hidden=!hasIdeas;
-        if(status) status.hidden=false;
-        if(persist) writeDateIdeasExpanded(true);
-      }
-
-      function renderDateIdeas(payload){
-        const host=document.getElementById('dateIdeaResults');
-        const normalized=normalizeDateIdeasCache(payload);
-        if(!host||!normalized) return false;
-        host.replaceChildren();
-        const head=document.createElement('div');
-        head.className='date-idea-results-head';
-        const title=document.createElement('strong');
-        title.textContent='Идеи на '+datePeriodLabel(normalized.period).toLowerCase();
-        const meta=document.createElement('span');
-        meta.textContent='3 варианта';
-        head.append(title,meta);
-        host.appendChild(head);
-        normalized.ideas.forEach((idea,index)=>{
-          const card=document.createElement('article');
-          card.className='date-idea-card';
-          const number=document.createElement('span');
-          number.className='date-idea-number';
-          number.textContent=String(index+1);
-          const copy=document.createElement('div');
-          copy.className='date-idea-copy';
-          const heading=document.createElement('strong');
-          heading.textContent=idea.title;
-          const description=document.createElement('p');
-          description.textContent=idea.description;
-          copy.append(heading,description);
-          if(idea.duration){
-            const duration=document.createElement('small');
-            duration.textContent=idea.duration;
-            copy.appendChild(duration);
-          }
-          const save=document.createElement('button');
-          save.type='button';
-          save.className='date-idea-save';
-          save.setAttribute('aria-label','Сохранить идею свидания');
-          save.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v12M7 11l5 5 5-5"/><path d="M5 19h14"/></svg><span>Сохранить</span>';
-          save.addEventListener('click',async()=>{
-            if(save.disabled) return;
-            save.disabled=true;
-            try{
-              await window.RUDI_SAVES?.save?.('date',{
-                title:idea.title,
-                description:idea.description,
-                duration:idea.duration,
-                period:normalized.period
-              },save);
-              setTimeout(()=>loadActivityJournal({silent:true}),120);
-              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-            }catch(_){
-              save.disabled=false;
-              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-            }
-          });
-          card.append(number,copy,save);
-          host.appendChild(card);
-        });
-        host.hidden=false;
-        return true;
-      }
-
-      function formatDateQuotaTime(value){
-        const parsed=new Date(String(value||''));
-        if(Number.isNaN(parsed.getTime())) return '';
-        return new Intl.DateTimeFormat('ru-RU',{
-          day:'numeric',
-          month:'short',
-          hour:'2-digit',
-          minute:'2-digit',
-          timeZone:TZ
-        }).format(parsed).replace(',', ' в');
-      }
-
-      function dateQuotaText(quota){
-        if(quota?.unlimited===true) return 'Без лимита';
-        const available=Math.max(0,Number(quota?.available??10));
-        const max=Math.max(1,Number(quota?.max||10));
-        const nextAt=formatDateQuotaTime(quota?.nextRefillAt||quota?.blockedUntil);
-        if(available<=0){
-          return nextAt
-            ? 'Все '+max+' генераций использованы · ещё одна станет доступна '+nextAt
-            : 'Все '+max+' генераций использованы';
-        }
-        const base='Осталось '+available+' из '+max+' генераций';
-        return nextAt&&available<max ? base+' · ещё 1 вернётся '+nextAt : base;
-      }
-
-      function syncDateChoiceAvailability(){
-        const blocked=currentDateGenerationQuota?.unlimited!==true&&Number(currentDateGenerationQuota?.available??1)<=0;
-        document.querySelectorAll('#dateTimeChoices [data-date-period]').forEach(button=>{
-          button.disabled=blocked;
-        });
-      }
-
-      function scheduleDateQuotaRefresh(){
-        clearTimeout(dateQuotaRefreshTimer);
-        if(currentDateGenerationQuota?.unlimited===true) return;
-        const nextAt=new Date(String(currentDateGenerationQuota?.nextRefillAt||'')).getTime();
-        const delay=nextAt-Date.now();
-        if(!Number.isFinite(nextAt)||delay<=0) return;
-        dateQuotaRefreshTimer=setTimeout(()=>loadDateGenerationStatus(),Math.min(delay+1200,2147483000));
-      }
-
-      async function dateIdeasRequest({operation='generate',period='',exclude=[]}={}){
-        const response=await fetch('/api/partner-message?rudiAction=dates',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({initData:tg?.initData||'',operation,period,exclude}),
-          cache:'no-store'
-        });
-        const data=await response.json().catch(()=>({}));
-        if(!response.ok||!data.ok){
-          const error=new Error(data.error||'date-request-failed');
-          error.status=response.status;
-          error.payload=data;
-          throw error;
-        }
-        return data;
-      }
-
-      async function loadDateGenerationStatus(){
-        const status=document.getElementById('dateIdeaStatus');
-        try{
-          const data=await dateIdeasRequest({operation:'status'});
-          currentDateGenerationQuota=data.quota||null;
-          syncDateChoiceAvailability();
-          scheduleDateQuotaRefresh();
-          if(status) status.textContent=dateQuotaText(currentDateGenerationQuota);
-          return currentDateGenerationQuota;
-        }catch(_){
-          return currentDateGenerationQuota;
-        }
-      }
-
-      function dateIdeaErrorText(error){
-        const code=String(error?.message||'');
-        const quota=error?.payload?.quota||error?.quota||currentDateGenerationQuota;
-        if(code==='date-generation-limit'){
-          currentDateGenerationQuota=quota||currentDateGenerationQuota;
-          syncDateChoiceAvailability();
-          scheduleDateQuotaRefresh();
-          return dateQuotaText(currentDateGenerationQuota)+'. Последние идеи сохранены.';
-        }
-        if(code==='date-ai-quota'||Number(error?.status)===429) return 'Лимит AI-провайдера временно исчерпан. Попробуй позже — последние идеи сохранены.';
-        if(code==='groq-api-key-missing') return 'ИИ временно недоступен. Последние идеи сохранены.';
-        if(code==='date-ai-timeout') return 'ИИ отвечает слишком долго. Попробуй ещё раз — прошлые идеи не пропали.';
-        return 'Не удалось придумать новые варианты. Последние идеи сохранены.';
-      }
-
-      function setupQuickAccess(){
-        const wishlist=document.getElementById('quickWishlistButton');
-        const dates=document.getElementById('quickDateButton');
-        const forDi=document.getElementById('quickForDiButton');
-        const photoSession=document.getElementById('quickPhotoSessionButton');
-        const choices=document.getElementById('dateTimeChoices');
-        const status=document.getElementById('dateIdeaStatus');
-        if(!wishlist||!dates||!forDi||!photoSession||!choices||choices.dataset.dateBound==='1') return;
-        choices.dataset.dateBound='1';
-
-        wishlist.addEventListener('click',()=>{
-          navigateToAppTab('wishlist',{scroll:true});
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
-        dates.addEventListener('click',()=>{
-          navigateToAppTab('dates',{scroll:true});
-          window.RUDI_SAVES?.load?.();
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
-        forDi.addEventListener('click',()=>{
-          navigateToAppTab('for-di',{scroll:true});
-          window.RUDI_FOR_DI?.load?.();
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
-        photoSession.addEventListener('click',()=>{
-          const link=document.querySelector('.shared-album-create');
-          if(link) link.click();
-          else if(tg?.openLink) tg.openLink('https://gemini.google.com/share/41a7861ea171');
-          else window.open('https://gemini.google.com/share/41a7861ea171','_blank','noopener,noreferrer');
-          try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
-        });
-
-        const cachedIdeas=readDateIdeasCache();
-        if(cachedIdeas) renderDateIdeas(cachedIdeas);
-        setDateIdeasExpanded(true,{persist:false});
-        loadDateGenerationStatus();
-
-        choices.querySelectorAll('[data-date-period]').forEach(button=>{
-          button.addEventListener('click',async()=>{
-            const period=String(button.dataset.datePeriod||'');
-            if(!['morning','day','evening'].includes(period)) return;
-            const previous=readDateIdeasCache();
-            const exclude=previous?.ideas?.map(idea=>idea.title).filter(Boolean)||[];
-            choices.querySelectorAll('button').forEach(item=>item.disabled=true);
-            if(status) status.textContent='Придумываю 3 необычных варианта на '+datePeriodLabel(period).toLowerCase()+'…';
-            try{
-              const data=await dateIdeasRequest({period,exclude});
-              const next={period,ideas:data.ideas,generatedAt:new Date().toISOString()};
-              if(!renderDateIdeas(next)) throw new Error('date-ai-no-ideas');
-              writeDateIdeasCache(next);
-              setDateIdeasExpanded(true);
-              currentDateGenerationQuota=data.quota||currentDateGenerationQuota;
-              scheduleDateQuotaRefresh();
-              if(status) status.textContent='Готово · '+dateQuotaText(currentDateGenerationQuota);
-              try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-            }catch(error){
-              if(previous) renderDateIdeas(previous);
-              if(status) status.textContent=dateIdeaErrorText(error);
-              try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-            }finally{
-              syncDateChoiceAvailability();
-            }
-          });
-        });
-      }
-
       function setupRecipeGenerator(){
         const input=document.getElementById('recipeIngredients');
         const generate=document.getElementById('recipeGenerate');
@@ -22250,7 +22747,6 @@
         setupExtendedSettings();
         setupUndoSnackbar();
         setupAppTabs();
-        setupQuickAccess();
         ensureAppSurface({restoreTab:true});
         const config=await configPromise;
         currentConfig=config;
@@ -22282,6 +22778,8 @@
         setupWishlist();
         setupSharedAlbum();
         setupWorkCalendarDisclosure();
+        // The actor and all feature nodes now exist, including after a slow PIN/Face ID prompt.
+        try{window.dispatchEvent(new Event('rudi:auth-ready'))}catch(_){}
         loadCalendarOverdueCount({force:true}).catch(()=>{});
         markDataSyncNow();
         setTimeout(()=>{if(!stateBackupSyncFresh(6*60*60*1000)) refreshStateBackup()},2500);
@@ -22390,7 +22888,7 @@
       const AUTO_RESUME_HEAVY_REFRESH_MS=15*60*1000;
       async function refreshAfterResume({backgroundMs=0}={}){
         ensureAppSurface();
-        if(!currentActor||!appAccessReady) return;
+        if(!currentActor||!appAccessReady||!document.body.classList.contains('auth-ok')) return;
         const force=manualRefreshRequested;
         const awayMs=Math.max(0,Number(backgroundMs)||0);
         const now=Date.now();

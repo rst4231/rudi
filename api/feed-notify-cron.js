@@ -1,8 +1,6 @@
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { sendDailyMorningSummaries } = require('./morning-summary.cjs');
 const { run: runPersonalAi } = require('./personal-center-cron-handler.cjs');
-const { publishForDiToRudi } = require('./for-di-private.cjs');
-const { publishDailyLaborArticle } = require('./index.js');
 
 
 
@@ -16,52 +14,37 @@ async function handler(req, res) {
   try {
     const force = String(req.query?.force || '') === '1';
     const recoveryKey = String(req.query?.recoveryKey || '').trim();
-    let laborCatchup = null;
+    if (mode === 'for-di') return res.status(410).json({ ok:false, error:'feature-removed' });
     let result;
-    if (mode === 'for-di') {
-      try {
-        laborCatchup = await publishDailyLaborArticle({
-          force,
-          queueOnly: true,
-          now: new Date(),
-        });
-      } catch (error) {
-        laborCatchup = { failed: true, error: String(error?.message || error) };
-        console.warn('RUDI_FOR_DI_LABOR_CATCHUP_WARN', laborCatchup.error);
-      }
-      result = await publishForDiToRudi();
-    } else {
-      // Both reports use the same existing Vercel morning cron. Either can
-      // complete independently; an AI outage never blocks Telegram delivery.
-      const [telegramResult, aiResult] = await Promise.allSettled([
-        sendDailyMorningSummaries({ force, recoveryKey }),
-        runPersonalAi({ now: Date.now() }),
-      ]);
-      const personalAi = aiResult.status === 'fulfilled'
-        ? aiResult.value
-        : { ok: false, error: String(aiResult.reason?.message || aiResult.reason || 'ai-failed') };
-      if (!personalAi.ok) console.error('RUDI_MORNING_PERSONAL_AI_WARN', JSON.stringify(personalAi));
-      if (telegramResult.status === 'rejected') throw telegramResult.reason;
-      result = { ...telegramResult.value, personalAi };
-    }
-    const logLabel = mode === 'for-di' ? 'RUDI_FOR_DI_RESULT' : 'RUDI_MORNING_SUMMARY_RESULT';
-    console.log(logLabel, JSON.stringify({ mode, force, recoveryKey, laborCatchup, ...result }));
+    // Both reports use the same existing Vercel morning cron. Either can
+    // complete independently; an AI outage never blocks Telegram delivery.
+    const [telegramResult, aiResult] = await Promise.allSettled([
+      sendDailyMorningSummaries({ force, recoveryKey }),
+      runPersonalAi({ now: Date.now() }),
+    ]);
+    const personalAi = aiResult.status === 'fulfilled'
+      ? aiResult.value
+      : { ok: false, error: String(aiResult.reason?.message || aiResult.reason || 'ai-failed') };
+    if (!personalAi.ok) console.error('RUDI_MORNING_PERSONAL_AI_WARN', JSON.stringify(personalAi));
+    if (telegramResult.status === 'rejected') throw telegramResult.reason;
+    result = { ...telegramResult.value, personalAi };
+    const logLabel = 'RUDI_MORNING_SUMMARY_RESULT';
+    console.log(logLabel, JSON.stringify({ mode, force, recoveryKey, ...result }));
     return res.status(200).json({
       ok: true,
       mode,
       force,
-      ...(mode === 'for-di' ? { laborCatchup } : {}),
       ...result,
     });
   } catch (error) {
     console.error(
-      mode === 'for-di' ? 'RUDI_FOR_DI_CRON_ERROR' : 'RUDI_MORNING_SUMMARY_CRON_ERROR',
+      'RUDI_MORNING_SUMMARY_CRON_ERROR',
       String(error?.message || error),
       error?.result ? JSON.stringify(error.result) : ''
     );
     return res.status(500).json({
       ok: false,
-      error: mode === 'for-di' ? 'for-di-delivery-failed' : 'morning-summary-failed',
+      error: 'morning-summary-failed',
       ...(error?.result || {}),
     });
   }
