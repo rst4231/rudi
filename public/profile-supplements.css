@@ -975,3 +975,35 @@ body[data-app-tab="habits"] .personal-habit-day-status.is-notdone{color:#a43f48!
 /* RUDI v4.255: visible recovery action for failed iPhone habit reads. */
 .personal-habits-retry{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:8px 14px;margin:8px 0 0;border:1px solid currentColor;border-radius:12px;background:rgba(255,255,255,.66);color:inherit;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
 .personal-habits-retry:focus-visible{outline:2px solid #3678ff;outline-offset:2px}
+
+
+/* Scheduled supplements use the exact daypart boundaries of the calendar. */
+.personal-supplements-list .supplement-group-title{
+  width:100%;
+  margin:18px 0 8px;
+  padding:0 2px;
+  font-size:14px;
+  font-weight:700;
+  letter-spacing:.01em;
+  color:var(--text-color,var(--text,#e7eaf0));
+}
+.personal-supplements-list .supplement-group-title[data-period="upcoming"]{
+  opacity:.75;
+}
+
+.personal-supplements-list .supplement-extra-slot{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px;
+  padding:12px 14px;margin:2px 0 8px;border-radius:14px;
+  border:1px solid var(--line);background:var(--surface-strong);
+}
+.personal-supplements-list .supplement-extra-slot-name{
+  border:0;background:transparent;color:inherit;min-width:0;
+  text-align:left;font-size:14px;font-weight:650;cursor:pointer;
+}
+.personal-supplements-list .supplement-extra-slot-check{
+  border:1px solid var(--line);border-radius:10px;
+  background:var(--soft);color:inherit;padding:8px 10px;font-size:12px;
+  white-space:nowrap;cursor:pointer;
+}
+.personal-supplements-list .supplement-extra-slot-check[aria-pressed="true"]{color:#31c76c}
+.personal-supplements-list .supplement-extra-slot-check:disabled{opacity:.5}

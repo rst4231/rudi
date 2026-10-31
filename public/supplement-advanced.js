@@ -46,7 +46,9 @@ function streak(item){
   return count;
 }
 function courseText(item){
-  const start=item.course?.startDate,duration=Number(item.course?.durationDays||0);if(!start||duration<=0)return'';
+  const start=item.course?.startDate,duration=Number(item.course?.durationDays||0);
+  if(start&&daysBetween(start,today())>0)return'Скоро курс · с '+start.split('-').reverse().join('.');
+  if(!start||duration<=0)return'';
   const end=addDays(start,duration-1),left=daysBetween(end,today());
   if(left<0)return'Курс завершён';if(left===0)return'Последний день курса';return'До конца курса '+left+' дн.';
 }
@@ -128,7 +130,25 @@ function renderAutomaticDuplicates(active){
   const title=document.createElement('strong');title.textContent='⚠️ Повторяются активные вещества';duplicatePanel.appendChild(title);
   for(const row of duplicates){const p=document.createElement('p');p.textContent=row.ingredient+': '+[...new Set(row.items)].join(', ');duplicatePanel.appendChild(p)}
 }
-function supplementTimeKey(item){const times=Array.isArray(item?.schedule?.times)?item.schedule.times:[item?.schedule?.time];return times.find(value=>/^([01]\d|2[0-3]):[0-5]\d$/.test(String(value||'')))||'99:99'}
+function supplementTimeKey(item){const times=Array.isArray(item?.schedule?.times)?item.schedule.times:[item?.schedule?.time];return times.filter(value=>/^([01]\d|2[0-3]):[0-5]\d$/.test(String(value||''))).sort()[0]||'99:99'}
+function supplementPeriodSlots(item){
+  if(item?.course?.startDate&&item.course.startDate>today())return [{period:'upcoming',slot:0,time:''}];
+  const all=Array.isArray(item?.schedule?.times)?item.schedule.times:[item?.schedule?.time];
+  const count=plannedIntakes(item);
+  return Array.from({length:count},(_,slot)=>{
+    const raw=String(all[slot]||'');
+    const time=/^([01]\d|2[0-3]):[0-5]\d$/.test(raw)?raw:'';
+    const mins=time?Number(time.slice(0,2))*60+Number(time.slice(3)):null;
+    const period=mins===null?'unspecified':mins<720?'morning':mins<1080?'day':'evening';
+    return {period,slot,time};
+  });
+}
+function supplementDaypart(item){
+  const periods=supplementPeriodSlots(item).map(row=>row.period);
+  return SUPPLEMENT_DAYPART_ORDER.find(group=>periods.includes(group))||'unspecified';
+}
+const SUPPLEMENT_DAYPART_LABELS={morning:'Утро',day:'День',evening:'Вечер',unspecified:'Категория не указана',upcoming:'Скоро курс'};
+const SUPPLEMENT_DAYPART_ORDER=['morning','day','evening','unspecified','upcoming'];
 function groupTitle(status){
   if(status==='paused')return'На паузе';
   if(status==='finished')return'Архив';
@@ -179,7 +199,7 @@ function applyGrouping(){
   const list=document.querySelector('.personal-supplements-list');if(!list)return;
   const tabs=ensureStatusTabs(list);
   const query=(searchInput?.value||'').trim().toLowerCase();
-  list.querySelectorAll('.supplement-group-title,.supplement-group-empty').forEach(node=>node.remove());
+  list.querySelectorAll('.supplement-group-title,.supplement-group-empty,.supplement-extra-slot').forEach(node=>node.remove());
   const all=getItems();
   for(const button of tabs.querySelectorAll('.supplement-status-tab')){
     const status=button.dataset.status;
@@ -198,11 +218,71 @@ function applyGrouping(){
     row.visible=sameStatus&&sameSearch;
     return row.visible;
   }).sort((a,b)=>{
+    if(selectedStatusTab==='active'){
+      const group=SUPPLEMENT_DAYPART_ORDER.indexOf(supplementDaypart(a.item))-SUPPLEMENT_DAYPART_ORDER.indexOf(supplementDaypart(b.item));
+      if(group)return group;
+    }
     const byTaken=selectedStatusTab==='active'?Number(handledToday(a.item))-Number(handledToday(b.item)):0;
     const byTime=supplementTimeKey(a.item).localeCompare(supplementTimeKey(b.item));
     return byTaken||byTime||a.item.name.localeCompare(b.item.name,'ru');
   });
-  for(const row of matches){row.card.hidden=false;list.appendChild(row.card)}
+  const grouped=new Map(SUPPLEMENT_DAYPART_ORDER.map(period=>[period,[]]));
+  if(selectedStatusTab==='active'){
+    for(const row of matches){
+      const slots=supplementPeriodSlots(row.item);
+      const distinct=[...new Set(slots.map(slot=>slot.period))];
+      for(const period of distinct)grouped.get(period).push({...row,slots:slots.filter(slot=>slot.period===period),primary:period===supplementDaypart(row.item)});
+    }
+    for(const period of SUPPLEMENT_DAYPART_ORDER){
+      const group=grouped.get(period);
+      if(!group.length)continue;
+      const title=document.createElement('h3');
+      title.className='supplement-group-title';
+      title.dataset.period=period;
+      title.textContent=SUPPLEMENT_DAYPART_LABELS[period];
+      list.appendChild(title);
+      for(const row of group){
+        if(row.primary){
+          row.card.hidden=false;
+          list.appendChild(row.card);
+          continue;
+        }
+        // A twice-daily supplement can appear in both morning and evening
+        // without cloning its interactive card or duplicating the record.
+        const card=document.createElement('div');
+        card.className='supplement-extra-slot';
+        const name=document.createElement('button');
+        name.type='button';name.className='supplement-extra-slot-name';
+        name.textContent=row.item.name;
+        name.addEventListener('click',()=>window.RudiSupplementEditor?.open(row.item.id));
+        card.append(name);
+        for(const slot of row.slots){
+          const control=document.createElement('button');
+          control.type='button';control.className='supplement-extra-slot-check';
+          const occupied=new Set((row.item.intakes||[]).filter(x=>x.date===today()&&Number.isInteger(x.slot)).map(x=>x.slot));
+          for(const old of (row.item.intakes||[]).filter(x=>x.date===today()&&!Number.isInteger(x.slot))){
+            const available=Array.from({length:plannedIntakes(row.item)},(_,i)=>i).find(i=>!occupied.has(i));
+            if(available!==undefined)occupied.add(available);
+          }
+          const completed=occupied.has(slot.slot);
+          control.textContent=(completed?'✓ ':'○ ')+(slot.time||'Без времени');
+          control.setAttribute('aria-pressed',String(completed));
+          control.addEventListener('click',async()=>{
+            control.disabled=true;
+            try{
+              const data=await req(completed?'untake':'take',{id:row.item.id,slot:slot.slot});
+              setItems(data.items||getItems());
+              document.dispatchEvent(new CustomEvent('rudi:supplement-intake-updated'));
+            }catch(e){control.disabled=false;setStatus('Не удалось сохранить приём.',true)}
+          });
+          card.append(control);
+        }
+        list.appendChild(card);
+      }
+    }
+  }else{
+    for(const row of matches){row.card.hidden=false;list.appendChild(row.card)}
+  }
   for(const row of rows.filter(row=>!row.visible)){row.card.hidden=true;list.appendChild(row.card)}
   if(!matches.length&&rows.length){
     const empty=document.createElement('div');
@@ -259,6 +339,10 @@ function enhanceCards(){
     if(item.status==='active'){
       const take=document.createElement('button');take.type='button';take.className='supplement-take';take.textContent=takeIdleLabel(item);take.classList.toggle('is-complete',completedToday(item));take.setAttribute('aria-pressed',String(completedToday(item)));
       const skip=document.createElement('button');skip.type='button';skip.className='supplement-skip';skip.textContent=skippedToday(item)?'Пропущено':'Пропустить';skip.classList.toggle('is-complete',skippedToday(item));skip.disabled=skippedToday(item)||takenToday(item);
+      if(item.course?.startDate&&item.course.startDate>today()){
+        take.disabled=true;take.title='Курс ещё не начался';
+        skip.disabled=true;skip.title='Курс ещё не начался';
+      }
       actions.append(take,skip);
       take.addEventListener('click',async event=>{
         event.stopPropagation();

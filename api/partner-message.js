@@ -2273,6 +2273,50 @@ async function handleTickTick(req, res, action, options = {}) {
   }
 
 
+  // Private TickTick checklists belong to the selected personal task.
+  // Never reuse the shared-project OAuth token for private task details.
+  if(action==='personal-task-checklist-read'||action==='personal-task-checklist-toggle'){
+    if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
+    let body,actor;
+    try{
+      body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      ({actor}=authorizeRequest(req,body.initData,options));
+    }catch(error){return res.status(statusForError(error)).json({ok:false,error:String(error?.message||error)})}
+    if(actor!=='Рустам')return res.status(403).json({ok:false,error:'ticktick-personal-owner-forbidden'});
+    const projectId=String(body.projectId||'').trim(),taskId=String(body.taskId||'').trim();
+    const toggle=action==='personal-task-checklist-toggle';
+    const itemId=String(body.itemId||'').trim();
+    if(!/^[\w-]{1,128}$/.test(projectId)||!/^[\w-]{1,128}$/.test(taskId)||
+        toggle&&!/^[\w-]{1,128}$/.test(itemId))
+      return res.status(400).json({ok:false,error:'ticktick-personal-checklist-invalid'});
+    try{
+      const token=await readPersonalToken('Рустам',options);
+      if(!token?.accessToken)return res.status(401).json({ok:false,error:'ticktick-personal-not-connected'});
+      const config=await loadTickTickConfig(options);
+      if(!config.enabled)return res.status(409).json({ok:false,error:'ticktick-disabled'});
+      if(projectId===String(config.projectId||''))return res.status(403).json({ok:false,error:'ticktick-personal-project-forbidden'});
+      if(toggle&&tokenHasWriteScope(token)===false)
+        return res.status(403).json({ok:false,error:'ticktick-personal-write-permission-required'});
+      if(toggle)await updateTaskChecklistItem(token.accessToken,projectId,taskId,itemId,body.completed===true,options);
+      const task=await fetchTask(token.accessToken,projectId,taskId,options);
+      if(String(task?.id||'')!==taskId||String(task?.projectId||projectId)!==projectId)
+        return res.status(400).json({ok:false,error:'ticktick-personal-task-mismatch'});
+      const checklist=(Array.isArray(task?.items)?task.items:[])
+        .filter(row=>row&&String(row.title||'').trim())
+        .slice(0,100)
+        .map(row=>({id:String(row.id||''),title:String(row.title||'').trim().slice(0,500),completed:Number(row.status||0)===1}))
+        .filter(row=>row.id);
+      return res.status(200).json({ok:true,taskId,projectId,checklist,writable:tokenHasWriteScope(token)!==false});
+    }catch(error){
+      const code=String(error?.message||error);
+      if(code==='ticktick-token-invalid')return res.status(401).json({ok:false,error:'ticktick-personal-reconnect-required'});
+      if(code==='ticktick-task-not-found'||code==='ticktick-checklist-item-not-found')return res.status(404).json({ok:false,error:code});
+      if(code.includes('forbidden')||code.includes('permission'))return res.status(403).json({ok:false,error:code});
+      console.warn('RUDI_PERSONAL_CHECKLIST_ERROR',code);
+      return res.status(502).json({ok:false,error:'ticktick-personal-checklist-unavailable'});
+    }
+  }
+
   // Dedicated private editor and project picker. Shared token is never used.
   if(action==='personal-task-projects'||action==='personal-task-edit'||action==='personal-task-create'||action==='personal-task-list'){
     if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});

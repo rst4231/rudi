@@ -48,6 +48,7 @@ function init(){
       '<label class="ticktick-task-field" id="rudiPersonalTaskIntervalField" hidden><span>Интервал</span><input id="rudiPersonalTaskRepeatEvery" type="number" min="1" max="52" value="1" aria-label="Интервал повторения"><small id="rudiPersonalTaskRepeatUnit">дней</small></label>'+
       '<fieldset id="rudiPersonalTaskWeekdays" class="rudi-personal-weekdays" hidden><legend>По каким дням</legend>'+[1,2,3,4,5,6,0].map((day,index)=>'<label><input type="checkbox" name="personalRepeatDay" value="'+day+'"><span>'+['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][index]+'</span></label>').join('')+'</fieldset></div>'+
       '<label class="ticktick-task-field"><span>Описание</span><textarea id="rudiPersonalTaskDescription" maxlength="5000" rows="3" placeholder="Необязательно"></textarea></label>'+
+      '<section id="rudiPersonalChecklistSection" class="rudi-personal-checklist-section" hidden><div class="rudi-personal-checklist-header"><strong>Подзадачи</strong><small id="rudiPersonalChecklistCount"></small></div><div id="rudiPersonalChecklistItems" class="rudi-personal-checklist-items"></div><small id="rudiPersonalChecklistStatus" role="status"></small></section>'+
       '<p class="rudi-personal-repeat-note" id="rudiPersonalRepeatNote" hidden>Повторение сохранится. Для сложных правил используйте TickTick.</p>'+
       '<div class="ticktick-task-form-actions"><button type="button" class="rudi-personal-cancel" data-personal-close>Отмена</button>'+
       '<button type="submit" class="rudi-personal-save">Сохранить</button></div>'+
@@ -160,6 +161,56 @@ async function projects(){
     message('Не удалось загрузить списки. Попробуйте открыть дело ещё раз');
   }
 }
+function renderPersonalChecklist(items,writable){
+ const root=byId('rudiPersonalChecklistSection'),list=byId('rudiPersonalChecklistItems');
+ if(!root||!list)return;
+ const rows=Array.isArray(items)?items.filter(row=>row?.id&&row?.title):[];
+ root.hidden=!rows.length;
+ list.replaceChildren();
+ byId('rudiPersonalChecklistStatus').textContent='';
+ byId('rudiPersonalChecklistCount').textContent=rows.filter(row=>row.completed).length+' / '+rows.length;
+ for(const item of rows){
+  const row=document.createElement('label');
+  row.className='rudi-personal-checklist-item';
+  const box=document.createElement('input');box.type='checkbox';box.checked=Boolean(item.completed);
+  box.disabled=!writable;box.setAttribute('aria-label','Отметить подзадачу: '+item.title);
+  const name=document.createElement('span');name.textContent=item.title;
+  row.classList.toggle('is-completed',box.checked);
+  row.append(box,name);list.appendChild(row);
+  box.addEventListener('change',async()=>{
+   if(!active||active.creating)return;
+   const original=active,task=original.task,checked=box.checked;
+   box.disabled=true;byId('rudiPersonalChecklistStatus').textContent='Сохраняю в TickTick…';
+   try{
+    const response=await request('personal-task-checklist-toggle',{taskId:task.id,projectId:task.projectId,itemId:item.id,completed:checked});
+    if(active!==original)return;
+    original.task.checklist=response.checklist;
+    renderPersonalChecklist(response.checklist,response.writable);
+   }catch(error){
+    if(active!==original)return;
+    box.checked=!checked;box.disabled=!writable;row.classList.toggle('is-completed',box.checked);
+    byId('rudiPersonalChecklistStatus').textContent='Не удалось сохранить подзадачу';
+   }
+  });
+ }
+}
+async function loadPersonalChecklist(){
+ if(!active||active.creating||active.ctx.actor!=='Рустам')return;
+ const selected=active,task=selected.task;
+ const section=byId('rudiPersonalChecklistSection');
+ // Render cached checklist immediately if provided by the calendar, then
+ // fetch the full task from the user's private TickTick connection.
+ if(Array.isArray(task.checklist)&&task.checklist.length)renderPersonalChecklist(task.checklist,true);
+ try{
+  const data=await request('personal-task-checklist-read',{taskId:task.id,projectId:task.projectId});
+  if(active!==selected)return;
+  selected.task.checklist=data.checklist;
+  renderPersonalChecklist(data.checklist,data.writable);
+ }catch(error){
+  if(active!==selected)return;
+  if(!section.hidden)byId('rudiPersonalChecklistStatus').textContent='Не удалось обновить подзадачи';
+ }
+}
 function normalizedEditorWhen(task){
   // Use the selected card's date/time. Original TickTick timestamps can
   // belong to a different date (for example a due date occurrence).
@@ -203,6 +254,9 @@ function open(task,ctx={}){
   f('project').replaceChildren(new Option(task.projectName||'Текущий список',task.projectId||''));
   f('project').value=task.projectId||'';
   byId('rudiPersonalRepeatNote').hidden=!String(task.repeatFlag||'').trim();
+  byId('rudiPersonalChecklistSection').hidden=true;
+  byId('rudiPersonalChecklistItems').replaceChildren();
+  byId('rudiPersonalChecklistStatus').textContent='';
   byId('rudiPersonalTaskHeading').textContent=task.isNew?'Новое дело':'Редактировать дело';
   byId('rudiPersonalTaskDelete').hidden=Boolean(task.isNew);
   byId('rudiPersonalTaskDelete').textContent=task.privateLocal&&task.repeat&&task.repeat!=='none'?'Удалить все повторения':'Удалить дело';
@@ -224,7 +278,11 @@ function open(task,ctx={}){
     byId('rudiPersonalRepeatNote').textContent='Изменения применятся ко всем будущим повторениям. Выполненные дела сохранятся.';
     listed=true;
   }
-  else {byId('rudiPersonalRepeatNote').textContent='Повторение сохранится. Для сложных правил используйте TickTick.';projects().catch(()=>{})}
+  else {
+    byId('rudiPersonalRepeatNote').textContent='Повторение сохранится. Для сложных правил используйте TickTick.';
+    projects().catch(()=>{});
+    void loadPersonalChecklist();
+  }
 }
 async function persist(data,options={}){
   if(!active||busy)return false;

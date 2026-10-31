@@ -78,11 +78,11 @@ async function handler(req,res){
       return res.status(200).json({ok:true,actor,item:result.item,items:result.state.items});
     }
     if(operation==='take'){
-      const result=await markSupplementTaken(actor,body.id);
+      const result=await markSupplementTaken(actor,body.id,{slot:body.slot});
       return res.status(200).json({ok:true,actor,item:result.item,items:result.state.items,duplicate:result.duplicate,date:result.date});
     }
     if(operation==='untake'){
-      const result=await unmarkSupplementTaken(actor,body.id);
+      const result=await unmarkSupplementTaken(actor,body.id,{slot:body.slot});
       return res.status(200).json({ok:true,actor,item:result.item,items:result.state.items,duplicate:result.duplicate,date:result.date});
     }
     if(operation==='skip'){

@@ -47,15 +47,34 @@ function normalizeSchedule(v){
   // Older records only have schedule.time. Keep that field for existing clients,
   // while preserving a separate clock time for each daily intake.
   const inputTimes=Array.isArray(s.times)?s.times:[legacyTime];
-  const times=Array.from({length:timesPerDay},(_,index)=>cleanTime(inputTimes[index]??(index===0?legacyTime:'')));
+  const times=Array.from({length:timesPerDay},(_,index)=>cleanTime(index===0&&legacyTime&&!cleanTime(inputTimes[0])?legacyTime:inputTimes[index]??(index===0?legacyTime:'')));
   return{dosage:cleanText(s.dosage,80),time:times[0]||'',times,food:cleanFood(s.food),timesPerDay};
 }
 function normalizeCourse(v){
   const s=v&&typeof v==='object'?v:{};
   return{startDate:cleanDate(s.startDate),durationDays:Math.max(0,Math.min(3650,Math.round(Number(s.durationDays)||0)))};
 }
+function intakeSlot(value){
+  return Number.isInteger(value)&&value>=0&&value<12?value:null;
+}
 function normalizeIntakes(v){
-  return(Array.isArray(v)?v:[]).map(row=>({date:cleanDate(row?.date),at:isoOrEmpty(row?.at)})).filter(row=>row.date&&row.at).slice(-36500);
+  return(Array.isArray(v)?v:[]).map(row=>({
+    date:cleanDate(row?.date),at:isoOrEmpty(row?.at),
+    ...(intakeSlot(row?.slot)!==null?{slot:row.slot}:{})
+  })).filter(row=>row.date&&row.at).slice(-36500);
+}
+// Historical intake records have no slot. Assign them chronologically without
+// altering the stored dates, so calendar checkboxes remain individually stable.
+function intakeSlots(rows,date,target){
+  const onDate=rows.map((row,index)=>({...row,index})).filter(row=>row.date===date);
+  const taken=new Set(onDate.map(row=>intakeSlot(row.slot)).filter(slot=>slot!==null&&slot<target));
+  const assigned=[];
+  for(const row of onDate){
+    let slot=intakeSlot(row.slot);
+    if(slot===null){slot=Array.from({length:target},(_,i)=>i).find(i=>!taken.has(i));if(slot!==undefined)taken.add(slot);}
+    assigned.push({...row,slot});
+  }
+  return assigned;
 }
 function normalizeSkips(v){
   return(Array.isArray(v)?v:[]).map(row=>({date:cleanDate(row?.date),at:isoOrEmpty(row?.at)})).filter(row=>row.date&&row.at).slice(-36500);
@@ -162,11 +181,21 @@ async function updateSupplement(actor,id,patch,o={}){
 }
 async function markSupplementTaken(actor,id,o={}){
   const who=cleanActor(actor),safeId=cleanText(id,96);if(!safeId)throw new Error('supplement-id-required');
-  return enqueue(who,async()=>{const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);if(index<0)throw new Error('supplement-not-found');const date=moscowDateKey(o.now||Date.now()),current=state.items[index];
-    const takenToday=current.intakes.filter(row=>row.date===date).length,target=cleanTimesPerDay(current.schedule?.timesPerDay);
-    if(takenToday>=target)return{state,item:current,duplicate:true,date,count:takenToday,target};
-    const now=new Date(o.now||Date.now()).toISOString(),items=[...state.items];items[index]=normalizeItem({...current,intakes:[...current.intakes,{date,at:now}],skips:(current.skips||[]).filter(row=>row.date!==date),updatedAt:now});
-    const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);return{state:saved,item:saved.items[index],duplicate:false,date,count:saved.items[index].intakes.filter(row=>row.date===date).length,target};
+  return enqueue(who,async()=>{
+    const state=await readSupplements(who,o),index=state.items.findIndex(i=>i.id===safeId);
+    if(index<0)throw new Error('supplement-not-found');
+    const date=moscowDateKey(o.now||Date.now()),current=state.items[index];
+    const target=cleanTimesPerDay(current.schedule?.timesPerDay);
+    const occupied=intakeSlots(current.intakes,date,target);
+    const asked=o.slot===undefined?undefined:intakeSlot(o.slot);
+    if(o.slot!==undefined&&(asked===null||asked>=target))throw Error('supplement-slot-invalid');
+    const slot=asked===undefined?Array.from({length:target},(_,i)=>i).find(i=>!occupied.some(row=>row.slot===i)):asked;
+    if(slot===undefined||occupied.some(row=>row.slot===slot))
+      return{state,item:current,duplicate:true,date,count:occupied.length,target};
+    const now=new Date(o.now||Date.now()).toISOString(),items=[...state.items];
+    items[index]=normalizeItem({...current,intakes:[...current.intakes,{date,at:now,slot}],skips:(current.skips||[]).filter(row=>row.date!==date),updatedAt:now});
+    const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);
+    return{state:saved,item:saved.items[index],duplicate:false,date,count:occupied.length+1,target};
   });
 }
 async function unmarkSupplementTaken(actor,id,o={}){
@@ -176,12 +205,15 @@ async function unmarkSupplementTaken(actor,id,o={}){
     const state=await readSupplements(who,o),index=state.items.findIndex(item=>item.id===safeId);
     if(index<0)throw new Error('supplement-not-found');
     const date=moscowDateKey(o.now||Date.now()),current=state.items[index];
-    const last=current.intakes.map(row=>row.date).lastIndexOf(date);
-    if(last<0)return {state,item:current,duplicate:true,date,count:0};
+    const target=cleanTimesPerDay(current.schedule?.timesPerDay),taken=intakeSlots(current.intakes,date,target);
+    const asked=o.slot===undefined?undefined:intakeSlot(o.slot);
+    if(o.slot!==undefined&&(asked===null||asked>=target))throw Error('supplement-slot-invalid');
+    const matched=asked===undefined?taken[taken.length-1]:taken.find(row=>row.slot===asked);
+    if(!matched)return{state,item:current,duplicate:true,date,count:taken.length};
     const now=new Date(o.now||Date.now()).toISOString(),items=[...state.items];
-    items[index]=normalizeItem({...current,intakes:current.intakes.filter((row,i)=>i!==last),updatedAt:now});
+    items[index]=normalizeItem({...current,intakes:current.intakes.filter((row,i)=>i!==matched.index),updatedAt:now});
     const saved=await writeSupplements(who,{...state,version:state.version+1,items},o);
-    return {state:saved,item:saved.items[index],duplicate:false,date,count:saved.items[index].intakes.filter(row=>row.date===date).length};
+    return{state:saved,item:saved.items[index],duplicate:false,date,count:taken.length-1};
   });
 }
 async function markSupplementSkipped(actor,id,o={}){
@@ -261,15 +293,21 @@ async function applyOfflineOperation(actor,opId,command,payload={},o={}){
       statusHistory:nextStatus!==old.status?[...old.statusHistory,{status:nextStatus,at:timestamp}]:old.statusHistory});
     items[index]=item;
    }else if(command==='take'){
-    const count=old.intakes.filter(x=>x.date===date).length;
-    if(count<cleanTimesPerDay(old.schedule?.timesPerDay)){
-     item=normalizeItem({...old,intakes:[...old.intakes,{date,at:timestamp}],
+    const target=cleanTimesPerDay(old.schedule?.timesPerDay),occupied=intakeSlots(old.intakes,date,target);
+    const asked=payload.slot===undefined?undefined:intakeSlot(payload.slot);
+    if(payload.slot!==undefined&&(asked===null||asked>=target))throw Error('supplement-slot-invalid');
+    const slot=asked===undefined?Array.from({length:target},(_,i)=>i).find(i=>!occupied.some(row=>row.slot===i)):asked;
+    if(slot!==undefined&&!occupied.some(row=>row.slot===slot)){
+     item=normalizeItem({...old,intakes:[...old.intakes,{date,at:timestamp,slot}],
        skips:old.skips.filter(row=>row.date!==date),updatedAt:timestamp});
      items[index]=item;
     }
    }else if(command==='untake'){
-    const i=old.intakes.map(x=>x.date).lastIndexOf(date);
-    if(i>=0){item=normalizeItem({...old,intakes:old.intakes.filter((_,j)=>i!==j),updatedAt:timestamp});items[index]=item}
+    const target=cleanTimesPerDay(old.schedule?.timesPerDay),taken=intakeSlots(old.intakes,date,target);
+    const asked=payload.slot===undefined?undefined:intakeSlot(payload.slot);
+    if(payload.slot!==undefined&&(asked===null||asked>=target))throw Error('supplement-slot-invalid');
+    const matched=asked===undefined?taken[taken.length-1]:taken.find(row=>row.slot===asked);
+    if(matched){item=normalizeItem({...old,intakes:old.intakes.filter((_,j)=>matched.index!==j),updatedAt:timestamp});items[index]=item}
    }else if(command==='skip'){
     if(old.intakes.some(x=>x.date===date))throw Error('supplement-already-taken');
     if(!old.skips.some(x=>x.date===date)){item=normalizeItem({...old,skips:[...old.skips,{date,at:timestamp}],updatedAt:timestamp});items[index]=item}

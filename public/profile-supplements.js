@@ -88,14 +88,23 @@ function localSupplementMutation(snapshot,command,payload,at,id){
   }
   if(command==='take'){
    const target=Math.max(1,Math.min(12,Number(existing.schedule?.timesPerDay)||1));
-   if(existing.intakes.filter(x=>x.date===date).length<target){
-    item={...existing,intakes:[...existing.intakes,{date,at}],
+   const filled=new Set(existing.intakes.filter(x=>x.date===date&&Number.isInteger(x.slot)).map(x=>x.slot));
+   const legacy=existing.intakes.filter(x=>x.date===date&&!Number.isInteger(x.slot));
+   for(const row of legacy){const next=Array.from({length:target},(_,i)=>i).find(i=>!filled.has(i));if(next!==undefined)filled.add(next)}
+   const slot=Number.isInteger(payload.slot)?payload.slot:Array.from({length:target},(_,i)=>i).find(i=>!filled.has(i));
+   if(Number.isInteger(slot)&&slot>=0&&slot<target&&!filled.has(slot)){
+    item={...existing,intakes:[...existing.intakes,{date,at,slot}],
       skips:(existing.skips||[]).filter(x=>x.date!==date),updatedAt:at};rows[i]=item;
    }
   }
   if(command==='untake'){
-   const intakeIndex=existing.intakes.map(x=>x.date).lastIndexOf(date);
-   if(intakeIndex>=0){item={...existing,intakes:existing.intakes.filter((_,j)=>j!==intakeIndex),updatedAt:at};rows[i]=item}
+   const onDate=existing.intakes.map((x,index)=>({...x,index})).filter(x=>x.date===date);
+   const used=new Set(onDate.filter(x=>Number.isInteger(x.slot)).map(x=>x.slot));
+   for(const row of onDate.filter(x=>!Number.isInteger(x.slot))){
+    const next=Array.from({length:12},(_,i)=>i).find(i=>!used.has(i));row.slot=next;if(next!==undefined)used.add(next);
+   }
+   const match=Number.isInteger(payload.slot)?onDate.find(x=>x.slot===payload.slot):onDate[onDate.length-1];
+   if(match){item={...existing,intakes:existing.intakes.filter((_,j)=>j!==match.index),updatedAt:at};rows[i]=item}
   }
   if(command==='skip'){
    if(existing.intakes.some(x=>x.date===date))throw Error('supplement-already-taken');

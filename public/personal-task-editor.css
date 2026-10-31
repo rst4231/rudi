@@ -67,3 +67,15 @@
 .rudi-personal-weekdays span{display:grid;place-items:center;width:39px;height:37px;border-radius:10px;background:var(--soft);border:1px solid var(--line);font-size:13px}
 .rudi-personal-weekdays input:checked+span{background:#4578e6;color:#fff;border-color:#4578e6}
 .rudi-personal-weekdays input:focus-visible+span{outline:2px solid #4578e6;outline-offset:2px}
+
+/* TickTick task checklist loaded from the selected private task. */
+.rudi-personal-checklist-section{display:grid;gap:10px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface-strong)}
+.rudi-personal-checklist-section[hidden]{display:none!important}
+.rudi-personal-checklist-header{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.rudi-personal-checklist-header strong{font-size:14px}
+.rudi-personal-checklist-header small,.rudi-personal-checklist-section>small{font-size:12px;color:var(--muted)}
+.rudi-personal-checklist-items{display:grid;gap:2px;max-height:260px;overflow:auto}
+.rudi-personal-checklist-item{display:flex;align-items:center;gap:10px;min-height:40px;padding:6px 2px;font-size:14px;line-height:1.35;cursor:pointer}
+.rudi-personal-checklist-item input{width:19px;height:19px;flex:0 0 19px;accent-color:#31c76c}
+.rudi-personal-checklist-item span{overflow-wrap:anywhere}
+.rudi-personal-checklist-item.is-completed span{text-decoration:line-through;opacity:.55}

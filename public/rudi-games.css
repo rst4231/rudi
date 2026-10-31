@@ -494,3 +494,9 @@ html[data-theme="dark"] .is-battleship .rudi-battle-cell:not(.is-hit),html[data-
  .is-battleship .rudi-battle-own{width:90px;min-width:90px}
  .is-battleship .rudi-battle-footer{display:flex;align-items:center;justify-content:center;gap:12px}
 }
+
+.rudi-memory-keypad{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+.rudi-memory-keypad[hidden]{display:none!important}
+.rudi-memory-key{min-height:51px;border:1px solid var(--game-border);border-radius:13px;background:var(--game-card);color:inherit;font-size:21px;font-weight:700;cursor:pointer;touch-action:manipulation}
+.rudi-memory-key:active{transform:scale(.97)}
+.rudi-memory-key[data-memory-key="Готово"]{font-size:13px;background:rgba(96,139,226,.24)}

@@ -34,15 +34,29 @@ function memoryShow(){
  header('Память','Уровень '+level);
  sequence=Array.from({length:3+level},()=>String(Math.floor(Math.random()*10))).join('');
  section('<div class="rudi-game-work"><small>Уровень '+level+'</small><p>Запомни число. Через несколько секунд оно исчезнет.</p><div id="rudiMemoryNumber" class="rudi-memory-number">'+sequence+'</div>'+
- '<label id="rudiMemoryInputWrap" class="rudi-memory-label" hidden>Какое число было?<input id="rudiMemoryAnswer" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="'+sequence.length+'"></label>'+
+ '<label id="rudiMemoryInputWrap" class="rudi-memory-label" hidden>Какое число было?<input id="rudiMemoryAnswer" type="text" inputmode="none" pattern="[0-9]*" autocomplete="off" maxlength="'+sequence.length+'"></label>'+
+ '<div id="rudiMemoryKeypad" class="rudi-memory-keypad" hidden aria-label="Цифровая клавиатура">'+
+ [1,2,3,4,5,6,7,8,9,'⌫',0,'Готово'].map(d=>'<button type="button" class="rudi-memory-key" data-memory-key="'+d+'">'+d+'</button>').join('')+'</div>'+
  '<button id="rudiMemoryCheck" class="rudi-game-primary" disabled>Проверить</button><div id="rudiGameMessage" role="status" aria-live="polite"></div></div>');
- const input=$('rudiMemoryAnswer'),button=$('rudiMemoryCheck');
- input.addEventListener('input',()=>{input.value=input.value.replace(/\D/g,'').slice(0,sequence.length);button.disabled=input.value.length!==sequence.length});
+ const input=$('rudiMemoryAnswer'),button=$('rudiMemoryCheck'),keypad=$('rudiMemoryKeypad');
+ const sync=()=>{input.value=input.value.replace(/\D/g,'').slice(0,sequence.length);button.disabled=input.value.length!==sequence.length};
+ input.addEventListener('input',sync);
+ keypad.addEventListener('click',event=>{
+   const key=event.target.closest?.('[data-memory-key]')?.dataset.memoryKey;
+   if(!key||input.disabled)return;
+   if(key==='Готово'){if(!button.disabled)button.click();else input.blur();return}
+   if(key==='⌫')input.value=input.value.slice(0,-1);
+   else if(input.value.length<sequence.length)input.value+=key;
+   sync();haptic();
+ });
  button.addEventListener('click',memoryCheck);
  memoryTimer=setTimeout(()=>{
    if(mode!=='memory'||!page||page.hidden)return;
    $('rudiMemoryNumber').textContent='••••';
    $('rudiMemoryInputWrap').hidden=false;
+   keypad.hidden=false;
+   // iOS does not reliably show its native keyboard from a delayed focus.
+   // Keep the on-screen keypad accessible on every device.
    input.focus({preventScroll:true});
  },Math.min(3800,1500+level*350));
 }
@@ -58,6 +72,7 @@ function memoryCheck(){
    $('rudiMemoryCheck').textContent='Попробовать снова';$('rudiMemoryCheck').disabled=false;
  }
  $('rudiMemoryAnswer').disabled=true;
+ $('rudiMemoryKeypad').hidden=true;
  // Replace the original handler so the next click never resubmits the answer.
  const old=$('rudiMemoryCheck'),fresh=old.cloneNode(true);old.replaceWith(fresh);
  fresh.addEventListener('click',guess===sequence?memoryShow:()=>{level=1;memoryShow()});

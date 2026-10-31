@@ -15727,6 +15727,88 @@
         });
       }
 
+      // Calendar entries are projections of the existing supplement records:
+      // no duplicate TickTick tasks and no extra database writes on reads.
+      let calendarSupplementState={actor:'',items:[],loadedAt:0};
+      let calendarSupplementFlight=null;
+      function calendarSupplementDayEntries(dateKey){
+        if(calendarScope!=='personal'||calendarSupplementState.actor!==currentActor)return [];
+        const result=[];
+        for(const item of calendarSupplementState.items){
+          if(item?.status!=='active')continue;
+          const start=item.course?.startDate||'';
+          if(start&&dateKey<start)continue;
+          const duration=Number(item.course?.durationDays)||0;
+          if(start&&duration>0&&dateKey>calendarDateShift(start,duration-1))continue;
+          const count=Math.max(1,Math.min(12,Math.round(Number(item.schedule?.timesPerDay)||1)));
+          const times=Array.isArray(item.schedule?.times)?item.schedule.times:[item.schedule?.time];
+          const rows=(Array.isArray(item.intakes)?item.intakes:[]).filter(row=>row.date===dateKey);
+          const taken=new Set(rows.filter(row=>Number.isInteger(row.slot)&&row.slot>=0&&row.slot<count).map(row=>row.slot));
+          const legacy=rows.filter(row=>!Number.isInteger(row.slot)||row.slot<0||row.slot>=count);
+          for(const row of legacy){
+            const slot=Array.from({length:count},(_,i)=>i).find(i=>!taken.has(i));
+            if(slot!==undefined)taken.add(slot);
+          }
+          for(let slot=0;slot<count;slot++){
+            const time=/^([01]\d|2[0-3]):[0-5]\d$/.test(String(times[slot]||''))?times[slot]:'';
+            result.push({
+              id:'supplement:'+item.id+':'+slot, supplementId:item.id,supplementSlot:slot,
+              date:dateKey, title:'💊 '+item.name+(time?'':' · Категория не указана'),
+              startTime:time,endTime:'',allDay:!time,completed:taken.has(slot),
+              canComplete:dateKey===todayState().key,personal:true,kind:'supplement'
+            });
+          }
+        }
+        return result;
+      }
+      function calendarRepaintSupplements(items,actor=currentActor){
+        if(actor!==currentActor)return;
+        calendarSupplementState={actor,items:Array.isArray(items)?items:[],loadedAt:Date.now()};
+        const payload=calendarViewCache[calendarCacheKey()];
+        if(payload&&document.body?.dataset?.appTab==='schedule')renderWorkCalendar(payload,{force:true});
+      }
+      async function calendarFetchSupplements({force=false}={}){
+        const app=window.RudiSupplementApp,actor=currentActor;
+        if(calendarScope!=='personal'||!app)return;
+        // The calendar can open before the supplement profile finishes its
+        // first actor-specific load after login or a profile switch.
+        if(app.getActor?.()!==actor){
+          await app.loadHomeTools?.({force:false});
+          if(actor!==currentActor||app.getActor?.()!==actor)return;
+        }
+        if(!force&&calendarSupplementState.actor===actor&&Date.now()-calendarSupplementState.loadedAt<60000)return;
+        if(calendarSupplementFlight)return calendarSupplementFlight;
+        const promise=app.request('list',{}, {force}).then(data=>{
+          if(actor===currentActor)calendarRepaintSupplements(data?.items||[],actor);
+        }).catch(error=>{
+          console.warn('RUDI_CALENDAR_SUPPLEMENTS_READ_WARN',String(error?.message||error));
+        }).finally(()=>{if(calendarSupplementFlight===promise)calendarSupplementFlight=null});
+        calendarSupplementFlight=promise;
+        return promise;
+      }
+      async function calendarToggleSupplement(task,button){
+        if(!task?.supplementId||task.date!==todayState().key)return;
+        const app=window.RudiSupplementApp;
+        if(!app||app.getActor?.()!==currentActor)return;
+        button.disabled=true;
+        try{
+          const data=await app.request(task.completed?'untake':'take',{id:task.supplementId,slot:task.supplementSlot});
+          app.setItems(data.items||[]);
+          calendarRepaintSupplements(data.items||[]);
+          document.dispatchEvent(new CustomEvent('rudi:supplement-intake-updated'));
+        }catch(error){
+          button.disabled=false;
+          const status=document.getElementById('workCalendarStatus');
+          if(status){status.hidden=false;status.textContent='Не удалось сохранить приём БАД'}
+        }
+      }
+      for(const eventName of ['rudi:supplement-intake-updated','rudi:supplements-settings-updated']){
+        document.addEventListener(eventName,()=>{
+          const app=window.RudiSupplementApp;
+          if(app?.getActor?.()===currentActor)calendarRepaintSupplements(app.getItems());
+        });
+      }
+
       function calendarWeekAgenda(dateKey,tasks,workEvents,holidays,obligations,sharedWritable=true){
         const panel=document.createElement('div');
         panel.className='calendar-week-agenda';
@@ -15748,7 +15830,9 @@
           row.classList.add('calendar-agenda-task');
           const isPersonal=task.personal===true;
           const writable=isPersonal?task.canComplete!==false:sharedWritable;
-          const allowed=isPersonal
+          const allowed=task.supplementId
+            ?task.date===todayState().key
+            :isPersonal
             ?(currentActor==='Рустам'||task.privateLocal===true&&currentActor==='Диана')&&task.canComplete!==false
             :tickTickTaskCanComplete(task);
           const checkbox=document.createElement('button');
@@ -15758,12 +15842,16 @@
           checkbox.setAttribute('aria-checked',task.completed?'true':'false');
           if(task.completed){row.classList.add('is-completed');checkbox.textContent='✓'}
           checkbox.setAttribute('aria-label','Отметить выполненным: '+String(task.title||'Дело'));
-          checkbox.disabled=Boolean(task.completed)||!task.id||!writable||!allowed;
+          checkbox.disabled=task.supplementId
+            ?task.date!==todayState().key
+            :Boolean(task.completed)||!task.id||!writable||!allowed;
           checkbox.addEventListener('click',event=>{
             event.stopPropagation();
+            if(task.supplementId){void calendarToggleSupplement(task,checkbox);return}
             completeCalendarTickTickTask(task,row,checkbox,writable);
           });
           row.prepend(checkbox);
+          if(task.supplementId)return;
           if(!task.completed&&!task.externalCalendar&&isPersonal&&calendarScope==='personal'&&(task.privateLocal===true||calendarTickTickTaskWebUrl(task))){
             row.classList.add('calendar-external-task');
             row.style.cursor='pointer';
@@ -15789,7 +15877,7 @@
         };
         // Weekly timeline shows tasks, shifts and obligations; holidays remain in month view.
         for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':''),'','');
-        for(const item of tasks)put('task',String(item.title||'Задача'),item.allDay?'':item.startTime,item.endTime,item);
+        for(const item of tasks)put(item.supplementId?'supplement':'task',String(item.title||'Задача'),item.allDay?'':item.startTime,item.endTime,item);
         if(calendarScope==='shared'||currentActor==='Диана'){
           for(const event of workEvents){
             const hours=event.allDay?'':event.startTime;
@@ -15864,7 +15952,7 @@
           }
           attachCompletion(block,event.task);
           // Keep the existing vertical time drag; long hold with no movement opens TickTick.
-          calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable);
+          if(!event.task?.supplementId)calendarAttachTaskTimeDrag(block,when,event,dateKey,viewport,sharedWritable);
           track.appendChild(block);
         }
         if(dateKey===todayState().key){
@@ -16000,7 +16088,8 @@
           const tasks=(Array.isArray(tickDays.get(String(day.date))?.events)?tickDays.get(String(day.date)).events:[])
             .filter(event=>event?.completed||!tickTickTaskRecentlyCompleted(event?.id+'|'+String(day.date||'')))
             // Each occurrence gets the day shown on its calendar card.
-            .map(event=>({...event,date:String(day.date)}));
+            .map(event=>({...event,date:String(day.date)}))
+            .concat(calendarSupplementDayEntries(String(day.date)));
           const holidays=(Array.isArray(holidayDays.get(String(day.date))?.items)?holidayDays.get(String(day.date)).items:[])
             .slice(0,5)
             .filter(Boolean);
@@ -16142,20 +16231,22 @@
                 complete.setAttribute('aria-checked',event.completed?'true':'false');
                 if(event.completed){row.classList.add('is-completed');complete.textContent='✓'}
                 const isPersonalTask=event?.personal===true;
-                const canComplete=isPersonalTask
+                const canComplete=event.supplementId
+                  ?event.date===todayState().key
+                  :isPersonalTask
                   ?(currentActor==='Рустам'||event.privateLocal===true&&currentActor==='Диана')&&event?.canComplete!==false
                   :tickTickTaskCanComplete(event);
                 complete.setAttribute('aria-label',canComplete
                   ?'Отметить выполненным: '+String(event.title||'Дело')
                   :isPersonalTask?'Недостаточно прав для выполнения личной задачи':'Эта задача назначена другому участнику');
-                const taskWritable=isPersonalTask?event?.canComplete!==false:payload?.ticktickWritable!==false;
-                complete.disabled=Boolean(event.completed)||!event?.id||!taskWritable||!canComplete;
+                const taskWritable=event.supplementId?true:isPersonalTask?event?.canComplete!==false:payload?.ticktickWritable!==false;
+                complete.disabled=(Boolean(event.completed)&&!event.supplementId)||!event?.id||!taskWritable||!canComplete;
 
                 const taskCopy=document.createElement('button');
                 taskCopy.type='button';
                 taskCopy.className='calendar-task-copy';
                 const opensInTickTick=calendarScope==='personal'&&isPersonalTask&&!event.externalCalendar&&(event.privateLocal===true||Boolean(calendarTickTickTaskWebUrl(event)));
-                taskCopy.disabled=Boolean(event.completed)||!event?.id||(!opensInTickTick&&(payload?.ticktickWritable===false||event?.canEdit===false));
+                taskCopy.disabled=!event.supplementId&&(Boolean(event.completed)||!event?.id||(!opensInTickTick&&(payload?.ticktickWritable===false||event?.canEdit===false)));
                 taskCopy.setAttribute('aria-label','Редактировать: '+String(event.title||'Дело'));
                 const start=String(event.startTime||'').trim();
                 const end=String(event.endTime||'').trim();
@@ -16170,11 +16261,13 @@
                 row.append(complete,taskCopy);
                 complete.addEventListener('click',clickEvent=>{
                   clickEvent.stopPropagation();
+                  if(event.supplementId){void calendarToggleSupplement(event,complete);return}
                   completeCalendarTickTickTask(event,row,complete,taskWritable);
                 });
                 taskCopy.addEventListener('click',clickEvent=>{
                   clickEvent.stopPropagation();
                   if(taskCopy.disabled)return;
+                  if(event.supplementId){window.RudiSupplementEditor?.open(event.supplementId);return}
                   if(opensInTickTick){
                     window.RUDIPersonalTaskEditor?.open(event,calendarPersonalTaskEditorContext(event));return;
                   }
@@ -16406,6 +16499,7 @@
       }
       async function loadWorkCalendar(view=currentWorkCalendarView,{silent=false,force=false}={}){
         if(!currentActor)return null;
+        void calendarFetchSupplements({force});
         const key=calendarCacheKey(),epoch=++calendarLoadEpoch;
         const sourceScope=calendarScope==='shared'?'shared':currentActor==='Диана'?'diana':'rustam';
         const status=document.getElementById('workCalendarStatus'),cached=calendarViewCache[key];
