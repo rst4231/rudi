@@ -191,7 +191,6 @@ function ensureStatusTabs(list){
 function applyGrouping(){
   const list=document.querySelector('.personal-supplements-list');if(!list)return;
   const tabs=ensureStatusTabs(list);
-  const query=(searchInput?.value||'').trim().toLowerCase();
   list.querySelectorAll('.supplement-group-title,.supplement-group-empty,.supplement-extra-slot').forEach(node=>node.remove());
   const all=getItems();
   for(const button of tabs.querySelectorAll('.supplement-status-tab')){

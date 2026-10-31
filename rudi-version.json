@@ -1,25 +1,20 @@
 {
-  "current": "v4.385",
-  "versionBranch": "rudi-v4385-based-on-v4383-with-all-20261031-fixes",
+  "current": "v4.386",
+  "versionBranch": "rudi-v4386-fix-supplement-groups-historical-intakes",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-10-31",
-  "basedOnProduction": "v4.383",
+  "basedOnProduction": "v4.385",
   "notes": [
-    "Все изменения RUDI v4.383 сохранены",
-    "БАДы по часам в личном календаре и категории Утро/День/Вечер",
-    "Отдельные отметки приёма БАДов и сохранение истории",
-    "Подзадачи личных задач TickTick в RUDI",
-    "Цифровая клавиатура тренировки памяти",
-    "Компактные текстовые заголовки БАДов без иконок"
+    "Исправлена ошибка группировки БАДов: категории Утро/День/Вечер/Скоро курс и Принимаю/На паузе/Архив теперь отображаются",
+    "В календаре сохраняется отображение исторических приёмов БАДов даже после изменения курса, архивации или паузы",
+    "Никаких изменений или очистки истории БАДов на сервере"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Preserve v4.383 code and shared calendar",
-    "Supplement per-slot checkboxes and categories",
-    "TickTick private task checklists",
-    "Memory trainer keypad",
-    "Compact text-only supplement group headings"
+    "Fix undefined searchInput ReferenceError in supplement categories",
+    "Render historical intake checkboxes even after archive, pause or course reschedule",
+    "Preserve existing records and current shared calendar"
   ]
 }

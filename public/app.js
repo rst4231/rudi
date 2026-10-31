@@ -16406,14 +16406,17 @@
         if(calendarScope!=='personal'||calendarSupplementState.actor!==currentActor)return [];
         const result=[];
         for(const item of calendarSupplementState.items){
-          if(item?.status!=='active')continue;
+          const rows=(Array.isArray(item.intakes)?item.intakes:[]).filter(row=>row.date===dateKey);
+          // Never hide a historical completed intake when a course is later
+          // paused, archived, or rescheduled. These are read-only projections.
+          const hasHistory=rows.length>0;
+          if(item?.status!=='active'&&!hasHistory)continue;
           const start=item.course?.startDate||'';
-          if(start&&dateKey<start)continue;
+          if(start&&dateKey<start&&!hasHistory)continue;
           const duration=Number(item.course?.durationDays)||0;
-          if(start&&duration>0&&dateKey>calendarDateShift(start,duration-1))continue;
+          if(start&&duration>0&&dateKey>calendarDateShift(start,duration-1)&&!hasHistory)continue;
           const count=Math.max(1,Math.min(12,Math.round(Number(item.schedule?.timesPerDay)||1)));
           const times=Array.isArray(item.schedule?.times)?item.schedule.times:[item.schedule?.time];
-          const rows=(Array.isArray(item.intakes)?item.intakes:[]).filter(row=>row.date===dateKey);
           const taken=new Set(rows.filter(row=>Number.isInteger(row.slot)&&row.slot>=0&&row.slot<count).map(row=>row.slot));
           const legacy=rows.filter(row=>!Number.isInteger(row.slot)||row.slot<0||row.slot>=count);
           for(const row of legacy){
