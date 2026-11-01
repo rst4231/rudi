@@ -1,16 +1,16 @@
 {
-  "current": "v4.406",
+  "current": "v4.407",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.405",
+  "basedOnProduction": "v4.406",
   "notes": [
-    "Карточка машины на главной стала компактнее; данные ОСАГО перенесены к информации о мойке"
+    "Нижний ряд карточки машины на главной оформлен в едином стиле"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Move home car insurance into the status row and remove the release year"
+    "Unify the home car tyre, wash and insurance status cards"
   ]
 }
