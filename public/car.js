@@ -72,14 +72,6 @@
       operations:group.operations.sort((a,b)=>(Date.parse(b.occurredAt)||0)-(Date.parse(a.occurredAt)||0))
     }));
   }
-  function carMonthTotal(finance,month){
-    const categories=[...(Array.isArray(finance?.categories)?finance.categories:[]),...(Array.isArray(finance?.archivedCategories)?finance.archivedCategories:[])];
-    const ids=new Set(categories.filter(row=>normalizeFinanceText(row?.name)==='транспорт').map(row=>String(row.id||'')));
-    return Math.round((Array.isArray(finance?.personalExpenses)?finance.personalExpenses:[]).reduce((total,row)=>{
-      const rowMonth=/^\d{4}-\d{2}$/.test(String(row?.month||''))?String(row.month):String(row?.occurredAt||'').slice(0,7),amount=Number(row?.rubAmount??row?.amount??0);
-      return ids.has(String(row?.categoryId||''))&&rowMonth===month&&Number.isFinite(amount)&&amount>0?total+amount:total;
-    },0)*100)/100;
-  }
   function carExpenseDateTime(value){
     const date=new Date(value);
     if(Number.isNaN(date.getTime()))return 'Дата не указана';
@@ -88,7 +80,7 @@
   function renderCarExpenses(){
     const list=document.getElementById('carExpensesList'),status=document.getElementById('carExpensesStatus'),meta=document.getElementById('carExpensesMeta');if(!list)return;list.replaceChildren();
     if(state.financeLoading&&!state.finance){if(status){status.hidden=false;status.textContent='Загружаю расходы…'}if(meta)meta.textContent='';return}
-    const groups=carExpenseGroups(state.finance||{});const monthTotal=document.getElementById('carMonthExpenses');if(monthTotal)monthTotal.textContent=state.finance?carExpenseMoney(carMonthTotal(state.finance,clientMoscowDateKey().slice(0,7))):state.financeLoading?'Загружаю…':'Нет данных';if(meta)meta.textContent=groups.length?groups.length+' мес.':'';
+    const groups=carExpenseGroups(state.finance||{});const monthTotal=document.getElementById('carMonthExpenses');if(monthTotal)monthTotal.textContent=state.finance?carExpenseMoney(groups.find(row=>row.month===clientMoscowDateKey().slice(0,7))?.total||0):state.financeLoading?'Загружаю…':'Нет данных';if(meta)meta.textContent=groups.length?groups.length+' мес.':'';
     if(!groups.length){if(status){status.hidden=false;status.textContent='Расходов по меткам Бензин, Паркинг, Мойка, Ремонт и Страховка пока нет'}return}if(status)status.hidden=true;
     for(const group of groups){
       const section=document.createElement('section');section.className='car-expense-month';const head=document.createElement('div');head.className='car-expense-month-head';

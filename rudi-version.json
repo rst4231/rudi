@@ -1,22 +1,16 @@
 {
-  "current": "v4.402",
+  "current": "v4.403",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.401",
+  "basedOnProduction": "v4.402",
   "notes": [
-    "Страница Лулу оформлена с акцентом на здоровье и план ухода",
-    "Добавлены компактные переходы к весу, уходу, питанию, расходам и прогулкам",
-    "Исправлены иконки шин и ОСАГО и перенос даты страховки",
-    "Исправлены значки шин и ОСАГО, дата в одну строку, добавлен месячный итог расходов на машину",
-    "Убрана дублирующая карточка шин на странице машины"
+    "Общий расход за текущий месяц берётся из итогов блока расходов машины"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Add health-focused Lulu overview with live care summaries and shortcuts",
-    "Use clear tyre and insurance icons and keep insurance date together",
-    "Show current month car expenses and fix status icons and insurance date"
+    "Use the same current-month total as the car expenses history"
   ]
 }
