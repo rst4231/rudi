@@ -1,16 +1,16 @@
 {
-  "current": "v4.404",
+  "current": "v4.405",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.403",
+  "basedOnProduction": "v4.404",
   "notes": [
-    "Страховая компания отображается под датой в карточке ОСАГО"
+    "В карточке мойки показывается подходящий день без лишних предупреждений"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Move insurance company beneath the OSAGO expiry date"
+    "Show the recommended wash day directly on car cards"
   ]
 }

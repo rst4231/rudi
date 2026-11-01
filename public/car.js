@@ -1231,16 +1231,10 @@
 
   function compactWashAdvice(weather) {
     const advice=carWashAdvice(weather);
-    const text=String(advice?.text||'');
-    const best=String(advice?.bestDayText||'').replace(/^Лучше помыть\s+/i,'');
-    if(/снег/i.test(text)) return best?'Отложить · лучше '+best+'.':'Отложить · возможен снег.';
-    if(/1–2 дня/i.test(text)) return best?'Отложить · лучше '+best+'.':'Отложить · осадки в ближайшие 1–2 дня.';
-    if(/неделя ожидается влажной/i.test(text)) return best?'Скорее не стоит · лучше '+best+'.':'Скорее не стоит · на неделе ожидаются осадки.';
-    const delayed=text.match(/через\s+(\d+)\s+/i);
-    if(delayed) return 'Можно · осадки примерно через '+delayed[1]+' дн.';
-    if(/замороз/i.test(text)) return best?'Можно · лучше '+best+'.':'Можно · после мойки хорошо просушить.';
-    if(advice?.kind==='ok') return best&&best!=='сегодня'?'Да · лучше '+best+'.':'Да · существенных осадков на неделе не ожидается.';
-    return 'Проверь погоду перед мойкой.';
+    const best=String(advice?.bestDayText||'').replace(/^Лучше помыть\s+/i,'').trim();
+    if(best)return best.charAt(0).toLocaleUpperCase('ru-RU')+best.slice(1);
+    if(advice?.canWash)return 'Сегодня';
+    return weather?'Подходящий день пока не найден':'Нет данных о погоде';
   }
 
   function buildRecommendations(car,weather) {
