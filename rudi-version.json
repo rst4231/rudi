@@ -1,16 +1,16 @@
 {
-  "current": "v4.410",
+  "current": "v4.411",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.409",
+  "basedOnProduction": "v4.410",
   "notes": [
-    "Плавный переход в карточку машины и обратно"
+    "Период и прогресс бюджета в карточке финансов; звёзды убраны из кошельков"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Restore tab scroll before route transition"
+    "Clarify finance budget card and remove stars wallet"
   ]
 }

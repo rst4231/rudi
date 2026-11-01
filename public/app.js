@@ -3620,9 +3620,11 @@
         }
         const progressBar=document.getElementById('financeBalanceProgressBar');
         const progressPercent=document.getElementById('financeBalanceProgressPercent');
+        const progressLabel=document.getElementById('financeBalanceProgressLabel');
         const spentPercent=plannedLimit>0?Math.max(0,actualSpent/plannedLimit*100):(actualSpent>0?100:0);
-        if(progressBar)progressBar.style.width=Math.min(100,spentPercent)+'%';
-        if(progressPercent)progressPercent.textContent=financePercent(spentPercent);
+        if(progressBar)progressBar.style.width=(plannedLimit>0?Math.min(100,spentPercent):0)+'%';
+        if(progressPercent)progressPercent.textContent=plannedLimit>0?financePercent(spentPercent):'—';
+        if(progressLabel)progressLabel.textContent=plannedLimit>0?'Потрачено от бюджета':'Бюджет по категориям не задан';
         applyFinanceBudgetIndicator(spentPercent,plannedLimit);
         if(yesterdayTotal||todayTotal){
           const now=financeMoscowParts();
@@ -4752,17 +4754,6 @@
         }
       }
 
-      // Score stars are a permanent, virtual wallet: never a monetary finance record.
-      function renderFinanceStarsWallet(){
-        const amount=document.getElementById('financeStarsWalletBalance');
-        const wallet=document.getElementById('financeStarsWallet');
-        if(!amount||!wallet)return;
-        const actor=String(currentActor||document.body.dataset.rudiActor||'');
-        const balance=Number(currentScoreState?.balances?.[actor]||0);
-        amount.textContent=financeBalanceHidden?'••••':currentScoreState?scoreNumber(balance)+' ⭐':'—';
-        wallet.setAttribute('aria-label','Звёзды: '+(currentScoreState?scoreNumber(balance):'баланс загружается')+'. Открыть историю и награды');
-      }
-
       function renderFinanceWallets(){
         const list=document.getElementById('financeWalletList'),empty=document.getElementById('financeWalletEmpty');if(!list)return;
         const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
@@ -4770,31 +4761,6 @@
         renderFinanceWalletTotal();
         renderFinanceObligationCoverage();
         list.classList.toggle('is-editing',financeWalletEditMode);
-
-        // First in the strip, outside .finance-wallet-item: cannot be moved,
-        // deleted or used as a payment/transfer target.
-        const stars=document.createElement('button');
-        stars.id='financeStarsWallet';
-        stars.type='button';
-        stars.className='finance-coin-item finance-stars-wallet-item';
-        stars.setAttribute('aria-label','Открыть кошелёк звёзд');
-        const starsTitle=document.createElement('span');
-        starsTitle.className='finance-coin-label';
-        starsTitle.textContent='Звёзды';
-        const starsIcon=document.createElement('span');
-        starsIcon.className='finance-coin finance-wallet-coin finance-stars-wallet-coin';
-        starsIcon.textContent='⭐';
-        starsIcon.setAttribute('aria-hidden','true');
-        const starsBalance=document.createElement('span');
-        starsBalance.id='financeStarsWalletBalance';
-        starsBalance.className='finance-coin-amount';
-        stars.append(starsTitle,starsIcon,starsBalance);
-        stars.addEventListener('click',()=>{
-          if(financeWalletEditMode)setFinanceWalletEditMode(false);
-          openScoreModal(currentActor);
-        });
-        list.append(stars);
-        renderFinanceStarsWallet();
 
         wallets.forEach((wallet,index)=>{
           const item=document.createElement('div');item.className='finance-coin-item finance-wallet-item';item.dataset.walletId=wallet.id;
@@ -7713,7 +7679,6 @@
       function renderScoreStickers(score=currentScoreState){
         if(score) acceptScoreState(score);
         if(!currentScoreState) return;
-        renderFinanceStarsWallet();
         window.RudiPartnerProfile?.refresh();
         document.dispatchEvent(new CustomEvent('rudi:stars-changed'));
         if(scoreModalActor) renderScoreModal(scoreModalActor,currentScoreState);
