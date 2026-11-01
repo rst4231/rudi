@@ -1,20 +1,16 @@
 {
-  "current": "v4.394",
+  "current": "v4.395",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.393",
+  "basedOnProduction": "v4.394",
   "notes": [
-    "Стрижка когтей: новые записи только из общей задачи",
-    "Добавление обозначено плюсом, редактирование карандашом",
-    "Здоровье Лулу сохраняется автоматически после ввода без отдельной кнопки"
+    "Кнопки удаления в карточках ухода за Лулу заменены красными крестиками"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Task-only new nails entries; retain existing history",
-    "Accessible icon buttons for adding and editing care records",
-    "Serialized health autosave on pause and blur with existing offline queue"
+    "Use labeled red SVG cross controls for Lulu care deletion"
   ]
 }
