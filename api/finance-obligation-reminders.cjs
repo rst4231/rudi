@@ -29,12 +29,12 @@ function dueObligations(plan, now = new Date()){
       return {
         id:String(row?.id||''),
         title:String(row?.title||'Платёж'),
-        amount:Number(row?.amount||0),
+        amount:Number(row?.amountByMonth?row.amountByMonth[month]||0:row?.amount||0),
         dueDay,
         paid,
       };
     })
-    .filter(row=>row.dueDay===day);
+    .filter(row=>row.dueDay===day&&row.amount>0);
 }
 
 async function loadDueObligationsByActor(options = {}){
@@ -44,7 +44,7 @@ async function loadDueObligationsByActor(options = {}){
   const result={};
   for(const actor of ACTORS){
     try{
-      const view=state?viewState(state,actor):null;
+      const view=state?viewState(state,actor,monthAndDay(now).month):null;
       result[actor]=dueObligations(view?.plan||{},now);
     }catch(_){
       result[actor]=[];

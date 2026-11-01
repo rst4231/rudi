@@ -172,6 +172,19 @@ function cleanAnalystReport(value = {}) {
     createdAt: createdAtDate && !Number.isNaN(createdAtDate.getTime()) ? createdAtDate.toISOString() : '',
   };
 }
+const HOUSING_ID='system-housing';
+function housingPaidMonths(value){
+ const months=[];for(const raw of Array.isArray(value)?value:[]){try{const month=cleanMonth(raw);if(!months.includes(month))months.push(month)}catch(_){}}
+ return months.sort().slice(-48);
+}
+function planWithHousing(state,actor,month=''){
+ const plan=state.plans[actor]||cleanPlan();
+ const amounts=Object.fromEntries(Object.values(state.months||{}).map(row=>[row.month,splitAmounts(row.rent,row.utilities,row.items)[actor==='Диана'?'diana':'rustam']]));
+ const selected=month||new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit'}).format(new Date());
+ const obligations=plan.obligations.filter(row=>row.id!==HOUSING_ID);
+ if(Object.keys(amounts).length)obligations.push({id:HOUSING_ID,title:'Жилье',amount:amounts[selected]||0,amountByMonth:amounts,day:plan.housingPaymentDay,active:true,paidMonths:plan.housingPaymentPaidMonths,locked:true});
+ return {...plan,obligations};
+}
 function cleanPlan(value = {}) {
   const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const analystLastDate = /^\d{4}-\d{2}-\d{2}$/.test(String(source.analystLastDate || '')) ? String(source.analystLastDate) : '';
@@ -187,7 +200,9 @@ function cleanPlan(value = {}) {
     expectedMonthlyIncome: source.expectedMonthlyIncome === undefined || source.expectedMonthlyIncome === null || source.expectedMonthlyIncome === '' ? null : cleanMoney(source.expectedMonthlyIncome),
     expectedIncomeDay: source.expectedIncomeDay === undefined || source.expectedIncomeDay === null || source.expectedIncomeDay === '' ? null : (Number.isInteger(Number(source.expectedIncomeDay)) && Number(source.expectedIncomeDay)>=1 && Number(source.expectedIncomeDay)<=31 ? Number(source.expectedIncomeDay) : null),
     plannedMonthlyVariableExpenses: source.plannedMonthlyVariableExpenses === undefined || source.plannedMonthlyVariableExpenses === null || source.plannedMonthlyVariableExpenses === '' ? null : cleanMoney(source.plannedMonthlyVariableExpenses),
-    obligations: cleanObligations(source.obligations),
+    obligations: cleanObligations(source.obligations).filter(row=>row.id!==HOUSING_ID),
+    housingPaymentDay: Number.isInteger(Number(source.housingPaymentDay))&&Number(source.housingPaymentDay)>=1&&Number(source.housingPaymentDay)<=31?Number(source.housingPaymentDay):1,
+    housingPaymentPaidMonths: housingPaidMonths(source.housingPaymentPaidMonths),
     analystLastDate,
     analystDailyCount,
     analystLastReport: cleanAnalystReport(source.analystLastReport),
@@ -511,7 +526,7 @@ function syncPersonalMonthExpenses(current, actor, month, updatedAt = new Date()
     },
   };
 }
-function viewState(state, actor = '') {
+function viewState(state, actor = '', month = '') {
   const normalized = normalizeState(state);
   const months = Object.values(normalized.months)
     .sort((a, b) => String(b.month).localeCompare(String(a.month)))
@@ -538,7 +553,7 @@ function viewState(state, actor = '') {
   const debts = safeActor
     ? normalized.debts.filter((row) => row.actor === safeActor).sort((a, b) => Number(a.paid) - Number(b.paid) || String(b.updatedAt).localeCompare(String(a.updatedAt)))
     : [];
-  const plan = safeActor ? normalized.plans[safeActor] : cleanPlan();
+  const plan = safeActor ? planWithHousing(normalized,safeActor,month) : cleanPlan();
   const capitalHistory = safeActor ? [...(normalized.capitalHistory[safeActor] || [])] : [];
   return { initialized: normalized.initialized, version: normalized.version, months, personalMonths, wallets, categories, archivedCategories, personalExpenses, walletIncomes, walletTransfers, debts, capitalHistory, plan };
 }
@@ -620,9 +635,12 @@ async function saveFinancePlan(actor, payload = {}, options = {}) {
   return enqueueMutation(async () => {
     const current = await readFinanceState(options);
     const previous = current.plans[safeActor] || cleanPlan();
+    const housing=Array.isArray(source.obligations)?source.obligations.find(row=>row?.id===HOUSING_ID):null;
     const plan = cleanPlan({
       ...previous,
       ...source,
+      housingPaymentDay:housing?.day??previous.housingPaymentDay,
+      housingPaymentPaidMonths:housing?.paidMonths??previous.housingPaymentPaidMonths,
       obligations: source.obligations === undefined ? previous.obligations : source.obligations,
     });
     const updatedAt = new Date(options.now || Date.now()).toISOString();
@@ -643,6 +661,12 @@ async function setFinanceObligationPaid(actor,id,month,paid,options={}){
   return enqueueMutation(async()=>{
     const current=await readFinanceState(options);
     const plan=current.plans[safeActor]||cleanPlan();
+    if(safeId===HOUSING_ID){
+      if(!current.months[safeMonth])throw new Error('finance-obligation-not-found');
+      const months=new Set(plan.housingPaymentPaidMonths);if(paid)months.add(safeMonth);else months.delete(safeMonth);
+      const next=normalizeState({...current,initialized:true,version:current.version+1,plans:{...current.plans,[safeActor]:{...plan,housingPaymentPaidMonths:[...months],updatedAt:new Date(options.now||Date.now()).toISOString()}}});
+      await writeState(next,options);return next;
+    }
     if(!plan.obligations.some(row=>row.id===safeId&&row.active!==false))throw new Error('finance-obligation-not-found');
     const obligations=plan.obligations.map(row=>{
       if(row.id!==safeId)return row;

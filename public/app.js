@@ -2403,6 +2403,7 @@
       let financeCategoryReorder=null;
       let financeCategoryDeleteId='';
       const financeSaveTimers=new Map();
+      let financeSharedAutosave=null,financeSharedAutosaveActor='';
       let financeCapitalSnapshotPromise=null;
       let financeCapitalSnapshotLastAttempt=0;
 
@@ -2773,12 +2774,12 @@
         return a.length===b.length&&a.every((row,index)=>row.id===b[index].id&&row.title===b[index].title&&Number(row.amount||0)===Number(b[index].amount||0));
       }
       function financeSharedSummaryText(rent,utilities,items=[]){
-        return ['Квартира '+financeMoney(rent),'ЖКУ '+financeMoney(utilities),...financeNormalizeSharedItems(items).map(row=>row.title+' '+financeMoney(row.amount))].join(' · ');
+        return ['Квартира '+financeMoney(rent),'ЖКУ за прошлый месяц '+financeMoney(utilities),...financeNormalizeSharedItems(items).map(row=>row.title+' '+financeMoney(row.amount))].join(' · ');
       }
       function refreshFinanceSharedDraft(){
         const month=document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey();
         renderFinanceSummary(document.getElementById('financeRentInput')?.value||0,document.getElementById('financeUtilitiesInput')?.value||0,month,financeSharedItemsFromInputs());
-        syncFinanceSaveButton();
+        queueFinanceSharedDraft();
       }
       function renderFinanceSharedItems(items=[]){
         const host=document.getElementById('financeSharedExtraList');if(!host)return;
@@ -3313,7 +3314,7 @@
         const now=financeMoscowParts(date);
         const month=now.year+'-'+now.month;
         const day=Number(now.day||0);
-        const obligations=Array.isArray(financeState.plan?.obligations)?financeState.plan.obligations:[];
+        const obligations=financeObligationsForMonth(month);
         return obligations.filter(row=>{
           if(!row||row.active===false)return false;
           if(Number(row.day||0)!==day)return false;
@@ -3357,7 +3358,7 @@
         const view=document.getElementById('financeObligationCoverage');
         if(!view)return;
         const month=financeCurrentMonthKey();
-        const obligations=(Array.isArray(financeState.plan?.obligations)?financeState.plan.obligations:[])
+        const obligations=financeObligationsForMonth(month)
           .filter(row=>row&&row.active!==false);
         const due=Math.round(obligations.reduce((sum,row)=>{
           const alreadyPaid=Array.isArray(row.paidMonths)&&row.paidMonths.includes(month);
@@ -3407,7 +3408,7 @@
         const list=document.getElementById('financeObligationList'),forecast=document.getElementById('financeObligationForecast');if(!list||!forecast)return;
         list.replaceChildren();
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
-        const obligations=(Array.isArray(financeState.plan?.obligations)?financeState.plan.obligations:[])
+        const obligations=financeObligationsForMonth(month)
           .slice()
           .sort((a,b)=>Number(a?.day||0)-Number(b?.day||0)||String(a?.title||'').localeCompare(String(b?.title||''),'ru'));
         const dueTodayIds=new Set(
@@ -3428,7 +3429,7 @@
           const copy=document.createElement('button');copy.type='button';copy.className='finance-obligation-copy';copy.innerHTML='<strong></strong><small></small>';copy.querySelector('strong').textContent=row.title;copy.querySelector('small').textContent=financeOverviewMoney(row.amount)+' · '+row.day+' числа';
           const del=document.createElement('button');del.type='button';del.className='finance-obligation-delete';del.textContent='×';
           toggle.addEventListener('click',()=>toggleFinanceObligationPaid(row.id,!paid));copy.addEventListener('click',()=>openFinanceObligationComposer(row.id));del.addEventListener('click',()=>deleteFinanceObligation(row.id));
-          item.append(toggle,copy,del);list.append(item);
+          item.append(toggle,copy);if(!row.locked)item.append(del);list.append(item);
         }
         forecast.textContent=obligations.length?'До конца месяца: '+financeOverviewMoney(pending):'Запланированных ежемесячных расходов нет';
         renderFinanceObligationCoverage();
@@ -3445,10 +3446,11 @@
         renderFinanceState(data,{personalMonth:document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey(),preservePlan:true});
       }
       function openFinanceObligationComposer(id=''){
-        financeObligationEditingId=String(id||'');const row=(financeState.plan?.obligations||[]).find(x=>x.id===financeObligationEditingId);
+        financeObligationEditingId=String(id||'');const row=financeObligationsForMonth(document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey()).find(x=>x.id===financeObligationEditingId);
         const title=document.getElementById('financeObligationTitle'),amount=document.getElementById('financeObligationAmount'),day=document.getElementById('financeObligationDay'),status=document.getElementById('financeObligationStatus');
         if(title)title.value=row?.title||'';if(amount)amount.value=row?.amount||'';if(day)day.value=row?.day||1;if(status)status.textContent='';
-        mountFinanceCoinModal(document.getElementById('financeObligationComposer'),title);
+        if(title)title.readOnly=Boolean(row?.locked);if(amount)amount.readOnly=Boolean(row?.locked);
+        mountFinanceCoinModal(document.getElementById('financeObligationComposer'),row?.locked?day:title);
       }
       async function toggleFinanceObligationPaid(id,paid){
         const month=document.getElementById('financePersonalMonthInput')?.value||financeCurrentMonthKey();
@@ -3458,6 +3460,7 @@
         try{await saveFinancePlanWithObligations(rows)}catch(_){}
       }
       async function deleteFinanceObligation(id){
+        if((financeState.plan?.obligations||[]).some(row=>row.id===id&&row.locked))return;
         const rows=(financeState.plan?.obligations||[]).filter(row=>row.id!==id);try{await saveFinancePlanWithObligations(rows)}catch(_){}
       }
 
@@ -3472,10 +3475,10 @@
         const host=document.getElementById('financeMonthComparison');if(!host)return;
         const previousKey=financePreviousMonthKey(month),previous=financeRowForMonth(previousKey);
         const previousTotal=previous?financeSplit(previous.rent,previous.utilities,previous.items).total:0;
-        const prev=Number(previousTotal)||0,now=Number(total)||0,previousName=financeMonthGenitive(previousKey);
-        if(prev<=0){host.textContent='Нет данных за '+previousName;host.dataset.direction='none';return}
+        const prev=Number(previousTotal)||0,now=Number(total)||0,previousName='прошлого месяца';
+        if(prev<=0){host.textContent='Нет данных за прошлый месяц';host.dataset.direction='none';return}
         const delta=now-prev,percent=delta/prev*100;
-        if(Math.abs(delta)<.005){host.textContent='Без изменений к '+previousName;host.dataset.direction='same';return}
+        if(Math.abs(delta)<.005){host.textContent='Без изменений относительно прошлого месяца';host.dataset.direction='same';return}
         host.textContent='На '+financeMoney(Math.abs(delta))+' '+(delta>0?'больше ':'меньше ')+previousName+' · '+(delta>0?'+':'−')+financePercent(percent);
         host.dataset.direction=delta>0?'up':'down';
       }
@@ -3492,19 +3495,52 @@
         renderFinanceComparison(key,split.total);
         return split;
       }
-      function syncFinanceSaveButton({saving=false}={}){
-        const save=document.getElementById('financeSaveButton');if(!save)return;
-        if(currentActor!=='Рустам'){save.hidden=true;return}
-        save.hidden=false;
-        if(saving){save.disabled=true;save.dataset.state='saving';save.textContent='Сохраняю…';return}
-        const month=document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey();
-        const rent=Number(document.getElementById('financeRentInput')?.value||0),utilities=Number(document.getElementById('financeUtilitiesInput')?.value||0);
-        const items=financeSharedItemsFromInputs(),row=financeRowForMonth(month),saved=Boolean(row)&&Number(row.rent||0)===rent&&Number(row.utilities||0)===utilities&&financeSharedItemsEqual(row.items,items);
-        save.disabled=false;save.dataset.state=saved?'saved':'dirty';
-        save.textContent=saved?'✓ Сохранено':(row?'Сохранить изменения':'Сохранить месяц');
+      function ensureFinanceSharedAutosave(){
+        if(financeSharedAutosaveActor!==currentActor){financeSharedAutosave?.destroy();financeSharedAutosave=null;financeSharedAutosaveActor=currentActor}
+        if(currentActor!=='Рустам'||!window.RudiSharedFinanceAutosave)return null;
+        if(!financeSharedAutosave){
+          const owner=currentActor;let storage;try{storage=window.localStorage}catch(_){}
+          financeSharedAutosave=window.RudiSharedFinanceAutosave.create({key:owner,storage,
+            canSave:()=>currentActor===owner,
+            save:payload=>financeRequest('save',payload),
+            onStatus:text=>{if(currentActor===owner){const host=document.getElementById('financeStatus');if(host)host.textContent=text}},
+            onSaved:(payload,data)=>{
+              if(currentActor!==owner)return;
+              financeState.months=data.months||financeState.months;financeState.plan=data.plan||financeState.plan;financeState.version=data.version;
+              renderFinanceHistory();
+              const selected=document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey();
+              renderFinanceSelectedMonth(selected,{preserveInputs:true});renderFinanceObligations();
+              invalidateManagedRequests('finance-calendar-obligations:'+owner);
+              document.dispatchEvent(new CustomEvent('rudi-finances-updated',{detail:data}));
+            }
+          });
+          setTimeout(()=>{if(currentActor===owner)void financeSharedAutosave?.flush()},0);
+        }
+        return financeSharedAutosave;
+      }
+      function bindFinanceSharedAutosave(){
+        const month=document.getElementById('financeMonthInput'),sharedCard=document.querySelector('#financeSharedPanel .finance-editor-card');
+        if(!sharedCard||sharedCard.dataset.autosaveBound)return;sharedCard.dataset.autosaveBound='1';
+        month?.addEventListener('change',()=>renderFinanceSelectedMonth(month.value||financeCurrentMonthKey()));
+        for(const id of ['financeRentInput','financeUtilitiesInput'])document.getElementById(id)?.addEventListener('input',refreshFinanceSharedDraft);
+        sharedCard.addEventListener('focusout',()=>{void ensureFinanceSharedAutosave()?.flush()});
+        window.addEventListener('online',()=>{void ensureFinanceSharedAutosave()?.flush()});
+        document.addEventListener('visibilitychange',()=>{void ensureFinanceSharedAutosave()?.flush()});
+      }
+      function queueFinanceSharedDraft(){
+        const controller=ensureFinanceSharedAutosave();if(!controller)return;
+        const rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput');
+        if([rent,utilities,...document.querySelectorAll('#financeSharedExtraList input')].some(input=>input&&!input.checkValidity()))return;
+        const payload={month:document.getElementById('financeMonthInput')?.value||financeCurrentMonthKey(),rent:Number(rent?.value||0),utilities:Number(utilities?.value||0),items:financeSharedItemsFromInputs()};
+        const row=financeRowForMonth(payload.month);
+        if(!controller.draft(payload.month)&&row&&Number(row.rent||0)===payload.rent&&Number(row.utilities||0)===payload.utilities&&financeSharedItemsEqual(row.items,payload.items))return;
+        controller.update(payload);
+      }
+      function financeObligationsForMonth(month){
+        return (financeState.plan?.obligations||[]).map(row=>row.amountByMonth?{...row,amount:Number(row.amountByMonth[month]||0)}:row).filter(row=>!row.locked||row.amount>0);
       }
       function renderFinanceSelectedMonth(month,{preserveInputs=false}={}){
-        const key=String(month||financeCurrentMonthKey()),row=financeRowForMonth(key);
+        const key=String(month||financeCurrentMonthKey()),row=ensureFinanceSharedAutosave()?.draft(key)||financeRowForMonth(key);
         const monthInput=document.getElementById('financeMonthInput'),monthLabel=document.getElementById('financeMonthLabel');
         const rentInput=document.getElementById('financeRentInput'),utilitiesInput=document.getElementById('financeUtilitiesInput');
         if(monthInput&&monthInput.value!==key)monthInput.value=key;
@@ -3515,7 +3551,6 @@
           renderFinanceSharedItems(row?.items||[]);
         }
         renderFinanceSummary(rentInput?.value||row?.rent||0,utilitiesInput?.value||row?.utilities||0,key,financeSharedItemsFromInputs());
-        syncFinanceSaveButton();
       }
       function renderFinanceHistory(){
         const list=document.getElementById('financeHistoryList'),empty=document.getElementById('financeHistoryEmpty'),count=document.getElementById('financeHistoryCount');
@@ -5758,8 +5793,8 @@
         if(activeFinanceTab==='personal')refreshFinanceInsight().catch(()=>{});
       }
       function applyFinancePermissions(){
-        const canEdit=currentActor==='Рустам',rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput'),save=document.getElementById('financeSaveButton'),add=document.getElementById('financeSharedAddButton'),note=document.getElementById('financeReadOnlyNote');
-        if(rent)rent.disabled=!canEdit;if(utilities)utilities.disabled=!canEdit;if(save)save.hidden=!canEdit;if(add)add.hidden=!canEdit;if(note)note.hidden=canEdit;
+        const canEdit=currentActor==='Рустам',rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput'),add=document.getElementById('financeSharedAddButton'),note=document.getElementById('financeReadOnlyNote');
+        if(rent)rent.disabled=!canEdit;if(utilities)utilities.disabled=!canEdit;if(add)add.hidden=!canEdit;if(note)note.hidden=canEdit;
       }
       function renderFinanceState(data,{month='',personalMonth='',preserveIncome=false,preservePlan=false}={}){
         financeState={
@@ -5805,7 +5840,7 @@
         return financeLoadPromise;
       }
       function setupFinancePage(){
-        const month=document.getElementById('financeMonthInput'),rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput'),save=document.getElementById('financeSaveButton');
+        const month=document.getElementById('financeMonthInput'),rent=document.getElementById('financeRentInput'),utilities=document.getElementById('financeUtilitiesInput');
         if(!month||month.dataset.bound==='1')return;
         month.dataset.bound='1';month.value=financeCurrentMonthKey();
         document.addEventListener('rudi-finance-plan-saved',()=>loadFinances({silent:true}).catch(()=>{}));
@@ -5837,9 +5872,7 @@
           const button=event.target.closest('[data-finance-tab]');if(!button)return;
           setFinanceTab(button.dataset.financeTab);try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}
         });
-        month.addEventListener('change',()=>renderFinanceSelectedMonth(month.value||financeCurrentMonthKey()));
-        const recalc=()=>refreshFinanceSharedDraft();
-        rent?.addEventListener('input',recalc);utilities?.addEventListener('input',recalc);
+        bindFinanceSharedAutosave();
         document.getElementById('financeSharedAddButton')?.addEventListener('click',()=>{
           if(currentActor!=='Рустам')return;
           const items=financeSharedItemsFromInputs();
@@ -5849,21 +5882,8 @@
           const title=document.querySelector('#financeSharedExtraList [data-finance-shared-item="'+id+'"] .finance-shared-extra-title');
           title?.focus();title?.select();refreshFinanceSharedDraft();
         });
-        save?.addEventListener('click',async()=>{
-          if(currentActor!=='Рустам')return;
-          const status=document.getElementById('financeStatus');syncFinanceSaveButton({saving:true});if(status)status.textContent='';
-          try{
-            const data=await financeRequest('save',{month:month.value||financeCurrentMonthKey(),rent:Number(rent?.value||0),utilities:Number(utilities?.value||0),items:financeSharedItemsFromInputs()});
-            renderFinanceState(data,{month:month.value,personalMonth:personalMonth?.value,preserveIncome:true,preservePlan:true});
-            if(status)status.textContent='';
-            try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-          }catch(error){
-            if(status)status.textContent=error.status===403?'Редактировать может только Рустам':'Не удалось сохранить';
-          }finally{syncFinanceSaveButton()}
-        });
-
         personalMonth?.addEventListener('change',()=>{
-          renderFinancePersonalMonth(personalMonth.value||financeCurrentMonthKey());
+          renderFinancePersonalMonth(personalMonth.value||financeCurrentMonthKey());renderFinanceObligations();
           renderFinanceOperations();
           renderFinanceIncomeHistory();
           refreshFinanceInsight(true).catch(()=>{});
@@ -16127,7 +16147,7 @@
         const day=Number(key.slice(8,10)),last=new Date(Date.UTC(year,month,0)).getUTCDate();
         return (Array.isArray(rows)?rows:[])
           .filter(r=>r&&r.active!==false&&Math.min(last,Math.max(1,Number(r.day||1)))===day)
-          .map(r=>({...r,paid:Array.isArray(r.paidMonths)&&r.paidMonths.includes(key.slice(0,7))}))
+          .map(r=>({...r,amount:r.amountByMonth?Number(r.amountByMonth[key.slice(0,7)]||0):r.amount,paid:Array.isArray(r.paidMonths)&&r.paidMonths.includes(key.slice(0,7))})).filter(r=>!r.locked||r.amount>0)
           .sort((a,b)=>Number(a.paid)-Number(b.paid)||String(a.title||'').localeCompare(String(b.title||''),'ru'));
       }
       function calendarObligationTone(row){

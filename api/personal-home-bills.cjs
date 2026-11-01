@@ -10,12 +10,11 @@ async function personalHomeBills(actor,dates,options={}){
  }
  const read=options.readFinanceStateImpl||readFinanceState;
  const state=await read(options.readFinanceStateImpl?options:{financeCache:options.financeCache||createStrictRuntimeCache({namespace:NAMESPACE,stateClient:options.client||createRudiStateClient(options)})});
- const obligations=viewState(state,actor).plan.obligations;
  const tasks=[];
  for(const date of [...new Set(dates)]){
   const month=date.slice(0,7),last=new Date(Date.UTC(Number(date.slice(0,4)),Number(date.slice(5,7)),0)).getUTCDate();
-  for(const row of obligations){
-   if(row.active===false||row.paidMonths.includes(month)||Math.min(last,row.day)!==Number(date.slice(8)))continue;
+  for(const row of viewState(state,actor,month).plan.obligations){
+   if(row.amount<=0||row.active===false||row.paidMonths.includes(month)||Math.min(last,row.day)!==Number(date.slice(8)))continue;
    tasks.push({id:'bill:'+row.id+':'+month,financeObligation:true,obligation:{...row,paid:false},obligationId:row.id,obligationMonth:month,
     amount:row.amount,currency:'RUB',title:row.title,date,allDay:true,startTime:'',endTime:'',
     personal:true,privateLocal:actor==='Диана',responsible:actor,ownerScope:actor==='Диана'?'diana':'rustam',assigned:false,
