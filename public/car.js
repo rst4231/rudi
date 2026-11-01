@@ -26,11 +26,11 @@
     return labels[Number(code)] || 'погода';
   }
 
-  async function api(operation,payload={}) {
+  async function api(operation,payload={},options={}) {
     const backup=window.RUDI_STATE_BACKUP;
     const backupToken=typeof backup?.getToken==='function'?backup.getToken():'';
     const response = await fetch(API, {
-      method:'POST',
+      method:'POST',signal:options.signal,
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({initData:tg?.initData||'',backupToken,operation,...payload}),
       cache:'no-store'
@@ -924,6 +924,14 @@
   }
 
   const CAR_PURCHASE_DATE='2023-09-07';
+  const CAR_PROFILE_DEFAULT={model:'Changan UNI‑V',registration:'А 034 ЕА105',releaseDate:CAR_PURCHASE_DATE,osagoUntil:'',osagoCompany:''};
+  const CAR_PROFILE_KEY='rudi:car-profile:v1:Рустам';
+  let carProfileDraft=null,carProfileRevision=0,carProfileSaving=false,carProfilePending=false,carProfileTimer=0;
+  function carProfile(){return {...CAR_PROFILE_DEFAULT,...state.car?.state?.profile,...carProfileDraft}}
+  function readLocalCarProfile(){try{return JSON.parse(localStorage.getItem(CAR_PROFILE_KEY)||'null')}catch(_){return null}}
+  function cacheCarProfile(profile,pending){try{localStorage.setItem(CAR_PROFILE_KEY,JSON.stringify({profile,pending}));return true}catch(_){return false}}
+  function carSettingsStatus(text){const node=document.getElementById('carSettingsStatus');if(node)node.textContent=text}
+
 
   function russianCount(value,one,few,many){
     const n=Math.abs(Number(value)||0)%100;
@@ -944,7 +952,7 @@
     const currentYear=Number(parts.year);
     const currentMonth=Number(parts.month);
     const currentDay=Number(parts.day);
-    const [purchaseYear,purchaseMonth,purchaseDay]=CAR_PURCHASE_DATE.split('-').map(Number);
+    const [purchaseYear,purchaseMonth,purchaseDay]=carProfile().releaseDate.split('-').map(Number);
 
     let totalMonths=(currentYear-purchaseYear)*12+(currentMonth-purchaseMonth);
     if(currentDay<purchaseDay) totalMonths-=1;
@@ -959,11 +967,72 @@
   }
 
   function renderCarAge(){
-    const label=carAgeLabel();
-    for(const id of ['carHomeAge','carPageAge']){
-      const node=document.getElementById(id);
-      if(node) node.textContent=label;
+    const profile=carProfile(),label=carAgeLabel();
+    for(const id of ['carHomeAge','carPageAge']){const node=document.getElementById(id);if(node)node.textContent=label;}
+    for(const id of ['carHomeTitle','carTitle']){
+      const node=document.getElementById(id);if(!node)continue;
+      let name=node.querySelector('.car-profile-model-name');
+      if(!name){name=document.createElement('span');name.className='car-profile-model-name';for(const text of [...node.childNodes])if(text.nodeType===3)text.remove();node.prepend(name);}
+      name.textContent=profile.model;
     }
+    document.querySelectorAll('.car-status-model').forEach(node=>node.textContent=profile.releaseDate.slice(0,4));
+    document.querySelectorAll('.car-status-registration').forEach(node=>node.textContent=profile.registration);
+    const days=profile.osagoUntil?daysFromToday(profile.osagoUntil):null;
+    for(const id of ['carHomeOsago','carPageOsago']){
+      const node=document.getElementById(id);if(!node)continue;node.hidden=!profile.osagoUntil&&!profile.osagoCompany;
+      node.textContent=(profile.osagoUntil?(days<0?'ОСАГО истекло ':'ОСАГО до ')+profile.osagoUntil.split('-').reverse().join('.'):'ОСАГО')+(profile.osagoCompany?' · '+profile.osagoCompany:'');
+      node.classList.toggle('is-expired',days!==null&&days<0);node.classList.toggle('is-soon',days!==null&&days>=0&&days<=30);
+    }
+    const open=document.getElementById('carSettingsOpen');if(open)open.disabled=false;
+  }
+
+  function editCarProfile(){
+    const form=document.getElementById('carSettingsForm');clearTimeout(carProfileTimer);
+    if(!form?.checkValidity()){carSettingsStatus('Заполни модель, номер и корректную дату выпуска');return;}
+    const profile={model:form.elements.model.value.trim(),registration:form.elements.registration.value.trim().toLocaleUpperCase('ru-RU'),releaseDate:form.elements.releaseDate.value,osagoUntil:form.elements.osagoUntil.value,osagoCompany:form.elements.osagoCompany.value.trim()};
+    if(!profile.model||!profile.registration||!/^[A-ZА-ЯЁ0-9 -]+$/u.test(profile.registration)){carSettingsStatus('Проверь модель и госномер');return;}
+    carProfileDraft=profile;carProfileRevision++;carProfilePending=true;
+    const durable=cacheCarProfile(profile,true);renderCarAge();
+    carSettingsStatus(durable?'Изменения сохранены на устройстве':'Сохраняю…');
+    carProfileTimer=setTimeout(flushCarProfile,800);
+  }
+
+  async function flushCarProfile(){
+    clearTimeout(carProfileTimer);
+    if(carProfileSaving||!carProfilePending||document.body.dataset.rudiActor!=='Рустам')return;
+    const revision=carProfileRevision,profile=carProfile(),controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
+    carProfileSaving=true;carSettingsStatus('Сохраняю…');
+    try{
+      const data=await api('set-profile',{profile},{signal:controller.signal});
+      if(data.actor!=='Рустам'||!data.visible||!data.state?.profile)throw Error('car-profile-save-failed');
+      state.car={...state.car,...data};
+      if(revision===carProfileRevision){carProfileDraft=null;carProfilePending=false;cacheCarProfile(data.state.profile,false);carSettingsStatus('Сохранено');}
+      renderCarAge();
+    }catch(error){
+      if(String(error?.message)==='car-profile-invalid'){carSettingsStatus('Проверь дату выпуска и госномер');}
+      else carSettingsStatus(cacheCarProfile(carProfile(),true)?'Сохранено на устройстве. Отправлю при подключении':'Не удалось сохранить. Попробуй ещё раз');
+    }finally{
+      clearTimeout(timeout);carProfileSaving=false;
+      if(carProfilePending&&revision!==carProfileRevision)void flushCarProfile();
+    }
+  }
+
+  function setupCarSettings(){
+    const dialog=document.getElementById('carSettingsDialog'),form=document.getElementById('carSettingsForm');if(!dialog||!form)return;
+    document.getElementById('carSettingsOpen')?.addEventListener('click',()=>{
+      const profile=carProfile();for(const name of ['model','registration','releaseDate','osagoUntil','osagoCompany'])form.elements[name].value=profile[name]||'';
+      form.elements.releaseDate.max=clientMoscowDateKey();
+      carSettingsStatus(carProfilePending?'Сохранено на устройстве. Ожидает отправки':'Изменения сохраняются автоматически');
+      dialog.showModal();document.body.classList.add('car-settings-open');
+    });
+    form.addEventListener('submit',event=>{event.preventDefault();editCarProfile();void flushCarProfile();});
+    form.addEventListener('input',editCarProfile);
+    form.addEventListener('change',()=>{editCarProfile();void flushCarProfile();});
+    form.addEventListener('focusout',()=>void flushCarProfile());
+    document.getElementById('carSettingsClose')?.addEventListener('click',()=>dialog.close());
+    dialog.addEventListener('close',()=>{document.body.classList.remove('car-settings-open');void flushCarProfile();document.getElementById('carSettingsOpen')?.focus({preventScroll:true});});
+    dialog.addEventListener('click',event=>{if(event.target===dialog){const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();}});
+    window.addEventListener('online',()=>void flushCarProfile());
   }
 
   function tyreForecastAdvice(weather) {
@@ -1770,6 +1839,8 @@
         return;
       }
       state.car=data;
+      const localProfile=readLocalCarProfile();
+      if(localProfile?.pending&&localProfile.profile){carProfileDraft=localProfile.profile;carProfilePending=true;}
       if(tile){
         tile.dataset.tabAvailable='1';
         tile.hidden=document.body.dataset.appTab!=='home';
@@ -1783,6 +1854,7 @@
       if(document.body.dataset.appTab==='car') loadCarDocuments().catch(()=>{});
       loadCarExpenses({force:true}).catch(()=>{});
       loadWeather();
+      if(carProfilePending)void flushCarProfile();
     } catch(_) {
       const tile=document.getElementById('carTile');
       const page=document.getElementById('carPage');
@@ -1795,6 +1867,7 @@
 
   function start() {
     setupCarSmartCards();
+    setupCarSettings();
     setupCarWashModal();
     setupCarTabObserver();
     window.addEventListener('rudi:ui-preferences-applied',syncCarCardCollapseStates);

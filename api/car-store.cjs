@@ -15,6 +15,36 @@ const ERROR_COMMENT_MAX = 500;
 const REPAIR_COST_MAX = 99999999;
 const DB_ACTOR = 'Рустам';
 const DB_KEY = 'car:changan-univ-2023';
+const DEFAULT_CAR_PROFILE=Object.freeze({model:'Changan UNI‑V',registration:'А 034 ЕА105',releaseDate:'2023-09-07',osagoUntil:'',osagoCompany:''});
+
+function normalizeCarProfile(value){
+  const model=String(value?.model||'').trim();
+  const registration=String(value?.registration||'').trim().toLocaleUpperCase('ru-RU');
+  return {
+    model:model&&model.length<=80&&!/[\u0000-\u001f\u007f]/.test(model)?model:DEFAULT_CAR_PROFILE.model,
+    registration:registration&&registration.length<=20&&/^[A-ZА-ЯЁ0-9 -]+$/u.test(registration)?registration:DEFAULT_CAR_PROFILE.registration,
+    releaseDate:normalizeDateKey(value?.releaseDate)||DEFAULT_CAR_PROFILE.releaseDate,
+    osagoUntil:normalizeDateKey(value?.osagoUntil),
+    osagoCompany:String(value?.osagoCompany||'').trim().slice(0,80),
+    updatedAt:normalizeIso(value?.updatedAt),
+  };
+}
+
+async function setCarProfile(value,options={}){
+  const model=typeof value?.model==='string'?value.model.trim():'';
+  const registration=typeof value?.registration==='string'?value.registration.trim().toLocaleUpperCase('ru-RU'):'';
+  const releaseDate=normalizeDateKey(value?.releaseDate);
+  const osagoUntil=normalizeDateKey(value?.osagoUntil);
+  const osagoCompany=String(value?.osagoCompany||'').trim();
+  if(osagoCompany.length>80||/[\u0000-\u001f\u007f]/.test(osagoCompany))throw Error('car-profile-invalid');
+  if(value?.osagoUntil&&!osagoUntil)throw Error('car-profile-invalid');
+  const now=new Date(options.now||Date.now());
+  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
+  if(!model||model.length>80||/[\u0000-\u001f\u007f]/.test(model)||!registration||registration.length>20||!/^[A-ZА-ЯЁ0-9 -]+$/u.test(registration)||!releaseDate||releaseDate<'1900-01-01'||releaseDate>today)throw Error('car-profile-invalid');
+  const current=await readCarBaseState(options);
+  return writeCarState({...current,profile:{model,registration,releaseDate,osagoUntil,osagoCompany,updatedAt:now.toISOString()},updatedAt:now.toISOString()},options);
+}
+
 
 function getCarCache(options = {}) {
   return options.cache || createStrictRuntimeCache({ namespace: NAMESPACE });
@@ -39,6 +69,7 @@ function hasStoredState(state) {
     || state.mileageHistory.length > 0
     || Boolean(state.tyreSeasonInstalled)
     || Boolean(state.lastServiceAt)
+    || Boolean(state.profile?.updatedAt)
     || Boolean(state.updatedAt);
 }
 
@@ -211,6 +242,7 @@ function normalizeState(value) {
     || notes[0]?.createdAt
     || '';
   return {
+    profile:normalizeCarProfile(value?.profile),
     mileage,
     mileageUpdatedAt,
     mileageHistory,
@@ -494,6 +526,9 @@ async function restoreCarState(value, options = {}) {
 }
 
 module.exports = {
+  DEFAULT_CAR_PROFILE,
+  normalizeCarProfile,
+  setCarProfile,
   NAMESPACE,
   KEY,
   TTL_SECONDS,

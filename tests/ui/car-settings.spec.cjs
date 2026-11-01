@@ -1,0 +1,12 @@
+const {test,expect}=require('@playwright/test');
+const fs=require('node:fs');
+test('car settings save and display model, registration, release date and insurance',async({page})=>{
+ let profile={model:'Changan UNI‑V',registration:'А 034 ЕА105',releaseDate:'2023-09-07',osagoUntil:'',osagoCompany:''};
+ await page.route('**/car-fixture',route=>route.fulfill({contentType:'text/html',body:fs.readFileSync('public/index.html','utf8').replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'')}));
+ await page.route('**/api/**',route=>{const b=route.request().postDataJSON()||{};if(b.operation==='set-profile')profile={...b.profile,updatedAt:new Date().toISOString()};return route.fulfill({json:{ok:true,actor:'Рустам',visible:true,state:{profile,errors:[],notes:[],tyreSeasonInstalled:'winter'},ticktick:{tasks:[]},categories:[],personalExpenses:[]}})});
+ await page.goto('/car-fixture');await page.evaluate(()=>{document.body.className='auth-ok';document.body.dataset.rudiActor='Рустам';document.body.dataset.appTab='car';document.getElementById('carPage').hidden=false;window.RUDI_WEATHER={get:async()=>{throw Error('offline')}}});await page.addScriptTag({url:'/car.js'});
+ await page.locator('#carSettingsOpen').click();const dialog=page.locator('#carSettingsDialog');await expect(dialog).toBeVisible();
+ await dialog.locator('[name=model]').fill('Changan UNI-V Sport');await dialog.locator('[name=registration]').fill('А 123 АА 198');await dialog.locator('[name=releaseDate]').fill('2022-04-12');await dialog.locator('[name=osagoUntil]').fill('2028-11-15');await dialog.locator('[name=osagoCompany]').fill('Ренессанс');await dialog.locator('#carSettingsClose').click();
+ await expect.poll(()=>profile.osagoCompany).toBe('Ренессанс');await expect(page.locator('#carTitle')).toContainText('Changan UNI-V Sport');await expect(page.locator('#carPageOsago')).toHaveText('ОСАГО до 15.11.2028 · Ренессанс');
+ await page.evaluate(async()=>{document.body.dataset.appTab='home';await RUDI_CAR.refresh()});await expect(page.locator('#carHomeTitle')).toContainText('Changan UNI-V Sport');await expect(page.locator('#carHomeOsago')).toContainText('Ренессанс');
+});
