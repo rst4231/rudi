@@ -28,11 +28,24 @@ for(const actor of ['Рустам','Диана'])test('Car without mileage and m
   await expect.poll(()=>operations.includes('set-tyre-season')).toBe(true);
   await page.locator('#carErrorCancel').click();
   expect(await page.locator('#carPage').evaluate(el=>el.scrollWidth<=innerWidth)).toBe(true);
-  await page.locator('#carPage').screenshot({path:'/tmp/rudi-car-without-mileage.png'});
-  for(const theme of ['light','dark']){await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);await page.locator('#carPage').screenshot({path:'/tmp/rudi-car-'+theme+'.png'});}
-  await page.evaluate(async()=>{document.body.dataset.appTab='home';await window.RUDI_CAR.refresh();});
+  for(const width of [360,393,768,1280]){
+   await page.setViewportSize({width,height:900});
+   for(const theme of ['light','dark']){
+    await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);
+    const header=page.locator('#carPage>.car-status-header');
+    expect(await header.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+    await expect(header.locator('.car-status-tyres')).toContainText('Зимние стоят');
+    await expect(header.locator('img')).toHaveJSProperty('naturalWidth',1959);
+    await header.screenshot({path:'/tmp/car-status-page-'+width+'-'+theme+'.png'});
+   }
+  }
+  await page.setViewportSize({width:393,height:900});
+  await page.evaluate(async()=>{document.body.dataset.appTab='home';await window.RUDI_CAR.refresh();document.getElementById('appTabBar').hidden=true;});
   await expect(page.locator('#carTile')).toBeVisible();
-  await page.locator('#carTile').screenshot({path:'/tmp/rudi-car-home.png'});
+  expect(await page.locator('#carTile').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+  await page.locator('#carTile').screenshot({path:'/tmp/car-status-home-393.png'});
+  await page.evaluate(()=>{window.homeClicks=0;document.getElementById('carPageOpen').onclick=()=>window.homeClicks++;});
+  await page.locator('#carPageOpen').click();expect(await page.evaluate(()=>homeClicks)).toBe(1);
  }else await expect(page.locator('#carTile,#carPage')).toHaveCount(0);
  expect(operations.some(op=>/mileage|service/.test(op||''))).toBe(false);
  expect(errors).toEqual([]);

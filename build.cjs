@@ -182,7 +182,7 @@ function syncWebVersion(env = process.env) {
   html = html.replace(/\/supplement-editor\.js\?v=[^"]+/g, '/supplement-editor.js?v=' + assetVersion);
   html = html.replace(/\/supplement-advanced\.js\?v=[^"]+/g, '/supplement-advanced.js?v=' + assetVersion);
   html = html.replace(/\/car\.js\?v=[^"]+/g, '/car.js?v=' + assetVersion);
-  html = html.replace(/\/changan-uni-v-header\.webp\?v=[^"]+/g, '/changan-uni-v-header.webp?v=' + assetVersion);
+  html = html.replace(/\/changan-uni-v-(?:header|black)\.webp\?v=[^"]+/g, value => value.split('?')[0] + '?v=' + assetVersion);
   html = html.replace(/\/manifest\.webmanifest\?v=[^"]+/g, '/manifest.webmanifest?v=' + assetVersion);
   html = html.replace(
     /(<meta name="rudi-version" content=")[^"]*(")/,
@@ -280,7 +280,7 @@ function syncServiceWorkerPrecache(assetPaths) {
     '/home-scene-night.svg?v=2.104',
     '/poslanie-background.png?v=1.8.9',
     '/lulu-avatar-hq.webp?v=4.393',
-    '/changan-uni-v-header.webp?v=' + String(JSON.parse(fs.readFileSync(versionConfigPath, 'utf8')).current||'v4.277').replace(/^v/i,''),
+    '/changan-uni-v-black.webp?v=' + String(JSON.parse(fs.readFileSync(versionConfigPath, 'utf8')).current||'v4.277').replace(/^v/i,''),
   ];
   const precache = [...new Set([...basePrecache, ...assetPaths])];
   let serviceWorker = fs.readFileSync(webServiceWorkerPath, 'utf8');

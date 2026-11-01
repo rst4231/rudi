@@ -1002,7 +1002,14 @@
     for(const id of ['carHomeTyreSticker','carPageTyreSticker']){
       const node=document.getElementById(id);
       if(!node) continue;
-      node.hidden=!installed;
+      node.hidden=false;
+      node.parentElement.dataset.season=installed||'unknown';
+      node.parentElement.dataset.unset=installed?'false':'true';
+      const icon=node.parentElement.querySelector('svg');
+      if(icon)icon.innerHTML=installed==='winter'
+        ?'<path d="M12 2v20M3.34 7l17.32 10M3.34 17 20.66 7M9 4l3 3 3-3M9 20l3-3 3 3M3.6 10.5l4.1-1.1-1.1-4.1M17.4 18.7l-1.1-4.1 4.1-1.1M6.6 18.7l1.1-4.1-4.1-1.1M20.4 10.5l-4.1-1.1 1.1-4.1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+        :'<path d="M20 3c-9-1-16 3-16 10a6 6 0 0 0 6 6c7 0 11-7 10-16Z" fill="currentColor"/><path d="m5 19 9-9" fill="none" stroke="var(--car-status-leaf-line,#164929)" stroke-width="1.6" stroke-linecap="round"/>';
+      if(!installed){node.textContent='Шины не указаны';node.setAttribute('aria-label','Комплект шин не указан');}
       if(installed){
         node.textContent=installedText+' стоят';
         node.dataset.season=installed;

@@ -1,18 +1,18 @@
 {
-  "current": "v4.397",
+  "current": "v4.398",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.396",
+  "basedOnProduction": "v4.397",
   "notes": [
-    "Из карточки и страницы машины убраны пробег, ТО, история и настройка синхронизации пробега",
-    "Убраны автоматические подсказки о ТО, исправлены отступы и оформление оставшихся блоков"
+    "Карточка машины на главной и шапка внутри оформлены по варианту 2",
+    "Чёрный Changan UNI-V, статусы шин и мойки в отдельной зоне, адаптация к узким экранам"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Remove mileage and maintenance UI, calculations, alerts and connection controls",
-    "Compact car headers and style remaining attention and tyre controls"
+    "Use shared status-focused car header on Home and Car page",
+    "Add transparent black Changan UNI-V asset to offline cache"
   ]
 }
