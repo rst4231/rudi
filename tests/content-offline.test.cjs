@@ -245,3 +245,16 @@ test('care edit made during sync advances to the committed predecessor revision'
  });
  h.online(true);await api.flush();assert.equal((await api.pending('lulu'))[0].data.command.expectedUpdatedAt,'rev-2');await api.flush();assert.equal((await api.pending('lulu')).length,0);
 });
+
+test('synced Lulu weight remains cached when profile is closed',async()=>{
+ const h=makeHarness(),api=h.mount();api.init('Рустам');
+ const record={kind:'weight',id:'w1',data:{date:'2026-10-30',kg:12.5},updatedAt:'2026-10-30T12:00:00Z'};
+ await api.capture('lulu-care',{records:[{kind:'goals',id:'current',data:{targetKg:10.5},updatedAt:'2026-10-29T12:00:00Z'}],revisions:{}});
+ await api.enqueue('lulu','care:weight:w1',{operation:'care-command',command:{...record,expectedUpdatedAt:''}});
+ h.intercept(async()=>({ok:true,json:async()=>({ok:true,record})}));h.online(true);
+ assert.equal((await api.flush()).pending,0);
+ const saved=await api.cached('lulu-care');
+ assert.equal(saved.records.find(r=>r.kind==='weight')?.data.kg,12.5);
+ assert.equal(saved.records.find(r=>r.kind==='goals').data.targetKg,10.5);
+ assert.equal(saved.revisions['weight:w1'],record.updatedAt);
+});

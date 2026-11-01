@@ -326,6 +326,16 @@ async function flush(){
     if(blockedGroups.has(group(row)))continue;
     try{
      const result=await send(row);
+     // Persist care records before removing the outbox entry, even if Lulu's profile is closed.
+     if(row.kind==='lulu'&&row.data?.operation==='care-command'&&result.record?.updatedAt){
+      const prior=await cached('lulu-care',who)||{records:[],revisions:{}};
+      const record=result.record,recordKey=record.kind+':'+record.id;
+      if(!prior.revisions?.[recordKey]||Date.parse(prior.revisions[recordKey])<=Date.parse(record.updatedAt)){
+       const records=(prior.records||[]).filter(r=>r.kind+':'+r.id!==recordKey);
+       if(!record.deleted)records.push(record);
+       await capture('lulu-care',{records,revisions:{...prior.revisions,[recordKey]:record.updatedAt}},who);
+      }
+     }
      // Check revision and delete atomically, so a concurrent local edit cannot disappear.
      const acked=await acknowledge(row.id,row.stamp);
      const stored=acked?null:await tx('outbox','readonly',store=>store.get(row.id));

@@ -16,13 +16,13 @@ const schema={
  prescription:[['name','Название назначения','text',true],['dose','Дозировка по назначению','text'],['schedule','Когда принимать','text'],['start','Начало','date',true],['end','Окончание','date'],['doctor','Врач','text'],['note','Комментарий','textarea']]
 };
 function mount(root,{actor,request}){
- let confirmed=[],revisions={},pending=[],editor=null,disposed=false,status='',loading=true,busy=new Set(),intaking=new Set(),loadPromise=null,generation=0;
+ let confirmed=[],revisions={},pending=[],editor=null,disposed=false,status='',loading=true,loaded=false,busy=new Set(),intaking=new Set(),loadPromise=null,generation=0;
  const offline=window.rudiOfflineContent;
  const valid=()=>!disposed&&root.isConnected&&(!offline?.actor||offline.actor()===actor);
  const currentRecords=()=>{const rows=new Map(confirmed.map(r=>[key(r),r]));for(const q of pending){const c=q.data.command;rows.set(key(c),{...c,actor:q.actor,updatedAt:c.expectedUpdatedAt,pendingId:q.id,error:q.error})}return [...rows.values()].filter(r=>!r.deleted)};
  const refreshPending=async()=>{pending=(await offline?.pending?.('lulu','',actor)||[]).filter(row=>row.data?.operation==='care-command')};
  const adopt=record=>{if(Date.parse(revisions[key(record)]||'1970-01-01')>Date.parse(record.updatedAt))return;revisions[key(record)]=record.updatedAt;confirmed=confirmed.filter(r=>key(r)!==key(record));if(!record.deleted)confirmed.push(record)};
- const capture=()=>offline?.capture?.('lulu-care',{records:confirmed,revisions},actor);
+ const capture=async()=>offline?.capture?.('lulu-care',{records:confirmed,revisions},actor);
  function edit(kind,record){
   const today=day();editor={kind,id:record?.id||(['nutrition','goals'].includes(kind)?'current':uid()),expectedUpdatedAt:record?.updatedAt||revisions[kind+':current']||'',data:structuredClone(record?.data||{})};
   if(!record){if(kind==='weight'||kind==='nutrition'||kind==='prevention')editor.data.date=today;if(kind==='prevention')editor.data.type='vaccine';if(kind==='prescription')editor.data.start=today}
@@ -33,11 +33,12 @@ function mount(root,{actor,request}){
   const started=generation;
   loadPromise=(async()=>{
    try{
-    const saved=await offline?.cached?.('lulu-care',actor);if(!valid()||started!==generation)return;
+    const saved=await Promise.resolve().then(()=>offline?.cached?.('lulu-care',actor)).catch(()=>null);if(!valid()||started!==generation)return;
     if(saved?.records){confirmed=saved.records;revisions=saved.revisions||{}}
-    await refreshPending();if(!valid())return;loading=false;render();
+    await refreshPending().catch(()=>{});if(!valid())return;render();
     const result=await request('care-get');if(!valid()||started!==generation)return;
-    confirmed=result.care?.records||[];revisions=result.care?.revisions||{};await capture();await refreshPending();if(valid())render();
+    if(!Array.isArray(result.care?.records))throw Error('care-response-missing');
+    confirmed=result.care.records;revisions=result.care.revisions||{};loaded=true;loading=false;await capture().catch(()=>{});await refreshPending().catch(()=>{});if(valid())render();
    }catch(_){if(valid()){status=confirmed.length||pending.length?'Без интернета':'Не удалось загрузить записи';loading=false;render()}}
   })().finally(()=>{loadPromise=null});return loadPromise;
  }
@@ -94,7 +95,7 @@ function mount(root,{actor,request}){
  function row(title,detail,record){const item=node('article','lulu-care-row'),copy=node('div','lulu-care-row-copy');copy.append(node('strong','',title));if(detail)copy.append(node('p','',detail));if(record.pendingId)copy.append(node('small','',record.error?'Нужно проверить изменение':'Без интернета'));item.append(copy);return item}
  function renderWeights(rows){
   const section=card('Вес','weight','Добавить'),weights=rows.filter(r=>r.kind==='weight').sort((a,b)=>(b.data.date+b.updatedAt).localeCompare(a.data.date+a.updatedAt)),target=rows.find(r=>r.kind==='goals');
-  const latest=weights[0];section.append(node('div','lulu-care-value',latest?kg(latest.data.kg):'Нет замеров'));
+  const latest=weights[0];section.append(node('div','lulu-care-value',latest?kg(latest.data.kg):loading?'Загружаю вес…':loaded?'Добавьте первый вес':'Не удалось загрузить вес'));
   if(latest)section.append(node('p','lulu-care-muted',dateLabel(latest.data.date)));
   const goal=node('div','lulu-care-goal');goal.append(node('span','',target?.data.targetKg?'Целевой вес: '+kg(target.data.targetKg):'Целевой вес не указан'),button('Указать',()=>edit('goals',target)));section.append(goal);
   if(weights.length>1){

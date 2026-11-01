@@ -53,7 +53,7 @@ test('deleting an offline edit removes the underlying weight after sync',async({
  await page.addScriptTag({url:'/rudi-offline-content.js'});
  await page.evaluate(async()=>{rudiOfflineContent.init('Рустам');document.body.dataset.offlineMode='1';const record=(await careRequest('care-get')).care.records.find(r=>r.kind==='weight');await rudiOfflineContent.enqueue('lulu','care:weight:'+record.id,{operation:'care-command',command:{kind:'weight',id:record.id,data:{...record.data,kg:13},expectedUpdatedAt:record.updatedAt}});mountCare()});
  await expect(block.locator('.lulu-care-value')).toHaveText('13 кг');await block.getByText('История веса',{exact:true}).click();await block.getByRole('button',{name:'Удалить',exact:true}).click();
- await expect(block.locator('.lulu-care-value')).toHaveText('Нет замеров');
+ await expect(block.locator('.lulu-care-value')).toHaveText('Добавьте первый вес');
  await page.evaluate(async()=>{document.body.dataset.offlineMode='0';await rudiOfflineContent.flush()});
  const records=await page.evaluate(async()=>(await careRequest('care-get')).care.records);expect(records.filter(r=>r.kind==='weight')).toHaveLength(0);
 });

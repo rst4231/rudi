@@ -1,20 +1,19 @@
 {
-  "current": "v4.387",
+  "current": "v4.388",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.386",
+  "basedOnProduction": "v4.387",
   "notes": [
-    "Пробег и четыре периода из UNI-V OS вместо расчётных плиток и истории пробега",
-    "Защищённая привязка магнитолы шестизначным кодом и односторонняя синхронизация без координат",
-    "Повторные и запоздавшие снимки не начисляют расстояние повторно"
+    "Последний сохранённый вес Лулу и дата взвешивания в карточке",
+    "Офлайн-замеры сохраняются на устройстве после фоновой синхронизации",
+    "Ошибка локального кэша больше не блокирует получение веса с сервера"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "UNI-V OS absolute mileage sync with revision ordering",
-    "Four source GPS period totals, existing car retained",
-    "Owner-only expiring pairing, idempotent retry and revocation"
+    "Persist synced care records before acknowledging the offline outbox",
+    "Show cached latest weight and distinguish loading from empty history"
   ]
 }
