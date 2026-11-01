@@ -11,13 +11,13 @@ test.beforeEach(async({page})=>{
  await page.evaluate(()=>{window.careRequest=async(operation,payload={})=>{const r=await fetch('/api/partner-message?rudiAction=lulu',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({operation,...payload})});const data=await r.json();if(!r.ok)throw Error(data.error);return data};window.mountCare=()=>{window.unmountCare?.();window.unmountCare=RudiLuluCare.mount(document.querySelector('#care'),{actor:'Рустам',request:window.careRequest})};window.mountCare()});
  await expect(page.locator('.lulu-care-weight')).toBeVisible();
 });
-test('weight history graph, editing and target persist after reopening',async({page})=>{
+test('weight history graph and editing persist without target controls',async({page})=>{
  const block=page.locator('.lulu-care-weight');
  await block.getByRole('button',{name:'Добавить',exact:true}).click();await block.getByLabel('Вес, кг',{exact:true}).fill('12.4');await block.getByRole('button',{name:'Сохранить',exact:true}).click();
  await expect(block.locator('.lulu-care-value')).toHaveText('12,4 кг');
  await block.getByRole('button',{name:'Добавить',exact:true}).click();await block.getByLabel('Дата',{exact:true}).fill('2026-10-25');await block.getByLabel('Вес, кг',{exact:true}).fill('12.1');await block.getByRole('button',{name:'Сохранить',exact:true}).click();
- await expect(block.locator('svg')).toHaveCount(1);await block.getByRole('button',{name:'Указать',exact:true}).click();await block.getByLabel('Целевой вес, кг',{exact:true}).fill('12');await block.getByRole('button',{name:'Сохранить',exact:true}).click();
- await expect(block.locator('.lulu-care-goal')).toContainText('12 кг');await block.getByText('История веса',{exact:true}).click();
+ await expect(block.locator('svg')).toHaveCount(1);await expect(block.getByRole('button',{name:'Указать',exact:true})).toHaveCount(0);
+ await expect(block.locator('.lulu-care-goal')).toHaveCount(0);await block.getByText('История веса',{exact:true}).click();
  await expect(block.locator('.lulu-care-history>.lulu-care-row')).toHaveCount(2);await block.locator('.lulu-care-history>.lulu-care-row').first().getByRole('button',{name:'Изменить',exact:true}).click();
  await block.getByLabel('Вес, кг',{exact:true}).fill('12.3');await block.getByRole('button',{name:'Сохранить',exact:true}).click();await expect(block.locator('.lulu-care-value')).toHaveText('12,3 кг');
  await page.evaluate(()=>mountCare());await expect(page.locator('.lulu-care-weight .lulu-care-value')).toHaveText('12,3 кг');

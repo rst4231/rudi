@@ -10,7 +10,6 @@ const node=(tag,cls='',text='')=>{const el=document.createElement(tag);el.classN
 const button=(text,click,cls='')=>{const el=node('button',cls,text);el.type='button';el.addEventListener('click',click);return el};
 const schema={
  weight:[['date','Дата','date',true],['kg','Вес, кг','number',true],['note','Комментарий','textarea']],
- goals:[['targetKg','Целевой вес, кг','number']],
  nutrition:[['food','Корм','text'],['grams','Порция за день, г','number'],['treats','Лакомства','text'],['date','Дата смены корма','date'],['note','Комментарий','textarea']],
  prevention:[['type','Что отмечаем','select',true,[['vaccine','Прививка'],['parasite','Обработка от паразитов']]],['product','Препарат','text',true],['date','Дата применения','date',true],['nextDate','Следующая дата','date'],['note','Комментарий','textarea']],
  prescription:[['name','Название назначения','text',true],['dose','Дозировка по назначению','text'],['schedule','Когда принимать','text'],['start','Начало','date',true],['end','Окончание','date'],['doctor','Врач','text'],['note','Комментарий','textarea']]
@@ -24,7 +23,7 @@ function mount(root,{actor,request}){
  const adopt=record=>{if(Date.parse(revisions[key(record)]||'1970-01-01')>Date.parse(record.updatedAt))return;revisions[key(record)]=record.updatedAt;confirmed=confirmed.filter(r=>key(r)!==key(record));if(!record.deleted)confirmed.push(record)};
  const capture=async()=>offline?.capture?.('lulu-care',{records:confirmed,revisions},actor);
  function edit(kind,record){
-  const today=day();editor={kind,id:record?.id||(['nutrition','goals'].includes(kind)?'current':uid()),expectedUpdatedAt:record?.updatedAt||revisions[kind+':current']||'',data:structuredClone(record?.data||{})};
+  const today=day();editor={kind,id:record?.id||(kind==='nutrition'?'current':uid()),expectedUpdatedAt:record?.updatedAt||revisions[kind+':current']||'',data:structuredClone(record?.data||{})};
   if(!record){if(kind==='weight'||kind==='nutrition'||kind==='prevention')editor.data.date=today;if(kind==='prevention')editor.data.type='vaccine';if(kind==='prescription')editor.data.start=today}
   status='';render();root.querySelector('.lulu-care-editor input,.lulu-care-editor select')?.focus({preventScroll:true});
  }
@@ -69,7 +68,7 @@ function mount(root,{actor,request}){
  }
  function formFor(kind){
   if(editor?.kind!==kind)return null;
-  const draft=editor,form=node('form','lulu-care-editor');form.setAttribute('aria-label','Редактирование: '+({weight:'вес',goals:'целевой вес',nutrition:'питание',prevention:'прививка или обработка',prescription:'назначение'})[kind]);
+  const draft=editor,form=node('form','lulu-care-editor');form.setAttribute('aria-label','Редактирование: '+({weight:'вес',nutrition:'питание',prevention:'прививка или обработка',prescription:'назначение'})[kind]);
   for(const [name,label,type,required,options] of schema[kind]){
    const wrap=node('label','lulu-care-field'),title=node('span','',label),input=node(type==='textarea'?'textarea':type==='select'?'select':'input');
    input.name=name;input.required=!!required;input.setAttribute('aria-label',label);
@@ -91,19 +90,18 @@ function mount(root,{actor,request}){
   return actions;
  }
  async function discard(id){await offline?.discard?.(id,actor);await refreshPending();status='Изменение отменено';if(valid())render();void load()}
- function card(title,kind,action){const section=node('section','lulu-care-block lulu-care-'+kind),head=node('div','lulu-care-head');head.append(node('h2','',title),button(action,()=>edit(kind,kind==='nutrition'||kind==='goals'?currentRecords().find(r=>r.kind===kind):null),'lulu-care-add'));section.append(head);return section}
+ function card(title,kind,action){const section=node('section','lulu-care-block lulu-care-'+kind),head=node('div','lulu-care-head');head.append(node('h2','',title),button(action,()=>edit(kind,kind==='nutrition'?currentRecords().find(r=>r.kind===kind):null),'lulu-care-add'));section.append(head);return section}
  function row(title,detail,record){const item=node('article','lulu-care-row'),copy=node('div','lulu-care-row-copy');copy.append(node('strong','',title));if(detail)copy.append(node('p','',detail));if(record.pendingId)copy.append(node('small','',record.error?'Нужно проверить изменение':'Без интернета'));item.append(copy);return item}
  function renderWeights(rows){
-  const section=card('Вес','weight','Добавить'),weights=rows.filter(r=>r.kind==='weight').sort((a,b)=>(b.data.date+b.updatedAt).localeCompare(a.data.date+a.updatedAt)),target=rows.find(r=>r.kind==='goals');
+  const section=card('Вес','weight','Добавить'),weights=rows.filter(r=>r.kind==='weight').sort((a,b)=>(b.data.date+b.updatedAt).localeCompare(a.data.date+a.updatedAt));
   const latest=weights[0];section.append(node('div','lulu-care-value',latest?kg(latest.data.kg):loading?'Загружаю вес…':loaded?'Добавьте первый вес':'Не удалось загрузить вес'));
   if(latest)section.append(node('p','lulu-care-muted',dateLabel(latest.data.date)));
-  const goal=node('div','lulu-care-goal');goal.append(node('span','',target?.data.targetKg?'Целевой вес: '+kg(target.data.targetKg):'Целевой вес не указан'),button('Указать',()=>edit('goals',target)));section.append(goal);
   if(weights.length>1){
    const series=weights.slice().reverse(),ys=series.map(r=>r.data.kg),low=Math.min(...ys),high=Math.max(...ys),span=high-low||1;
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 300 82');svg.setAttribute('class','lulu-care-weight-chart');svg.setAttribute('role','img');svg.setAttribute('aria-label','Изменение веса: от '+kg(series[0].data.kg)+' до '+kg(series.at(-1).data.kg));
    const line=document.createElementNS(svg.namespaceURI,'polyline');line.setAttribute('points',series.map((r,i)=>(8+i/(series.length-1)*284).toFixed(1)+','+(68-(r.data.kg-low)/span*52).toFixed(1)).join(' '));svg.append(line);section.append(svg);
   }
-  const f=formFor('weight')||formFor('goals');if(f)section.append(f);
+  const f=formFor('weight');if(f)section.append(f);
   if(weights.length){const details=node('details','lulu-care-history'),summary=node('summary','','История веса');details.append(summary);for(const r of weights){const item=row(kg(r.data.kg),[dateLabel(r.data.date),r.data.note].filter(Boolean).join(' · '),r);item.append(actionsFor(r));details.append(item)}section.append(details)}
   return section;
  }

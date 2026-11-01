@@ -1,19 +1,17 @@
 {
-  "current": "v4.388",
+  "current": "v4.389",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.387",
+  "basedOnProduction": "v4.388",
   "notes": [
-    "Последний сохранённый вес Лулу и дата взвешивания в карточке",
-    "Офлайн-замеры сохраняются на устройстве после фоновой синхронизации",
-    "Ошибка локального кэша больше не блокирует получение веса с сервера"
+    "Убран целевой вес из карточки Лулу",
+    "Последний вес, дата, график и история сохранены"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Persist synced care records before acknowledging the offline outbox",
-    "Show cached latest weight and distinguish loading from empty history"
+    "Remove Lulu target weight display and editor from profile"
   ]
 }
