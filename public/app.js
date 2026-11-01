@@ -10871,11 +10871,8 @@
         return {work:{configured:results.some(r=>r.work?.configured),days:results.flatMap(r=>r.work?.days||[])},shared:{connected:results.some(r=>r.shared?.connected!==false&&r.shared?.days),unavailable:results.some(r=>!r.shared||r.shared?.ok===false),days:results.flatMap(r=>r.shared?.days||[])}};
       }
 
-      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,resetCollapsedOnInit=false,persist=true}){
-        const section=document.querySelector(selector);
-        if(!section||section.dataset.collapseReady==='1') return;
-        if(key.startsWith('profile-')&&section.querySelector('#partnerHeaderName')&&window.RudiPartnerProfile){
-          const actor=key==='profile-diana'?'Диана':'Рустам';
+      function bindHomePartnerProfile(section,actor){
+        if(!section?.querySelector('#partnerHeaderName')||!window.RudiPartnerProfile)return false;
           window.RudiPartnerProfile.bind(section,actor,{
             loadFinances:async()=>{await loadHomePartnerLastExpense();return homeDashboardState.partnerFinance},
             openStars:openScoreModal,
@@ -10894,8 +10891,14 @@
             refreshBalance:()=>scoreRequest('state').then(data=>renderScoreStickers(data.score)).catch(()=>{}),
             balance:()=>currentScoreState?Number(currentScoreState.balances?.[actor]||0):null
           });
-          section.dataset.collapseReady='1';
-          return;
+        return true;
+      }
+
+      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,resetCollapsedOnInit=false,persist=true}){
+        const section=document.querySelector(selector);
+        if(!section||section.dataset.collapseReady==='1') return;
+        if(key.startsWith('profile-')&&bindHomePartnerProfile(section,key==='profile-diana'?'Диана':'Рустам')){
+          section.dataset.collapseReady='1';return;
         }
         const body=wrapCollapseBody(section,bodySelectors);
         const host=section.querySelector(hostSelector);
@@ -10983,6 +10986,7 @@
 
       function setupPersistentCollapsibles(){
         ensureSmartSavesAlwaysExpanded();
+        bindHomePartnerProfile(document.getElementById('homeDianaTile'),'Диана');
         setupPersistentCollapsible({
           selector:'#homeRustamTile',key:'profile-rustam',
           bodySelectors:['#homeRustamDetails'],

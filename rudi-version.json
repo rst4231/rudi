@@ -1,16 +1,17 @@
 {
-  "current": "v4.391",
+  "current": "v4.392",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.390",
+  "basedOnProduction": "v4.391",
   "notes": [
-    "Карточка Дианы на главной компактная без раскрывающегося списка"
+    "Возвращено открытие профиля партнёра по имени и аватарке в обоих аккаунтах",
+    "Привязка профиля больше не зависит от раскрытия карточки"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Remove Diana Home expander and hide Home-only details; keep profile details and Rustam controls"
+    "Bind partner profile independently of Home collapse controls"
   ]
 }
