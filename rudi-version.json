@@ -1,17 +1,17 @@
 {
-  "current": "v4.399",
+  "current": "v4.400",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.398",
+  "basedOnProduction": "v4.399",
   "notes": [
-    "Настройки машины: модель, дата выпуска, госномер, срок ОСАГО и страховая компания",
-    "Данные автоматически сохраняются и отображаются на главной и странице машины"
+    "Название модели на главной сделано немного меньше",
+    "Кнопка настроек расположена рядом с заголовком машины"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Add persistent car profile and insurance settings with autosave"
+    "Align car settings with the page heading and reduce the home title size"
   ]
 }

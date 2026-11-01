@@ -2722,3 +2722,9 @@ html[data-theme="dark"] .car-page .car-note-remove{background:rgba(206,57,75,.18
 #carTile .car-status-insurance[hidden],#carPage .car-status-insurance[hidden]{display:none}
 #carTile .car-status-insurance.is-expired,#carPage .car-status-insurance.is-expired{color:#ff9e9e}
 #carTile .car-status-insurance.is-soon,#carPage .car-status-insurance.is-soon{color:#efd08d}
+
+/* Keep the car settings control beside the page title. */
+.car-page-head.rudi-app-page-head{grid-template-columns:var(--rudi-page-head-control,44px) max-content 40px!important;justify-content:start!important;column-gap:12px!important}
+#carTile .car-status-copy h2{font-size:22px}
+@media(max-width:700px){#carTile .car-status-copy h2{font-size:19px}}
+@container (max-width:520px){#carTile .car-status-copy h2{font-size:19px}}
