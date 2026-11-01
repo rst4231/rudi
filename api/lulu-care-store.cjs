@@ -1,8 +1,8 @@
 'use strict';
 const {createStrictRuntimeCache}=require('./strict-runtime-cache.cjs');
-const {randomUUID}=require('node:crypto');
+const {randomUUID,createHash}=require('node:crypto');
 const NS='rudi-lulu-care-v1',TTL=60*60*24*3650;
-const KINDS=new Set(['weight','goals','nutrition','prevention','prescription','intake']);
+const KINDS=new Set(['weight','goals','nutrition','prevention','prescription','intake','nails','bath']);
 let tail=Promise.resolve();
 const validId=value=>typeof value==='string'&&/^[a-z0-9_-]{1,96}$/i.test(value);
 function dateKey(now){const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date(now)).map(p=>[p.type,p.value]));return p.year+'-'+p.month+'-'+p.day}
@@ -14,6 +14,11 @@ function normalize(kind,raw,now){
  if(!raw||typeof raw!=='object'||Array.isArray(raw))fail();
  const today=dateKey(now);
  if(kind==='weight'){const date=day(raw.date);if(date>today)fail();return {date,kg:amount(raw.kg,0.1,100),note:text(raw.note,500)}}
+ if(kind==='nails'||kind==='bath'){
+  const date=day(raw.date),time=text(raw.time,5,true);if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(time))fail();
+  const at=new Date(date+'T'+time+':00+03:00');if(date>today||at.getTime()>now+300000)fail();
+  return {date,time,at:at.toISOString(),note:text(raw.note,500)};
+ }
  if(kind==='goals')return {targetKg:amount(raw.targetKg,0.1,100,true)};
  if(kind==='nutrition')return {food:text(raw.food,160),grams:amount(raw.grams,1,5000,true),treats:text(raw.treats,300),date:day(raw.date,true),note:text(raw.note,1000)};
  if(kind==='prevention'){
@@ -66,4 +71,13 @@ async function saveLuluCare(actor,input={},o={}){
   }finally{if((await c.get(lockKey))?.owner===owner)await c.delete(lockKey)}
  });tail=run.catch(()=>{});return run;
 }
-module.exports={readLuluCare,saveLuluCare,normalizeCareRecord:normalize};
+async function syncLuluNailsTask(actor,{taskId,title,at,completed},o={}){
+ const normalized=String(title||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е');
+ if(!/лулу/.test(normalized)||!/когт/.test(normalized)||!/(стриж|подстр|стрич|обрез)/.test(normalized))return null;
+ const careCache=o.careCache||createStrictRuntimeCache({namespace:NS,stateClient:o.client,...(o.cacheOptions||{})});
+ const id='task-'+createHash('sha256').update(String(taskId)).digest('hex').slice(0,40),current=await careCache.get('nails:'+id);
+ if(!completed&&(!current||current.deleted))return null;
+ const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(at)).map(p=>[p.type,p.value]));
+ return saveLuluCare(actor,{kind:'nails',id,expectedUpdatedAt:current?.updatedAt||'',...(completed?{data:{date:parts.year+'-'+parts.month+'-'+parts.day,time:parts.hour+':'+parts.minute,note:'Из общей задачи'}}:{deleted:true})},{...o,careCache});
+}
+module.exports={syncLuluNailsTask,readLuluCare,saveLuluCare,normalizeCareRecord:normalize};

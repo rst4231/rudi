@@ -72,3 +72,16 @@ test('offline replay cannot duplicate create or complete',async()=>{
  assert.equal((await tasks.modify('complete',{taskId:doneId},'Диана',options)).wasOpen,false);
  assert.equal((await tasks.occurrences('2026-10','Диана',options)).some(x=>x.id===doneId),false);
 });
+
+test('Lulu nail task completion records real Moscow time once; reopen removes it and offline time survives replay',async()=>{
+ const client=stateClient(),options={...fixture(client),now:Date.parse('2026-10-30T14:00:00Z')};await tasks.migrate(options);
+ const created=await tasks.create({clientId:'lulu-nails-fixture',title:'Стрижка когтей Лулу',date:'2026-10-29',repeat:'none',responsible:''},'Рустам',options);
+ const taskId=created.task.id,completedAt='2026-10-29T15:20:00Z';
+ await tasks.modify('complete',{taskId,completedAt},'Диана',options);
+ await tasks.modify('complete',{taskId},'Рустам',options);
+ const read=()=>require('../api/lulu-care-store.cjs').readLuluCare({cacheOptions:{stateClient:client}});
+ let records=(await read()).records;assert.equal(records.length,1);assert.equal(records[0].data.date,'2026-10-29');assert.equal(records[0].data.time,'18:20');assert.equal(records[0].actor,'Диана');
+ await tasks.modify('reopen',{taskId},'Диана',options);assert.equal((await read()).records.length,0);
+ await tasks.modify('complete',{taskId,completedAt:'2026-10-30T12:05:00Z'},'Рустам',options);
+ records=(await read()).records;assert.equal(records.length,1);assert.equal(records[0].data.time,'15:05');assert.equal(records[0].actor,'Рустам');
+});

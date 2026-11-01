@@ -279,6 +279,7 @@ function syncServiceWorkerPrecache(assetPaths) {
     '/home-scene-evening.svg?v=2.104',
     '/home-scene-night.svg?v=2.104',
     '/poslanie-background.png?v=1.8.9',
+    '/lulu-avatar-hq.webp?v=4.393',
     '/changan-uni-v-header.webp?v=' + String(JSON.parse(fs.readFileSync(versionConfigPath, 'utf8')).current||'v4.277').replace(/^v/i,''),
   ];
   const precache = [...new Set([...basePrecache, ...assetPaths])];

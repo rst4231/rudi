@@ -496,6 +496,7 @@
           row.state='queued';
         }
         const {task,value,...parameters}=row.details||{};
+        if(row.kind==='complete')parameters.completedAt=new Date(row.createdAt).toISOString();
         const body={...auth(),...parameters,...(value||{})};
         row.state='inflight';
         row.attempts=(row.attempts||0)+1;

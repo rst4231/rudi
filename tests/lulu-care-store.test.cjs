@@ -49,3 +49,14 @@ test('separate server instances cannot both accept conflicting edits to the same
  ]);
  assert.equal(results.filter(r=>r.status==='fulfilled').length,1);assert.equal(results.filter(r=>r.status==='rejected'&&r.reason.message==='lulu-care-conflict').length,1);
 });
+
+test('grooming dates and times persist for both actors and reject future or impossible dates',async()=>{
+ const o=setup();
+ for(const kind of ['nails','bath']){
+  const r=await care.saveLuluCare('Диана',command(kind,'groom-'+kind,{date:'2026-10-29',time:'18:20',note:'Дома'}),o);
+  assert.equal(r.data.at,'2026-10-29T15:20:00.000Z');
+  await assert.rejects(care.saveLuluCare('Рустам',command(kind,'future',{date:'2026-11-02',time:'10:00'}),o),/invalid/);
+  await assert.rejects(care.saveLuluCare('Рустам',command(kind,'bad',{date:'2026-02-30',time:'10:00'}),o),/invalid/);
+ }
+ assert.equal((await care.readLuluCare(o)).records.length,2);
+});

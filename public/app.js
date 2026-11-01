@@ -8293,7 +8293,7 @@
       function setLuluAvatar(needsWalk){
         const image=document.querySelector('#homeLuluTile .lulu-avatar');
         if(!image) return;
-        const next=needsWalk?'/lulu-walk.webp?v=2.118':'/lulu-normal.webp?v=2.118';
+        const next=needsWalk?'/lulu-walk.webp?v=2.118':'/lulu-avatar-hq.webp?v=4.393';
         if(image.getAttribute('src')!==next) image.src=next;
         image.dataset.walkDue=needsWalk?'1':'0';
       }
@@ -8520,7 +8520,7 @@
         luluProfileTrigger=event?.currentTarget||document.getElementById('luluWalkHistoryToggle');
         const page=document.createElement('section');page.className='rudi-meditation-page partner-profile-page lulu-profile-page';
         page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';page.setAttribute('aria-label','Профиль Лулу');
-        page.innerHTML='<header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head partner-profile-bar"><button type="button" class="fasting-back-button rudi-app-page-back lulu-profile-back" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="fasting-page-title"><h1>Лулу</h1></div></header><div class="partner-profile-content"><div class="partner-profile-layout"><section class="lulu-profile-hero"><img src="/lulu-normal.webp?v=2.118" width="72" height="72" alt="Лулу"><div><small class="lulu-profile-eyebrow">🐾 Моя собачья жизнь</small><h2>Лулу</h2><p>Французский бульдог · '+luluAgeLabel()+'</p></div></section><section class="lulu-profile-health"><h2>Здоровье</h2><label for="luluHealthText">Текущие проблемы</label><textarea id="luluHealthText" rows="4" maxlength="2000" placeholder="Укажи, что сейчас беспокоит Лулу. Каждую проблему можно написать с новой строки."></textarea><div class="lulu-health-actions"><button type="button" class="lulu-health-save" disabled>Сохранить</button><span class="lulu-health-status" role="status">Загружаю…</span></div></section><div class="lulu-care-root"></div><section class="lulu-profile-finances"><h2>Расходы за месяц</h2><strong class="lulu-food-total">Загружаю…</strong><div class="lulu-food-transactions"></div></section><section class="lulu-profile-summary"><h2>Прогулки за месяц</h2><p class="lulu-profile-month"></p><div class="lulu-profile-counts"><div><span>Диана</span><strong data-lulu-count="Диана">0</strong></div><div><span>Рустам</span><strong data-lulu-count="Рустам">0</strong></div></div></section><section class="lulu-profile-journal"><h2>История прогулок</h2><div class="lulu-profile-history"></div></section></div></div>';
+        page.innerHTML='<header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head partner-profile-bar"><button type="button" class="fasting-back-button rudi-app-page-back lulu-profile-back" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="fasting-page-title"><h1>Лулу</h1></div></header><div class="partner-profile-content"><div class="partner-profile-layout"><section class="lulu-profile-hero"><img src="/lulu-avatar-hq.webp?v=4.393" width="72" height="72" alt="Лулу"><div><small class="lulu-profile-eyebrow">🐾 Моя собачья жизнь</small><h2>Лулу</h2><p>Французский бульдог · '+luluAgeLabel()+'</p></div></section><section class="lulu-profile-health"><h2>Здоровье</h2><label for="luluHealthText">Текущие проблемы</label><textarea id="luluHealthText" rows="4" maxlength="2000" placeholder="Укажи, что сейчас беспокоит Лулу. Каждую проблему можно написать с новой строки."></textarea><div class="lulu-health-actions"><button type="button" class="lulu-health-save" disabled>Сохранить</button><span class="lulu-health-status" role="status">Загружаю…</span></div></section><div class="lulu-care-root"></div><section class="lulu-profile-finances"><h2>Расходы за месяц</h2><strong class="lulu-food-total">Загружаю…</strong><div class="lulu-food-transactions"></div></section><section class="lulu-profile-journal"><h2>История прогулок</h2><p class="lulu-profile-month"></p><div class="lulu-profile-counts"><div><span>Диана</span><strong data-lulu-count="Диана">0</strong></div><div><span>Рустам</span><strong data-lulu-count="Рустам">0</strong></div></div><div class="lulu-profile-history"></div></section></div></div>';
         luluProfilePage=page;document.body.append(page);document.body.classList.add('lulu-profile-open');
         history.pushState({...history.state,rudiLuluProfile:true},'','#lulu');
         page.querySelector('.lulu-profile-back').onclick=()=>closeLuluProfile();
@@ -10730,7 +10730,7 @@
         luluTile.innerHTML=
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
-              '<button id="luluProfileAvatar" class="lulu-avatar-button" type="button" aria-label="Открыть профиль Лулу"><img class="lulu-avatar" src="/lulu-normal.webp?v=2.118" alt="Лулу" width="58" height="58"></button>'+
+              '<button id="luluProfileAvatar" class="lulu-avatar-button" type="button" aria-label="Открыть профиль Лулу"><img class="lulu-avatar" src="/lulu-avatar-hq.webp?v=4.393" alt="Лулу" width="58" height="58"></button>'+
               '<div class="lulu-copy"><h2><button id="luluWalkHistoryToggle" class="lulu-name lulu-name-button" type="button" aria-label="Открыть профиль Лулу">Лулу</button></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет пока не отмечен</div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
             '</div>'+
             '<div class="lulu-head-actions">'+
@@ -10871,8 +10871,11 @@
         return {work:{configured:results.some(r=>r.work?.configured),days:results.flatMap(r=>r.work?.days||[])},shared:{connected:results.some(r=>r.shared?.connected!==false&&r.shared?.days),unavailable:results.some(r=>!r.shared||r.shared?.ok===false),days:results.flatMap(r=>r.shared?.days||[])}};
       }
 
-      function bindHomePartnerProfile(section,actor){
-        if(!section?.querySelector('#partnerHeaderName')||!window.RudiPartnerProfile)return false;
+      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,resetCollapsedOnInit=false,persist=true}){
+        const section=document.querySelector(selector);
+        if(!section||section.dataset.collapseReady==='1') return;
+        if(key.startsWith('profile-')&&section.querySelector('#partnerHeaderName')&&window.RudiPartnerProfile){
+          const actor=key==='profile-diana'?'Диана':'Рустам';
           window.RudiPartnerProfile.bind(section,actor,{
             loadFinances:async()=>{await loadHomePartnerLastExpense();return homeDashboardState.partnerFinance},
             openStars:openScoreModal,
@@ -10891,14 +10894,8 @@
             refreshBalance:()=>scoreRequest('state').then(data=>renderScoreStickers(data.score)).catch(()=>{}),
             balance:()=>currentScoreState?Number(currentScoreState.balances?.[actor]||0):null
           });
-        return true;
-      }
-
-      function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,resetCollapsedOnInit=false,persist=true}){
-        const section=document.querySelector(selector);
-        if(!section||section.dataset.collapseReady==='1') return;
-        if(key.startsWith('profile-')&&bindHomePartnerProfile(section,key==='profile-diana'?'Диана':'Рустам')){
-          section.dataset.collapseReady='1';return;
+          section.dataset.collapseReady='1';
+          return;
         }
         const body=wrapCollapseBody(section,bodySelectors);
         const host=section.querySelector(hostSelector);
@@ -10986,7 +10983,6 @@
 
       function setupPersistentCollapsibles(){
         ensureSmartSavesAlwaysExpanded();
-        bindHomePartnerProfile(document.getElementById('homeDianaTile'),'Диана');
         setupPersistentCollapsible({
           selector:'#homeRustamTile',key:'profile-rustam',
           bodySelectors:['#homeRustamDetails'],

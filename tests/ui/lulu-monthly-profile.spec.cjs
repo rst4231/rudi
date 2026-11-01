@@ -18,7 +18,7 @@ test.beforeEach(async({page})=>{
 test('profile shows monthly counts and stool, only today own walks can be canceled, back closes',async({page})=>{
  await page.evaluate(()=>seed({walksMonth:[{actor:'Диана',walkedAt:'2026-10-29T07:00:00Z',peed:true,pooped:true,stool:'formed'},{actor:'Рустам',walkedAt:'2026-10-29T09:00:00Z',peed:true},{actor:'Рустам',walkedAt:'2026-10-30T07:00:00Z',pooped:true,stool:'soft'},{actor:'Диана',walkedAt:'2026-09-30T07:00:00Z',peed:true}]}));
  await page.locator('#trigger').click();const profile=page.locator('.lulu-profile-page');await expect(profile).toBeVisible();
- expect(await profile.locator('.lulu-profile-summary').evaluate(el=>el.nextElementSibling.classList.contains('lulu-profile-journal'))).toBe(true);
+ await expect(profile.locator('.lulu-profile-summary')).toHaveCount(0);await expect(profile.locator('.lulu-profile-journal .lulu-profile-counts')).toBeVisible();
  await expect(profile.locator('[data-lulu-count="Диана"]')).toHaveText('1');await expect(profile.locator('[data-lulu-count="Рустам"]')).toHaveText('2');
  await expect(profile).toContainText('Оформленный');await expect(profile).toContainText('Мягкий');
  await expect(profile.locator('.lulu-profile-walk')).toHaveCount(3);await expect(profile.getByRole('button',{name:'Отменить',exact:true})).toHaveCount(1);

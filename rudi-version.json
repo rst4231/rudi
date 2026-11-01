@@ -1,17 +1,20 @@
 {
-  "current": "v4.392",
+  "current": "v4.393",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.391",
+  "basedOnProduction": "v4.392",
   "notes": [
-    "Возвращено открытие профиля партнёра по имени и аватарке в обоих аккаунтах",
-    "Привязка профиля больше не зависит от раскрытия карточки"
+    "История стрижки когтей и купания Лулу с датой и временем",
+    "Выполнение общей задачи со стрижкой когтей отмечается в истории без дублей; отмена убирает отметку",
+    "Тематические цвета и иконки всех карточек ухода за Лулу"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Bind partner profile independently of Home collapse controls"
+    "Shared grooming records with offline edits and history",
+    "Idempotent native shared task completion to Lulu nails history with Moscow timestamps and reopen handling",
+    "Per-care card themes in light and dark modes"
   ]
 }

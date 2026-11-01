@@ -287,7 +287,8 @@ async function modifyCompletion(action,body,actor,options={}){
   if(!permitted(task,actor))throw Error('shared-task-forbidden');
   const ns=DONE_NS+date.slice(0,7),previous=(await client.getRecord(ns,id))?.value;
   if((!dateMatches(task,date)||parsed.date&&!parseRule(task.repeatFlag).FREQ)&&!previous)throw Error('shared-task-occurrence-invalid');
-  const at=new Date(options.now??Date.now()).toISOString();
+  const suppliedAt=Date.parse(body.completedAt||''),nowMs=new Date(options.now??Date.now()).getTime();
+  const at=new Date(Number.isFinite(suppliedAt)&&suppliedAt>=Date.parse('2020-01-01')&&suppliedAt<=nowMs+300000?suppliedAt:nowMs).toISOString();
   const event=previous?.event||completionSnapshot(task,date);
   if(action==='reopen'){
    const legacy=task.completed===true&&!parsed.date;
@@ -300,6 +301,7 @@ async function modifyCompletion(action,body,actor,options={}){
     await client.set(ns,id,{...previous,at:previous?.at||task.completedAt||at,
      actor:previous?.actor||actor,event,reopened:true,reopenedAt:at});
    }
+   await require('./lulu-care-store.cjs').syncLuluNailsTask(actor,{taskId:id,title:event.title,at:previous?.at||task.completedAt||at,completed:false},{...options,client});
    const taskSnapshot={...task,title:event.title,responsible:event.responsible,
     repeatFlag:parsed.date?event.repeatFlag||'RRULE:FREQ=DAILY':'',date};
    return {ok:true,reopened:true,wasCompleted,taskId:id,date,...(wasCompleted?{taskSnapshot}:{})};
@@ -311,6 +313,7 @@ async function modifyCompletion(action,body,actor,options={}){
    await client.set(ns,id,{at,actor,event:{...snapshot,id},reopened:false});
    if(!parsed.date&&!parseRule(task.repeatFlag).FREQ)await client.set(TASK_NS,task.id,{...task,deleted:true,completed:true,completedAt:at});
   }
+  await require('./lulu-care-store.cjs').syncLuluNailsTask(actor,{taskId:id,title:snapshot.title,at:wasOpen?at:previous?.at||task.completedAt||at,completed:true},{...options,client});
   return {ok:true,taskId:id,title:snapshot.title,completed:true,wasOpen,scoreDate:date,responsible:responsibility(snapshot)};
  }finally{await client.remove(STATE_NS,lock)}
 }
