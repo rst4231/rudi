@@ -71,3 +71,41 @@ html[data-theme=dark] .lulu-care-icon{color:#f0e5d9}
 html[data-theme=dark] .lulu-profile-page .partner-profile-layout>section{background:linear-gradient(135deg,rgba(var(--profile-care-rgb),.22),rgba(var(--profile-care-rgb),.05) 80%),var(--lulu-paper)!important}
 
 .lulu-care-root button.lulu-care-icon-button{display:inline-grid;place-items:center;min-width:40px;padding:8px;font-size:24px;line-height:1}
+
+/* Lulu overview: health first, care plan, then practical summaries. */
+.lulu-profile-page .lulu-profile-hero{display:flex;gap:10px;align-items:center}
+.lulu-profile-page .lulu-profile-hero::after{display:none}
+.lulu-profile-page .lulu-profile-hero img{width:60px;height:60px;border-width:3px}
+.lulu-profile-page .lulu-profile-hero h2{font-size:19px!important;letter-spacing:-.3px}
+.lulu-profile-page .lulu-profile-hero p{font-size:11px;line-height:1.35}
+.lulu-profile-page .lulu-profile-eyebrow{display:none}
+.lulu-overview-weight{margin-left:auto;flex:none;display:grid;gap:3px;max-width:112px;padding:9px 10px;border:1px solid #7298d064;border-radius:14px;background:#7298d022;color:var(--lulu-ink);text-align:left;font:inherit}
+.lulu-overview-weight span,.lulu-overview-weight small{font-size:10px;color:var(--lulu-muted)}
+.lulu-overview-weight strong{font-size:15px}
+.lulu-profile-page .lulu-profile-health{border-color:#cf7a8980!important;background:linear-gradient(120deg,#b9536844,#93384e22),var(--lulu-paper)!important}
+.lulu-profile-page .lulu-profile-health h2:before{content:'♡';margin-right:9px;color:#e891a2;font-size:24px;vertical-align:middle}
+.lulu-profile-page .lulu-profile-health textarea{min-height:76px}
+.lulu-overview{display:grid;gap:10px;min-width:0}
+.lulu-overview-plan{padding:12px;border:1px solid var(--lulu-line);border-radius:16px;background:var(--lulu-paper)}
+.lulu-overview-plan-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.lulu-overview-plan-head h2{margin:0;color:var(--lulu-ink);font-size:14px}
+.lulu-overview-plan-head>span{color:#ae95d4;font-size:10px}
+.lulu-overview-plan-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.lulu-overview-plan-item,.lulu-overview-summary-item{box-sizing:border-box;display:grid;align-content:start;gap:5px;min-width:0;padding:9px 7px;border:1px solid var(--lulu-line);border-radius:12px;background:var(--lulu-paper);color:var(--lulu-ink);font:inherit;text-align:left;overflow-wrap:anywhere}
+.lulu-overview-plan-item>span,.lulu-overview-summary-item>span{font-size:18px;line-height:1}
+.lulu-overview-plan-item strong,.lulu-overview-summary-item strong{font-size:11px;line-height:1.2}
+.lulu-overview-plan-item small,.lulu-overview-summary-item small{font-size:10px;line-height:1.35;color:var(--lulu-muted)}
+.lulu-overview-plan-item.is-prevention{background:#b664a626}.lulu-overview-plan-item.is-nails{background:#dc994324}.lulu-overview-plan-item.is-bath{background:#50aabe24}.lulu-overview-plan-item.is-prescription{background:#9d78c62c}
+.lulu-overview-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.lulu-overview-summary-item{min-height:95px;padding:10px}
+.lulu-overview-summary-item.is-nutrition{background:#6da76926}.lulu-overview-summary-item.is-finances{background:#d9a44327}.lulu-overview-summary-item.is-walks{background:#c58d5d25}
+.lulu-overview-add{width:100%;min-height:43px;border:0;border-radius:13px;background:#b699e2;color:#24183a;font:inherit;font-size:13px;font-weight:800}
+.lulu-overview-add-menu{display:flex;gap:6px;flex-wrap:wrap;padding:8px;border:1px solid var(--lulu-line);border-radius:12px;background:var(--lulu-paper)}
+.lulu-overview-add-menu[hidden]{display:none}
+.lulu-overview-add-menu button{padding:8px 10px;border:1px solid var(--lulu-line);border-radius:10px;background:var(--lulu-paper);color:var(--lulu-ink);font:inherit;font-size:11px}
+@media(max-width:360px){.lulu-overview-plan-grid{gap:4px}.lulu-overview-plan-item{padding:7px 5px}.lulu-overview-plan-item strong{font-size:10px}.lulu-overview-weight{max-width:90px}}
+.lulu-overview-icon{width:18px;height:18px;display:block;color:#d7a5d3}
+.lulu-overview-plan-item.is-nails .lulu-overview-icon{color:#e8b46c}.lulu-overview-plan-item.is-bath .lulu-overview-icon{color:#8ed4e1}.lulu-overview-plan-item.is-prescription .lulu-overview-icon{color:#c4abed}
+.lulu-overview-plan-item strong{font-size:clamp(8px,2.3vw,11px);white-space:nowrap;letter-spacing:-.2px}
+.lulu-overview-shared{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 12px;border:1px solid #d4a85262;border-radius:13px;background:#d4a8521c;color:var(--lulu-ink);font-size:11px}
+.lulu-overview-shared strong{font-size:14px;white-space:nowrap}

@@ -20,6 +20,47 @@ const schema={
 };
 function mount(root,{actor,request}){
  let confirmed=[],revisions={},pending=[],editor=null,disposed=false,status='',loading=true,loaded=false,busy=new Set(),intaking=new Set(),loadPromise=null,generation=0;
+ const page=root.closest('.lulu-profile-page'),layout=root.parentElement;
+ let overview=null,weightShortcut=null,observer=null;
+ function goTo(selector,openEditor=false){
+  const target=page?.querySelector(selector);if(!target)return;
+  target.scrollIntoView({behavior:'smooth',block:'start'});
+  if(openEditor)target.querySelector('.lulu-care-add')?.click();
+ }
+ function setupOverview(){
+  if(!page||!layout)return;
+  overview=node('div','lulu-overview');
+  overview.innerHTML='<section class="lulu-overview-plan"><div class="lulu-overview-plan-head"><h2>План ухода</h2><span>Подробнее ↓</span></div><div class="lulu-overview-plan-grid"></div></section><div class="lulu-overview-summary"></div><button type="button" class="lulu-overview-add">＋ Добавить запись</button><div class="lulu-overview-add-menu" hidden></div>';
+  const health=page.querySelector('#luluHealthText');if(health)health.rows=2;
+  const plan=overview.querySelector('.lulu-overview-plan-grid');
+  for(const [kind,icon,title] of [['prevention','🛡','Обработка'],['nails','✂','Когти'],['bath','💧','Купание'],['prescription','▤','Лечение']]){
+   const item=button('',()=>goTo('.lulu-care-'+kind),'lulu-overview-plan-item is-'+kind);item.innerHTML='<svg class="lulu-overview-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+careIcons[kind]+'"/></svg><strong>'+title+'</strong><small>—</small>';item.dataset.overview=kind;plan.append(item);
+  }
+  const cards=overview.querySelector('.lulu-overview-summary');
+  for(const [kind,icon,title,selector] of [['nutrition','◡','Питание','.lulu-care-nutrition'],['finances','◉','Расходы','.lulu-profile-finances'],['walks','🐾','Прогулки','.lulu-profile-journal']]){
+   const item=button('',()=>goTo(selector),'lulu-overview-summary-item is-'+kind);item.innerHTML='<span aria-hidden="true">'+icon+'</span><strong>'+title+'</strong><small>—</small>';item.dataset.overview=kind;cards.append(item);
+  }
+  const add=overview.querySelector('.lulu-overview-add'),menu=overview.querySelector('.lulu-overview-add-menu');
+  add.addEventListener('click',()=>{menu.hidden=!menu.hidden;add.setAttribute('aria-expanded',String(!menu.hidden))});add.setAttribute('aria-expanded','false');
+  for(const [kind,title] of [['weight','Вес'],['nutrition','Питание'],['bath','Купание'],['prevention','Прививка или обработка'],['prescription','Назначение врача']])menu.append(button(title,()=>{menu.hidden=true;add.setAttribute('aria-expanded','false');goTo('.lulu-care-'+kind,true)}));
+  root.before(overview);
+  const hero=page.querySelector('.lulu-profile-hero');if(hero){weightShortcut=button('Вес',()=>goTo('.lulu-care-weight'),'lulu-overview-weight');weightShortcut.innerHTML='<span>⚖ Вес</span><strong>—</strong><small></small>';hero.append(weightShortcut)}
+  observer=new MutationObserver(()=>updateOverview(currentRecords()));
+  for(const selector of ['.lulu-profile-finances','.lulu-profile-journal']){const target=page.querySelector(selector);if(target)observer.observe(target,{childList:true,subtree:true,characterData:true})}
+ }
+ function updateOverview(rows){
+  if(!overview)return;
+  const latest=kind=>rows.filter(r=>r.kind===kind).sort((a,b)=>String(b.data.date||b.data.start||'').localeCompare(String(a.data.date||a.data.start||''))||String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')))[0];
+  const weight=latest('weight');if(weightShortcut){weightShortcut.querySelector('strong').textContent=weight?kg(weight.data.kg):'Нет данных';weightShortcut.querySelector('small').textContent=weight?dateLabel(weight.data.date):''}
+  const prevention=rows.filter(r=>r.kind==='prevention'&&r.data.nextDate).sort((a,b)=>a.data.nextDate.localeCompare(b.data.nextDate))[0]||latest('prevention');
+  const prescription=rows.filter(r=>r.kind==='prescription'&&!r.data.completed&&(!r.data.end||r.data.end>=day())).sort((a,b)=>String(a.data.start).localeCompare(String(b.data.start)))[0];
+  const values={prevention:prevention?(prevention.data.nextDate?'до '+dateLabel(prevention.data.nextDate):dateLabel(prevention.data.date)):'Нет записей',nails:latest('nails')?dateLabel(latest('nails').data.date):'Не отмечали',bath:latest('bath')?dateLabel(latest('bath').data.date):'Не отмечали',prescription:prescription?prescription.data.name:'Нет назначений'};
+  for(const [kind,value] of Object.entries(values))overview.querySelector('[data-overview="'+kind+'"] small').textContent=value;
+  const food=latest('nutrition');overview.querySelector('[data-overview="nutrition"] small').textContent=food?[food.data.food,food.data.grams?food.data.grams+' г/день':''].filter(Boolean).join(' · '):'Не указано';
+  overview.querySelector('[data-overview="finances"] small').textContent=page.querySelector('.lulu-food-total')?.textContent||'Загружаю…';
+  const count=name=>page.querySelector('[data-lulu-count="'+name+'"]')?.textContent||'0';overview.querySelector('[data-overview="walks"] small').textContent='Диана: '+count('Диана')+' · Рустам: '+count('Рустам');
+ }
+ setupOverview();
  const offline=window.rudiOfflineContent;
  const valid=()=>!disposed&&root.isConnected&&(!offline?.actor||offline.actor()===actor);
  const currentRecords=()=>{const rows=new Map(confirmed.map(r=>[key(r),r]));for(const q of pending){const c=q.data.command;rows.set(key(c),{...c,actor:q.actor,updatedAt:c.expectedUpdatedAt,pendingId:q.id,error:q.error})}return [...rows.values()].filter(r=>!r.deleted)};
@@ -160,15 +201,16 @@ function mount(root,{actor,request}){
   if(status){const msg=node('div','lulu-care-message',status);msg.setAttribute('role','status');root.append(msg)}
   for(const q of pending.filter(row=>row.error)){const error=node('div','lulu-care-message','Не удалось сохранить изменение');error.append(button('Отменить изменение',()=>void discard(q.id)));root.append(error)}
   root.append(renderWeights(rows),renderNutrition(rows),renderGrooming(rows,'nails','Стрижка когтей'),renderGrooming(rows,'bath','Купание'),renderPrevention(rows),renderPrescriptions(rows));
+  updateOverview(rows);
   if(focused){const input=root.querySelector('[name="'+focused+'"]');input?.focus({preventScroll:true});if(typeof selection==='number'&&input?.type==='text')input.setSelectionRange(selection,selection)}
  }
  const synced=async event=>{if(event.detail?.actor!==actor||event.detail?.operation!=='care-command'||!valid())return;generation++;if(event.detail.result?.record)adopt(event.detail.result.record);await capture();await refreshPending();if(valid())render()};
- const foreground=()=>{if(valid()){render();void load()}};
+ const foreground=()=>{if(valid()){render();void load();if(overview)void loadSharedLuluExpenses()}};
  window.addEventListener('rudi-content-operation-synced',synced);window.addEventListener('focus',foreground);
  const visible=()=>{if(!document.hidden)foreground()};document.addEventListener('visibilitychange',visible);
  const timer=setInterval(()=>{if(valid()&&!editor)render()},60000);
  render();void load();
- return ()=>{disposed=true;clearInterval(timer);window.removeEventListener('rudi-content-operation-synced',synced);window.removeEventListener('focus',foreground);document.removeEventListener('visibilitychange',visible)};
+ return ()=>{disposed=true;observer?.disconnect();overview?.remove();weightShortcut?.remove();clearInterval(timer);window.removeEventListener('rudi-content-operation-synced',synced);window.removeEventListener('focus',foreground);document.removeEventListener('visibilitychange',visible)};
 }
 window.RudiLuluCare={mount};
 })();

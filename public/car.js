@@ -72,6 +72,14 @@
       operations:group.operations.sort((a,b)=>(Date.parse(b.occurredAt)||0)-(Date.parse(a.occurredAt)||0))
     }));
   }
+  function carMonthTotal(finance,month){
+    const categories=[...(Array.isArray(finance?.categories)?finance.categories:[]),...(Array.isArray(finance?.archivedCategories)?finance.archivedCategories:[])];
+    const ids=new Set(categories.filter(row=>normalizeFinanceText(row?.name)==='транспорт').map(row=>String(row.id||'')));
+    return Math.round((Array.isArray(finance?.personalExpenses)?finance.personalExpenses:[]).reduce((total,row)=>{
+      const rowMonth=/^\d{4}-\d{2}$/.test(String(row?.month||''))?String(row.month):String(row?.occurredAt||'').slice(0,7),amount=Number(row?.rubAmount??row?.amount??0);
+      return ids.has(String(row?.categoryId||''))&&rowMonth===month&&Number.isFinite(amount)&&amount>0?total+amount:total;
+    },0)*100)/100;
+  }
   function carExpenseDateTime(value){
     const date=new Date(value);
     if(Number.isNaN(date.getTime()))return 'Дата не указана';
@@ -80,7 +88,7 @@
   function renderCarExpenses(){
     const list=document.getElementById('carExpensesList'),status=document.getElementById('carExpensesStatus'),meta=document.getElementById('carExpensesMeta');if(!list)return;list.replaceChildren();
     if(state.financeLoading&&!state.finance){if(status){status.hidden=false;status.textContent='Загружаю расходы…'}if(meta)meta.textContent='';return}
-    const groups=carExpenseGroups(state.finance||{});if(meta)meta.textContent=groups.length?groups.length+' мес.':'';
+    const groups=carExpenseGroups(state.finance||{});const monthTotal=document.getElementById('carMonthExpenses');if(monthTotal)monthTotal.textContent=state.finance?carExpenseMoney(carMonthTotal(state.finance,clientMoscowDateKey().slice(0,7))):state.financeLoading?'Загружаю…':'Нет данных';if(meta)meta.textContent=groups.length?groups.length+' мес.':'';
     if(!groups.length){if(status){status.hidden=false;status.textContent='Расходов по меткам Бензин, Паркинг, Мойка, Ремонт и Страховка пока нет'}return}if(status)status.hidden=true;
     for(const group of groups){
       const section=document.createElement('section');section.className='car-expense-month';const head=document.createElement('div');head.className='car-expense-month-head';
@@ -773,9 +781,10 @@
     if(!page||!header||!wash||document.getElementById('carStatusTiles'))return;
     const strip=document.createElement('section');strip.id='carStatusTiles';strip.className='car-status-tiles';strip.setAttribute('aria-label','Состояние машины');
     const washTile=document.createElement('div');washTile.className='car-status-tile is-wash';washTile.append(wash);
-    const tyre=document.createElement('div');tyre.className='car-status-tile is-tyres';tyre.innerHTML='<span class="car-status-tile-icon" aria-hidden="true">◉</span><div><span>Шины</span><strong id="carStatusTyre">Не указаны</strong></div>';
-    const insurance=document.createElement('div');insurance.className='car-status-tile is-insurance';insurance.innerHTML='<span class="car-status-tile-icon" aria-hidden="true">◇</span><div><span>ОСАГО</span><strong id="carStatusInsurance">Не указано</strong></div>';
-    strip.append(washTile,tyre,insurance);header.after(strip);
+    const insurance=document.createElement('div');insurance.className='car-status-tile is-insurance';insurance.innerHTML='<svg class="car-status-tile-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2.5 4 6v5.5c0 5 3 8.1 8 10 5-1.9 8-5 8-10V6l-8-3.5Z"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/></svg><div><span>ОСАГО</span><strong id="carStatusInsurance">Не указано</strong></div>';
+    strip.append(washTile,insurance);header.after(strip);
+    const monthly=document.createElement('button');monthly.type='button';monthly.className='car-month-expenses';monthly.innerHTML='<span>Общий расход за месяц</span><strong id="carMonthExpenses">Загружаю…</strong><span aria-hidden="true">›</span>';
+    monthly.addEventListener('click',()=>{const card=document.querySelector('[data-car-card="expenses"]');if(!card)return;if(card.classList.contains('is-collapsed'))setCarCardCollapsed(card,false);card.scrollIntoView({behavior:'smooth',block:'start'});});strip.after(monthly);
   }
 
   function setupCarSmartCards(){
@@ -989,7 +998,7 @@
     document.querySelectorAll('.car-status-model').forEach(node=>node.textContent=profile.releaseDate.slice(0,4));
     document.querySelectorAll('.car-status-registration').forEach(node=>node.textContent=profile.registration);
     const days=profile.osagoUntil?daysFromToday(profile.osagoUntil):null;
-    const insuranceTile=document.getElementById('carStatusInsurance');if(insuranceTile)insuranceTile.textContent=profile.osagoUntil?'до '+profile.osagoUntil.split('-').reverse().join('.'):'Не указано';
+    const insuranceTile=document.getElementById('carStatusInsurance');if(insuranceTile){insuranceTile.textContent=profile.osagoUntil?profile.osagoUntil.split('-').reverse().join('.'):'Не указано';const label=insuranceTile.previousElementSibling;if(label)label.textContent=profile.osagoUntil?'ОСАГО до':'ОСАГО';}
     for(const id of ['carHomeOsago','carPageOsago']){
       const node=document.getElementById(id);if(!node)continue;node.hidden=!profile.osagoUntil&&!profile.osagoCompany;
       node.textContent=(profile.osagoUntil?(days<0?'ОСАГО истекло ':'ОСАГО до ')+profile.osagoUntil.split('-').reverse().join('.'):'ОСАГО')+(profile.osagoCompany?' · '+profile.osagoCompany:'');

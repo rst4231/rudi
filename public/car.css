@@ -2756,3 +2756,10 @@ html[data-theme="dark"] .car-page .car-note-remove{background:rgba(206,57,75,.18
 #carPage .car-smart-card{margin:0!important}
 #carPage .car-smart-card.is-collapsed .car-card-collapse svg{transform:rotate(-90deg)}
 @media(max-width:390px){#carPage>.car-status-header{padding:15px!important;gap:6px!important}.car-status-tiles{gap:5px}.car-status-tile{padding:7px;gap:5px}.car-status-tile-icon{font-size:20px}.car-status-tile strong,.car-status-tile .car-status-wash strong{font-size:10px}}
+
+.car-status-tile svg.car-status-tile-icon{width:25px;height:25px;flex:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+#carStatusInsurance{white-space:nowrap;overflow-wrap:normal;word-break:normal;font-size:clamp(8px,2.4vw,11px)}
+@media(max-width:390px){.car-status-tile svg.car-status-tile-icon{width:20px;height:20px}}
+.car-month-expenses{box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;padding:13px 15px;border:1px solid #c7a85d65;border-radius:16px;background:linear-gradient(120deg,#d3a85525,transparent),var(--surface-strong);color:var(--text);font:inherit;text-align:left}
+.car-month-expenses span:first-child{flex:1;font-size:12px;font-weight:700}.car-month-expenses strong{font-size:16px;white-space:nowrap}.car-month-expenses span:last-child{font-size:22px;color:var(--muted)}
+.car-status-tiles{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
