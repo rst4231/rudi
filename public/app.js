@@ -6654,9 +6654,8 @@
         });
 
         if(scroll){
-          requestAnimationFrame(()=>{
-            window.scrollTo({top:appTabScroll[next]||0,left:0,behavior:'auto'});
-          });
+          // Restore before the new view is captured, avoiding a visible jump.
+          window.scrollTo({top:appTabScroll[next]||0,left:0,behavior:'instant'});
         }
       }
 
@@ -6693,6 +6692,8 @@
       }
 
       function setupAppTabs(){
+        // The app owns per-tab scroll restoration, including browser back.
+        try{history.scrollRestoration='manual'}catch(_){}
         const carOpen=document.getElementById('carPageOpen');
         const carBack=document.getElementById('carPageBack');
         if(carOpen&&carOpen.dataset.bound!=='1'){
@@ -6791,10 +6792,11 @@
           let scrollFrame=0;
           window.addEventListener('scroll',()=>{
             if(scrollFrame) return;
+            const scrolledTab=currentAppTab;
             scrollFrame=requestAnimationFrame(()=>{
               scrollFrame=0;
-              if(Object.prototype.hasOwnProperty.call(appTabScroll,currentAppTab)){
-                appTabScroll[currentAppTab]=window.scrollY||0;
+              if(scrolledTab===currentAppTab&&Object.prototype.hasOwnProperty.call(appTabScroll,scrolledTab)){
+                appTabScroll[scrolledTab]=window.scrollY||0;
               }
             });
           },{passive:true});
