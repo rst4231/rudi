@@ -36,7 +36,7 @@ for(const actor of ['Рустам','Диана'])test('Car without mileage and m
     expect(await header.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
     await expect(header.locator('.car-status-tyres')).toContainText('Зимние стоят');
     await expect(header.locator('img')).toHaveJSProperty('naturalWidth',1959);
-    await header.screenshot({path:'/tmp/car-status-page-'+width+'-'+theme+'.png'});
+    if(width===393&&theme==='dark')await header.screenshot({path:'/tmp/car-status-redesign.png',animations:'disabled'});
    }
   }
   await page.setViewportSize({width:393,height:900});

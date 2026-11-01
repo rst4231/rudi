@@ -518,7 +518,7 @@
     }
   }
 
-  const CAR_SMART_DEFAULT_ORDER=['errors','tasks','expenses','documents','notes'];
+  const CAR_SMART_DEFAULT_ORDER=['tasks','expenses','documents','notes','errors'];
   const CAR_SMART_FALLBACK_PRIORITY={
     base:{errors:50,tasks:40,expenses:35},
     tasks:{overdue:1000,today:900,tomorrow:650,week:500,any:250},
@@ -573,6 +573,7 @@
     }
 
     if(id==='errors'){
+      score=0;
       const rules=carPrioritySection('errors');
       const count=Array.isArray(state.car?.state?.errors)?state.car.state.errors.length:0;
       if(count){
@@ -605,10 +606,10 @@
           localStorage.removeItem(legacyKey);
           return value;
         }
-        return Boolean(preferences.getViewState(key,false));
+        return Boolean(preferences.getViewState(key,true));
       }
-      return legacy==='1';
-    }catch(_){return false}
+      return legacy===null?true:legacy==='1';
+    }catch(_){return true}
   }
 
   function writeCarCardCollapsed(id,collapsed){
@@ -765,6 +766,16 @@
     document.getElementById('carTaskAdd')?.addEventListener('click',()=>setTaskFormOpen(true));
     document.getElementById('carTaskCancel')?.addEventListener('click',()=>setTaskFormOpen(false));
     document.getElementById('carTaskForm')?.addEventListener('submit',saveCarTask);
+  }
+
+  function setupCarStatusTiles(){
+    const page=document.getElementById('carPage'),header=page?.querySelector('.car-status-header'),wash=header?.querySelector('.car-status-wash');
+    if(!page||!header||!wash||document.getElementById('carStatusTiles'))return;
+    const strip=document.createElement('section');strip.id='carStatusTiles';strip.className='car-status-tiles';strip.setAttribute('aria-label','Состояние машины');
+    const washTile=document.createElement('div');washTile.className='car-status-tile is-wash';washTile.append(wash);
+    const tyre=document.createElement('div');tyre.className='car-status-tile is-tyres';tyre.innerHTML='<span class="car-status-tile-icon" aria-hidden="true">◉</span><div><span>Шины</span><strong id="carStatusTyre">Не указаны</strong></div>';
+    const insurance=document.createElement('div');insurance.className='car-status-tile is-insurance';insurance.innerHTML='<span class="car-status-tile-icon" aria-hidden="true">◇</span><div><span>ОСАГО</span><strong id="carStatusInsurance">Не указано</strong></div>';
+    strip.append(washTile,tyre,insurance);header.after(strip);
   }
 
   function setupCarSmartCards(){
@@ -978,6 +989,7 @@
     document.querySelectorAll('.car-status-model').forEach(node=>node.textContent=profile.releaseDate.slice(0,4));
     document.querySelectorAll('.car-status-registration').forEach(node=>node.textContent=profile.registration);
     const days=profile.osagoUntil?daysFromToday(profile.osagoUntil):null;
+    const insuranceTile=document.getElementById('carStatusInsurance');if(insuranceTile)insuranceTile.textContent=profile.osagoUntil?'до '+profile.osagoUntil.split('-').reverse().join('.'):'Не указано';
     for(const id of ['carHomeOsago','carPageOsago']){
       const node=document.getElementById(id);if(!node)continue;node.hidden=!profile.osagoUntil&&!profile.osagoCompany;
       node.textContent=(profile.osagoUntil?(days<0?'ОСАГО истекло ':'ОСАГО до ')+profile.osagoUntil.split('-').reverse().join('.'):'ОСАГО')+(profile.osagoCompany?' · '+profile.osagoCompany:'');
@@ -1086,6 +1098,7 @@
       }
     }
 
+    const tyreTile=document.getElementById('carStatusTyre');if(tyreTile)tyreTile.textContent=installedText;
     const installedNode=document.getElementById('carTyreInstalled');
     const recommendedNode=document.getElementById('carTyreRecommended');
     if(installedNode) installedNode.textContent='Установлены: '+installedText.toLowerCase();
@@ -1866,6 +1879,7 @@
   }
 
   function start() {
+    setupCarStatusTiles();
     setupCarSmartCards();
     setupCarSettings();
     setupCarWashModal();

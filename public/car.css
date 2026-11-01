@@ -2728,3 +2728,31 @@ html[data-theme="dark"] .car-page .car-note-remove{background:rgba(206,57,75,.18
 #carTile .car-status-copy h2{font-size:22px}
 @media(max-width:700px){#carTile .car-status-copy h2{font-size:19px}}
 @container (max-width:520px){#carTile .car-status-copy h2{font-size:19px}}
+
+/* Car detail page: vehicle hero, status tiles and compact sections. */
+#carPage .car-page-head.rudi-app-page-head{grid-template-columns:var(--rudi-page-head-control,44px) minmax(0,1fr) 40px!important}
+#carPage .car-page-head h1{text-align:center!important}
+#carPage>.car-status-header{display:grid!important;position:relative;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)!important;gap:12px!important;align-items:center;min-height:205px!important;padding:20px!important;background:radial-gradient(ellipse at 68% 75%,rgba(38,142,109,.28),transparent 48%),linear-gradient(130deg,#122326,#0c1119 62%,#0d1419)!important;border-color:rgba(99,183,180,.42)!important}
+#carPage>.car-status-header .car-status-copy{grid-column:1;grid-row:1;align-self:center;z-index:1;padding:0 12px 0 0;border-right:1px solid rgba(185,205,214,.23)}
+#carPage>.car-status-header .car-status-image{grid-column:2;grid-row:1;align-self:end;padding-top:34px}
+#carPage>.car-status-header .car-status-image img{width:100%;height:auto;max-height:140px;object-fit:contain}
+#carPage>.car-status-header .car-status-actions{position:absolute;right:16px;top:14px;display:block;padding:0;border:0}
+#carPage>.car-status-header .car-status-copy h2{font-size:clamp(18px,5vw,24px);line-height:1.1}
+#carPage>.car-status-header .car-status-registration{width:fit-content;padding:5px 8px;border:1px solid rgba(194,207,218,.28);border-radius:8px;background:rgba(255,255,255,.04);font-size:11px}
+#carPage>.car-status-header .car-status-insurance{overflow-wrap:anywhere}
+.car-status-tiles{display:grid;grid-template-columns:1.3fr .9fr 1fr;gap:8px;min-width:0}
+.car-status-tile{display:flex;align-items:center;gap:8px;min-width:0;min-height:70px;padding:10px;border:1px solid;border-radius:16px;color:#eef5fa;background:#111b27}
+.car-status-tile.is-wash{border-color:#47749d;background:linear-gradient(120deg,#172b3d,#101b27)}
+.car-status-tile.is-tyres{border-color:#427359;background:linear-gradient(120deg,#1a352c,#101d1d)}
+.car-status-tile.is-insurance{border-color:#555b88;background:linear-gradient(120deg,#22283f,#151827)}
+.car-status-tile .car-status-wash{grid-template-columns:20px minmax(0,1fr);gap:7px}
+.car-status-tile .car-status-wash svg{width:20px;height:20px;stroke:#96c9f5}
+.car-status-tile>div,.car-status-tile .car-status-wash>div{display:grid;gap:4px;min-width:0}
+.car-status-tile span:not(.car-status-tile-icon),.car-status-tile .car-status-wash span{color:#aebed0;font-size:10px;line-height:1.2}
+.car-status-tile strong,.car-status-tile .car-status-wash strong{color:#f4f7ff;font-size:11px;line-height:1.3;overflow-wrap:anywhere}
+.car-status-tile-icon{flex:none;font-size:25px;line-height:1;color:#a9d8b7}
+.is-insurance .car-status-tile-icon{color:#b9c4f0}
+#carPage>.car-body.car-smart-cards{padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;gap:8px!important}
+#carPage .car-smart-card{margin:0!important}
+#carPage .car-smart-card.is-collapsed .car-card-collapse svg{transform:rotate(-90deg)}
+@media(max-width:390px){#carPage>.car-status-header{padding:15px!important;gap:6px!important}.car-status-tiles{gap:5px}.car-status-tile{padding:7px;gap:5px}.car-status-tile-icon{font-size:20px}.car-status-tile strong,.car-status-tile .car-status-wash strong{font-size:10px}}
