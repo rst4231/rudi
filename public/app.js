@@ -10877,29 +10877,33 @@
         return {work:{configured:results.some(r=>r.work?.configured),days:results.flatMap(r=>r.work?.days||[])},shared:{connected:results.some(r=>r.shared?.connected!==false&&r.shared?.days),unavailable:results.some(r=>!r.shared||r.shared?.ok===false),days:results.flatMap(r=>r.shared?.days||[])}};
       }
 
+      function bindHomePartnerProfile(section,actor){
+        if(!section?.querySelector('#partnerHeaderName')||!window.RudiPartnerProfile)return false;
+        window.RudiPartnerProfile.bind(section,actor,{
+          loadFinances:async()=>{await loadHomePartnerLastExpense();return homeDashboardState.partnerFinance},
+          openStars:openScoreModal,
+          loadPlans:()=>loadPartnerProfilePlans(actor),
+          loadWishes:()=>wishlistRequest('list').then(data=>data.items||[]),
+          openWish:openWishlistUrl,
+          loadCbtStatus:async()=>{
+            const expectedActor=currentActor,controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
+            try{
+              const response=await fetch('/api/cbt',{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'partner-status',expectedActor,initData:tg?.initData||''})});
+              const data=await response.json();
+              if(!response.ok||!data.ok||data.actor!==expectedActor)throw Error('partner-cbt-unavailable');
+              return data;
+            }finally{clearTimeout(timeout)}
+          },
+          refreshBalance:()=>scoreRequest('state').then(data=>renderScoreStickers(data.score)).catch(()=>{}),
+          balance:()=>currentScoreState?Number(currentScoreState.balances?.[actor]||0):null
+        });
+        return true;
+      }
+
       function setupPersistentCollapsible({selector,key,bodySelectors,hostSelector,defaultCollapsed=false,resetCollapsedOnInit=false,persist=true}){
         const section=document.querySelector(selector);
         if(!section||section.dataset.collapseReady==='1') return;
-        if(key.startsWith('profile-')&&section.querySelector('#partnerHeaderName')&&window.RudiPartnerProfile){
-          const actor=key==='profile-diana'?'Диана':'Рустам';
-          window.RudiPartnerProfile.bind(section,actor,{
-            loadFinances:async()=>{await loadHomePartnerLastExpense();return homeDashboardState.partnerFinance},
-            openStars:openScoreModal,
-            loadPlans:()=>loadPartnerProfilePlans(actor),
-            loadWishes:()=>wishlistRequest('list').then(data=>data.items||[]),
-            openWish:openWishlistUrl,
-            loadCbtStatus:async()=>{
-              const expectedActor=currentActor,controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),10000);
-              try{
-                const response=await fetch('/api/cbt',{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({operation:'partner-status',expectedActor,initData:tg?.initData||''})});
-                const data=await response.json();
-                if(!response.ok||!data.ok||data.actor!==expectedActor)throw Error('partner-cbt-unavailable');
-                return data;
-              }finally{clearTimeout(timeout)}
-            },
-            refreshBalance:()=>scoreRequest('state').then(data=>renderScoreStickers(data.score)).catch(()=>{}),
-            balance:()=>currentScoreState?Number(currentScoreState.balances?.[actor]||0):null
-          });
+        if(key.startsWith('profile-')&&bindHomePartnerProfile(section,key==='profile-diana'?'Диана':'Рустам')){
           section.dataset.collapseReady='1';
           return;
         }
@@ -10989,6 +10993,7 @@
 
       function setupPersistentCollapsibles(){
         ensureSmartSavesAlwaysExpanded();
+        bindHomePartnerProfile(document.getElementById('homeDianaTile'),'Диана');
         setupPersistentCollapsible({
           selector:'#homeRustamTile',key:'profile-rustam',
           bodySelectors:['#homeRustamDetails'],
