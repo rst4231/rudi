@@ -109,3 +109,6 @@ html[data-theme=dark] .lulu-profile-page .partner-profile-layout>section{backgro
 .lulu-overview-plan-item strong{font-size:clamp(8px,2.3vw,11px);white-space:nowrap;letter-spacing:-.2px}
 .lulu-overview-shared{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 12px;border:1px solid #d4a85262;border-radius:13px;background:#d4a8521c;color:var(--lulu-ink);font-size:11px}
 .lulu-overview-shared strong{font-size:14px;white-space:nowrap}
+
+.lulu-overview-plan-item,.lulu-overview-summary-item{overflow-wrap:normal;word-break:normal;hyphens:none}
+.lulu-overview-plan-item small,.lulu-overview-summary-item small{overflow-wrap:normal;word-break:normal;hyphens:none}

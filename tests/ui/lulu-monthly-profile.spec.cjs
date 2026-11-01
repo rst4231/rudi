@@ -93,5 +93,5 @@ test('health autosave keeps later edits while an earlier request is pending',asy
 });
 test('care overview shortcuts open the existing care editors without manual nail creation',async({page})=>{
  await page.locator('#trigger').click();const profile=page.locator('.lulu-profile-page');await expect(profile.locator('.lulu-overview')).toBeVisible();await expect(profile.locator('.lulu-overview-plan-item')).toHaveCount(4);
- await profile.locator('.lulu-overview-add').click();const menu=profile.locator('.lulu-overview-add-menu');await expect(menu).toBeVisible();await expect(menu).not.toContainText('Когти');await menu.getByRole('button',{name:'Вес',exact:true}).click();await expect(profile.locator('.lulu-care-weight .lulu-care-editor')).toBeVisible();
+ await expect(profile.locator('.lulu-overview-add')).toHaveCount(0);await profile.locator('[data-overview="bath"]').click();await expect(profile.locator('.lulu-care-bath')).toBeVisible();
 });

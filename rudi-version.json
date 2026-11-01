@@ -1,5 +1,5 @@
 {
-  "current": "v4.407",
+  "current": "v4.408",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
@@ -7,10 +7,12 @@
   "createdAt": "2026-11-01",
   "basedOnProduction": "v4.406",
   "notes": [
-    "Нижний ряд карточки машины на главной оформлен в едином стиле"
+    "Нижний ряд карточки машины оформлен в одном стиле",
+    "Убрана общая кнопка добавления записи на странице Лулу"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Unify the home car tyre, wash and insurance status cards"
+    "Unify home car status cards",
+    "Remove generic Lulu add-record button"
   ]
 }
