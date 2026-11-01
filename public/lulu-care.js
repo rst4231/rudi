@@ -41,6 +41,7 @@ function mount(root,{actor,request}){
    const item=button('',()=>goTo(selector),'lulu-overview-summary-item is-'+kind);item.innerHTML='<span aria-hidden="true">'+icon+'</span><strong>'+title+'</strong><small>—</small>';item.dataset.overview=kind;cards.append(item);
   }
   root.before(overview);
+  const healthBlock=page.querySelector('.lulu-profile-health');if(healthBlock)root.after(healthBlock);
   const hero=page.querySelector('.lulu-profile-hero');if(hero){weightShortcut=button('Вес',()=>goTo('.lulu-care-weight'),'lulu-overview-weight');weightShortcut.innerHTML='<span>⚖ Вес</span><strong>—</strong><small></small>';hero.append(weightShortcut)}
   observer=new MutationObserver(()=>updateOverview(currentRecords()));
   for(const selector of ['.lulu-profile-finances','.lulu-profile-journal']){const target=page.querySelector(selector);if(target)observer.observe(target,{childList:true,subtree:true,characterData:true})}
