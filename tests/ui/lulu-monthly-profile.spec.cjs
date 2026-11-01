@@ -47,7 +47,7 @@ test('health edits save shared text and financial block shows food, vet and tota
  await page.evaluate(()=>{window.financeFixture={month:'2026-10',foodRub:1500,vetRub:3500,totalRub:5000,transactions:[{kind:'food',note:'Корм',rubAmount:1500,occurredAt:'2026-10-29T07:00:00Z'},{kind:'vet',note:'Прививка',rubAmount:3500,occurredAt:'2026-10-30T07:00:00Z'}]}});
  await page.locator('#trigger').click();const profile=page.locator('.lulu-profile-page');
  await expect(profile.locator('textarea')).toHaveValue('Чешет ухо');await profile.locator('textarea').fill('Ухо\nЛапа');
- await profile.getByRole('button',{name:'Сохранить',exact:true}).click();await expect(profile.locator('.lulu-health-status')).toHaveText('Сохранено');
+ await profile.locator('textarea').blur();await expect(profile.locator('.lulu-health-save')).toHaveCount(0);await expect(profile.locator('.lulu-health-status')).toHaveText('Сохранено');
  expect(saved.text).toBe('Ухо\nЛапа');expect(saved.expectedUpdatedAt).toBe('2026-10-30T06:00:00Z');
  await expect(profile.locator('.lulu-food-total')).toContainText('5 000');await expect(profile.locator('.lulu-finance-breakdown')).toHaveCount(0);await expect(profile.locator('.lulu-food-transaction')).toHaveCount(2);
  for(const theme of ['light','dark']){await page.evaluate(theme=>document.documentElement.dataset.theme=theme,theme);await profile.locator('.partner-profile-content').evaluate(el=>el.scrollTop=0);await page.screenshot({path:'/tmp/lulu-profile-'+theme+'.png',fullPage:true});expect(await profile.evaluate(el=>el.scrollWidth<=innerWidth)).toBe(true)}
@@ -73,4 +73,21 @@ test('monthly expenses shows only title and total when there are no transactions
  await expect(card.locator('h2')).toHaveText('Расходы за месяц');await expect(card.locator('.lulu-food-total')).toContainText('0,00');
  await expect(card.locator('.lulu-food-transactions')).toBeEmpty();await expect(card.locator('p')).toHaveCount(0);
  await expect(card).not.toContainText('Диана');await expect(card).not.toContainText('Корм:');await expect(card).not.toContainText('Ветеринария:');
+});
+
+test('health autosave keeps later edits while an earlier request is pending',async({page})=>{
+ let release;const writes=[];await page.route('**/api/partner-message?*',async route=>{
+  const body=route.request().postDataJSON();
+  if(body.operation==='health-get')return route.fulfill({json:{ok:true,health:{text:'',updatedAt:''}}});
+  if(body.operation==='health-save'){
+   writes.push(body);const index=writes.length;if(index===1)await new Promise(r=>release=r);
+   return route.fulfill({json:{ok:true,health:{text:body.text,actor:'Рустам',updatedAt:index===1?'2026-10-30T12:00:00Z':'2026-10-30T12:00:01Z'}}});
+  }
+  return route.fulfill({json:{ok:true,care:{records:[],revisions:{}}}});
+ });
+ await page.locator('#trigger').click();const input=page.locator('#luluHealthText');await expect(page.locator('.lulu-health-status')).toHaveText('Пока проблем не указано');
+ await input.fill('Ухо');await input.blur();await expect.poll(()=>writes.length).toBe(1);
+ await input.fill('Ухо и лапа');await input.blur();release();await expect.poll(()=>writes.length).toBe(2);
+ await expect(input).toHaveValue('Ухо и лапа');await expect(page.locator('.lulu-health-status')).toHaveText('Сохранено');expect(writes[1].expectedUpdatedAt).toBe('2026-10-30T12:00:00Z');
+ await input.fill('Новая запись');await page.clock.fastForward(900);await expect.poll(()=>writes.length).toBe(3);
 });

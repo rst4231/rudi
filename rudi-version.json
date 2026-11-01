@@ -1,20 +1,20 @@
 {
-  "current": "v4.393",
+  "current": "v4.394",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.392",
+  "basedOnProduction": "v4.393",
   "notes": [
-    "История стрижки когтей и купания Лулу с датой и временем",
-    "Выполнение общей задачи со стрижкой когтей отмечается в истории без дублей; отмена убирает отметку",
-    "Тематические цвета и иконки всех карточек ухода за Лулу"
+    "Стрижка когтей: новые записи только из общей задачи",
+    "Добавление обозначено плюсом, редактирование карандашом",
+    "Здоровье Лулу сохраняется автоматически после ввода без отдельной кнопки"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Shared grooming records with offline edits and history",
-    "Idempotent native shared task completion to Lulu nails history with Moscow timestamps and reopen handling",
-    "Per-care card themes in light and dark modes"
+    "Task-only new nails entries; retain existing history",
+    "Accessible icon buttons for adding and editing care records",
+    "Serialized health autosave on pause and blur with existing offline queue"
   ]
 }

@@ -8,7 +8,7 @@ const kg=value=>Number(value).toLocaleString('ru-RU',{maximumFractionDigits:2})+
 const clock=()=>new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date());
 const uid=()=>window.crypto?.randomUUID?.()||('care-'+Date.now()+'-'+Math.random().toString(36).slice(2));
 const node=(tag,cls='',text='')=>{const el=document.createElement(tag);el.className=cls;if(text)el.textContent=text;return el};
-const button=(text,click,cls='')=>{const el=node('button',cls,text);el.type='button';el.addEventListener('click',click);return el};
+const button=(text,click,cls='')=>{const el=node('button',cls,text);el.type='button';el.addEventListener('click',click);if(text==='Добавить'||text==='Выбрать дату'){el.textContent='+';el.setAttribute('aria-label',text);el.title=text;el.classList.add('lulu-care-icon-button')}else if(text==='Изменить'){el.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6L16 3Zm-3 3 5 5"/></svg>';el.setAttribute('aria-label',text);el.title=text;el.classList.add('lulu-care-icon-button')}return el};
 const careIcons={weight:'M4 5h16M12 5v15M7 20h10M5 5l-3 8h6L5 5m14 0-3 8h6l-3-8',nutrition:'M3 11h18c0 6-4 9-9 9s-9-3-9-9Zm4-4h.01M12 5h.01M17 7h.01',nails:'M8 9l12 11M8 15 20 4M7 8a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm0 9a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',bath:'M3 13h18v3a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4v-3Zm2 0V6a3 3 0 0 1 6 0M4 22l1-2m14 2-1-2M10 8h3',prevention:'M12 3 3 7v6c0 5 9 9 9 9s9-4 9-9V7l-9-4Zm-5 9 3 3 7-7',prescription:'M8 4H5v17h14V4h-3M8 2h8v5H8V2Zm0 10h8m-8 4h5'};
 const schema={
  nails:[['date','Дата','date',true],['time','Время','time',true],['note','Комментарий','textarea']],
@@ -27,6 +27,7 @@ function mount(root,{actor,request}){
  const adopt=record=>{if(Date.parse(revisions[key(record)]||'1970-01-01')>Date.parse(record.updatedAt))return;revisions[key(record)]=record.updatedAt;confirmed=confirmed.filter(r=>key(r)!==key(record));if(!record.deleted)confirmed.push(record)};
  const capture=async()=>offline?.capture?.('lulu-care',{records:confirmed,revisions},actor);
  function edit(kind,record){
+  if(kind==='nails'&&!record)return;
   const today=day();editor={kind,id:record?.id||(kind==='nutrition'?'current':uid()),expectedUpdatedAt:record?.updatedAt||revisions[kind+':current']||'',data:structuredClone(record?.data||{})};
   if(!record){if(kind==='nails'||kind==='bath'){editor.data.date=today;editor.data.time=clock()}if(kind==='weight'||kind==='nutrition'||kind==='prevention')editor.data.date=today;if(kind==='prevention')editor.data.type='vaccine';if(kind==='prescription')editor.data.start=today}
   status='';render();root.querySelector('.lulu-care-editor input,.lulu-care-editor select')?.focus({preventScroll:true});
@@ -94,7 +95,7 @@ function mount(root,{actor,request}){
   return actions;
  }
  async function discard(id){await offline?.discard?.(id,actor);await refreshPending();status='Изменение отменено';if(valid())render();void load()}
- function card(title,kind,action){const section=node('section','lulu-care-block lulu-care-'+kind),head=node('div','lulu-care-head');const heading=node('h2','',title),icon=node('span','lulu-care-icon');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="'+(careIcons[kind]||careIcons.prescription)+'"/></svg>';icon.setAttribute('aria-hidden','true');heading.prepend(icon);head.append(heading,button(action,()=>edit(kind,kind==='nutrition'?currentRecords().find(r=>r.kind===kind):null),'lulu-care-add'));section.append(head);return section}
+ function card(title,kind,action){const section=node('section','lulu-care-block lulu-care-'+kind),head=node('div','lulu-care-head');const heading=node('h2','',title),icon=node('span','lulu-care-icon');icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="'+(careIcons[kind]||careIcons.prescription)+'"/></svg>';icon.setAttribute('aria-hidden','true');heading.prepend(icon);head.append(heading);if(action)head.append(button(action,()=>edit(kind,kind==='nutrition'?currentRecords().find(r=>r.kind===kind):null),'lulu-care-add')); section.append(head);return section}
  function row(title,detail,record){const item=node('article','lulu-care-row'),copy=node('div','lulu-care-row-copy');copy.append(node('strong','',title));if(detail)copy.append(node('p','',detail));if(record.pendingId)copy.append(node('small','',record.error?'Нужно проверить изменение':'Без интернета'));item.append(copy);return item}
  function renderWeights(rows){
   const section=card('Вес','weight','Добавить'),weights=rows.filter(r=>r.kind==='weight').sort((a,b)=>(b.data.date+b.updatedAt).localeCompare(a.data.date+a.updatedAt));
@@ -117,11 +118,13 @@ function mount(root,{actor,request}){
  }
  function renderGrooming(rows,kind,title){
   const items=rows.filter(r=>r.kind===kind).sort((a,b)=>(b.data.date+b.data.time).localeCompare(a.data.date+a.data.time)),latest=items[0];
-  const section=card(title,kind,'Выбрать дату');
+  const section=card(title,kind,kind==='nails'?null:'Выбрать дату');
   section.append(node('div','lulu-care-value',latest?dateLabel(latest.data.date)+' · '+latest.data.time:'Пока не отмечали'));
+  if(kind!=='nails'){
   const today=day(),already=items.some(r=>r.data.date===today),id='day-'+today;
   const mark=button(already?'Отмечено сегодня':'Отметить сегодня',()=>void submit({kind,id,data:{date:today,time:clock(),note:''},expectedUpdatedAt:revisions[kind+':'+id]||''}),'lulu-care-primary');
   mark.disabled=already||busy.has('care:'+kind+':'+id);section.append(mark);
+  }
   const f=formFor(kind);if(f)section.append(f);
   if(items.length){const history=node('details','lulu-care-history');history.append(node('summary','','История'));
    for(const r of items){const item=row(dateLabel(r.data.date)+' · '+r.data.time,[r.actor,r.data.note].filter(Boolean).join(' · '),r);item.append(actionsFor(r));history.append(item)}section.append(history)}

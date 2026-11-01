@@ -63,7 +63,7 @@ test('nutrition can be deleted and entered again after reopening',async({page})=
  await block.getByRole('button',{name:'Добавить',exact:true}).click();await block.getByLabel('Корм',{exact:true}).fill('Корм B');await block.getByRole('button',{name:'Сохранить',exact:true}).click();await expect(block).toContainText('Корм B');
 });
 
-for(const kind of ['nails','bath'])test(kind+' records today once and supports historical edits with time',async({page})=>{
+for(const kind of ['bath'])test(kind+' records today once and supports historical edits with time',async({page})=>{
  const block=page.locator('.lulu-care-'+kind);await block.getByRole('button',{name:'Отметить сегодня',exact:true}).click();
  await expect(block.getByRole('button',{name:'Отмечено сегодня',exact:true})).toBeDisabled();
  await block.getByRole('button',{name:'Выбрать дату',exact:true}).click();await block.getByLabel('Дата',{exact:true}).fill('2026-10-25');await block.getByLabel('Время',{exact:true}).fill('18:20');await block.getByRole('button',{name:'Сохранить',exact:true}).click();
@@ -74,9 +74,16 @@ for(const kind of ['nails','bath'])test(kind+' records today once and supports h
 });
 test('offline grooming survives reopen and sync without duplicates',async({page})=>{
  await page.addScriptTag({url:'/rudi-offline-content.js'});await page.evaluate(()=>{rudiOfflineContent.init('Рустам');document.body.dataset.offlineMode='1';mountCare()});
- for(const kind of ['nails','bath'])await page.locator('.lulu-care-'+kind).getByRole('button',{name:'Отметить сегодня',exact:true}).click();
- await page.evaluate(()=>mountCare());for(const kind of ['nails','bath'])await expect(page.locator('.lulu-care-'+kind).getByRole('button',{name:'Отмечено сегодня',exact:true})).toBeDisabled();
+ for(const kind of ['bath'])await page.locator('.lulu-care-'+kind).getByRole('button',{name:'Отметить сегодня',exact:true}).click();
+ await page.evaluate(()=>mountCare());for(const kind of ['bath'])await expect(page.locator('.lulu-care-'+kind).getByRole('button',{name:'Отмечено сегодня',exact:true})).toBeDisabled();
  await page.evaluate(async()=>{document.body.dataset.offlineMode='0';await rudiOfflineContent.flush()});
  await expect.poll(()=>page.evaluate(async()=>(await rudiOfflineContent.pending('lulu')).length)).toBe(0);
- const records=await page.evaluate(async()=>(await careRequest('care-get')).care.records);expect(records.filter(r=>r.kind==='nails')).toHaveLength(1);expect(records.filter(r=>r.kind==='bath')).toHaveLength(1);
+ const records=await page.evaluate(async()=>(await careRequest('care-get')).care.records);expect(records.filter(r=>r.kind==='nails')).toHaveLength(0);expect(records.filter(r=>r.kind==='bath')).toHaveLength(1);
+});
+
+test('nails shows task history without manual addition controls',async({page})=>{
+ await page.evaluate(async()=>{await careRequest('care-command',{command:{kind:'nails',id:'task-fixture',data:{date:'2026-10-29',time:'18:20',note:'Из общей задачи'},expectedUpdatedAt:''}});mountCare()});
+ const block=page.locator('.lulu-care-nails');await expect(block.locator('.lulu-care-value')).toContainText('18:20');
+ await expect(block.getByRole('button',{name:'Выбрать дату',exact:true})).toHaveCount(0);await expect(block.getByRole('button',{name:'Отметить сегодня',exact:true})).toHaveCount(0);
+ await block.getByText('История',{exact:true}).click();await expect(block.locator('.lulu-care-row')).toHaveCount(1);await expect(block).toContainText('Из общей задачи');
 });

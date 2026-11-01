@@ -8366,13 +8366,12 @@
         }
       }
 
-      let luluHealthData=null,luluHealthActor='';
+      let luluHealthData=null,luluHealthActor='',luluHealthLoading=null,luluHealthSaveTimer=null;
       function renderLuluHealth(value,status=''){
         const panel=luluProfilePage?.querySelector('.lulu-profile-health');if(!panel)return;
         const input=panel.querySelector('textarea');
         if(!input.dataset.dirty)input.value=String(value?.text||'');
         panel.querySelector('.lulu-health-status').textContent=status||(!value?.text?'Пока проблем не указано':value.actor?(value.actor==='Диана'?'Обновила Диана':'Обновил Рустам'):'');
-        panel.querySelector('.lulu-health-save').disabled=false;
       }
       async function loadLuluHealth(){
         const actor=currentActor,page=luluProfilePage;
@@ -8388,29 +8387,33 @@
               const latest=await luluRequest('health-get');if(currentActor!==actor||page!==luluProfilePage)return;
               luluHealthData=latest.health||{text:'',updatedAt:''};
               page.querySelector('#luluHealthText').dataset.dirty='1';
-              renderLuluHealth(luluHealthData,'На другом устройстве записано: '+(luluHealthData.text||'проблем нет')+'. Сверь свой текст и нажми Сохранить.');
+              renderLuluHealth(luluHealthData,'На другом устройстве записано: '+(luluHealthData.text||'проблем нет')+'. Сверь запись, затем внеси нужные изменения.');
             }
             return;
           }
           renderLuluHealth(luluHealthData);
           const data=await luluRequest('health-get');
-          if(currentActor!==actor||page!==luluProfilePage)return;
+          if(currentActor!==actor)return;
           luluHealthData=data.health||{text:'',updatedAt:''};
+          if(page!==luluProfilePage)return;
           await window.rudiOfflineContent?.capture?.('lulu-health',luluHealthData,actor);
           renderLuluHealth(luluHealthData);
         }catch(_){if(currentActor===actor&&page===luluProfilePage)renderLuluHealth(luluHealthData,luluHealthData?'Офлайн · показана сохранённая запись':'Не удалось загрузить. Можно записать проблемы на устройстве.')}
       }
-      async function saveLuluHealthFromProfile(){
-        const panel=luluProfilePage?.querySelector('.lulu-profile-health');if(!panel)return;
-        const actor=currentActor,input=panel.querySelector('textarea'),button=panel.querySelector('.lulu-health-save');if(button.disabled)return;
+      async function saveLuluHealthFromProfile(panel=luluProfilePage?.querySelector('.lulu-profile-health')){
+        if(!panel||panel.dataset.saving==='1')return;
+        const actor=currentActor,input=panel.querySelector('textarea');if(!input.dataset.dirty)return;
+        panel.dataset.saving='1';await luluHealthLoading;
+        if(actor!==currentActor){delete panel.dataset.saving;return}
+        let saved=false;
         const detail={operation:'health-save',text:input.value.trim(),expectedUpdatedAt:luluHealthData?.updatedAt||''};
-        button.disabled=true;panel.querySelector('.lulu-health-status').textContent='Сохраняю…';
+        panel.querySelector('.lulu-health-status').textContent='Сохраняю…';
         try{
           let data;
           if(window.rudiOfflineContent?.isOffline?.())throw new TypeError('offline');
           data=await luluRequest('health-save',detail);
           if(currentActor!==actor)return;
-          luluHealthData=data.health;luluHealthActor=actor;delete input.dataset.dirty;
+          luluHealthData=data.health;luluHealthActor=actor;saved=true;if(input.value.trim()===detail.text)delete input.dataset.dirty;
           await window.rudiOfflineContent?.capture?.('lulu-health',luluHealthData,actor);
           const pending=await window.rudiOfflineContent?.pending?.('lulu','health',actor);
           for(const row of pending||[])await window.rudiOfflineContent?.discard?.(row.id,actor);
@@ -8423,12 +8426,12 @@
               const pending=await window.rudiOfflineContent.pending('lulu','health',actor);
               if(pending.some(row=>row.error==='lulu-health-conflict'))await window.rudiOfflineContent.rebaseNote(detail.expectedUpdatedAt,actor,'health','lulu');
               await window.rudiOfflineContent.enqueue('lulu','health',detail,actor);
-              luluHealthData={text:detail.text,updatedAt:detail.expectedUpdatedAt,actor};luluHealthActor=actor;delete input.dataset.dirty;
+              luluHealthData={text:detail.text,updatedAt:detail.expectedUpdatedAt,actor};luluHealthActor=actor;saved=true;if(input.value.trim()===detail.text)delete input.dataset.dirty;
               await window.rudiOfflineContent.capture('lulu-health',luluHealthData,actor);
               renderLuluHealth(luluHealthData,'Сохранено на устройстве · ожидает синхронизации');
             }catch(_){panel.querySelector('.lulu-health-status').textContent='Не удалось сохранить. Текст остался в поле.'}
           }else panel.querySelector('.lulu-health-status').textContent=error?.message==='lulu-health-conflict'?'Запись изменена на другом устройстве. Скопируй свой текст и открой страницу заново.':'Не удалось сохранить. Попробуй ещё раз.';
-        }finally{if(panel.isConnected)button.disabled=false}
+        }finally{delete panel.dataset.saving;if(saved&&input.dataset.dirty&&currentActor===actor)void saveLuluHealthFromProfile(panel)}
       }
 
       let luluFinanceData=null,luluFinancePromise=null,luluFinanceLoadedAt=0,luluFinanceActor='';
@@ -8508,6 +8511,7 @@
 
       function closeLuluProfile(fromHistory=false){
         if(!luluProfilePage)return;
+        clearTimeout(luluHealthSaveTimer);void saveLuluHealthFromProfile();
         luluCareUnmount?.();luluCareUnmount=null;
         luluProfilePage.remove();luluProfilePage=null;clearInterval(luluProfileTimer);
         document.body.classList.remove('lulu-profile-open');
@@ -8520,14 +8524,16 @@
         luluProfileTrigger=event?.currentTarget||document.getElementById('luluWalkHistoryToggle');
         const page=document.createElement('section');page.className='rudi-meditation-page partner-profile-page lulu-profile-page';
         page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';page.setAttribute('aria-label','Профиль Лулу');
-        page.innerHTML='<header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head partner-profile-bar"><button type="button" class="fasting-back-button rudi-app-page-back lulu-profile-back" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="fasting-page-title"><h1>Лулу</h1></div></header><div class="partner-profile-content"><div class="partner-profile-layout"><section class="lulu-profile-hero"><img src="/lulu-avatar-hq.webp?v=4.393" width="72" height="72" alt="Лулу"><div><small class="lulu-profile-eyebrow">🐾 Моя собачья жизнь</small><h2>Лулу</h2><p>Французский бульдог · '+luluAgeLabel()+'</p></div></section><section class="lulu-profile-health"><h2>Здоровье</h2><label for="luluHealthText">Текущие проблемы</label><textarea id="luluHealthText" rows="4" maxlength="2000" placeholder="Укажи, что сейчас беспокоит Лулу. Каждую проблему можно написать с новой строки."></textarea><div class="lulu-health-actions"><button type="button" class="lulu-health-save" disabled>Сохранить</button><span class="lulu-health-status" role="status">Загружаю…</span></div></section><div class="lulu-care-root"></div><section class="lulu-profile-finances"><h2>Расходы за месяц</h2><strong class="lulu-food-total">Загружаю…</strong><div class="lulu-food-transactions"></div></section><section class="lulu-profile-journal"><h2>История прогулок</h2><p class="lulu-profile-month"></p><div class="lulu-profile-counts"><div><span>Диана</span><strong data-lulu-count="Диана">0</strong></div><div><span>Рустам</span><strong data-lulu-count="Рустам">0</strong></div></div><div class="lulu-profile-history"></div></section></div></div>';
+        page.innerHTML='<header class="rudi-app-page-head personal-tool-page-head fasting-page-head meditation-head partner-profile-bar"><button type="button" class="fasting-back-button rudi-app-page-back lulu-profile-back" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="fasting-page-title"><h1>Лулу</h1></div></header><div class="partner-profile-content"><div class="partner-profile-layout"><section class="lulu-profile-hero"><img src="/lulu-avatar-hq.webp?v=4.393" width="72" height="72" alt="Лулу"><div><small class="lulu-profile-eyebrow">🐾 Моя собачья жизнь</small><h2>Лулу</h2><p>Французский бульдог · '+luluAgeLabel()+'</p></div></section><section class="lulu-profile-health"><h2>Здоровье</h2><label for="luluHealthText">Текущие проблемы</label><textarea id="luluHealthText" rows="4" maxlength="2000" placeholder="Укажи, что сейчас беспокоит Лулу. Каждую проблему можно написать с новой строки."></textarea><div class="lulu-health-actions"><span class="lulu-health-status" role="status">Загружаю…</span></div></section><div class="lulu-care-root"></div><section class="lulu-profile-finances"><h2>Расходы за месяц</h2><strong class="lulu-food-total">Загружаю…</strong><div class="lulu-food-transactions"></div></section><section class="lulu-profile-journal"><h2>История прогулок</h2><p class="lulu-profile-month"></p><div class="lulu-profile-counts"><div><span>Диана</span><strong data-lulu-count="Диана">0</strong></div><div><span>Рустам</span><strong data-lulu-count="Рустам">0</strong></div></div><div class="lulu-profile-history"></div></section></div></div>';
         luluProfilePage=page;document.body.append(page);document.body.classList.add('lulu-profile-open');
         history.pushState({...history.state,rudiLuluProfile:true},'','#lulu');
         page.querySelector('.lulu-profile-back').onclick=()=>closeLuluProfile();
-        page.querySelector('.lulu-health-save').onclick=saveLuluHealthFromProfile;
-        page.querySelector('#luluHealthText').oninput=event=>{event.target.dataset.dirty='1'};
+        const healthInput=page.querySelector('#luluHealthText');
+        const flushHealth=()=>{clearTimeout(luluHealthSaveTimer);void saveLuluHealthFromProfile(page.querySelector('.lulu-profile-health'))};
+        healthInput.oninput=event=>{event.target.dataset.dirty='1';clearTimeout(luluHealthSaveTimer);luluHealthSaveTimer=setTimeout(flushHealth,800)};
+        healthInput.onblur=flushHealth;
         luluCareUnmount=window.RudiLuluCare?.mount(page.querySelector('.lulu-care-root'),{actor:currentActor,request:luluRequest})||null;
-        renderLuluProfile();void loadLuluFinances();void loadLuluHealth();page.querySelector('.lulu-profile-back').focus({preventScroll:true});
+        renderLuluProfile();void loadLuluFinances();luluHealthLoading=loadLuluHealth();page.querySelector('.lulu-profile-back').focus({preventScroll:true});
         luluProfileTimer=setInterval(()=>{renderLuluProfile();if(luluFinanceData?.month!==sharedAlbumDateKey(new Date()).slice(0,7))void loadLuluFinances()},60000);
         window.RudiViewport?.sync?.();
       }

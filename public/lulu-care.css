@@ -69,3 +69,5 @@ html[data-theme=dark] .lulu-care-icon{color:#f0e5d9}
 .lulu-profile-page .partner-profile-layout>section{padding:14px!important;border-radius:17px!important;border-color:rgba(var(--profile-care-rgb),.35)!important;background:linear-gradient(135deg,rgba(var(--profile-care-rgb),.14),rgba(var(--profile-care-rgb),.025) 80%),var(--lulu-paper)!important}
 .lulu-profile-page .partner-profile-layout>section h2{font-size:16px!important}
 html[data-theme=dark] .lulu-profile-page .partner-profile-layout>section{background:linear-gradient(135deg,rgba(var(--profile-care-rgb),.22),rgba(var(--profile-care-rgb),.05) 80%),var(--lulu-paper)!important}
+
+.lulu-care-root button.lulu-care-icon-button{display:inline-grid;place-items:center;min-width:40px;padding:8px;font-size:24px;line-height:1}
