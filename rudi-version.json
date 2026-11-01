@@ -1,16 +1,16 @@
 {
-  "current": "v4.403",
+  "current": "v4.404",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.402",
+  "basedOnProduction": "v4.403",
   "notes": [
-    "Общий расход за текущий месяц берётся из итогов блока расходов машины"
+    "Страховая компания отображается под датой в карточке ОСАГО"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Use the same current-month total as the car expenses history"
+    "Move insurance company beneath the OSAGO expiry date"
   ]
 }

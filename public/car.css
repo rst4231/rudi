@@ -2763,3 +2763,9 @@ html[data-theme="dark"] .car-page .car-note-remove{background:rgba(206,57,75,.18
 .car-month-expenses{box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;padding:13px 15px;border:1px solid #c7a85d65;border-radius:16px;background:linear-gradient(120deg,#d3a85525,transparent),var(--surface-strong);color:var(--text);font:inherit;text-align:left}
 .car-month-expenses span:first-child{flex:1;font-size:12px;font-weight:700}.car-month-expenses strong{font-size:16px;white-space:nowrap}.car-month-expenses span:last-child{font-size:22px;color:var(--muted)}
 .car-status-tiles{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+
+#carStatusInsurer{display:block;color:#b9c4de;font-size:10px;line-height:1.3;overflow-wrap:anywhere}
+#carStatusInsurer[hidden]{display:none}
+
+#carPage>.car-status-header .car-status-copy{gap:5px!important;align-self:center}
+#carPage>.car-status-header{min-height:180px!important}
