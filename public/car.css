@@ -2769,3 +2769,14 @@ html[data-theme="dark"] .car-page .car-note-remove{background:rgba(206,57,75,.18
 
 #carPage>.car-status-header .car-status-copy{gap:5px!important;align-self:center}
 #carPage>.car-status-header{min-height:180px!important}
+
+/* Compact home car status row. */
+#carTile .car-status-header{min-height:0!important;padding:14px!important;gap:9px!important}
+#carTile .car-status-copy{gap:4px!important}
+#carTile .car-status-actions{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr);gap:8px;padding:9px 0 0;border-left:0;border-top:1px solid rgba(188,199,211,.18)}
+#carTile .car-status-tyres{padding:6px 7px;gap:4px;font-size:10px}
+#carTile .car-status-tyres>svg{width:15px;height:15px}
+#carTile .car-status-wash{grid-template-columns:17px minmax(0,1fr);gap:5px}
+#carTile .car-status-wash>svg{width:17px;height:17px}
+#carTile .car-status-wash span,#carTile .car-status-wash strong,#carTile .car-status-insurance{font-size:9px;line-height:1.3;overflow-wrap:anywhere}
+#carTile .car-status-insurance{padding-left:8px;border-left:1px solid rgba(188,199,211,.2)}

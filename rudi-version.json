@@ -1,16 +1,16 @@
 {
-  "current": "v4.405",
+  "current": "v4.406",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.404",
+  "basedOnProduction": "v4.405",
   "notes": [
-    "В карточке мойки показывается подходящий день без лишних предупреждений"
+    "Карточка машины на главной стала компактнее; данные ОСАГО перенесены к информации о мойке"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show the recommended wash day directly on car cards"
+    "Move home car insurance into the status row and remove the release year"
   ]
 }
