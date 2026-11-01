@@ -290,6 +290,7 @@ async function handler(req, res) {
     if (req.query?.route === 'birthday-greeting') return handleBirthdayGreeting(req, res);
     if (req.query?.route === 'car') return handleCarRequest(req, res);
     if (req.query?.route === 'car-device') return handleCarDeviceRequest(req, res);
+    if (req.query?.route === 'uni-mileage') return require('./car-uni-mileage.cjs').handleUniMileageRequest(req,res);
     if (req.query?.route === 'recommendations') return handleRecommendations(req, res);
     if (req.query?.route === 'telegram') {
       if (await handleFeedbackCallback(req, { token: resolveTelegramBotToken(process.env), fetchImpl: nativeFetch, env: process.env })) {

@@ -1,20 +1,20 @@
 {
-  "current": "v4.386",
-  "versionBranch": "rudi-v4386-fix-supplement-groups-historical-intakes",
+  "current": "v4.387",
+  "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-10-31",
-  "basedOnProduction": "v4.385",
+  "createdAt": "2026-11-01",
+  "basedOnProduction": "v4.386",
   "notes": [
-    "Исправлена ошибка группировки БАДов: категории Утро/День/Вечер/Скоро курс и Принимаю/На паузе/Архив теперь отображаются",
-    "В календаре сохраняется отображение исторических приёмов БАДов даже после изменения курса, архивации или паузы",
-    "Никаких изменений или очистки истории БАДов на сервере"
+    "Пробег и четыре периода из UNI-V OS вместо расчётных плиток и истории пробега",
+    "Защищённая привязка магнитолы шестизначным кодом и односторонняя синхронизация без координат",
+    "Повторные и запоздавшие снимки не начисляют расстояние повторно"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Fix undefined searchInput ReferenceError in supplement categories",
-    "Render historical intake checkboxes even after archive, pause or course reschedule",
-    "Preserve existing records and current shared calendar"
+    "UNI-V OS absolute mileage sync with revision ordering",
+    "Four source GPS period totals, existing car retained",
+    "Owner-only expiring pairing, idempotent retry and revocation"
   ]
 }

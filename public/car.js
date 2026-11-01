@@ -780,16 +780,19 @@
         +'<div><span>По времени</span><strong id="carServiceByTime">—</strong><small id="carServiceByTimeMeta"></small></div>'
         +'</div>'
         +'<div class="car-mileage-stats">'
-        +'<div><span>За 30 дней</span><strong id="carMileage30d">—</strong></div>'
-        +'<div><span>Средний темп</span><strong id="carMileageDaily">—</strong></div>'
-        +'<div><span>ТО примерно</span><strong id="carMileageEta">—</strong></div>'
+        +'<div><span>Сегодня</span><strong id="carUniDay">—</strong></div>'
+        +'<div><span>Эта неделя</span><strong id="carUniWeek">—</strong></div>'
+        +'<div><span>Этот месяц</span><strong id="carUniMonth">—</strong></div>'
+        +'<div><span>Этот год</span><strong id="carUniYear">—</strong></div>'
         +'</div>'
         +'<form id="carLastServiceForm" class="car-last-service-form">'
         +'<label><span>Последнее ТО</span><input id="carLastServiceInput" type="date"></label>'
         +'<button id="carLastServiceSave" type="submit">Сохранить</button>'
         +'</form>'
-        +'<details class="car-mileage-history"><summary><span>История пробега</span><strong id="carMileageHistoryCount">0</strong></summary><div id="carMileageHistoryList"></div></details>';
+        +'<div class="car-uni-connection"><p id="carUniStatus">Пробег за периоды появится после подключения UNI-V OS.</p><button type="button" id="carUniConnect">Подключить UNI-V OS</button> <button type="button" id="carUniDisconnect">Отключить</button><label id="carUniTokenLabel" hidden>Код для UNI-V OS (10 минут)<input id="carUniToken" readonly autocomplete="off"></label></div>';
       mileageContent.appendChild(insights);
+      document.getElementById('carUniConnect').addEventListener('click',async function(){this.disabled=true;try{const result=await api('connect-uni-mileage');document.getElementById('carUniToken').value=result.code;document.getElementById('carUniTokenLabel').hidden=false;document.getElementById('carUniStatus').textContent='Введи эти 6 цифр в UNI-V OS в окне поездок. Код действует 10 минут. Новый код отключает предыдущую привязку.'}catch(_){setStatus('Не удалось создать код подключения','error')}finally{this.disabled=false}});
+      document.getElementById('carUniDisconnect').addEventListener('click',async function(){this.disabled=true;try{await api('disconnect-uni-mileage');document.getElementById('carUniToken').value='';document.getElementById('carUniTokenLabel').hidden=true;await loadCar(true)}catch(_){setStatus('Не удалось отключить UNI-V OS','error')}finally{this.disabled=false}});
     }
 
     const taskCard=body.querySelector('[data-car-card="tasks"]');
@@ -1113,6 +1116,11 @@
   }
 
   function renderMileageInsights(car,insight){
+    const uni=car?.state?.uniMileage;
+    for(const [id,key] of [['carUniDay','dayKm'],['carUniWeek','weekKm'],['carUniMonth','monthKm'],['carUniYear','yearKm']]){const n=document.getElementById(id);if(n)n.textContent=uni?Number(uni[key]).toLocaleString('ru-RU',{maximumFractionDigits:1})+' км':'—'}
+    const syncStatus=document.getElementById('carUniStatus');if(syncStatus&&document.getElementById('carUniTokenLabel')?.hidden)syncStatus.textContent=car?.state?.mileageSyncUnavailable?'Синхронизация временно недоступна. Данные машины сохранены.':uni?'Данные UNI-V OS · '+formatUpdated(uni.updatedAt):'Пробег за периоды появится после подключения UNI-V OS.';
+    const form=document.getElementById('carMileageForm');if(form)form.hidden=Boolean(uni||car?.state?.mileageSyncUnavailable);
+
     const byMileage=document.getElementById('carServiceByMileage');
     const byMileageMeta=document.getElementById('carServiceByMileageMeta');
     const byTime=document.getElementById('carServiceByTime');
@@ -1128,7 +1136,7 @@
       byMileage.textContent=Number.isFinite(insight.remaining)?(insight.remaining===0?'Пора на ТО':'Осталось '+formatKm(insight.remaining)):'Добавь пробег';
     }
     if(byMileageMeta){
-      byMileageMeta.textContent=insight.mileageDueAt&&insight.remaining>0?'Примерно '+fullDate(insight.mileageDueAt):'';
+      byMileageMeta.textContent='';
     }
     if(byTime){
       if(!insight.timeDueAt) byTime.textContent='Дата не указана';
@@ -1196,7 +1204,7 @@
 
   function renderService(car) {
     renderCarAge();
-    const mileage=car?.state?.mileage;
+    const mileage=car?.state?.mileageSyncUnavailable?null:car?.state?.mileage;
     const next=car?.nextService;
     const insight=serviceInsight(car);
     const mileageNode=document.getElementById('carMileageValue');
@@ -1252,7 +1260,7 @@
     if(meta){
       if(insight.due) meta.textContent='Пора на ТО · сработал ближайший лимит';
       else if(insight.primary==='time'&&insight.timeDueAt) meta.textContent='Раньше наступает срок по времени';
-      else if(insight.mileageDueAt) meta.textContent='По текущему темпу раньше наступает лимит пробега';
+      else if(car?.state?.uniMileage) meta.textContent='Пробег и отметка ТО из UNI-V OS';
       else meta.textContent='Сравниваю пробег и срок после последнего ТО';
     }
 

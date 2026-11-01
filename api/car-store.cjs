@@ -223,7 +223,7 @@ function normalizeState(value) {
   };
 }
 
-async function readCarState(options = {}) {
+async function readCarBaseState(options = {}) {
   const cache = getCarCache(options);
   const db = getCarDb(options);
   let durableError = null;
@@ -252,6 +252,15 @@ async function readCarState(options = {}) {
 
   if (durableError) throw durableError;
   return cached;
+}
+
+async function readCarState(options = {}) {
+  const state=await readCarBaseState(options);
+  const {linkedMileage,periodKilometers,today}=require('./car-uni-mileage.cjs');
+  let linked;
+  try{linked=await linkedMileage(options)}catch(_){return {...state,mileageSyncUnavailable:true}}
+  if(!linked)return state;
+  return {...state,mileage:Math.floor(linked.mileage),mileageUpdatedAt:linked.receivedAt,uniMileage:{...periodKilometers(linked.daily,today(linked.zone)),updatedAt:linked.receivedAt,serviceNumber:linked.serviceNumber},updatedAt:[state.updatedAt,linked.receivedAt].sort().pop()};
 }
 
 async function writeCarState(value, options = {}) {

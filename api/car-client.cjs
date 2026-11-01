@@ -82,6 +82,11 @@ function statusFor(error) {
   return 500;
 }
 
+function serviceScheduleForState(state) {
+  const n=state?.uniMileage?.serviceNumber;
+  return Number.isInteger(n)?{number:n,mileage:5000+n*10000}:serviceScheduleForMileage(state?.mileage);
+}
+
 function serviceScheduleForMileage(mileage) {
   if (!Number.isFinite(Number(mileage))) return null;
   const current = Math.max(0, Math.floor(Number(mileage)));
@@ -482,6 +487,8 @@ async function handleCarRequest(req, res, options = {}) {
       return res.status(200).json({ok:true,actor:session.actor,visible:true,documents});
     }
 
+    if(operation==='connect-uni-mileage'){const current=await readCarState();if(current.mileageSyncUnavailable)throw Error('uni-unavailable');if(current.uniMileage)await writeMileage(current.mileage);return res.status(200).json({ok:true,...await require('./car-uni-mileage.cjs').createMileageSync().createPairing()});}
+    if(operation==='disconnect-uni-mileage'){const current=await readCarState();if(current.mileageSyncUnavailable)throw Error('uni-unavailable');if(current.uniMileage)await writeMileage(current.mileage);await require('./car-uni-mileage.cjs').createMileageSync().revoke();return res.status(200).json({ok:true});}
     if (operation === 'get') {
       const [state,tasks] = await Promise.all([readCarState(),carTasksSafe()]);
       const config = await loadCarTaskConfig();
@@ -491,13 +498,15 @@ async function handleCarRequest(req, res, options = {}) {
         visible:true,
         car:{ make:'Changan', model:'UNI-V', year:2023 },
         state,
-        nextService:serviceScheduleForMileage(state.mileage),
+        nextService:serviceScheduleForState(state),
         ticktick:tasks,
         priorityConfig:config.priority,
       });
     }
 
     if (operation === 'set-mileage') {
+      const origin=await readCarState();
+      if(origin.uniMileage||origin.mileageSyncUnavailable)return res.status(409).json({ok:false,error:'uni-mileage-primary'});
       const state = await writeMileage(body.mileage);
       const backupToken=await createStateBackup({previousSnapshot}).catch(()=> '');
       return res.status(200).json({
@@ -505,7 +514,7 @@ async function handleCarRequest(req, res, options = {}) {
         actor:session.actor,
         visible:true,
         state,
-        nextService:serviceScheduleForMileage(state.mileage),
+        nextService:serviceScheduleForState(state),
         backupToken,
       });
     }
@@ -518,7 +527,7 @@ async function handleCarRequest(req, res, options = {}) {
         actor:session.actor,
         visible:true,
         state,
-        nextService:serviceScheduleForMileage(state.mileage),
+        nextService:serviceScheduleForState(state),
         backupToken,
       });
     }
@@ -531,7 +540,7 @@ async function handleCarRequest(req, res, options = {}) {
         actor:session.actor,
         visible:true,
         state,
-        nextService:serviceScheduleForMileage(state.mileage),
+        nextService:serviceScheduleForState(state),
         backupToken,
       });
     }
@@ -548,7 +557,7 @@ async function handleCarRequest(req, res, options = {}) {
         actor:session.actor,
         visible:true,
         state:result.state,
-        nextService:serviceScheduleForMileage(result.state.mileage),
+        nextService:serviceScheduleForState(result.state),
         error:result.error,
         backupToken,
       });
@@ -562,7 +571,7 @@ async function handleCarRequest(req, res, options = {}) {
         actor:session.actor,
         visible:true,
         state:result.state,
-        nextService:serviceScheduleForMileage(result.state.mileage),
+        nextService:serviceScheduleForState(result.state),
         removedError:result.removed,
         backupToken,
       });
@@ -576,7 +585,7 @@ async function handleCarRequest(req, res, options = {}) {
         actor:session.actor,
         visible:true,
         state:result.state,
-        nextService:serviceScheduleForMileage(result.state.mileage),
+        nextService:serviceScheduleForState(result.state),
         repairedError:result.repaired,
         backupToken,
       });
@@ -590,7 +599,7 @@ async function handleCarRequest(req, res, options = {}) {
         actor:session.actor,
         visible:true,
         state:result.state,
-        nextService:serviceScheduleForMileage(result.state.mileage),
+        nextService:serviceScheduleForState(result.state),
         removedRepair:result.removed,
         backupToken,
       });
@@ -604,7 +613,7 @@ async function handleCarRequest(req, res, options = {}) {
         actor:session.actor,
         visible:true,
         state:result.state,
-        nextService:serviceScheduleForMileage(result.state.mileage),
+        nextService:serviceScheduleForState(result.state),
         removedMileage:result.removed,
         backupToken,
       });
@@ -616,7 +625,7 @@ async function handleCarRequest(req, res, options = {}) {
       return res.status(200).json({
         ok:true, actor:session.actor, visible:true,
         state:result.state, note:result.note,
-        nextService:serviceScheduleForMileage(result.state.mileage),
+        nextService:serviceScheduleForState(result.state),
         backupToken,
       });
     }
@@ -627,7 +636,7 @@ async function handleCarRequest(req, res, options = {}) {
       return res.status(200).json({
         ok:true, actor:session.actor, visible:true,
         state:result.state, removedNote:result.note,
-        nextService:serviceScheduleForMileage(result.state.mileage),
+        nextService:serviceScheduleForState(result.state),
         backupToken,
       });
     }
@@ -638,7 +647,7 @@ async function handleCarRequest(req, res, options = {}) {
       return res.status(200).json({
         ok:true, actor:session.actor, visible:true,
         state:result.state, note:result.note, restored:result.restored,
-        nextService:serviceScheduleForMileage(result.state.mileage),
+        nextService:serviceScheduleForState(result.state),
         backupToken,
       });
     }
