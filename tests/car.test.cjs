@@ -133,8 +133,8 @@ test('car UI is private, movable and opens a dedicated page with back navigation
   assert.match(api,/req\.query\?\.route === 'car'/);
   assert.match(car,/api\('complete-task',\{taskId:task\.id\}\)/);
   assert.match(html,/id="carTasksList"/);
-  assert.match(car,/carHomeMileageValue/);
-  assert.match(car,/carHomeServiceValue/);
+  assert.doesNotMatch(car,/carHomeMileageValue/);
+  assert.doesNotMatch(car,/carHomeServiceValue/);
 });
 test('car block keeps dashboard icons without the decorative car hero',()=>{
   const html=fs.readFileSync('public/index.html','utf8');
@@ -145,8 +145,8 @@ test('car block keeps dashboard icons without the decorative car hero',()=>{
   assert.doesNotMatch(html,/2023 · чёрный/);
   assert.match(html,/Changan UNI‑V · 2023/);
   assert.match(html,/car-card-icon is-weather/);
-  assert.match(html,/car-card-icon is-service/);
-  assert.match(html,/car-card-icon is-mileage/);
+  assert.doesNotMatch(html,/car-card-icon is-service/);
+  assert.doesNotMatch(html,/car-card-icon is-mileage/);
   assert.doesNotMatch(html,/id="carRecommendationsTitle"/);
   assert.match(html,/id="carWashGuideOpen"/);
   assert.match(html,/car-section-icon is-task/);

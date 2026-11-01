@@ -1,18 +1,18 @@
 {
-  "current": "v4.396",
+  "current": "v4.397",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.395",
+  "basedOnProduction": "v4.396",
   "notes": [
-    "Восстановлено открытие страницы партнёра по имени и аватарке для обоих аккаунтов",
-    "Блок «Ближайшее» в календаре перенесён под календарь с прогнозом погоды"
+    "Из карточки и страницы машины убраны пробег, ТО, история и настройка синхронизации пробега",
+    "Убраны автоматические подсказки о ТО, исправлены отступы и оформление оставшихся блоков"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Bind Diana partner navigation independently from collapsible card setup",
-    "Move Upcoming below the calendar weather"
+    "Remove mileage and maintenance UI, calculations, alerts and connection controls",
+    "Compact car headers and style remaining attention and tyre controls"
   ]
 }

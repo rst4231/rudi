@@ -1152,7 +1152,7 @@ html[data-theme="light"] .car-wash-guide-note strong{color:#7c2d28}
 .car-home-tile[hidden],.car-page[hidden]{display:none!important}
 .car-home-open{
   width:100%;
-  min-height:150px;
+  min-height:120px;
   display:grid;
   grid-template-columns:minmax(0,1fr) minmax(142px,38%);
   gap:12px;
@@ -1167,7 +1167,7 @@ html[data-theme="light"] .car-wash-guide-note strong{color:#7c2d28}
   -webkit-tap-highlight-color:transparent;
 }
 .car-home-open:active{transform:scale(.995)}
-.car-home-copy{min-width:0;display:grid;gap:9px}
+.car-home-copy{min-width:0;display:grid;gap:4px}
 .car-home-title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .car-home-title-row h2{margin:0 0 3px;font-size:21px;line-height:1.1;letter-spacing:-.035em;color:#fff}
 .car-home-title-row .car-model{font-size:10.5px;color:#9ba1ab}
@@ -1246,7 +1246,7 @@ html[data-theme="light"] .car-age{color:#697382}
 .car-page .car-collapsed-service-progress,
 .car-page .car-collapsed-wash{display:none!important}
 .car-page .car-head h2{font-size:24px}
-.car-page .car-head-visual img{height:108px}
+.car-page .car-head-visual img{height:88px}
 .car-page .car-weather-card,.car-page .car-service-card,.car-page .car-mileage-panel,
 .car-page .car-recommendation,.car-page .car-task-row,.car-page .car-error-form,.car-page .car-error-row{
   backdrop-filter:blur(10px);
@@ -1256,7 +1256,7 @@ html[data-theme="light"] .car-page>.car-body{
   background:linear-gradient(145deg,#202329 0%,#111317 100%);
 }
 @media(max-width:430px){
-  .car-home-open{min-height:138px;grid-template-columns:minmax(0,1fr) minmax(118px,38%);gap:8px;padding:14px}
+  .car-home-open{min-height:112px;grid-template-columns:minmax(0,1fr) minmax(118px,38%);gap:8px;padding:14px}
   .car-home-title-row h2{font-size:20px}
   .car-home-title-row .car-model{font-size:9.5px}
   .car-home-metric strong{font-size:11.5px}
@@ -1267,7 +1267,7 @@ html[data-theme="light"] .car-page>.car-body{
   .car-page>.car-head{padding:15px;border-radius:22px}
   .car-page>.car-body{padding:13px;border-radius:22px}
   .car-page .car-head{grid-template-columns:minmax(0,1fr) minmax(126px,42%);gap:8px}
-  .car-page .car-head-visual img{height:88px}
+  .car-page .car-head-visual img{height:76px}
 }
 /* end RUDI dedicated car page */
 
@@ -2263,7 +2263,7 @@ html[data-theme="light"] .car-recommendation-best-day{
 
 /* RUDI v4.03 — car page header mirrors home car card */
 .car-page>.car-head{
-  min-height:150px;
+  min-height:120px;
   grid-template-columns:minmax(0,1fr) minmax(142px,38%);
   gap:12px;
   align-items:center;
@@ -2273,7 +2273,7 @@ html[data-theme="light"] .car-recommendation-best-day{
 .car-page .car-head-copy{
   min-width:0;
   display:grid;
-  gap:9px;
+  gap:4px;
 }
 .car-page .car-head h2{
   margin:0 0 3px;
@@ -2394,7 +2394,7 @@ html[data-theme="light"] .car-recommendation-best-day{
 .car-page-wash-guide-button:active{transform:scale(.985)}
 @media(max-width:430px){
   .car-page>.car-head{
-    min-height:138px;
+    min-height:112px;
     grid-template-columns:minmax(0,1fr) minmax(118px,38%);
     gap:8px;
     padding:14px;

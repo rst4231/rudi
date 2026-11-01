@@ -6,11 +6,6 @@
   let pendingNoteUndo=null;
   let pendingNoteUndoTimer=null;
 
-  function formatKm(value) {
-    const number = Number(value);
-    return Number.isFinite(number) ? Math.round(number).toLocaleString('ru-RU') + ' км' : '—';
-  }
-
   function formatUpdated(value) {
     if (!value) return '';
     const date = new Date(value);
@@ -52,7 +47,7 @@
     const response=await fetch(FINANCE_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:tg?.initData||'',operation,...payload}),cache:'no-store'});
     const data=await response.json().catch(()=>({}));if(!response.ok||!data.ok)throw new Error(data.error||'finance-request-failed');return data;
   }
-  const CAR_EXPENSE_LABELS=['Бензин','Паркинг','Мойка','Ремонт','Страховка','ТО'];
+  const CAR_EXPENSE_LABELS=['Бензин','Паркинг','Мойка','Ремонт','Страховка'];
   function normalizeFinanceText(value){return String(value||'').trim().toLocaleLowerCase('ru-RU').replace(/ё/g,'е').replace(/\s+/g,' ')}
   function carExpenseMoney(value){const n=Number(value||0);return new Intl.NumberFormat('ru-RU',{maximumFractionDigits:Number.isInteger(n)?0:2}).format(n)+' ₽'}
   function carExpenseMonthLabel(month){const m=String(month||'').match(/^(\d{4})-(\d{2})$/);if(!m)return String(month||'');const t=new Intl.DateTimeFormat('ru-RU',{month:'long',year:'numeric',timeZone:'Europe/Moscow'}).format(new Date(Date.UTC(Number(m[1]),Number(m[2])-1,1)));return t.charAt(0).toLocaleUpperCase('ru-RU')+t.slice(1)}
@@ -86,7 +81,7 @@
     const list=document.getElementById('carExpensesList'),status=document.getElementById('carExpensesStatus'),meta=document.getElementById('carExpensesMeta');if(!list)return;list.replaceChildren();
     if(state.financeLoading&&!state.finance){if(status){status.hidden=false;status.textContent='Загружаю расходы…'}if(meta)meta.textContent='';return}
     const groups=carExpenseGroups(state.finance||{});if(meta)meta.textContent=groups.length?groups.length+' мес.':'';
-    if(!groups.length){if(status){status.hidden=false;status.textContent='Расходов по меткам Бензин, Паркинг, Мойка, Ремонт, Страховка и ТО пока нет'}return}if(status)status.hidden=true;
+    if(!groups.length){if(status){status.hidden=false;status.textContent='Расходов по меткам Бензин, Паркинг, Мойка, Ремонт и Страховка пока нет'}return}if(status)status.hidden=true;
     for(const group of groups){
       const section=document.createElement('section');section.className='car-expense-month';const head=document.createElement('div');head.className='car-expense-month-head';
       const title=document.createElement('strong');title.textContent=carExpenseMonthLabel(group.month);const total=document.createElement('b');total.textContent=carExpenseMoney(group.total);head.append(title,total);
@@ -523,19 +518,10 @@
     }
   }
 
-  function serviceRemaining(car) {
-    const mileage=Number(car?.state?.mileage);
-    const next=Number(car?.nextService?.mileage);
-    if(!Number.isFinite(mileage)||!Number.isFinite(next)) return null;
-    return Math.max(0,next-mileage);
-  }
-
-  const CAR_SMART_DEFAULT_ORDER=['mileage','errors','tasks','expenses','documents','notes'];
+  const CAR_SMART_DEFAULT_ORDER=['errors','tasks','expenses','documents','notes'];
   const CAR_SMART_FALLBACK_PRIORITY={
-    base:{mileage:60,errors:50,tasks:40,expenses:35},
+    base:{errors:50,tasks:40,expenses:35},
     tasks:{overdue:1000,today:900,tomorrow:650,week:500,any:250},
-    service:{due:980,within500:860,within1000:780,within2500:560,within5000:320},
-    mileage:{missing:700},
     errors:{active:950,perError:8}
   };
   let carTabObserver=null;
@@ -583,25 +569,6 @@
         if(nearest===1){score=Math.max(score,rules.tomorrow);reason='Есть задача на завтра';}
         else if(Number.isFinite(nearest)&&nearest<=7){score=Math.max(score,rules.week);reason='Есть задача на ближайшую неделю';}
         else if(tasks.length){score=Math.max(score,rules.any);reason='Есть актуальные задачи';}
-      }
-    }
-
-    if(id==='mileage'){
-      const mileageRules=carPrioritySection('mileage');
-      const serviceRules=carPrioritySection('service');
-      const remaining=serviceRemaining(state.car);
-      if(state.car?.state?.mileage==null){
-        score=Math.max(score,mileageRules.missing);reason='Нужен пробег для расчёта ТО';
-      }else if(remaining===0){
-        score=Math.max(score,serviceRules.due);reason='Пора на ТО';
-      }else if(Number.isFinite(remaining)&&remaining<=500){
-        score=Math.max(score,serviceRules.within500);reason='До ТО не больше 500 км';
-      }else if(Number.isFinite(remaining)&&remaining<=1000){
-        score=Math.max(score,serviceRules.within1000);reason='До ТО не больше 1 000 км';
-      }else if(Number.isFinite(remaining)&&remaining<=2500){
-        score=Math.max(score,serviceRules.within2500);reason='ТО приближается';
-      }else if(Number.isFinite(remaining)&&remaining<=5000){
-        score=Math.max(score,serviceRules.within5000);reason='ТО уже стоит планировать';
       }
     }
 
@@ -769,32 +736,6 @@
       page.insertBefore(summary,anchor);
     }
 
-    const mileageContent=body.querySelector('[data-car-card="mileage"] .car-mileage-service-content');
-    if(mileageContent&&!document.getElementById('carMileageInsights')){
-      const insights=document.createElement('section');
-      insights.id='carMileageInsights';
-      insights.className='car-mileage-insights';
-      insights.innerHTML=
-        '<div class="car-service-dimensions">'
-        +'<div><span>По пробегу</span><strong id="carServiceByMileage">—</strong><small id="carServiceByMileageMeta"></small></div>'
-        +'<div><span>По времени</span><strong id="carServiceByTime">—</strong><small id="carServiceByTimeMeta"></small></div>'
-        +'</div>'
-        +'<div class="car-mileage-stats">'
-        +'<div><span>Сегодня</span><strong id="carUniDay">—</strong></div>'
-        +'<div><span>Эта неделя</span><strong id="carUniWeek">—</strong></div>'
-        +'<div><span>Этот месяц</span><strong id="carUniMonth">—</strong></div>'
-        +'<div><span>Этот год</span><strong id="carUniYear">—</strong></div>'
-        +'</div>'
-        +'<form id="carLastServiceForm" class="car-last-service-form">'
-        +'<label><span>Последнее ТО</span><input id="carLastServiceInput" type="date"></label>'
-        +'<button id="carLastServiceSave" type="submit">Сохранить</button>'
-        +'</form>'
-        +'<div class="car-uni-connection"><p id="carUniStatus">Пробег за периоды появится после подключения UNI-V OS.</p><button type="button" id="carUniConnect">Подключить UNI-V OS</button> <button type="button" id="carUniDisconnect">Отключить</button><label id="carUniTokenLabel" hidden>Код для UNI-V OS (10 минут)<input id="carUniToken" readonly autocomplete="off"></label></div>';
-      mileageContent.appendChild(insights);
-      document.getElementById('carUniConnect').addEventListener('click',async function(){this.disabled=true;try{const result=await api('connect-uni-mileage');document.getElementById('carUniToken').value=result.code;document.getElementById('carUniTokenLabel').hidden=false;document.getElementById('carUniStatus').textContent='Введи эти 6 цифр в UNI-V OS в окне поездок. Код действует 10 минут. Новый код отключает предыдущую привязку.'}catch(_){setStatus('Не удалось создать код подключения','error')}finally{this.disabled=false}});
-      document.getElementById('carUniDisconnect').addEventListener('click',async function(){this.disabled=true;try{await api('disconnect-uni-mileage');document.getElementById('carUniToken').value='';document.getElementById('carUniTokenLabel').hidden=true;await loadCar(true)}catch(_){setStatus('Не удалось отключить UNI-V OS','error')}finally{this.disabled=false}});
-    }
-
     const taskCard=body.querySelector('[data-car-card="tasks"]');
     const tasks=taskCard?.querySelector('.car-tasks');
     if(taskCard&&tasks&&!document.getElementById('carTaskAdd')){
@@ -821,7 +762,6 @@
     page.querySelectorAll('[data-car-tyre-season]').forEach(button=>{
       button.addEventListener('click',()=>saveTyreSeason(button.dataset.carTyreSeason,button));
     });
-    document.getElementById('carLastServiceForm')?.addEventListener('submit',saveLastServiceDate);
     document.getElementById('carTaskAdd')?.addEventListener('click',()=>setTaskFormOpen(true));
     document.getElementById('carTaskCancel')?.addEventListener('click',()=>setTaskFormOpen(false));
     document.getElementById('carTaskForm')?.addEventListener('submit',saveCarTask);
@@ -840,24 +780,14 @@
       page.insertBefore(recommendations,body);
     }
 
-    const service=body.querySelector('.car-service-card');
-    const mileage=body.querySelector('.car-mileage-panel');
     const errors=body.querySelector('.car-errors');
     const tasks=body.querySelector('.car-tasks');
     const expenses=body.querySelector('.car-expenses');
     const documents=body.querySelector('.car-documents');
     const notes=body.querySelector('.car-notes');
-    const progress=body.querySelector(':scope > .car-service-progress');
     const status=body.querySelector('#carStatus');
 
-    const mileageService=document.createElement('div');
-    mileageService.className='car-mileage-service-content';
-    if(mileage) mileageService.appendChild(mileage);
-    if(service) mileageService.appendChild(service);
-    if(progress) mileageService.appendChild(progress);
-
     const cards=[
-      buildCarSmartCard('mileage','Пробег и ТО',mileageService),
       buildCarSmartCard('errors','Нужно починить',errors),
       buildCarSmartCard('tasks','Что сделать по машине',tasks),
       buildCarSmartCard('expenses','Расходы',expenses),
@@ -865,8 +795,6 @@
       buildCarSmartCard('notes','Заметки',notes)
     ].filter(Boolean);
 
-    service?.querySelector('.car-card-title')?.remove();
-    mileage?.querySelector('.car-card-title')?.remove();
 
     const errorCard=cards.find(card=>card.dataset.carCard==='errors');
     const errorActions=errors?.querySelector('.car-errors-head-actions');
@@ -1036,249 +964,6 @@
       const node=document.getElementById(id);
       if(node) node.textContent=label;
     }
-  }
-
-  function mileageHistoryEntries(car){
-    const rows=Array.isArray(car?.state?.mileageHistory)?car.state.mileageHistory:[];
-    return rows.map(row=>({
-      mileage:Number(row?.mileage),
-      at:new Date(row?.at)
-    })).filter(row=>Number.isFinite(row.mileage)&&Number.isFinite(row.at.getTime()))
-      .sort((a,b)=>a.at-b.at);
-  }
-
-  function mileageAnalytics(car,now=new Date()){
-    const history=mileageHistoryEntries(car);
-    if(history.length<2) return {history,delta30:null,avgDaily:null,spanDays:null};
-    const latest=history[history.length-1];
-    const cutoff=latest.at.getTime()-30*86400000;
-    let baseline=history[0];
-    for(const row of history){
-      if(row.at.getTime()<=cutoff) baseline=row;
-      else if(baseline===history[0]&&history[0].at.getTime()>cutoff) baseline=history[0];
-    }
-    const spanDays=Math.max((latest.at-baseline.at)/86400000,0);
-    const delta=Math.max(0,latest.mileage-baseline.mileage);
-    const avgDaily=spanDays>=0.5&&delta>0?delta/spanDays:null;
-    return {
-      history,
-      delta30:spanDays>0?delta:null,
-      avgDaily:Number.isFinite(avgDaily)?avgDaily:null,
-      spanDays
-    };
-  }
-
-  function addYearDateKey(dateKey){
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey||''))) return null;
-    const date=new Date(String(dateKey)+'T12:00:00Z');
-    if(!Number.isFinite(date.getTime())) return null;
-    date.setUTCFullYear(date.getUTCFullYear()+1);
-    return date;
-  }
-
-  function shortDate(value){
-    const date=value instanceof Date?value:new Date(value);
-    if(!Number.isFinite(date.getTime())) return '—';
-    return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short'}).format(date);
-  }
-
-  function fullDate(value){
-    const date=value instanceof Date?value:new Date(value);
-    if(!Number.isFinite(date.getTime())) return '—';
-    return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric'}).format(date);
-  }
-
-  function serviceInsight(car,now=new Date()){
-    const mileage=Number(car?.state?.mileage);
-    const nextMileage=Number(car?.nextService?.mileage);
-    const remaining=Number.isFinite(mileage)&&Number.isFinite(nextMileage)?Math.max(0,nextMileage-mileage):null;
-    const analytics=mileageAnalytics(car,now);
-    let mileageDueAt=null;
-    if(Number.isFinite(remaining)&&remaining===0) mileageDueAt=new Date(now);
-    else if(Number.isFinite(remaining)&&Number.isFinite(analytics.avgDaily)&&analytics.avgDaily>0){
-      mileageDueAt=new Date(now.getTime()+(remaining/analytics.avgDaily)*86400000);
-    }
-
-    const timeDueAt=addYearDateKey(car?.state?.lastServiceAt);
-    const timeDays=timeDueAt?Math.ceil((timeDueAt.getTime()-now.getTime())/86400000):null;
-    const mileageDays=mileageDueAt?Math.ceil((mileageDueAt.getTime()-now.getTime())/86400000):null;
-
-    let primary='mileage';
-    if(timeDueAt&&mileageDueAt) primary=timeDueAt<=mileageDueAt?'time':'mileage';
-    else if(timeDueAt&&!mileageDueAt) primary='time';
-
-    const due=(Number.isFinite(remaining)&&remaining<=0)||(Number.isFinite(timeDays)&&timeDays<=0);
-    const soon=!due&&(
-      (Number.isFinite(remaining)&&remaining<=2500)
-      ||(Number.isFinite(timeDays)&&timeDays<=30)
-    );
-    return {mileage,nextMileage,remaining,analytics,mileageDueAt,mileageDays,timeDueAt,timeDays,primary,due,soon};
-  }
-
-  function renderMileageInsights(car,insight){
-    const uni=car?.state?.uniMileage;
-    for(const [id,key] of [['carUniDay','dayKm'],['carUniWeek','weekKm'],['carUniMonth','monthKm'],['carUniYear','yearKm']]){const n=document.getElementById(id);if(n)n.textContent=uni?Number(uni[key]).toLocaleString('ru-RU',{maximumFractionDigits:1})+' км':'—'}
-    const syncStatus=document.getElementById('carUniStatus');if(syncStatus&&document.getElementById('carUniTokenLabel')?.hidden)syncStatus.textContent=car?.state?.mileageSyncUnavailable?'Синхронизация временно недоступна. Данные машины сохранены.':uni?'Данные UNI-V OS · '+formatUpdated(uni.updatedAt):'Пробег за периоды появится после подключения UNI-V OS.';
-    const form=document.getElementById('carMileageForm');if(form)form.hidden=Boolean(uni||car?.state?.mileageSyncUnavailable);
-
-    const byMileage=document.getElementById('carServiceByMileage');
-    const byMileageMeta=document.getElementById('carServiceByMileageMeta');
-    const byTime=document.getElementById('carServiceByTime');
-    const byTimeMeta=document.getElementById('carServiceByTimeMeta');
-    const delta=document.getElementById('carMileage30d');
-    const daily=document.getElementById('carMileageDaily');
-    const eta=document.getElementById('carMileageEta');
-    const input=document.getElementById('carLastServiceInput');
-    const historyList=document.getElementById('carMileageHistoryList');
-    const historyCount=document.getElementById('carMileageHistoryCount');
-
-    if(byMileage){
-      byMileage.textContent=Number.isFinite(insight.remaining)?(insight.remaining===0?'Пора на ТО':'Осталось '+formatKm(insight.remaining)):'Добавь пробег';
-    }
-    if(byMileageMeta){
-      byMileageMeta.textContent='';
-    }
-    if(byTime){
-      if(!insight.timeDueAt) byTime.textContent='Дата не указана';
-      else if(insight.timeDays<=0) byTime.textContent='Срок наступил';
-      else byTime.textContent='До '+fullDate(insight.timeDueAt);
-    }
-    if(byTimeMeta){
-      byTimeMeta.textContent=insight.timeDueAt&&insight.timeDays>0?insight.timeDays+' дн.':'';
-    }
-    if(delta) delta.textContent=Number.isFinite(insight.analytics.delta30)?'+'+formatKm(insight.analytics.delta30):'—';
-    if(daily) daily.textContent=Number.isFinite(insight.analytics.avgDaily)?Math.round(insight.analytics.avgDaily)+' км/день':'—';
-    if(eta) eta.textContent=insight.mileageDueAt&&insight.remaining>0?shortDate(insight.mileageDueAt):'—';
-    if(input&&document.activeElement!==input){input.value=String(car?.state?.lastServiceAt||'');window.syncRudiTemporalControl?.(input)}
-
-    if(historyList){
-      historyList.replaceChildren();
-      const rows=[...insight.analytics.history].sort((a,b)=>b.at-a.at).slice(0,8);
-      if(historyCount) historyCount.textContent=String(insight.analytics.history.length);
-      if(!rows.length){
-        const empty=document.createElement('div');
-        empty.className='car-mileage-history-empty';
-        empty.textContent='История появится после обновлений пробега';
-        historyList.appendChild(empty);
-      }else{
-        rows.forEach(row=>{
-          const item=document.createElement('div');
-          item.className='car-mileage-history-row';
-          const value=document.createElement('strong');
-          value.textContent=formatKm(row.mileage);
-          const date=document.createElement('span');
-          date.textContent=new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric'}).format(row.at);
-          const remove=document.createElement('button');
-          remove.type='button';
-          remove.className='car-archive-remove car-mileage-history-remove';
-          remove.setAttribute('aria-label','Удалить запись из истории пробега');
-          remove.textContent='×';
-          remove.addEventListener('click',async()=>{
-            if(!(await confirmArchiveDelete('Удалить '+formatKm(row.mileage)+' из истории пробега?'))) return;
-            await removeMileageHistoryItem(row,remove);
-          });
-          item.append(value,date,remove);
-          historyList.appendChild(item);
-        });
-      }
-    }
-  }
-
-  async function removeMileageHistoryItem(row,button) {
-    if(!row || button?.disabled) return;
-    const at=row.at instanceof Date ? row.at.toISOString() : new Date(row.at).toISOString();
-    button.disabled=true;
-    try{
-      const data=await api('remove-mileage-history',{mileage:row.mileage,at});
-      state.car={...state.car,...data};
-      renderService(state.car);
-      renderCarAttention(state.car,state.weather);
-      setStatus('Запись пробега удалена из истории','success');
-      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-    }catch(_){
-      button.disabled=false;
-      setStatus('Не удалось удалить запись пробега','error');
-      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-    }
-  }
-
-  function renderService(car) {
-    renderCarAge();
-    const mileage=car?.state?.mileageSyncUnavailable?null:car?.state?.mileage;
-    const next=car?.nextService;
-    const insight=serviceInsight(car);
-    const mileageNode=document.getElementById('carMileageValue');
-    const updatedNode=document.getElementById('carMileageUpdated');
-    const input=document.getElementById('carMileageInput');
-    const nextNode=document.getElementById('carNextService');
-    const meta=document.getElementById('carServiceMeta');
-    const progress=document.getElementById('carServiceProgress');
-    const modelNode=document.querySelector('#carPage .car-model');
-    const collapsedMileageNode=document.getElementById('carCollapsedMileageValue');
-    const collapsedServiceNode=document.getElementById('carCollapsedServiceValue');
-    const collapsedProgress=document.getElementById('carCollapsedServiceProgress');
-    const collapsedPercent=document.getElementById('carCollapsedServicePercent');
-    const homeMileageNode=document.getElementById('carHomeMileageValue');
-    const homeServiceNode=document.getElementById('carHomeServiceValue');
-    const homeProgress=document.getElementById('carHomeServiceProgress');
-    const homePercent=document.getElementById('carHomeServicePercent');
-
-    const mileageText=mileage==null?'Не указан':formatKm(mileage);
-    let serviceText=next?'ТО-'+next.number+' · '+formatKm(next.mileage):'Не определено';
-    if(next&&insight.primary==='time'&&insight.timeDueAt){
-      serviceText='ТО-'+next.number+' · до '+shortDate(insight.timeDueAt);
-    }
-
-    if(modelNode){
-      modelNode.dataset.mileage=mileage==null?'Пробег не указан':'Пробег · '+formatKm(mileage);
-      modelNode.dataset.service='Следующее ТО · '+serviceText;
-    }
-    if(collapsedMileageNode) collapsedMileageNode.textContent=mileageText;
-    if(collapsedServiceNode) collapsedServiceNode.textContent=serviceText;
-    if(homeMileageNode) homeMileageNode.textContent=mileageText;
-    if(homeServiceNode) homeServiceNode.textContent=serviceText;
-    if(mileageNode) mileageNode.textContent=mileageText;
-    if(updatedNode) updatedNode.textContent=formatUpdated(car?.state?.mileageUpdatedAt||car?.state?.updatedAt);
-    if(input&&document.activeElement!==input) input.value=mileage==null?'':String(mileage);
-
-    renderMileageInsights(car,insight);
-
-    if(!next||mileage==null) {
-      if(nextNode) nextNode.textContent=insight.timeDueAt?'По времени · '+(insight.timeDays<=0?'срок наступил':'до '+shortDate(insight.timeDueAt)):'Добавь пробег';
-      if(meta) meta.textContent=insight.timeDueAt?'Добавь пробег, чтобы сравнить оба лимита':'Добавь пробег и дату последнего ТО';
-      [progress,collapsedProgress,homeProgress].forEach(node=>{if(node)node.style.width='0%'});
-      if(collapsedPercent) collapsedPercent.textContent=insight.timeDueAt?(insight.timeDays<=0?'Срок':insight.timeDays+' дн.'):'—';
-      if(homePercent) homePercent.textContent=insight.timeDueAt?(insight.timeDays<=0?'Срок':insight.timeDays+' дн.'):'—';
-      return;
-    }
-
-    if(nextNode){
-      nextNode.textContent=insight.primary==='time'&&insight.timeDueAt
-        ?'ТО-'+next.number+' · до '+shortDate(insight.timeDueAt)
-        :'ТО-'+next.number+' · '+formatKm(next.mileage);
-    }
-    if(meta){
-      if(insight.due) meta.textContent='Пора на ТО · сработал ближайший лимит';
-      else if(insight.primary==='time'&&insight.timeDueAt) meta.textContent='Раньше наступает срок по времени';
-      else if(car?.state?.uniMileage) meta.textContent='Пробег и отметка ТО из UNI-V OS';
-      else meta.textContent='Сравниваю пробег и срок после последнего ТО';
-    }
-
-    const previous=next.mileage===5000?0:next.mileage-10000;
-    const span=Math.max(1,next.mileage-previous);
-    const mileagePct=Math.max(0,Math.min(100,((Number(mileage)-previous)/span)*100));
-    let combinedPct=mileagePct;
-    if(insight.primary==='time'&&car?.state?.lastServiceAt&&insight.timeDueAt){
-      const start=new Date(String(car.state.lastServiceAt)+'T12:00:00Z');
-      const total=Math.max(1,insight.timeDueAt-start);
-      combinedPct=Math.max(0,Math.min(100,((Date.now()-start.getTime())/total)*100));
-    }
-    [progress,collapsedProgress,homeProgress].forEach(node=>{if(node)node.style.width=combinedPct.toFixed(1)+'%'});
-    const remainingLabel=insight.primary==='time'&&Number.isFinite(insight.timeDays)
-      ?(insight.timeDays<=0?'Срок':insight.timeDays+' дн.')
-      :(Number.isFinite(insight.remaining)?formatKm(insight.remaining):'—');
-    if(collapsedPercent) collapsedPercent.textContent=remainingLabel;
-    if(homePercent) homePercent.textContent=remainingLabel;
   }
 
   function tyreForecastAdvice(weather) {
@@ -1512,31 +1197,6 @@
     }
   }
 
-  async function saveLastServiceDate(event){
-    event?.preventDefault?.();
-    const input=document.getElementById('carLastServiceInput');
-    const button=document.getElementById('carLastServiceSave');
-    const date=String(input?.value||'').trim();
-    if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){
-      setStatus('Укажи дату последнего ТО','error');
-      input?.focus();
-      return;
-    }
-    if(button){button.disabled=true;button.textContent='Сохраняю…';}
-    try{
-      const data=await api('set-last-service',{date});
-      state.car={...state.car,...data};
-      render();
-      setStatus('Дата последнего ТО сохранена','success');
-      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-    }catch(_){
-      setStatus('Не удалось сохранить дату ТО','error');
-      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-    }finally{
-      if(button){button.disabled=false;button.textContent='Сохранить';}
-    }
-  }
-
   function setTaskFormOpen(open){
     const form=document.getElementById('carTaskForm');
     if(!form) return;
@@ -1610,7 +1270,6 @@
     const tasks=Array.isArray(car?.ticktick?.tasks)?car.ticktick.tasks:[];
     const overdue=tasks.filter(task=>task.timing==='overdue').length;
     const today=tasks.filter(task=>task.timing==='today').length;
-    const insight=serviceInsight(car);
     const tyreAdvice=tyreForecastAdvice(weather);
     const recommended=tyreAdvice.season;
     const installed=String(car?.state?.tyreSeasonInstalled||'');
@@ -1618,8 +1277,6 @@
 
     const items=[];
     if(errors.length) items.push({kind:'danger',text:errors.length===1?'1 неисправность':errors.length+' неисправности'});
-    if(insight.due) items.push({kind:'danger',text:'Пора на ТО'});
-    else if(insight.soon) items.push({kind:'warn',text:'ТО приближается'});
     if(overdue) items.push({kind:'danger',text:overdue===1?'1 просроченная задача':overdue+' просроченных задач'});
     else if(today) items.push({kind:'warn',text:today===1?'1 задача сегодня':today+' задачи сегодня'});
     if(tyreMismatch) items.push({kind:'warn',text:'Пора менять шины'});
@@ -1653,12 +1310,6 @@
     if(repairBadge){
       repairBadge.hidden=errors.length<1;
       repairBadge.textContent=errors.length>1?'Ремонт '+errors.length:'Ремонт';
-    }
-    const serviceBadge=ensureHomeCarAlert('carHomeServiceBadge',insight.due?'is-danger':'is-warn','ТО');
-    if(serviceBadge){
-      serviceBadge.className='car-home-alert '+(insight.due?'is-danger':'is-warn');
-      serviceBadge.hidden=!(insight.due||insight.soon);
-      serviceBadge.textContent=insight.due?'ТО сейчас':'ТО скоро';
     }
     const tile=document.getElementById('carTile');
     tile?.classList.toggle('has-car-danger',danger);
@@ -2058,7 +1709,7 @@
 
   function render() {
     if(!state.car) return;
-    renderService(state.car);
+    renderCarAge();
     renderWeather(state.weather);
     renderErrors(state.car);
     renderCarWashGuideAction(state.weather);
@@ -2135,44 +1786,11 @@
     }
   }
 
-  async function saveMileage(event) {
-    event?.preventDefault?.();
-    const input=document.getElementById('carMileageInput');
-    const button=document.getElementById('carMileageSave');
-    const mileage=Number(input?.value);
-    if(!Number.isInteger(mileage) || mileage<0 || mileage>999999) {
-      setStatus('Укажи пробег целым числом от 0 до 999 999 км','error');
-      return;
-    }
-
-    if(button) {
-      button.disabled=true;
-      button.textContent='Сохраняю…';
-    }
-    try {
-      const data=await api('set-mileage',{mileage});
-      state.car={...state.car,...data};
-      render();
-      applyCarSmartOrder({animate:true});
-      setStatus('Пробег сохранён','success');
-      try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
-    } catch(_) {
-      setStatus('Не удалось сохранить пробег','error');
-      try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
-    } finally {
-      if(button) {
-        button.disabled=false;
-        button.textContent='Сохранить';
-      }
-    }
-  }
-
   function start() {
     setupCarSmartCards();
     setupCarWashModal();
     setupCarTabObserver();
     window.addEventListener('rudi:ui-preferences-applied',syncCarCardCollapseStates);
-    document.getElementById('carMileageForm')?.addEventListener('submit',saveMileage);
     document.getElementById('carErrorAdd')?.addEventListener('click',()=>setErrorFormOpen(true));
     document.getElementById('carErrorCancel')?.addEventListener('click',()=>setErrorFormOpen(false));
     document.getElementById('carErrorForm')?.addEventListener('submit',saveDashboardError);

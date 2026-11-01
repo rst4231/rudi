@@ -168,7 +168,7 @@ test('car archives render delete controls and mood reason uses custom answer ins
   const carSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'car.js'), 'utf8');
   const appSource = fs.readFileSync(path.join(__dirname, '..', 'public', 'app.js'), 'utf8');
   assert.match(carSource, /remove-repair-archive/);
-  assert.match(carSource, /remove-mileage-history/);
+  assert.doesNotMatch(carSource, /remove-mileage-history/);
   assert.match(carSource, /car-archive-remove/);
 
   const moodReasons = appSource.match(/const MOOD_REASONS=\[[\s\S]*?\];/)?.[0] || '';
