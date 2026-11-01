@@ -1,20 +1,16 @@
 {
-  "current": "v4.390",
+  "current": "v4.391",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.389",
+  "basedOnProduction": "v4.390",
   "notes": [
-    "Автосохранение совместных расходов после ввода без кнопки",
-    "Коммунальные и ЖКУ подписаны за прошлый месяц; сравнение без названия месяца",
-    "Жилье в обязательных расходах каждого: сумма из доли за месяц, защита удаления и изменение даты"
+    "Карточка Дианы на главной компактная без раскрывающегося списка"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Durable serialized shared-finance autosave with retry and month isolation",
-    "Derived protected housing obligations for both actors with independent dates and paid status",
-    "Calendar and reminder amounts resolve the actual month"
+    "Remove Diana Home expander and hide Home-only details; keep profile details and Rustam controls"
   ]
 }

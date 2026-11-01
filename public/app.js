@@ -10991,14 +10991,7 @@
           resetCollapsedOnInit:true,
           persist:false
         });
-        setupPersistentCollapsible({
-          selector:'#homeDianaTile',key:'profile-diana',
-          bodySelectors:['#homeDianaDetails'],
-          hostSelector:'.profile-person-head',
-          defaultCollapsed:true,
-          resetCollapsedOnInit:true,
-          persist:false
-        });
+        // Diana's Home card stays compact; details remain available in her profile.
         setupPersistentCollapsible({
           selector:'#dailyQuestionTile',key:'daily-question',
           bodySelectors:['#dailyQuestionBody'],

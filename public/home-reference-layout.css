@@ -1372,3 +1372,6 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-energy-pl
 /* Shared partner row: the curve and time axis use the same lanes as self. */
 body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):not(:has(#displayName)) .profile-energy-strip .profile-energy-plot{grid-row:2!important;height:29px!important}
 body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):not(:has(#displayName)) .profile-energy-strip .profile-energy-times{grid-row:3!important;align-self:start!important}
+
+/* Diana has a compact Home card without an expandable details section. */
+body[data-app-tab="home"] #homeDianaTile > .profile-person-details{display:none!important}
