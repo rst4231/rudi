@@ -10340,14 +10340,6 @@
             '<section class="settings-group">'+
               '<div class="settings-group-title">Уведомления</div>'+
               '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Уведомлять партнёра о смене моего настроения</strong><small>Отправлять партнёру push-уведомление</small></div>'+
-                '<button id="settingsMoodNotifyPartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомлять партнёра о смене моего настроения"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
-              '</div>'+
-              '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Получать уведомления о смене настроения партнёра</strong><small>Получать push-уведомления партнёра</small></div>'+
-                '<button id="settingsMoodReceivePartnerToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Получать уведомления о смене настроения партнёра"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
-              '</div>'+
-              '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Низкая влажность дома</strong><small>Присылать push, если влажность опустилась ниже 40%</small></div>'+
                 '<button id="settingsHumidityAlertToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления о низкой влажности дома"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+

@@ -1,16 +1,16 @@
 {
-  "current": "v4.420",
+  "current": "v4.421",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.419",
+  "basedOnProduction": "v4.420",
   "notes": [
-    "Красные точки уведомлений на главной"
+    "Убраны переключатели уведомлений о настроении"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Use consistent nonnumeric dots for home shortcut reminders"
+    "Remove mood notification switches from settings"
   ]
 }
