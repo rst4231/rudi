@@ -350,7 +350,7 @@ function enhanceCards(){
           document.dispatchEvent(new CustomEvent('rudi:supplement-intake-updated'));
         }catch(error){take.disabled=false;setStatus(cancel?'Не удалось отменить приём.':'Не удалось отметить приём.',true);}
       });
-      skip.addEventListener('click',async event=>{event.stopPropagation();skip.disabled=true;try{const data=await req('skip',{id:item.id});setItems(data.items||getItems());setStatus(data.duplicate?'Уже пропущено сегодня.':'Приём на сегодня пропущен.')}catch(error){skip.disabled=false;setStatus(String(error?.message||'')==='supplement-already-taken'?'Этот БАД уже принят сегодня.':'Не удалось отметить пропуск.',true)}});
+      skip.addEventListener('click',async event=>{event.stopPropagation();skip.disabled=true;try{const data=await req('skip',{id:item.id});setItems(data.items||getItems());document.dispatchEvent(new CustomEvent('rudi:supplement-intake-updated'));setStatus(data.duplicate?'Уже пропущено сегодня.':'Приём на сегодня пропущен.')}catch(error){skip.disabled=false;setStatus(String(error?.message||'')==='supplement-already-taken'?'Этот БАД уже принят сегодня.':'Не удалось отметить пропуск.',true)}});
     }else{
       const resume=document.createElement('button');resume.type='button';resume.className='supplement-resume';resume.textContent=window.RudiSupplementCourse?.state(item)==='ended'?'Возобновить с сегодняшнего дня':'Возобновить';actions.append(resume);
       resume.addEventListener('click',event=>{event.stopPropagation();resume.disabled=true;updateCardStatus(item,'active','БАД снова в разделе «Принимаю».','БАД возобновлён').catch(()=>{resume.disabled=false;setStatus('Не удалось возобновить.',true)})});

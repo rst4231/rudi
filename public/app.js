@@ -16177,7 +16177,7 @@
       }
       function calendarOverdueTaskCount(date,tasks,today){
         if(!date||date>=today)return 0;
-        return (Array.isArray(tasks)?tasks:[]).filter(task=>task&&!task.completed&&!task.externalCalendar).length;
+        return (Array.isArray(tasks)?tasks:[]).filter(task=>task&&!task.completed&&!task.skipped&&!task.externalCalendar).length;
       }
       function appendCalendarOverdueMarker(cell,count){
         if(!count)return;
@@ -16398,9 +16398,10 @@
         const result=[];
         for(const item of calendarSupplementState.items){
           const rows=(Array.isArray(item.intakes)?item.intakes:[]).filter(row=>row.date===dateKey);
+          const skipped=(Array.isArray(item.skips)?item.skips:[]).some(row=>row.date===dateKey);
           // Never hide a historical completed intake when a course is later
           // paused, archived, or rescheduled. These are read-only projections.
-          const hasHistory=rows.length>0;
+          const hasHistory=rows.length>0||skipped;
           if(item?.status!=='active'&&!hasHistory)continue;
           const start=item.course?.startDate||'';
           if(start&&dateKey<start&&!hasHistory)continue;
@@ -16419,8 +16420,8 @@
             result.push({
               id:'supplement:'+item.id+':'+slot, supplementId:item.id,supplementSlot:slot,
               date:dateKey, title:'💊 '+item.name+(time?'':' · Категория не указана'),
-              startTime:time,endTime:'',allDay:!time,completed:taken.has(slot),
-              canComplete:dateKey===todayState().key,personal:true,kind:'supplement'
+              startTime:time,endTime:'',allDay:!time,completed:taken.has(slot),skipped,
+              canComplete:!skipped&&dateKey===todayState().key,personal:true,kind:'supplement'
             });
           }
         }
@@ -16452,7 +16453,7 @@
         return promise;
       }
       async function calendarToggleSupplement(task,button){
-        if(!task?.supplementId||task.date!==todayState().key)return;
+        if(!task?.supplementId||task.skipped||task.date!==todayState().key)return;
         const app=window.RudiSupplementApp;
         if(!app||app.getActor?.()!==currentActor)return;
         button.disabled=true;
@@ -16507,9 +16508,10 @@
           checkbox.setAttribute('aria-checked',task.completed?'true':'false');
           if(task.completed){row.classList.add('is-completed');checkbox.textContent='✓'}
           checkbox.setAttribute('aria-label','Отметить выполненным: '+String(task.title||'Дело'));
+          if(task.skipped){row.classList.add('is-skipped');checkbox.textContent='–';checkbox.setAttribute('aria-label','Пропущено: '+String(task.title||'БАД'));}
           const futureCompletion=taskCompletionIsFuture(task,dateKey);
           checkbox.disabled=task.supplementId
-            ?task.date!==todayState().key
+            ?task.skipped||task.date!==todayState().key
             :task.completed?!calendarTaskCanReopen(task):futureCompletion||!task.id||!writable||!allowed;
           if(!task.supplementId&&calendarTaskCanReopen(task))checkbox.setAttribute('aria-label','Вернуть в активные: '+String(task.title||'Дело'));
           if(!task.supplementId&&futureCompletion){checkbox.title=window.RUDITaskCompletionPolicy.MESSAGE;checkbox.setAttribute('aria-label',checkbox.title);}
@@ -16545,7 +16547,7 @@
         };
         // Weekly timeline shows tasks, shifts and obligations; holidays remain in month view.
         for(const entry of obligations)put('payment',String(entry.title||'Платёж')+(entry.paid?' · Оплачено':''),'','',null,financeOverviewMoney(entry.amount));
-        for(const item of tasks)put(item.supplementId?'supplement':'task',String(item.title||'Задача'),item.allDay?'':item.startTime,item.endTime,item);
+        for(const item of tasks)put(item.supplementId?'supplement':'task',String(item.title||'Задача')+(item.skipped?' · Пропущено':''),item.allDay?'':item.startTime,item.endTime,item);
         if(calendarScope==='shared'||currentActor==='Диана'){
           for(const event of workEvents){
             const hours=event.allDay?'':event.startTime;
@@ -16909,6 +16911,7 @@
                 complete.setAttribute('role','checkbox');
                 complete.setAttribute('aria-checked',event.completed?'true':'false');
                 if(event.completed){row.classList.add('is-completed');complete.textContent='✓'}
+                if(event.skipped){row.classList.add('is-skipped');complete.textContent='–'}
                 const isPersonalTask=event?.personal===true;
                 const canComplete=event.supplementId
                   ?event.date===todayState().key
@@ -16918,10 +16921,11 @@
                 complete.setAttribute('aria-label',canComplete
                   ?'Отметить выполненным: '+String(event.title||'Дело')
                   :isPersonalTask?'Недостаточно прав для выполнения личной задачи':'Эта задача назначена другому участнику');
+                if(event.skipped)complete.setAttribute('aria-label','Пропущено: '+String(event.title||'БАД'));
                 const taskWritable=event.supplementId?true:calendarTaskCanReopen(event)||(isPersonalTask?event?.canComplete!==false:payload?.ticktickWritable!==false);
                 const futureCompletion=taskCompletionIsFuture(event,day.date);
                 complete.disabled=event.supplementId
-                  ?event.date!==todayState().key
+                  ?event.skipped||event.date!==todayState().key
                   :event.completed?!calendarTaskCanReopen(event):futureCompletion||!event?.id||!taskWritable||!canComplete;
                 if(!event.supplementId&&calendarTaskCanReopen(event))complete.setAttribute('aria-label','Вернуть в активные: '+String(event.title||'Дело'));
                 if(!event.supplementId&&futureCompletion){complete.title=window.RUDITaskCompletionPolicy.MESSAGE;complete.setAttribute('aria-label',complete.title);}
@@ -16940,7 +16944,7 @@
                 text.textContent=String(event.title||'Дело');
                 const meta=document.createElement('span');
                 meta.className='calendar-task-time';
-                meta.textContent=[range,event?.personal?(event.externalCalendar?'iCloud':event.privateLocal?'':String(event.projectName||'Личный список')):tickTickAssigneeLabel(event)].filter(Boolean).join(' · ');
+                meta.textContent=[range,event.skipped?'Пропущено':event?.personal?(event.externalCalendar?'iCloud':event.privateLocal?'':String(event.projectName||'Личный список')):tickTickAssigneeLabel(event)].filter(Boolean).join(' · ');
                 taskCopy.append(text,meta);
                 row.append(complete,taskCopy);
                 complete.addEventListener('click',clickEvent=>{

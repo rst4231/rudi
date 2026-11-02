@@ -1777,6 +1777,7 @@ body[data-app-tab="schedule"] #workCalendarSection #workCalendarCard{
 }
 
 .calendar-agenda-task.is-completed,.calendar-task-row.is-completed{opacity:.65}
+.calendar-agenda-task.is-skipped,.calendar-task-row.is-skipped{opacity:.7}
 .calendar-agenda-task.is-completed .calendar-week-event-title,.calendar-task-row.is-completed .calendar-task-title{text-decoration:line-through}
 .calendar-task-row.is-completed .calendar-task-copy:disabled{opacity:1;color:inherit}
 
