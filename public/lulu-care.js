@@ -21,7 +21,7 @@ const schema={
 function mount(root,{actor,request}){
  let confirmed=[],revisions={},pending=[],editor=null,disposed=false,status='',loading=true,loaded=false,busy=new Set(),intaking=new Set(),loadPromise=null,generation=0;
  const page=root.closest('.lulu-profile-page'),layout=root.parentElement;
- let overview=null,weightShortcut=null,observer=null;
+ let overview=null,weightShortcut=null,observer=null,activityHeading=null;
  function goTo(selector,openEditor=false){
   const target=page?.querySelector(selector);if(!target)return;
   target.scrollIntoView({behavior:'smooth',block:'start'});
@@ -42,7 +42,8 @@ function mount(root,{actor,request}){
   }
   root.before(overview);
   const healthBlock=page.querySelector('.lulu-profile-health');if(healthBlock)root.after(healthBlock);
-  const hero=page.querySelector('.lulu-profile-hero');if(hero){weightShortcut=button('Вес',()=>goTo('.lulu-care-weight'),'lulu-overview-weight');weightShortcut.innerHTML='<span>⚖ Вес</span><strong>—</strong><small></small>';hero.append(weightShortcut)}
+  const finances=page.querySelector('.lulu-profile-finances');if(finances){activityHeading=node('h2','lulu-category-heading','Расходы и прогулки');finances.before(activityHeading)}
+  const hero=page.querySelector('.lulu-profile-hero');if(hero){weightShortcut=button('Вес',()=>goTo('.lulu-care-weight'),'lulu-overview-weight');weightShortcut.innerHTML='<span>Вес</span><strong>—</strong><small></small>';(hero.querySelector('.lulu-profile-meta')||hero).append(weightShortcut)}
   observer=new MutationObserver(()=>updateOverview(currentRecords()));
   for(const selector of ['.lulu-profile-finances','.lulu-profile-journal']){const target=page.querySelector(selector);if(target)observer.observe(target,{childList:true,subtree:true,characterData:true})}
  }
@@ -199,7 +200,7 @@ function mount(root,{actor,request}){
   if(loading)root.append(node('p','lulu-care-muted','Загружаю…'));
   if(status){const msg=node('div','lulu-care-message',status);msg.setAttribute('role','status');root.append(msg)}
   for(const q of pending.filter(row=>row.error)){const error=node('div','lulu-care-message','Не удалось сохранить изменение');error.append(button('Отменить изменение',()=>void discard(q.id)));root.append(error)}
-  root.append(renderWeights(rows),renderNutrition(rows),renderGrooming(rows,'nails','Стрижка когтей'),renderGrooming(rows,'bath','Купание'),renderPrevention(rows),renderPrescriptions(rows));
+  root.append(node('h2','lulu-category-heading','Вес и питание'),renderWeights(rows),renderNutrition(rows),node('h2','lulu-category-heading','Уход'),renderGrooming(rows,'nails','Стрижка когтей'),renderGrooming(rows,'bath','Купание'),node('h2','lulu-category-heading','Здоровье'),renderPrevention(rows),renderPrescriptions(rows));
   updateOverview(rows);
   if(focused){const input=root.querySelector('[name="'+focused+'"]');input?.focus({preventScroll:true});if(typeof selection==='number'&&input?.type==='text')input.setSelectionRange(selection,selection)}
  }
@@ -209,7 +210,7 @@ function mount(root,{actor,request}){
  const visible=()=>{if(!document.hidden)foreground()};document.addEventListener('visibilitychange',visible);
  const timer=setInterval(()=>{if(valid()&&!editor)render()},60000);
  render();void load();
- return ()=>{disposed=true;observer?.disconnect();overview?.remove();weightShortcut?.remove();clearInterval(timer);window.removeEventListener('rudi-content-operation-synced',synced);window.removeEventListener('focus',foreground);document.removeEventListener('visibilitychange',visible)};
+ return ()=>{disposed=true;observer?.disconnect();overview?.remove();weightShortcut?.remove();activityHeading?.remove();clearInterval(timer);window.removeEventListener('rudi-content-operation-synced',synced);window.removeEventListener('focus',foreground);document.removeEventListener('visibilitychange',visible)};
 }
 window.RudiLuluCare={mount};
 })();

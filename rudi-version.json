@@ -1,16 +1,16 @@
 {
-  "current": "v4.413",
+  "current": "v4.414",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.412",
+  "basedOnProduction": "v4.413",
   "notes": [
-    "Пропущенные БАДы отображаются в календаре и не считаются невыполненными"
+    "Обновлено оформление страницы Лулу и группировка карточек"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show skipped supplements in calendar"
+    "Refresh Lulu profile and group care cards"
   ]
 }

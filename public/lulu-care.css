@@ -112,3 +112,45 @@ html[data-theme=dark] .lulu-profile-page .partner-profile-layout>section{backgro
 
 .lulu-overview-plan-item,.lulu-overview-summary-item{overflow-wrap:normal;word-break:normal;hyphens:none}
 .lulu-overview-plan-item small,.lulu-overview-summary-item small{overflow-wrap:normal;word-break:normal;hyphens:none}
+
+/* Match the partner profile page and its dark identity card. */
+.rudi-meditation-page.lulu-profile-page{
+ --lulu-ink:#29354b;--lulu-muted:#68738a;--lulu-paper:#fff;--lulu-line:#dce1eb;
+ --surface:#f3f5fa;background:radial-gradient(ellipse 85% 36% at 108% 5%,rgba(190,190,250,.26),transparent 70%),radial-gradient(ellipse 60% 28% at -15% 68%,rgba(253,218,230,.19),transparent 76%),#f4f5fb!important;
+}
+html[data-theme=dark] .rudi-meditation-page.lulu-profile-page{
+ --lulu-ink:#f0f3fa;--lulu-muted:#a5b1c2;--lulu-paper:#1b222d;--lulu-line:#394353;--surface:#141b24;
+ background:radial-gradient(ellipse at 100% 0,rgba(82,119,178,.13),transparent 42%),#10151d!important;
+}
+.lulu-profile-page .partner-profile-layout>.lulu-profile-hero{
+ position:relative;overflow:hidden;min-width:0;padding:18px 16px!important;border:1px solid #3a435b!important;border-radius:22px!important;
+ background:linear-gradient(120deg,#202936,#1b2232 65%,#20233c)!important;color:#f4f5ff;
+}
+html[data-theme=dark] .lulu-profile-page .partner-profile-layout>.lulu-profile-hero{background:linear-gradient(120deg,#202936,#1b2232 65%,#20233c)!important}
+.lulu-profile-page .lulu-profile-hero h2{color:#f4f5ff!important;-webkit-text-fill-color:#f4f5ff!important;font-size:22px!important}
+.lulu-profile-page .lulu-profile-hero img{border-color:#e6e5f6;box-shadow:none}
+.lulu-profile-page .lulu-profile-hero>div{min-width:0}
+.lulu-profile-page .lulu-profile-hero .lulu-profile-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px;color:#c6cbd9;font-size:12px}
+.lulu-profile-page .lulu-overview-weight{display:inline-flex;align-items:baseline;gap:4px;max-width:none;margin:0;padding:0;border:0;border-radius:0;background:transparent;color:#c6cbd9;font:inherit;cursor:pointer}
+.lulu-profile-page .lulu-overview-weight::before{content:'·';margin-right:2px;color:#9da7b9}
+.lulu-profile-page .lulu-overview-weight span,.lulu-profile-page .lulu-overview-weight strong{color:inherit;font:inherit}
+.lulu-profile-page .lulu-overview-weight small{display:none}
+
+/* Care overview: soft surfaces and consistent spacing in both themes. */
+.lulu-profile-page .lulu-overview-plan{padding:16px;border:1px solid var(--lulu-line);border-radius:20px;background:var(--lulu-paper);box-shadow:0 5px 20px rgba(48,59,90,.04)}
+.lulu-profile-page .lulu-overview-plan-head{margin-bottom:12px}
+.lulu-profile-page .lulu-overview-plan-head>span{color:#7774c8;font-weight:650}
+.lulu-profile-page .lulu-overview-plan-grid,.lulu-profile-page .lulu-overview-summary{gap:8px}
+.lulu-profile-page .lulu-overview-plan-item,.lulu-profile-page .lulu-overview-summary-item{padding:12px;border-radius:15px;border:1px solid rgba(125,139,170,.16);box-shadow:none;gap:7px}
+.lulu-profile-page .lulu-overview-plan-item strong,.lulu-profile-page .lulu-overview-summary-item strong{font-size:12px;white-space:normal;line-height:1.3}
+.lulu-profile-page .lulu-overview-plan-item small,.lulu-profile-page .lulu-overview-summary-item small{font-size:11px;line-height:1.35;color:var(--lulu-muted)}
+.lulu-profile-page .lulu-overview-plan-item.is-prevention{background:#b664a617}
+.lulu-profile-page .lulu-overview-plan-item.is-nails{background:#dc994318}
+.lulu-profile-page .lulu-overview-plan-item.is-bath{background:#50aabe18}
+.lulu-profile-page .lulu-overview-plan-item.is-prescription{background:#9d78c618}
+.lulu-profile-page .lulu-overview-summary-item.is-nutrition{background:#6da76918}
+.lulu-profile-page .lulu-overview-summary-item.is-finances{background:#7b83d918}
+.lulu-profile-page .lulu-overview-summary-item.is-walks{background:#50aabe18}
+html[data-theme=dark] .lulu-profile-page .lulu-overview-plan-item,html[data-theme=dark] .lulu-profile-page .lulu-overview-summary-item{border-color:rgba(190,202,232,.13)}
+@media(max-width:430px){.lulu-profile-page .lulu-overview-plan-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lulu-profile-page .lulu-overview-plan-item,.lulu-profile-page .lulu-overview-summary-item{padding:10px 8px}}
+.lulu-profile-page .lulu-category-heading{margin:8px 2px 0!important;padding:0!important;color:var(--lulu-muted)!important;-webkit-text-fill-color:var(--lulu-muted)!important;font-size:13px!important;line-height:1.3;font-weight:750;letter-spacing:.02em}
