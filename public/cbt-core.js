@@ -36,6 +36,14 @@ function refresh(state,now=new Date().toISOString()){
  }return s;
 }
 function active(s){return s?.runs?.find(r=>r.status==='active')||null}
+function needsReminder(state,now=new Date().toISOString()){
+ const at=new Date(now);if(!Number.isFinite(at.getTime()))return false;
+ const run=active(refresh(state,at.toISOString()));if(!run)return false;
+ const tz=run.calendar?.timeZone||'Europe/Moscow';
+ const hour=Number(new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',hourCycle:'h23'}).format(at));
+ if(hour<20)return false;const today=dayKey(at,tz);
+ return !Object.values(run.days||{}).some(row=>entries(row).some(e=>hasAnswers(e.answers)&&[e.answerUpdatedAt,e.savedAt,e.startedAt].some(stamp=>stamp&&Number.isFinite(Date.parse(stamp))&&dayKey(stamp,tz)===today)));
+}
 function empty(){return {schema:1,runs:[]}}
 function error(code,fields){const e=Error(code);e.fields=fields||[];throw e}
 function filled(f,v){return f.type==='range'?Number.isFinite(v)&&v>=0&&v<=f.max:f.type==='check'?v===true:f.type==='emotions'?Array.isArray(v)&&v.length>0:typeof v==='string'&&!!v.trim()}
@@ -164,5 +172,5 @@ function stats(run,week,now=new Date().toISOString()){
  return {completed,recordedDays:allDays.filter(([,r])=>entries(r).some(e=>hasAnswers(e.answers))).length,records:rows.length,exercises:rows.filter(r=>r.format!=='quick').length,percent:Math.round(completed/(week?7:21)*100),moodBefore:points('moodBefore'),moodAfter:points('moodAfter'),intensity:points('emotionIntensity'),beliefBefore:points('beliefBefore'),beliefAfter:points('beliefAfter'),moodPairs:mood.length,beliefPairs:belief.length,moodChange:avg(mood,r=>r.answers.moodAfter-r.answers.moodBefore),beliefChange:avg(belief,r=>r.answers.beliefAfter-r.answers.beliefBefore),emotions:Object.entries(counts).sort((a,b)=>b[1]-a[1]),actions:rows.filter(r=>r.answers.actionDone===true).length};
 }
 function report(run,week){const s=stats(run,week);const result=[`Завершено дней: ${s.completed} из ${week?7:21}.`,`Сохранено записей: ${s.records}.`,`Дней с записями: ${s.recordedDays}.`];if(s.moodPairs)result.push(`Среднее изменение настроения в ${s.moodPairs} записях с двумя оценками: ${s.moodChange>0?'+':''}${s.moodChange} из 10.`);if(s.beliefPairs)result.push(`Среднее изменение убеждённости в ${s.beliefPairs} разборах: ${s.beliefChange>0?'+':''}${s.beliefChange} п. п.`);if(s.emotions.length)result.push(`Чаще отмечалась эмоция: ${s.emotions[0][0]} (${s.emotions[0][1]}).`);if(s.actions)result.push(`Выполнено практических действий: ${s.actions}.`);if(s.records<2)result.push('Данных пока недостаточно для оценки динамики.');result.push('Эти записи описывают отдельные занятия и не позволяют оценить эффект терапии или поставить диагноз.');return result}
-return {active,empty,apply,mergeBackups,stats,report,nextDay,missing,validate,same,entries,entry,nextEntry,hasAnswers,reusableEntry,canonicalEntryId,calendar,refresh,dayKey,midnight};
+return {active,empty,apply,mergeBackups,needsReminder,stats,report,nextDay,missing,validate,same,entries,entry,nextEntry,hasAnswers,reusableEntry,canonicalEntryId,calendar,refresh,dayKey,midnight};
 });

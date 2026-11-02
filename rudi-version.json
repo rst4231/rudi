@@ -1,16 +1,16 @@
 {
-  "current": "v4.422",
+  "current": "v4.423",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.421",
+  "basedOnProduction": "v4.422",
   "notes": [
-    "Отключены по умолчанию push о настроении и совместных делах"
+    "Напоминание о записи КПТ после 20:00"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Remove shared-task notification switch and default mood and shared-task push notifications off"
+    "Show CBT reminder dot at 20:00 if no entry today"
   ]
 }

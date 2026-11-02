@@ -1,0 +1,5 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),C=require('../public/cbt-core.js');
+const op=(id,type,extra={})=>({id,type,cycleId:'cycle',...extra});
+function start(){return C.apply(null,op('start','start',{timeZone:'Europe/Moscow'}),'2026-11-02T09:00:00Z')}
+test('dot appears at 20:00 in cycle timezone only without an entry today',()=>{let s=start();assert.equal(C.needsReminder(s,'2026-11-02T16:59:59Z'),false);assert.equal(C.needsReminder(s,'2026-11-02T17:00:00Z'),true);s=C.apply(s,op('write','edit',{day:1,patch:{thought:'Запись'},base:{}}),'2026-11-02T17:05:00Z');assert.equal(C.needsReminder(s,'2026-11-02T17:06:00Z'),false);assert.equal(C.needsReminder(s,'2026-11-03T17:00:00Z'),true)});
+test('empty drafts do not count; inactive cycles never show a reminder',()=>{let s=start();s=C.apply(s,op('new','new-entry',{day:1,entryId:'blank'}),'2026-11-02T16:00:00Z');assert.equal(C.needsReminder(s,'2026-11-02T17:00:00Z'),true);s.runs[0].status='interrupted';s.runs[0].interruptedAt='2026-11-02T16:00:00Z';assert.equal(C.needsReminder(s,'2026-11-02T18:00:00Z'),false)});

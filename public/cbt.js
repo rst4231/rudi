@@ -342,6 +342,7 @@ new MutationObserver(()=>{
  if(!ctx)primeHomeProgress();
 }).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor','class']});
 let clockDay='';setInterval(()=>{if(!ctx||!page||page.hidden)return;const r=run(),c=C.calendar(r),key=r?.id+':'+c?.elapsed;if(key===clockDay)return;if(editing()){if(r?.status==='completed')document.activeElement.blur();else{const note=$('#cbtDayBoundary');if(note&&r?.days[day]?.closedAt)note.textContent='Этот день завершён. Записи можно посмотреть и отредактировать.';return}}clockDay=key;render(false)},1000);
-window.RudiCbt={open,close,progress};
+function reminder(){const actor=document.body.dataset.rudiActor;if(!['Рустам','Диана'].includes(actor)||!document.body.classList.contains('auth-ok'))return false;return C.needsReminder(snapshot(ctx?.actor===actor?ctx:load(actor)))}
+window.RudiCbt={open,close,progress,reminder};
 primeHomeProgress();
 })();

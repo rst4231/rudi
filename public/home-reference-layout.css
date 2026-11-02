@@ -1385,3 +1385,6 @@ html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts .profile
  background:#ee3453!important;color:transparent!important;-webkit-text-fill-color:transparent!important;font-size:0!important;line-height:0!important;text-indent:-9999px!important;overflow:hidden!important;
  box-shadow:0 0 0 1px rgba(238,52,83,.14)!important;pointer-events:none!important;
 }
+
+/* Evening reminder follows the game indicator. */
+body[data-app-tab="home"] #rudiHomeCbtButton.has-cbt-reminder::after{content:"";position:absolute;top:5px;right:5px;z-index:10;box-sizing:border-box;width:13px;height:13px;border:2px solid #15192b;border-radius:50%;background:#ee3453;box-shadow:0 0 0 1px rgba(238,52,83,.14);pointer-events:none}
