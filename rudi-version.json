@@ -1,16 +1,16 @@
 {
-  "current": "v4.411",
+  "current": "v4.412",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-11-01",
-  "basedOnProduction": "v4.410",
+  "createdAt": "2026-11-02",
+  "basedOnProduction": "v4.411",
   "notes": [
-    "Период и прогресс бюджета в карточке финансов; звёзды убраны из кошельков"
+    "Исправлено положение стрелки в веб-версии карточки машины"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Clarify finance budget card and remove stars wallet"
+    "Fix desktop car card arrow placement"
   ]
 }

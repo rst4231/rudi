@@ -2664,6 +2664,7 @@ html[data-theme="dark"] .car-page .car-note-remove{background:rgba(206,57,75,.18
 .car-status-wash span{font-size:11px;line-height:1.25;color:#9eaab9;font-weight:650}
 .car-status-wash strong{font-size:12px;line-height:1.4;color:#eff3f8;font-weight:700;overflow-wrap:anywhere}
 .car-status-chevron{display:grid;place-items:center;width:34px;height:38px;border:1px solid rgba(206,215,227,.25);border-radius:12px;background:rgba(255,255,255,.045);align-self:center}
+#carTile .car-status-chevron{position:absolute;right:12px;top:14px}
 .car-status-chevron svg{width:20px;height:20px;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 @media(max-width:700px){
   #carTile .car-status-header,#carPage>.car-status-header{grid-template-columns:minmax(0,.9fr) minmax(0,1.25fr);gap:12px;padding:16px;border-radius:22px;min-height:0}
