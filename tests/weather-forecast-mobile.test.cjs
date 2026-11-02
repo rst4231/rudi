@@ -135,3 +135,11 @@ test('calendar dayparts use only hourly temperatures for the selected date',()=>
  assert.equal(JSON.stringify(f.api.periodTemperatures(data,'2026-10-18')),JSON.stringify({morning:{min:8,max:10},day:{min:12,max:15},evening:{min:6,max:9}}));
  assert.equal(JSON.stringify(f.api.periodTemperatures(data,'2026-10-20')),JSON.stringify({morning:null,day:null,evening:null}));
 });
+
+test('calendar dayparts include prevailing weather, maximum hourly wind and precipitation chance',()=>{
+ const f=interactiveFixture(),data={hourly:{time:['2026-10-18T06:00','2026-10-18T07:00','2026-10-18T12:00'],temperature_2m:[8,10,12],weather_code:[3,3,0],wind_speed_10m:[10.8,18,7.2],precipitation_probability:[15,40,0]}};
+ const p=f.api.periodForecast(data,'2026-10-18');
+ assert.equal(JSON.stringify(p.morning),JSON.stringify({min:8,max:10,code:3,wind:5,probability:40}));
+ assert.equal(JSON.stringify(p.day),JSON.stringify({min:12,max:12,code:0,wind:2,probability:0}));
+ assert.equal(p.evening,null);
+});

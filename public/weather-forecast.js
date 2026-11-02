@@ -127,9 +127,19 @@ function periodTemperatures(data,date){
  for(const item of model(data).hours){if(item.date!==date||!Number.isFinite(item.temperature))continue;const h=Number(item.time.slice(11,13));const key=h>=6&&h<12?'morning':h>=12&&h<18?'day':h>=18&&h<24?'evening':'';if(key)groups[key].push(item.temperature)}
  return Object.fromEntries(Object.entries(groups).map(([key,values])=>[key,values.length?{min:Math.min(...values),max:Math.max(...values)}:null]));
 }
+function periodForecast(data,date){
+ const groups={morning:[],day:[],evening:[]},validCodes=new Set([0,1,2,3,45,48,51,53,55,56,57,61,63,65,66,67,71,73,75,77,80,81,82,85,86,95,96,99]);
+ for(const item of model(data).hours){if(item.date!==date)continue;const h=Number(item.time.slice(11,13)),key=h>=6&&h<12?'morning':h>=12&&h<18?'day':h>=18&&h<24?'evening':'';if(key)groups[key].push(item)}
+ return Object.fromEntries(Object.entries(groups).map(([key,rows])=>{
+  if(!rows.length)return [key,null];const temps=rows.map(x=>x.temperature).filter(Number.isFinite),winds=rows.map(x=>x.wind).filter(v=>Number.isFinite(v)&&v>=0),chances=rows.map(x=>x.probability).filter(v=>Number.isFinite(v)&&v>=0&&v<=100),codes=rows.map(x=>x.code).filter(v=>Number.isFinite(v)&&validCodes.has(v)),counts=new Map();
+  for(const code of codes)counts.set(code,(counts.get(code)||0)+1);
+  const code=[...counts].sort((a,b)=>b[1]-a[1])[0]?.[0]??null;
+  return [key,{min:temps.length?Math.min(...temps):null,max:temps.length?Math.max(...temps):null,code,wind:winds.length?Math.round(Math.max(...winds)/3.6*10)/10:null,probability:chances.length?Math.max(...chances):null}];
+ }));
+}
 async function renderCalendarPeriods(target,date){
  if(date<today())return;
- try{const data=await window.RUDI_WEATHER.get({forecast:true});if(!target.isConnected||target.dataset.calendarWeatherDate!==date)return;const periods=periodTemperatures(data,date);for(const el of target.querySelectorAll('[data-weather-period]')){const value=periods[el.dataset.weatherPeriod];el.textContent=value?' ('+number(value.min)+'…'+number(value.max,'°')+')':'';el.title=value?(data.stale?'Сохранённый почасовой прогноз':'Почасовой прогноз'):''}}catch(_){}
+ try{const data=await window.RUDI_WEATHER.get({forecast:true});if(!target.isConnected||target.dataset.calendarWeatherDate!==date)return;const periods=periodForecast(data,date);for(const el of target.querySelectorAll('[data-weather-period]')){const value=periods[el.dataset.weatherPeriod],parts=[];if(value){if(value.code!==null)parts.push(emoji(value.code));if(value.min!==null&&value.max!==null)parts.push(number(value.min)+'…'+number(value.max,'°'));if(value.wind!==null)parts.push('💨 до '+String(value.wind).replace('.',',')+' м/с');if(value.probability!==null)parts.push('☔ до '+number(value.probability,'%'))}el.textContent=parts.length?' ('+parts.join(' · ')+')':'';el.title=parts.length?(data.stale?'Сохранённый почасовой прогноз; ветер и вероятность — максимум за период':'Почасовой прогноз; ветер и вероятность — максимум за период'):''}}catch(_){}
 }
-window.RUDI_WEATHER_FORECAST={model,open,close,currentHourTime,renderCalendarDay,periodTemperatures,renderCalendarPeriods};
+window.RUDI_WEATHER_FORECAST={model,open,close,currentHourTime,renderCalendarDay,periodTemperatures,periodForecast,renderCalendarPeriods};
 })();

@@ -1,16 +1,16 @@
 {
-  "current": "v4.425",
+  "current": "v4.426",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.424",
+  "basedOnProduction": "v4.425",
   "notes": [
-    "Погода по периодам дня и оформление привычек"
+    "Погода, ветер и вероятность осадков в календаре"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show hourly temperatures by daypart and compact habit icons"
+    "Add weather condition, wind and precipitation chance to dayparts"
   ]
 }

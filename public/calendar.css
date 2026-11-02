@@ -1833,5 +1833,5 @@ body[data-app-tab="schedule"] #workCalendarSection.work-page{row-gap:6px!importa
 .work-page .calendar-habit-message{margin:0 0 2px;font-size:11px;line-height:1.35;color:var(--muted)}
 .work-page .calendar-habit-message.is-error{color:#c24c5d}
 
-.work-page .calendar-period-weather{color:var(--muted);font-size:.9em;font-weight:550;white-space:nowrap}
+.work-page .calendar-period-weather{color:var(--muted);font-size:.9em;font-weight:550;white-space:normal;overflow-wrap:anywhere}
 .work-page .calendar-period-weather-strip{display:flex;gap:10px 16px;flex-wrap:wrap;margin:0 0 10px;font-size:12px;font-weight:700;color:var(--text)}
