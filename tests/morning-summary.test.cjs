@@ -427,3 +427,9 @@ test('morning digest includes more than five holidays from the daily source', as
 test('Diana sees only today’s explicit workplace in her morning summary',()=>{
  const {buildMorningSummary}=require('../api/morning-summary.cjs');const d=buildMorningSummary('Диана',{tasks:[],rustamWorkplace:'coworking'});assert.match(d,/Рустам работает в коворкинге/);const h=buildMorningSummary('Диана',{tasks:[],rustamWorkplace:'home'});assert.match(h,/Рустам работает дома/);assert.doesNotMatch(buildMorningSummary('Диана',{tasks:[]}),/Рустам.*(?:дома|коворкинг)/i);assert.doesNotMatch(buildMorningSummary('Рустам',{tasks:[],rustamWorkplace:'coworking'}),/Рустам.*коворкинг/i);
 });
+test('Rustam sees his explicitly selected workplace in his morning summary',()=>{
+ const {buildMorningSummary}=require('../api/morning-summary.cjs');
+ assert.match(buildMorningSummary('Рустам',{tasks:[],rustamWorkplace:'coworking'}),/Ты сегодня работаешь в коворкинге/);
+ assert.match(buildMorningSummary('Рустам',{tasks:[],rustamWorkplace:'home'}),/Ты сегодня работаешь дома/);
+ assert.doesNotMatch(buildMorningSummary('Рустам',{tasks:[]}),/Ты сегодня работаешь (?:дома|в коворкинге)/);
+});

@@ -21,7 +21,7 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await expect(profile.locator('.partner-finance-percent')).toHaveText('65%');
  await expect(profile.locator('.partner-finance-track')).toHaveAttribute('aria-valuenow','65');
  await expect(profile.locator('.partner-finance-track')).toHaveAttribute('data-level','mid');
- await expect(profile.locator('.partner-finance-largest')).toContainText('Куртка');
+ await expect(profile.locator('.partner-finance-largest,.partner-finance-last')).toHaveCount(0);
  await page.evaluate(()=>RudiPartnerProfile.refreshFinance({budget:{plannedLimit:10000,actualSpent:12000,spentPercent:120}}));
  await expect(profile.locator('.partner-finance-percent')).toHaveText('120%');
  await expect(profile.locator('.partner-finance-track')).toHaveAttribute('aria-valuenow','100');
@@ -29,10 +29,10 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
  await page.evaluate(()=>RudiPartnerProfile.refreshFinance({budget:{plannedLimit:10000,actualSpent:0,spentPercent:0},largestPurchase:null}));
  await expect(profile.locator('.partner-finance-percent')).toHaveText('0%');
  await expect(profile.locator('.partner-finance-track')).toHaveAttribute('data-level','low');
- await expect(profile.locator('.partner-finance-largest')).toContainText('В этом месяце пока нет покупок');
+ await expect(profile.locator('.partner-finance-largest,.partner-finance-last')).toHaveCount(0);
  await page.evaluate(()=>RudiPartnerProfile.refreshFinance({budget:{plannedLimit:0,actualSpent:0,spentPercent:0}}));
  await expect(profile.locator('.partner-finance-track')).toBeHidden();
- await expect(profile.locator('.partner-finance-budget-copy')).toHaveText('Бюджет пока не задан');
+ await expect(profile.locator('.partner-finance-limit')).toBeHidden();
  await page.evaluate(()=>RudiPartnerProfile.refreshFinance({budget:{plannedLimit:10000,actualSpent:6500,spentPercent:65},largestPurchase:{amount:3000,currency:'RUB',note:'Куртка',occurredAt:'2026-10-24T12:00:00Z'}}));
 
  await expect(profile.locator('.partner-positive-emotions>h2')).toHaveText('Динамика позитивных эмоций');
@@ -70,8 +70,7 @@ for(const actor of ['Диана','Рустам'])test('partner profile, avatar, 
   if(theme==='light'){heroPaint=paint;await expect(profile).toHaveCSS('background-color','rgb(244, 245, 251)')}
   else expect(paint).toEqual(heroPaint);
   expect(paint.text).toBe('rgb(243, 245, 252)');
-  await expect(profile.locator('.partner-finances .home-partner-last-expense')).toBeVisible();
-  await expect(profile.locator('.partner-finances .home-partner-last-expense')).toContainText('1 606');
+  await expect(profile.locator('.partner-finances .home-partner-last-expense')).toBeHidden();
   if(actor==='Диана')await expect(profile.locator('.partner-mood-cbt')).toBeVisible();else await expect(profile.locator('.partner-mood-cbt')).toBeHidden();
   await page.evaluate(()=>{document.querySelector('#homePartnerHabitsSummary').textContent='🌱 Привычки: 1 из 4'});
   await expect(profile.locator('.partner-mood-habits')).toBeVisible();

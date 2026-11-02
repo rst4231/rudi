@@ -76,9 +76,9 @@
   if(habits){habits.classList.remove('profile-partner-habits-summary');habits.classList.add('partner-habits-plain');}
   move(intakes,today);
   const finances=document.createElement('section');finances.className='partner-finances';
-  finances.innerHTML='<h2>Финансы</h2><div class="partner-finance-last"><h3>Последний расход</h3></div><div class="partner-finance-largest"><h3>Самая крупная покупка за месяц</h3><p>Загружаю…</p></div>';
+  finances.innerHTML='<h2>Финансы</h2><div class="partner-finance-live-data" hidden style="display:none"></div>';
   today.after(finances);groups.push(finances);
-  move(expense,finances.querySelector('.partner-finance-last'));
+  move(expense,finances.querySelector('.partner-finance-live-data'));
   const cycle=details.querySelector('.home-cycle-summary');
   if(cycle){const more=document.createElement('details');more.className='partner-cycle-more';more.innerHTML='<summary>Подробнее о самочувствии</summary>';cycle.append(more);groups.push(more);for(const node of [...cycle.querySelectorAll('.home-cycle-insight')])move(node,more)}
   const birthday=page.querySelector('.partner-birthday'),wishes=page.querySelector('.partner-profile-wishes');
@@ -100,16 +100,6 @@
    const track=document.createElement('div');track.className='partner-finance-track';track.dataset.level=exhausted?'full':ratio>=75?'mid':'low';track.setAttribute('role','progressbar');track.setAttribute('aria-label','Использовано от лимита');track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax','100');track.setAttribute('aria-valuenow',String(Math.min(100,percent)));
    const fill=document.createElement('i');fill.style.width=Math.min(100,ratio)+'%';track.append(fill);limitStatus.append(head,track);
   }
-  const money=(amount,currency='RUB')=>new Intl.NumberFormat('ru-RU',{style:'currency',currency,maximumFractionDigits:2}).format(Number(amount)||0);
-  const expense=card.querySelector('.home-partner-last-expense');
-  if(expense&&data?.expense){const row=data.expense,when=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'}).format(new Date(row.occurredAt));expense.textContent=['💸 '+money(row.amount,row.currency),row.category||'Расход',when].join(' · ');expense.hidden=false}
-  const last=card.querySelector('.partner-finance-last');
-  let empty=last.querySelector('.partner-finance-empty');
-  if(!empty){empty=document.createElement('p');empty.className='partner-finance-empty';last.append(empty)}
-  empty.hidden=!!expense&&!expense.hidden;
-  empty.textContent=data?'Пока нет расходов':'Не удалось загрузить расходы';
-  const largest=data?.largestPurchase;
-  card.querySelector('.partner-finance-largest>p').textContent=largest?[money(largest.amount,largest.currency),largest.note||largest.category,new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short'}).format(new Date(largest.occurredAt))].join(' · '):data?'В этом месяце пока нет покупок':'Не удалось загрузить покупки';
  }
  function birthdayInfo(actor,now=new Date()){
   const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'numeric',day:'numeric'}).formatToParts(now).map(p=>[p.type,p.value]));

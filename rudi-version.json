@@ -1,19 +1,17 @@
 {
-  "current": "v4.431",
+  "current": "v4.432",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.430",
+  "basedOnProduction": "v4.431",
   "notes": [
-    "Личный календарь, сводка Дианы, метки и страница партнера"
+    "Скрыты покупки на странице партнёра, выбор места работы только в будни"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Fix expense labels",
-    "Improve partner privacy and budget status",
-    "Reduce repeated reasoning questions and remove games",
-    "Add personal workplace and morning summary"
+    "Hide partner expense and largest purchase",
+    "Hide workplace choice on weekends"
   ]
 }

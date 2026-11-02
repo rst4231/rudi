@@ -16492,6 +16492,7 @@
       }
       function calendarWorkplaceControl(date){
         if(currentActor!=='Рустам'||calendarScope!=='personal')return null;
+        const weekday=new Date(date+'T12:00:00Z').getUTCDay();if(weekday===0||weekday===6||!Number.isFinite(weekday))return null;
         const row=document.createElement('div');row.className='calendar-workplace';row.dataset.date=date;row.setAttribute('role','group');row.setAttribute('aria-label','Место работы');
         for(const [place,label] of [['home','🏠 Дома'],['coworking','💻 Коворкинг']]){const button=document.createElement('button');button.type='button';button.dataset.place=place;button.textContent=label;button.setAttribute('aria-pressed',String(readWorkplaces()[date]?.place===place));button.classList.toggle('is-active',readWorkplaces()[date]?.place===place);button.addEventListener('click',()=>{const data=readWorkplaces(),next=data[date]?.place===place?'':place;data[date]={place:next,pending:true,revision:Date.now()+'-'+Math.random()};if(!writeWorkplaces(data)){button.title='Не удалось сохранить';return}paintWorkplace(date);void flushWorkplaces()});row.append(button)}
         void loadWorkplaces(date.slice(0,7));return row;

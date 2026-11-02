@@ -2,7 +2,7 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),{JSDOM}=require('jsdom');
 const {partnerFinanceSummary}=require('../api/partner-finances.cjs');
 function fixture(){
- const dom=new JSDOM('<section class="partner-finances"><h2>Финансы</h2><div class="partner-finance-last"></div><div class="partner-finance-largest"><p></p></div></section>');
+ const dom=new JSDOM('<section class="partner-finances"><h2>Финансы</h2></section>');
  const source=fs.readFileSync('public/partner-profile.js','utf8');
  const ctx=vm.createContext({document:dom.window.document,Intl,Date});
  vm.runInContext(source.slice(source.indexOf('function renderFinances('),source.indexOf('function birthdayInfo(')),ctx);
@@ -29,8 +29,8 @@ test('planned limits apply at the Moscow month boundary before partner exhaustio
  f.render(partnerFinanceSummary(state,'Рустам',new Date('2026-10-31T21:00:00Z')),'Диана');
  assert.equal(f.doc.querySelector('.partner-finance-limit').hidden,false);assert.match(f.doc.querySelector('.partner-finance-limit').textContent,/75%/);
 });
-test('partner last expense never renders its comment',()=>{
- const f=fixture(),last=f.doc.querySelector('.partner-finance-last'),node=f.doc.createElement('div');node.className='home-partner-last-expense';node.textContent='Старый комментарий';last.append(node);
+test('partner finance shows the limit without expense or purchase details',()=>{
+ const f=fixture();
  f.render({partner:'Диана',budget:{plannedLimit:1000,actualSpent:250},expense:{amount:100,currency:'RUB',category:'Транспорт',note:'Секретный комментарий',occurredAt:'2026-11-02T12:00:00Z'}},'Диана');
- assert.match(node.textContent,/Транспорт/);assert.doesNotMatch(node.textContent,/комментарий/i);assert.match(f.doc.querySelector('.partner-finance-limit').textContent,/25%/);assert.doesNotMatch(f.doc.querySelector('.partner-finance-limit').textContent,/₽|1000|250/);
+ assert.doesNotMatch(f.doc.body.textContent,/Транспорт|комментарий|₽|1000|250/);assert.match(f.doc.querySelector('.partner-finance-limit').textContent,/25%/);
 });

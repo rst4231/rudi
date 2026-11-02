@@ -563,6 +563,8 @@ function buildMorningSummary(actor, data = {}) {
   ];
 
   if (actor === 'Рустам') {
+    if (data.rustamWorkplace === 'coworking') blocks.push('💼 Ты сегодня работаешь в коворкинге');
+    if (data.rustamWorkplace === 'home') blocks.push('💼 Ты сегодня работаешь дома');
     // The work schedule, cycle and relationship guidance belong to one compact
     // morning section. Keep them independent internally so missing data is safe.
     const diana = [];
