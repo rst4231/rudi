@@ -1,17 +1,16 @@
 {
-  "current": "v4.432",
+  "current": "v4.433",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.431",
+  "basedOnProduction": "v4.432",
   "notes": [
-    "Скрыты покупки на странице партнёра, выбор места работы только в будни"
+    "Плавные действия и переключатели на главной"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Hide partner expense and largest purchase",
-    "Hide workplace choice on weekends"
+    "Polish home shortcuts, agenda and note motion"
   ]
 }

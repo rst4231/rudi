@@ -1388,3 +1388,45 @@ html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts .profile
 
 /* Evening reminder follows the game indicator. */
 body[data-app-tab="home"] #rudiHomeCbtButton.has-cbt-reminder::after{content:"";position:absolute;top:5px;right:5px;z-index:10;box-sizing:border-box;width:13px;height:13px;border:2px solid #15192b;border-radius:50%;background:#ee3453;box-shadow:0 0 0 1px rgba(238,52,83,.14);pointer-events:none}
+
+/* Subtle feedback for Home controls; preserve the existing card and route motion. */
+@media (prefers-reduced-motion: no-preference){
+  body[data-app-tab="home"] .rudi-home-shortcuts :is(.profile-tool-button,.fasting-profile-button,.meditation-profile-button,.rudi-home-games){
+    transition:transform 160ms cubic-bezier(.2,.82,.2,1),filter 160ms ease,border-color 180ms ease,box-shadow 180ms ease;
+  }
+  body[data-app-tab="home"] .rudi-home-shortcuts :is(.profile-tool-button,.fasting-profile-button,.meditation-profile-button,.rudi-home-games) :is(.mood-emoji,span[aria-hidden="true"],svg:not(.rudi-fasting-progress-outline):not(.rudi-supplement-progress-outline)){
+    transition:transform 160ms cubic-bezier(.2,.82,.2,1);
+  }
+  body[data-app-tab="home"] .rudi-home-shortcuts :is(.profile-tool-button,.fasting-profile-button,.meditation-profile-button,.rudi-home-games):is(:active,.rudi-native-pressed) :is(.mood-emoji,span[aria-hidden="true"],svg:not(.rudi-fasting-progress-outline):not(.rudi-supplement-progress-outline)){
+    transform:scale(.94);
+  }
+  body[data-app-tab="home"] .home-agenda-scopes button,
+  body[data-app-tab="home"] .shared-agenda-tabs [role="tab"]{
+    transition:color 180ms ease,background-color 180ms ease,box-shadow 180ms ease,transform 140ms cubic-bezier(.2,.82,.2,1);
+  }
+  body[data-app-tab="home"] .shared-agenda-tabs [role="tab"]::after{
+    content:"";position:absolute;width:26px;height:3px;bottom:0;left:50%;border-radius:4px;background:var(--agenda-blue);
+    transform:translateX(-50%) scaleX(.55);opacity:0;
+    transition:transform 200ms cubic-bezier(.2,.82,.2,1),opacity 160ms ease;
+  }
+  body[data-app-tab="home"] .shared-agenda-tabs [role="tab"][aria-selected="true"]::after{
+    transform:translateX(-50%) scaleX(1);opacity:1;
+  }
+  body[data-app-tab="home"] #homeNoteTile.is-expanded .home-note-content:not([hidden]){
+    animation:rudiHomeNoteReveal 220ms cubic-bezier(.2,.82,.2,1) both;
+  }
+  body[data-app-tab="home"] .home-nearest-link .home-nearest-icon{
+    transition:transform 160ms cubic-bezier(.2,.82,.2,1);
+  }
+  body[data-app-tab="home"] .home-nearest-link:is(:active,.rudi-native-pressed) .home-nearest-icon{
+    transform:scale(.92);
+  }
+  @keyframes rudiHomeNoteReveal{
+    from{opacity:0;transform:translateY(-4px)}
+    to{opacity:1;transform:translateY(0)}
+  }
+  @media (hover:hover) and (pointer:fine){
+    body[data-app-tab="home"] .rudi-home-shortcuts :is(.profile-tool-button,.fasting-profile-button,.meditation-profile-button,.rudi-home-games):hover:not(:disabled){filter:brightness(1.12)}
+    body[data-app-tab="home"] .home-nearest-link:hover .home-nearest-icon{transform:translateX(2px)}
+  }
+}
