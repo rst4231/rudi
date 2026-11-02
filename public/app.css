@@ -18408,3 +18408,6 @@ html[data-theme=dark] .rudi-meditation-page.lulu-profile-page{background:radial-
 .product-purchase-dialog select{min-height:44px}
 .product-purchase-dialog [data-purchase-save]{background:var(--accent);color:var(--surface-strong);font-weight:750}
 .product-purchase-dialog button:disabled{opacity:.55;cursor:wait}
+
+.settings-page .settings-auth-session-item[hidden]{display:none}
+.settings-page .settings-auth-sessions-more{border:0;background:transparent;color:var(--accent);font:inherit;font-weight:650;padding:10px 0;cursor:pointer}

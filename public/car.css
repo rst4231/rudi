@@ -2798,8 +2798,17 @@ html[data-theme="dark"] .car-page .car-note-remove{background:rgba(206,57,75,.18
 /* Keep the home car header balanced in the wide web layout. */
 @media (min-width:701px){
  @container (min-width:521px){
-  #carTile .car-status-header{grid-template-columns:minmax(0,36%) minmax(0,1fr);column-gap:20px!important}
+  #carTile .car-status-header{grid-template-columns:minmax(0,30%) minmax(0,1fr);grid-template-rows:auto auto;column-gap:16px!important;row-gap:6px!important;align-content:start}
   #carTile .car-status-copy{padding-right:54px}
-  #carTile .car-status-image img{height:clamp(112px,13vw,160px)}
+  #carTile .car-status-image img{height:100px}
+  #carTile .car-status-actions{padding-top:7px}
+  #carTile .car-status-actions>.car-status-tyres,#carTile .car-status-actions>.car-status-wash,#carTile .car-status-actions>.car-status-insurance{min-height:48px}
  }
+}
+
+#carTile .car-status-actions>.car-status-insurance::before{
+ content:"";flex:0 0 15px;width:15px;height:17px;
+ background:currentColor;
+ -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2.5 4 6v5.5c0 5 3 8.1 8 10 5-1.9 8-5 8-10V6z'/%3E%3Cpath d='m8.5 12 2.2 2.2 4.8-4.8'/%3E%3C/svg%3E") center/contain no-repeat;
+ mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 2.5 4 6v5.5c0 5 3 8.1 8 10 5-1.9 8-5 8-10V6z'/%3E%3Cpath d='m8.5 12 2.2 2.2 4.8-4.8'/%3E%3C/svg%3E") center/contain no-repeat;
 }

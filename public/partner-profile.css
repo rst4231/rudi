@@ -650,3 +650,7 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-mood-cbt{color:#784
 .partner-profile-page .partner-hero .person>:is(.profile-name-row,.profile-work-status,.profile-cycle-mood,.profile-rhythm-status,.partner-body-metrics){margin:0!important;padding:0!important}
 .partner-profile-page .partner-hero .home-presence-status{display:none!important}
 .partner-profile-page .partner-hero-bubbles:not(:has(.meditation-partner-summary[data-meditated-today="true"])){display:none!important}
+
+/* A continuous page background behind the partner header. */
+html .rudi-meditation-page.partner-profile-page:not(.lulu-profile-page){background:var(--pp-bg)!important}
+html .partner-profile-page:not(.lulu-profile-page)>.partner-profile-bar{background:transparent!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}

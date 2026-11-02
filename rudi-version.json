@@ -1,16 +1,16 @@
 {
-  "current": "v4.415",
+  "current": "v4.416",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.414",
+  "basedOnProduction": "v4.415",
   "notes": [
-    "Индикаторы ухода за Лулу, оформление истории и карточки автомобиля"
+    "Настройки, календарь, фон профилей и карточка автомобиля"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Lulu care indicators and layout improvements"
+    "Settings layout, calendar spacing, profile backgrounds and car card"
   ]
 }

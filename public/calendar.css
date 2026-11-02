@@ -1735,13 +1735,13 @@ body[data-app-tab="schedule"] .work-page #workCalendarCard .calendar-navigation
 /* RUDI v4.256 — calendar actions belong to page title row, not a second row. */
 body[data-app-tab="schedule"] #workCalendarSection .work-page-head{
   display:grid!important;
-  grid-template-columns:38px minmax(0,1fr) auto!important;
+  grid-template-columns:var(--rudi-page-head-control) minmax(0,1fr) auto!important;
   align-items:center!important;
-  column-gap:7px!important;
+  column-gap:10px!important;
   row-gap:0!important;
   margin:0!important;
   padding:0 1px!important;
-  min-height:44px;
+  min-height:var(--rudi-page-head-control)!important;
 }
 body[data-app-tab="schedule"] #workCalendarSection .work-page-head-copy{min-width:0!important;gap:1px!important}
 body[data-app-tab="schedule"] #workCalendarSection #calendarPageTitle{font-size:clamp(19px,5.4vw,26px)!important;white-space:nowrap}
@@ -1768,7 +1768,7 @@ body[data-app-tab="schedule"] #workCalendarSection #workCalendarCard{
  padding-top:0!important;margin-top:0!important;
 }
 @media(max-width:375px){
- body[data-app-tab="schedule"] #workCalendarSection .work-page-head{grid-template-columns:34px minmax(0,1fr) auto!important;column-gap:4px!important}
+ body[data-app-tab="schedule"] #workCalendarSection .work-page-head{grid-template-columns:var(--rudi-page-head-control) minmax(0,1fr) auto!important;column-gap:6px!important}
  body[data-app-tab="schedule"] #workCalendarSection #calendarPageTitle{font-size:19px!important}
  body[data-app-tab="schedule"] #workCalendarSection .calendar-header-actions>.calendar-header-control{
   flex-basis:30px!important;width:30px!important;height:36px!important;min-height:36px!important
@@ -1814,3 +1814,6 @@ body.calendar-connections-open{overflow:hidden!important}
   background:#b84b08;color:#fff;font-size:9px;font-weight:800;line-height:1;
   box-sizing:border-box;pointer-events:none;
 }
+
+/* Keep the calendar close to its header. */
+body[data-app-tab="schedule"] #workCalendarSection.work-page{row-gap:6px!important}

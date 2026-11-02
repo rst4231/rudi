@@ -73,8 +73,8 @@ function installSettings(){
   const thumb=document.createElement('span');thumb.className='market-ticker-toggle-thumb';thumb.setAttribute('aria-hidden','true');button.appendChild(thumb);
   button.addEventListener('click',()=>setEnabled(type,!enabled(type)));row.append(copy,button);group.appendChild(row);
  }
- const interfaceGroup=[...panel.querySelectorAll('.settings-group')].find(x=>x.querySelector('.settings-group-title')?.textContent==='Интерфейс');
- if(interfaceGroup)interfaceGroup.after(group);else panel.insertBefore(group,panel.firstChild);
+ const notificationsGroup=[...panel.querySelectorAll('.settings-group')].find(x=>x.querySelector('.settings-group-title')?.textContent==='Уведомления');
+ if(notificationsGroup)notificationsGroup.after(group);else panel.appendChild(group);
  updateSettings();
 }
 function birthdayWindow(day,celebrant){

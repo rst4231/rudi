@@ -385,7 +385,7 @@ body.rudi-center-open{overflow:hidden!important}
 }
 /* Same page geometry as the dedicated partner page, including iPhone safe areas. */
 .rudi-center{--pc-page-top:max(28px,env(safe-area-inset-top),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px),calc(var(--tg-content-safe-top,0px) + 10px));--pc-page-side:max(16px,env(safe-area-inset-left));display:flex;flex-direction:column;box-sizing:border-box;padding:var(--pc-page-top) var(--pc-page-side) 0}
-.rudi-center__bar{height:auto;flex:none;width:100%;max-width:760px;align-self:center;grid-template-columns:var(--rudi-page-head-control,48px) minmax(0,1fr) auto!important;background:transparent;border:0}
+.rudi-center__bar{height:auto;flex:none;width:100%;max-width:760px;align-self:center;grid-template-columns:var(--rudi-page-head-control,48px) minmax(0,1fr) auto!important;background:transparent;border:0;box-shadow:none}
 .rudi-center__bar h1{white-space:nowrap;font-size:clamp(19px,5vw,25px)!important}
 .rudi-center__wrap{height:auto;flex:1;min-height:0;padding:12px 0 max(16px,env(safe-area-inset-bottom));width:100%}
 @media(max-width:420px){.rudi-center__content{padding:0 8px;box-sizing:border-box}}
@@ -487,3 +487,5 @@ body.rudi-center-open{overflow:hidden!important}
 #pcSelfProfile .pc-self-finances h2{font-size:15px;line-height:1.3;color:var(--pc-text)}
 #pcSelfProfile .pc-self-finances h3{font-size:12px;color:var(--pc-muted);font-weight:500;line-height:1.4}
 #pcSelfProfile .pc-self-finances p{font-size:13px;line-height:1.5;margin:5px 0 0;color:var(--pc-text);overflow-wrap:anywhere}
+.rudi-center{background:var(--pc-bg)!important}
+.rudi-center>.rudi-center__bar{background:transparent!important;border:0!important;box-shadow:none!important}

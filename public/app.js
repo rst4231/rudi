@@ -2150,13 +2150,13 @@
       const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','score','settings','smart-saves','car','smart-home'];
       const PRIMARY_NAV_TABS=new Set(['home','feed','schedule','products','photos']);
       const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','smart-home','wishlist','smart-saves']);
-      const STARTUP_TABS=['home','finances','supplements','habits','car','schedule','feed','products','photos','fasting'];
+      const STARTUP_TABS=['home','finances','schedule'];
       function startupTabStorageKey(){
         return 'rudi:startup-tab:v1:'+(currentActor==='Диана'?'diana':'rustam');
       }
       function cleanStartupTab(value){
         const tab=String(value||'').trim();
-        return STARTUP_TABS.includes(tab)&&(tab!=='car'||currentActor==='Рустам')?tab:'home';
+        return STARTUP_TABS.includes(tab)?tab:'home';
       }
       function currentStartupTab(){
         try{return cleanStartupTab(localStorage.getItem(startupTabStorageKey()))}catch(_){return 'home'}
@@ -2164,8 +2164,6 @@
       function updateStartupTabSetting(){
         const select=document.getElementById('settingsStartupTab');
         if(!select)return;
-        const carOption=select.querySelector('option[value="car"]');
-        if(carOption){carOption.hidden=currentActor!=='Рустам';carOption.disabled=currentActor!=='Рустам'}
         select.value=currentStartupTab();
       }
       function setStartupTab(value){
@@ -8959,7 +8957,7 @@
               desktop:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="13" rx="1.8"/><path d="M9 21h6M12 17.5V21"/></svg>',
               unknown:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8"/></svg>'
             };
-            for(const row of rows){
+            for(const [index,row] of rows.entries()){
               const entry=document.createElement('div');entry.className='settings-auth-session-item';
               const badge=document.createElement('span');badge.className='settings-auth-session-badge';
               badge.innerHTML=icons[row.platform]||icons.unknown;
@@ -8980,7 +8978,19 @@
               const country=String(row.country||'Страна не определена');
               location.textContent=(city?city+', ':'')+country+' · IP: '+String(row.ip||'не определён');
               main.append(top,browser,location);
-              entry.append(badge,main);container.append(entry);
+              entry.append(badge,main);
+              if(index>=3)entry.hidden=true;
+              container.append(entry);
+            }
+            if(rows.length>3){
+              const more=document.createElement('button');
+              more.type='button';more.className='settings-auth-sessions-more';
+              more.textContent='Показать ещё';
+              more.addEventListener('click',()=>{
+                container.querySelectorAll('.settings-auth-session-item[hidden]').forEach(entry=>{entry.hidden=false});
+                more.remove();
+              });
+              container.append(more);
             }
             settingsSecuritySessionsLastLoad=Date.now();
           }catch(error){
@@ -10304,10 +10314,7 @@
                 '<span class="home-settings-copy"><strong>Стартовая страница</strong><small>Какой раздел открывать при запуске</small></span>'+
                 '<select id="settingsStartupTab" class="settings-startup-select" aria-label="Стартовая страница">'+
                   '<option value="home">Главная</option><option value="finances">Финансы</option>'+
-                  '<option value="supplements">БАДы</option><option value="habits">Привычки</option>'+
-                  '<option value="car">Машина</option><option value="schedule">Календарь</option>'+
-                  '<option value="feed">Лента</option><option value="products">Кухня</option>'+
-                  '<option value="photos">Фото</option><option value="fasting">Трекер голодания</option>'+
+                  '<option value="schedule">Календарь</option>'+
                 '</select>'+
               '</label>'+
 
@@ -10328,25 +10335,6 @@
                 '</div>'+
               '</div>'+
 
-            '</section>'+
-
-            '<section class="settings-group settings-contact-group">'+
-              '<div class="settings-group-title">Безопасность</div>'+
-              '<label class="settings-contact-field"><span>Текущий PIN</span><div class="settings-contact-input"><input id="settingsCurrentPin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="••••••"></div></label>'+
-              '<label class="settings-contact-field"><span>Новый PIN</span><div class="settings-contact-input"><input id="settingsNewPin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
-              '<label class="settings-contact-field"><span>Повторите новый PIN</span><div class="settings-contact-input"><input id="settingsNewPinRepeat" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
-              '<div class="settings-contact-footer"><small id="settingsPinStatus" aria-live="polite"></small><button id="settingsPinSave" class="settings-contact-save" type="button">Сменить PIN</button></div>'+
-              '<div id="settingsFaceIdRow" class="home-settings-row settings-faceid-row" hidden><div class="home-settings-copy"><strong>Face ID</strong><small id="settingsFaceIdStatus" aria-live="polite">Проверяю…</small></div><button id="settingsFaceIdConnect" class="settings-faceid-action" type="button">Подключить Face ID</button></div>'+
-              '<label id="settingsFaceIdIntervalRow" class="home-settings-row settings-startup-row" for="settingsFaceIdInterval" hidden>'+
-                '<span class="home-settings-copy"><strong>Запрашивать Face ID</strong><small>Интервал на этом iPhone</small></span>'+
-                '<select id="settingsFaceIdInterval" class="settings-startup-select" aria-label="Как часто запрашивать Face ID">'+
-                  '<option value="immediate">Сразу</option>'+
-                  '<option value="10m">Через 10 минут</option>'+
-                  '<option value="1h" selected>Через 1 час</option>'+
-                  '<option value="5h">Через 5 часов</option>'+
-                '</select>'+
-              '</label>'+
-              '<div class="settings-auth-sessions"><div class="settings-auth-sessions-head"><strong>Последние сессии</strong><small>5 последних входов</small></div><div id="settingsAuthSessionsList" class="settings-auth-sessions-list" aria-live="polite">Загружаю…</div></div>'+
             '</section>'+
 
             '<section class="settings-group">'+
@@ -10391,6 +10379,25 @@
                 '<div class="home-settings-copy"><strong>Push-уведомления</strong><small id="settingsAppBadgeStatus">Получать уведомления РуДи на этом устройстве</small></div>'+
                 '<button id="settingsAppBadgeEnable" class="settings-pwa-install" type="button">Разрешить</button>'+
               '</div>'+
+            '</section>'+
+
+            '<section class="settings-group settings-contact-group">'+
+              '<div class="settings-group-title">Безопасность</div>'+
+              '<label class="settings-contact-field"><span>Текущий PIN</span><div class="settings-contact-input"><input id="settingsCurrentPin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="••••••"></div></label>'+
+              '<label class="settings-contact-field"><span>Новый PIN</span><div class="settings-contact-input"><input id="settingsNewPin" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
+              '<label class="settings-contact-field"><span>Повторите новый PIN</span><div class="settings-contact-input"><input id="settingsNewPinRepeat" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="6 цифр"></div></label>'+
+              '<div class="settings-contact-footer"><small id="settingsPinStatus" aria-live="polite"></small><button id="settingsPinSave" class="settings-contact-save" type="button">Сменить PIN</button></div>'+
+              '<div id="settingsFaceIdRow" class="home-settings-row settings-faceid-row" hidden><div class="home-settings-copy"><strong>Face ID</strong><small id="settingsFaceIdStatus" aria-live="polite">Проверяю…</small></div><button id="settingsFaceIdConnect" class="settings-faceid-action" type="button">Подключить Face ID</button></div>'+
+              '<label id="settingsFaceIdIntervalRow" class="home-settings-row settings-startup-row" for="settingsFaceIdInterval" hidden>'+
+                '<span class="home-settings-copy"><strong>Запрашивать Face ID</strong><small>Интервал на этом iPhone</small></span>'+
+                '<select id="settingsFaceIdInterval" class="settings-startup-select" aria-label="Как часто запрашивать Face ID">'+
+                  '<option value="immediate">Сразу</option>'+
+                  '<option value="10m">Через 10 минут</option>'+
+                  '<option value="1h" selected>Через 1 час</option>'+
+                  '<option value="5h">Через 5 часов</option>'+
+                '</select>'+
+              '</label>'+
+              '<div class="settings-auth-sessions"><div class="settings-auth-sessions-head"><strong>Последние сессии</strong><small>5 последних входов</small></div><div id="settingsAuthSessionsList" class="settings-auth-sessions-list" aria-live="polite">Загружаю…</div></div>'+
             '</section>'+
 
             '<section class="settings-group">'+
