@@ -37,7 +37,11 @@ function decodeSetupKey(value) {
 
 async function saveCalendarUrl(url, options = {}) {
   const normalized = normalizeCalendarUrl(url);
-  if (sha256(normalized) !== EXPECTED_URL_SHA256) throw new Error('calendar-url-not-allowed');
+  if (sha256(normalized) !== EXPECTED_URL_SHA256) {
+    if (!options.allowReplacement) throw new Error('calendar-url-not-allowed');
+    const parsed = new URL(normalized.replace(/^webcal:/i,'https:'));
+    if (!/^p\d+-caldav\.icloud\.com$/i.test(parsed.hostname) || parsed.username || parsed.password || parsed.port || parsed.search || parsed.hash || !/^\/published\/[12]\/[A-Za-z0-9_-]{20,2048}$/.test(parsed.pathname)) throw new Error('calendar-url-invalid');
+  }
   await cacheOf(options).set(URL_KEY, normalized, { ttl: URL_TTL_SECONDS, tags: ['rudi-work-calendar'] });
   return true;
 }
@@ -348,10 +352,11 @@ async function getWorkWeek(options = {}) {
   }
 
   const cache = cacheOf(options);
-  const cacheKey = `range:${view}:${startKey}:${dayCount}`;
-  const cached = await cache.get(cacheKey).catch(() => null);
-  const calendarUrl = options.calendarUrl ? normalizeCalendarUrl(options.calendarUrl) : await readCalendarUrl({ ...options, cache });
+  const storedUrl = await readCalendarUrl({ ...options, cache }).catch(() => '');
+  const calendarUrl = storedUrl || (options.calendarUrl ? normalizeCalendarUrl(options.calendarUrl) : '');
   if (!calendarUrl) return { configured: false, view, weekStart: startKey, days: [] };
+  const cacheKey = `range:${sha256(calendarUrl).slice(0,16)}:${view}:${startKey}:${dayCount}`;
+  const cached = await cache.get(cacheKey).catch(() => null);
 
   try {
     const ics = await fetchCalendarText(calendarUrl, options);
@@ -374,6 +379,6 @@ async function getWorkWeek(options = {}) {
 
 module.exports = {
   NAMESPACE, EXPECTED_URL_SHA256, DEFAULT_TIMEZONE,
-  normalizeCalendarUrl, sha256, decodeSetupKey, saveCalendarUrl, readCalendarUrl,
+  normalizeCalendarUrl, sha256, decodeSetupKey, saveCalendarUrl, readCalendarUrl, fetchCalendarText,
   unfoldIcs, parseEvents, parseRRule, parseIcsDate, rollingStart, monthRange, buildRange, buildWeek, getWorkWeek,
 };

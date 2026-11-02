@@ -163,3 +163,24 @@ html[data-theme=dark] .lulu-profile-page .lulu-overview-plan-item,html[data-them
 .lulu-profile-page .lulu-category-heading{margin:8px 2px 0!important;padding:0!important;color:var(--lulu-muted)!important;-webkit-text-fill-color:var(--lulu-muted)!important;font-size:13px!important;line-height:1.3;font-weight:750;letter-spacing:.02em}
 
 .lulu-profile-page .lulu-overview-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+/* Prescription edit controls stay beside the title, separate from dose actions. */
+.lulu-care-prescription > .lulu-care-row{position:relative}
+.lulu-care-prescription > .lulu-care-row > .lulu-care-row-copy > strong{display:block;padding-right:96px;min-height:40px}
+.lulu-care-root .lulu-prescription-edit-actions{position:absolute;top:10px;right:0;display:flex;gap:6px;flex-wrap:nowrap}
+.lulu-care-root .lulu-prescription-edit-actions button{width:40px;min-width:40px;height:40px;padding:8px}
+
+/* Compact weight and walking history while keeping every action available. */
+.lulu-care-root .lulu-care-weight{padding:13px 15px}
+.lulu-care-weight .lulu-care-head{margin-bottom:6px}
+.lulu-care-weight .lulu-care-value{font-size:21px;line-height:1.2}
+.lulu-care-weight .lulu-care-muted{margin:3px 0}
+.lulu-care-weight .lulu-care-weight-chart{height:56px;margin:6px 0}
+.lulu-care-weight .lulu-care-history{margin-top:5px}
+.lulu-profile-page .lulu-profile-journal{padding:14px}
+.lulu-profile-page .lulu-profile-counts{gap:8px;margin-top:9px}
+.lulu-profile-page .lulu-profile-counts>div{padding:8px 10px;gap:2px;border-radius:12px}
+.lulu-profile-page .lulu-profile-counts strong{font-size:21px}
+.lulu-profile-page .lulu-profile-history h3{margin:12px 0 4px}
+.lulu-profile-page .lulu-profile-walk{padding:8px 0;gap:8px}
+.lulu-profile-page .lulu-profile-walk p{margin-top:2px;line-height:1.35}

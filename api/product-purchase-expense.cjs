@@ -2,7 +2,7 @@ const finance=require('./finance-store.cjs');
 
 async function recordProductPurchase(actor,items,purchase,options={}){
   if(!purchase)return null;
-  if(actor!=='Рустам')throw Error('product-purchase-forbidden');
+  if(!['Рустам','Диана'].includes(actor))throw Error('product-purchase-forbidden');
   const id=String(purchase.id||'');
   const amount=Number(purchase.amount);
   if(!/^[a-z0-9_-]{8,80}$/i.test(id))throw Error('product-purchase-id-invalid');

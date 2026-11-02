@@ -62,15 +62,11 @@ function mount(root,{actor,request}){
  function setupOverview(){
   if(!page||!layout)return;
   overview=node('div','lulu-overview');
-  overview.innerHTML='<section class="lulu-overview-plan"><div class="lulu-overview-plan-head"><h2>План ухода</h2><span>Подробнее ↓</span></div><div class="lulu-overview-plan-grid"></div></section><div class="lulu-overview-summary"></div>';
+  overview.innerHTML='<section class="lulu-overview-plan"><div class="lulu-overview-plan-head"><h2>План ухода</h2></div><div class="lulu-overview-plan-grid"></div></section>';
   const health=page.querySelector('#luluHealthText');if(health)health.rows=2;
   const plan=overview.querySelector('.lulu-overview-plan-grid');
   for(const [kind,icon,title] of [['prevention','🛡','Обработка'],['nails','✂','Когти'],['bath','💧','Купание'],['prescription','▤','Лечение']]){
    const item=button('',()=>goTo('.lulu-care-'+kind),'lulu-overview-plan-item is-'+kind);item.innerHTML='<svg class="lulu-overview-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+careIcons[kind]+'"/></svg><strong>'+title+'</strong><small>—</small>';item.dataset.overview=kind;plan.append(item);
-  }
-  const cards=overview.querySelector('.lulu-overview-summary');
-  for(const [kind,icon,title,selector] of [['nutrition','◡','Питание','.lulu-care-nutrition'],['finances','◉','Расходы','.lulu-profile-finances']]){
-   const item=button('',()=>goTo(selector),'lulu-overview-summary-item is-'+kind);item.innerHTML='<span aria-hidden="true">'+icon+'</span><strong>'+title+'</strong><small>—</small>';item.dataset.overview=kind;cards.append(item);
   }
   root.before(overview);
   const healthBlock=page.querySelector('.lulu-profile-health');if(healthBlock)root.after(healthBlock);
@@ -89,8 +85,7 @@ function mount(root,{actor,request}){
   const prescription=rows.filter(r=>r.kind==='prescription'&&!r.data.completed&&(!r.data.end||r.data.end>=day())).sort((a,b)=>String(a.data.start).localeCompare(String(b.data.start)))[0];
   const values={prevention:prevention?(prevention.data.nextDate?'до '+overviewDate(prevention.data.nextDate):overviewDate(prevention.data.date)):'Нет записей',nails:latest('nails')?overviewDate(latest('nails').data.date):'Не отмечали',bath:latest('bath')?overviewDate(latest('bath').data.date):'Не отмечали',prescription:prescription?prescription.data.name:'Нет назначений'};
   for(const [kind,value] of Object.entries(values))overview.querySelector('[data-overview="'+kind+'"] small').textContent=value;
-  const food=latest('nutrition');overview.querySelector('[data-overview="nutrition"] small').textContent=food?[food.data.food,food.data.grams?food.data.grams+' г/день':''].filter(Boolean).join(' · '):'Не указано';
-  overview.querySelector('[data-overview="finances"] small').textContent=page.querySelector('.lulu-food-total')?.textContent||'Загружаю…';
+
  }
  setupOverview();
  const offline=window.rudiOfflineContent;
@@ -195,11 +190,6 @@ function mount(root,{actor,request}){
   const section=card(title,kind,kind==='nails'?null:'Выбрать дату');
   if(kind==='bath')section.classList.toggle('lulu-bath-overdue',bathOverdue(rows));
   section.append(node('div','lulu-care-value',latest?dateLabel(latest.data.date)+' · '+latest.data.time:'Пока не отмечали'));
-  if(kind!=='nails'){
-  const today=day(),already=items.some(r=>r.data.date===today),id='day-'+today;
-  const mark=button(already?'Отмечено сегодня':'Отметить сегодня',()=>void submit({kind,id,data:{date:today,time:clock(),note:''},expectedUpdatedAt:revisions[kind+':'+id]||''}),'lulu-care-primary');
-  mark.disabled=already||busy.has('care:'+kind+':'+id);section.append(mark);
-  }
   const f=formFor(kind);if(f)section.append(f);
   if(items.length){const history=node('details','lulu-care-history');history.append(node('summary','','История'));
    for(const r of items){const item=row(dateLabel(r.data.date)+' · '+r.data.time,[r.actor,r.data.note].filter(Boolean).join(' · '),r);item.append(actionsFor(r,{editable:false}));history.append(item)}section.append(history)}
@@ -223,7 +213,8 @@ function mount(root,{actor,request}){
    copy.append(node('p','',dateLabel(r.data.start)+(r.data.end?' — '+dateLabel(r.data.end):'')));if(r.data.doctor)copy.append(node('p','','Врач: '+r.data.doctor));if(r.data.note)copy.append(node('p','',r.data.note));
    const doses=rows.filter(d=>d.kind==='intake'&&d.data.prescriptionId===r.id).sort((a,b)=>b.data.at.localeCompare(a.data.at)),today=doses.filter(d=>day(d.data.at)===day());
    copy.append(node('small','lulu-care-muted',ended?'Завершено':notStarted?'Начало '+dateLabel(r.data.start):'Сегодня отмечено приёмов: '+today.length));
-   const acts=actionsFor(r);if(!ended&&!notStarted){const take=button('Отметить приём',async()=>{if(intaking.has(r.id))return;intaking.add(r.id);take.disabled=true;try{await submit({kind:'intake',id:uid(),data:{prescriptionId:r.id,at:new Date().toISOString()},expectedUpdatedAt:''})}finally{intaking.delete(r.id);if(valid())render()}},'lulu-care-primary');take.disabled=intaking.has(r.id);acts.prepend(take)}
+   const editActions=actionsFor(r);editActions.classList.add('lulu-prescription-edit-actions');item.append(editActions);
+   const acts=node('div','lulu-care-row-actions lulu-prescription-dose-actions');if(!ended&&!notStarted){const take=button('Отметить приём',async()=>{if(intaking.has(r.id))return;intaking.add(r.id);take.disabled=true;try{await submit({kind:'intake',id:uid(),data:{prescriptionId:r.id,at:new Date().toISOString()},expectedUpdatedAt:''})}finally{intaking.delete(r.id);if(valid())render()}},'lulu-care-primary');take.disabled=intaking.has(r.id);acts.prepend(take)}
    acts.append(button(r.data.completed?'Возобновить':'Завершить',()=>void submit({kind:'prescription',id:r.id,data:{...r.data,completed:!r.data.completed},expectedUpdatedAt:r.updatedAt})));item.append(acts);
    if(doses.length){const history=node('details','lulu-care-history');history.append(node('summary','','Приёмы: '+doses.length));for(const d of doses){const line=row(new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(d.data.at)),d.actor,d);line.append(button('Отменить',()=>{void submit({kind:'intake',id:d.id,deleted:true,expectedUpdatedAt:d.updatedAt})}));history.append(line)}item.append(history)}
    section.append(item);

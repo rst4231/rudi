@@ -149,4 +149,4 @@ async function subscribedEvents(input,options={}){
  try{return {tasks:feedTasks(feed.text,month),subscribed:true,stale}}
  catch(_){return {tasks:[],subscribed:true,unavailable:true}}
 }
-module.exports={NAMESPACE,CONFIG_KEY,normalizeUrl,feedTasks,subscribedEvents};
+module.exports={NAMESPACE,CONFIG_KEY,normalizeUrl,fetchText,feedTasks,subscribedEvents};

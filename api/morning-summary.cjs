@@ -1,3 +1,4 @@
+const {loadLuluIntakes}=require('./lulu-summary.cjs');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const { readRecipients } = require('./partner-notification-store.cjs');
 const { readPartnerMessage } = require('./partner-message-store.cjs');
@@ -593,6 +594,8 @@ function buildMorningSummary(actor, data = {}) {
     }
   }
 
+  if(actor==='Диана'&&data.luluMorning?.length) blocks.push('🐶 <b>Лулу утром</b>\n'+data.luluMorning.map(x=>'• '+escapeTelegramHtml([x.name,x.dose,x.schedule].filter(Boolean).join(' · '))).join('\n'));
+
   if (Array.isArray(data.holidays) && data.holidays.length) {
     blocks.push(
       '🎉 <b>Праздники сегодня</b>\n'
@@ -785,6 +788,7 @@ async function collectMorningData(options = {}) {
     carState,
     holidays,
     obligationsByActor,
+    luluMorning,
   ] = await Promise.all([
     loadTodayTasks({ ...options, now }),
     loadDianaWorkDay({ ...options, now }),
@@ -799,11 +803,13 @@ async function collectMorningData(options = {}) {
     loadMorningCarState({ ...options, now }).catch(() => null),
     loadTodayHolidays({ ...options, now }).catch(() => []),
     loadDueObligationsByActor({ ...options, now }).catch(() => ({ 'Рустам':[], 'Диана':[] })),
+    loadLuluIntakes(date,'morning',options).catch(()=>[]),
   ]);
 
   return {
     now,
     date,
+    luluMorning,
     dateLabel: formatDate(now),
     moonPhaseLabel: formatMoonPhase(now),
     holidays: Array.isArray(holidays) ? holidays : [],

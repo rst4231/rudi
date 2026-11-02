@@ -32,7 +32,12 @@ async function completeRustamPersonalTask(input = {}, deps = {}) {
   if (wasOpen) {
     assertTaskCompletionAllowed(task,options.now??Date.now());
     const complete = deps.completeTickTickTask || completeTickTickTask;
-    await complete(token.accessToken, projectId, taskId, options);
+    try { await complete(token.accessToken, projectId, taskId, options); }
+    catch (error) {
+      if (!/^ticktick-complete-failed:5\d\d$/.test(String(error?.message||''))) throw error;
+      const verified=await getTask(token.accessToken,projectId,taskId,options).catch(()=>null);
+      if (!verified || String(verified.id||'')!==taskId || String(verified.projectId||'')!==projectId || Number(verified.status??0)===0) throw error;
+    }
   }
   // Save the original task before TickTick hides a completed task from its read API.
   // This is sealed into the short-lived Undo token, never sent back in clear text.

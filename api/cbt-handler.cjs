@@ -11,7 +11,8 @@ function createHandler(deps={}){
  const authorize=deps.authorizeRequest||authorizeRequest,read=deps.readAppState||readAppState,write=deps.writeAppState||writeAppState;
  const client=deps.stateClient||createRudiStateClient();
  const generateCoach=deps.generateCoach||coach.analyze;
- async function withLock(actor,work){const k=actor+':cbt';if(!await client.setIfAbsent('cbt-write-lock-v1',k,{locked:true},{ttl:120}))throw Error('cbt-busy');try{return await work()}finally{await client.remove('cbt-write-lock-v1',k)}}
+ async function releaseLock(key){try{await client.remove('cbt-write-lock-v1',key)}catch(_){console.warn('RUDI_CBT_LOCK_RELEASE_FAILED')}}
+ async function withLock(actor,work){const k=actor+':cbt';if(!await client.setIfAbsent('cbt-write-lock-v1',k,{locked:true},{ttl:120}))throw Error('cbt-busy');try{return await work()}finally{await releaseLock(k)}}
  return async function(req,res){
   res.setHeader('Cache-Control','private, no-store');res.setHeader('Vary','Cookie');
   if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
@@ -79,7 +80,7 @@ function createHandler(deps={}){
     }
     next=core.refresh(next);await write(actor,KEY,next);
     return res.status(200).json({ok:true,actor,state:next,acked});
-   }finally{await client.remove('cbt-write-lock-v1',lockKey)}
+   }finally{await releaseLock(lockKey)}
   }catch(e){
    const code=String(e?.message||'server-error');
    const status=code==='cbt-incomplete'||code.startsWith('cbt-invalid')?400:['cbt-busy','cbt-coach-unavailable','cbt-coach-invalid'].includes(code)?503:statusForError(e);

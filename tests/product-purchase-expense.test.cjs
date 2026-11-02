@@ -56,3 +56,11 @@ test('stale checkout selection does not debit a full receipt for only remaining 
  assert.equal((await products.readProductList(options)).items.length,1);
  assert.equal(finance.viewState(await finance.readFinanceState(options),'Рустам').wallets[0].balance,10000);
 });
+test('Diana can buy using her own wallet without touching Rustam wallet',async()=>{
+ const {options,ids,purchase}=await setup();
+ await finance.saveWallet('Диана',{name:'Диана',balance:3000,currency:'RUB'},{...options,id:'wallet-diana'});
+ const result=await products.markProductsBoughtByIds(ids,'Диана',{...options,purchase:{...purchase,walletId:'wallet-diana'}});
+ assert.equal(result.history.length,2);const state=await finance.readFinanceState(options);
+ assert.equal(finance.viewState(state,'Диана').wallets[0].balance,1749.5);
+ assert.equal(finance.viewState(state,'Рустам').wallets[0].balance,10000);
+});

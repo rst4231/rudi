@@ -14773,7 +14773,7 @@
         }catch(error){
           const status=document.getElementById('workCalendarStatus');
           status.hidden=false;
-          status.textContent=String(error?.message||'').includes('task-completion-future-forbidden')?window.RUDITaskCompletionPolicy.MESSAGE:(Number(error?.status)===401||Number(error?.status)===403)?'Нужно разрешение TickTick':'Ошибка TickTick';
+          status.textContent=String(error?.message||'').includes('task-completion-future-forbidden')?window.RUDITaskCompletionPolicy.MESSAGE:Number(error?.status)===429||String(error?.message||'').includes('ticktick-rate-limited')?'TickTick временно ограничил запросы. Попробуй чуть позже.':(Number(error?.status)===401||Number(error?.status)===403)?'Нужно разрешение TickTick':'Не удалось подтвердить завершение. Проверь задачу в TickTick.';
           try{tg?.HapticFeedback?.notificationOccurred?.('error')}catch(_){}
         }finally{
           row.dataset.busy='0';
@@ -15795,7 +15795,8 @@
           set('calendarWorkCalendarStatus',data.dianaWorkConnected?'Подключён':'Не подключён');
           set('calendarPersonalTickTickConnect',data.personalConnected?'Переподключить':'Подключить');
           const work=document.getElementById('calendarWorkCalendarSetup');
-          if(work)work.hidden=Boolean(data.dianaWorkConnected);
+          if(work)work.hidden=true;
+          set('calendarWorkCalendarChange',data.dianaWorkConnected?'Изменить':'Подключить');
           return data;
         })().catch(error=>{if(message)message.textContent=String(error.message||error);return null})
           .finally(()=>{calendarConnectionsRefreshPromise=null});
@@ -15851,18 +15852,20 @@
         const shared=document.getElementById('calendarSharedTickTickConnect');
         personal?.addEventListener('click',()=>connectTickTick('personal',personal));
         shared?.addEventListener('click',()=>connectTickTick('shared',shared));
+        document.getElementById('calendarWorkCalendarChange')?.addEventListener('click',()=>{const work=document.getElementById('calendarWorkCalendarSetup');if(work)work.hidden=!work.hidden;});
         document.getElementById('calendarWorkCalendarConnect')?.addEventListener('click',async()=>{
           const key=String(document.getElementById('calendarWorkCalendarKey')?.value||'').trim();
           const message=document.getElementById('calendarConnectionsMessage');
-          if(!key){if(message)message.textContent='Укажите ключ подключения';return}
+          if(!key){if(message)message.textContent='Укажите ссылку на календарь';return}
           try{
-            const response=await fetch('/api/work-calendar/setup',{
+            const response=await fetch('/api/partner-message?rudiAction=work-calendar-replace',{
               method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({key}),cache:'no-store'
+              body:JSON.stringify({url:key,initData:telegramInitData()}),cache:'no-store'
             });
             const data=await response.json().catch(()=>({}));
-            if(!response.ok||!data.ok)throw new Error('Неверный ключ календаря');
+            if(!response.ok||!data.ok)throw new Error('Не удалось открыть календарь. Проверьте ссылку и доступ.');
             if(message)message.textContent='График подключён';
+            document.getElementById('calendarWorkCalendarKey').value='';
             refreshCalendarConnections().catch(()=>{});
           }catch(error){if(message)message.textContent=String(error?.message||error)}
         });
@@ -20469,7 +20472,7 @@
         return new Intl.NumberFormat('ru-RU',{style:'currency',currency,maximumFractionDigits:currency==='RUB'?2:8}).format(Number(amount));
       }
 
-      function renderProductHistoryMonths(historyList,history){
+      function renderProductHistoryMonths(historyList,history,now=new Date()){
         const monthNames=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
         const months=new Map();
         const days=groupProductHistory(history).sort((a,b)=>{
@@ -20486,7 +20489,32 @@
           }
           month.days.push(day);
         }
+        const dated=[...months.values()].filter(month=>month.key!=='unknown');
+        const chartRows=dated.map(month=>{
+          const receipts=new Map(month.days.filter(day=>day.purchase?.id&&Number(day.purchase.rubAmount)>0).map(day=>[day.purchase.id,day.purchase]));
+          return {month,total:[...receipts.values()].reduce((sum,p)=>sum+Math.round(Number(p.rubAmount)*100),0)/100,partial:month.days.some(day=>!day.purchase)};
+        }).filter(row=>row.total>0).reverse();
+        if(chartRows.length){
+          const chart=document.createElement('section');chart.className='products-spend-chart';chart.setAttribute('aria-label','Расходы на продукты по месяцам');
+          const title=document.createElement('h3');title.textContent='Расходы по месяцам';chart.append(title);
+          const bars=document.createElement('div');bars.className='products-spend-bars';
+          const max=Math.max(...chartRows.map(row=>row.total));
+          for(const row of chartRows){
+            const column=document.createElement('div');column.className='products-spend-bar';
+            const value=document.createElement('strong');value.textContent=(row.partial?'Учтено: ':'')+productPurchaseMoney(row.total);if(row.partial)value.title='Учтены покупки с указанной суммой';
+            const track=document.createElement('div');track.className='products-spend-track';
+            const bar=document.createElement('div');bar.className='products-spend-fill';bar.style.height=Math.max(3,100*row.total/max)+'%';track.append(bar);
+            const label=document.createElement('span');label.textContent=row.month.label;
+            column.append(value,track,label);bars.append(column);
+          }
+          chart.append(bars);historyList.append(chart);
+        }
+        const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit'}).formatToParts(now).map(p=>[p.type,p.value]));
+        const monthIndex=Number(parts.year)*12+Number(parts.month)-1;
         for(const month of months.values()){
+          if(month.key==='unknown')continue;
+          const index=Number(month.key.slice(0,4))*12+Number(month.key.slice(5,7))-1;
+          if(index!==monthIndex&&index!==monthIndex-1)continue;
           const section=document.createElement('section');
           section.className='products-history-month';
           section.dataset.month=month.key;
@@ -20513,10 +20541,7 @@
               const amount=document.createElement('strong');
               amount.className='product-history-amount';
               amount.textContent=productPurchaseMoney(group.purchase.amount,group.purchase.currency);
-              const wallet=document.createElement('span');
-              wallet.className='product-history-wallet';
-              wallet.textContent=group.purchase.walletName||'';
-              row.append(amount,wallet);
+              row.append(amount);
             }
             list.appendChild(row);
           }

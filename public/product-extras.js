@@ -254,10 +254,10 @@
     renderFrequent();
     renderDropdown();
   }
-  // Only Rustam sees purchase confirmation; server enforces access independently.
+  // Both household members can confirm their own purchases.
   function updateBoughtVisibility(){
     const button=$('productsBought');if(!button)return;
-    const allowed=button.textContent.trim()==='Купил';
+    const allowed=['Купил','Купила'].includes(button.textContent.trim());
     button.dataset.rudiBuyerAllowed=allowed?'true':'false';
     button.hidden=!allowed;
   }

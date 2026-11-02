@@ -20,3 +20,9 @@ test('partner CBT status exposes only active-cycle flag for the authenticated co
  assert.deepEqual((await r('Диана',{operation:'partner-status'})).data,{ok:true,actor:'Диана',partner:'Рустам',active:false});
  assert.equal((await r('Диана',{operation:'partner-status',expectedActor:'Рустам'})).status,409);
 });
+test('lock release failure never sends a second response after saved mutation',async()=>{
+ const handler=require('../api/cbt-handler.cjs').createHandler({authorizeRequest:()=>({actor:'Рустам'}),readAppState:async()=>null,writeAppState:async()=>{},stateClient:{setIfAbsent:async()=>true,remove:async()=>{throw Error('storage unavailable')}}});
+ const replies=[];const res={headersSent:false,setHeader(){},status(s){this.code=s;return this},json(data){if(this.headersSent)throw Error('second response');this.headersSent=true;replies.push({status:this.code,data});return this}};
+ await handler({method:'POST',body:{operation:'mutate',op:{id:'test-start',type:'start',cycleId:'test-cycle',expectedActive:null}}},res);
+ assert.equal(replies.length,1);assert.equal(replies[0].status,200);
+});

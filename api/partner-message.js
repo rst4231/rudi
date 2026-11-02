@@ -2527,6 +2527,7 @@ async function handleTickTick(req, res, action, options = {}) {
         || code === 'ticktick-task-not-found')
         return res.status(code === 'ticktick-task-not-found'?404:400).json({ ok:false,error:code });
       console.error('RUDI_PERSONAL_TICKTICK_COMPLETE_ERROR',code);
+      if (/^ticktick-(?:project-list|api|complete)-failed:429$/.test(code)) return res.status(429).json({ok:false,error:'ticktick-rate-limited'});
       return res.status(502).json({ ok:false,error:'ticktick-personal-complete-unavailable' });
     }
   }
@@ -4434,6 +4435,22 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+  if (action === 'work-calendar-replace') {
+    if (req.method !== 'POST') return res.status(405).json({ok:false,error:'method-not-allowed'});
+    try {
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      authorizeRequest(req,body.initData,options);
+      const calendar=require('./diana-calendar-subscription.cjs');
+      const url=calendar.normalizeUrl(body.url);
+      await calendar.fetchText(url,options);
+      await saveCalendarUrl(url,{...options,allowReplacement:true});
+      return res.status(200).json({ok:true});
+    } catch(error) {
+      const status=statusForError(error);
+      return res.status(status===500?400:status).json({ok:false,error:'calendar-link-unavailable'});
+    }
+  }
+
   if (action === 'work-calendar-setup') {
     if (req.method !== 'GET' && req.method !== 'POST' && req.method) {
       return res.status(405).json({ ok: false, error: 'method-not-allowed' });
@@ -4660,7 +4677,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const { actor } = authorizeRequest(req, body.initData, options);
       const operation = String(body.operation || 'list').trim();
       // Server-authenticated identity, not a claimed body name, controls purchase permission.
-      if ((operation === 'bought' || operation === 'buy-checked') && actor !== 'Рустам') {
+      if ((operation === 'bought' || operation === 'buy-checked') && !['Рустам','Диана'].includes(actor)) {
         return res.status(403).json({ ok: false, error: 'products-purchase-forbidden' });
       }
       const previousSnapshot = backupSnapshotFromToken(body.backupToken, options);

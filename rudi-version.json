@@ -1,16 +1,21 @@
 {
-  "current": "v4.428",
+  "current": "v4.429",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.427",
+  "basedOnProduction": "v4.428",
   "notes": [
-    "Погода в строках периодов совместного календаря"
+    "Исправления КПТ и TickTick, настройки графика Дианы, назначения Лулу",
+    "История покупок по месяцам и покупка для Дианы"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show inline daypart weather in shared calendar"
+    "Improve CBT and TickTick error handling",
+    "Allow replacing Diana work calendar link",
+    "Include pending Lulu care in Diana summaries",
+    "Adjust Lulu prescription controls",
+    "Add monthly spending chart and Diana purchase flow"
   ]
 }

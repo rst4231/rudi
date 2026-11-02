@@ -1,3 +1,4 @@
+const {loadLuluIntakes}=require('./lulu-summary.cjs');
 const { isCronRequestAuthorized } = require('./cron-auth.cjs');
 const { readHabits, viewHabits, moscowDateKey } = require('./habit-tracker-store.cjs');
 const { loadTodayTasks, filterTasksForActor } = require('./morning-summary.cjs');
@@ -94,6 +95,7 @@ function buildEveningSummary(actor, data = {}) {
 
   const obligationPart=eveningObligationPart(obligationRows);
   if(obligationPart)blocks.push(obligationPart);
+  if(actor==='Диана'&&data.luluEvening?.length)blocks.push('🐶 Лулу вечером:\n'+data.luluEvening.map(x=>'• '+[x.name,x.dose,x.schedule].filter(Boolean).join(' · ')).join('\n'));
   if(data.cbtReminder)blocks.push('КПТ: сегодня пока нет записей. Добавь наблюдение, когда будет удобно.');
 
   return String(actor||'').trim()+', добрый вечер!\n\n'
@@ -105,11 +107,12 @@ function buildEveningSummary(actor, data = {}) {
 async function sendHabitReminder(actor, options = {}) {
   const now = Number(options.now || Date.now());
   const date = moscowDateKey(now);
-  const [state,tasks,obligationsByActor,cbtReminder] = await Promise.all([
+  const [state,tasks,obligationsByActor,cbtReminder,luluEvening] = await Promise.all([
     readHabits(actor, { ...options, now }),
     loadTodayTasks({ ...options, now, includePersonal: actor === 'Рустам' }).catch(() => null),
     loadDueObligationsByActor({ ...options, now }).catch(() => ({ [actor]:[] })),
     loadPendingCbtReminder(actor,{...options,now}),
+    actor==='Диана'?loadLuluIntakes(date,'evening',options).catch(()=>[]):Promise.resolve([]),
   ]);
   const view = viewHabits(state, { ...options, now, date });
   const pendingHabits=pendingHabitNames(view);
@@ -118,7 +121,7 @@ async function sendHabitReminder(actor, options = {}) {
   const taskCounts={personal:taskDetails.personal.length,shared:taskDetails.shared.length,total:taskDetails.total};
   const obligationRows=Array.isArray(obligationsByActor?.[actor])?obligationsByActor[actor]:[];
   const unpaidObligations=obligationRows.filter(row=>!row.paid);
-  if (!pending && !taskDetails.total && !unpaidObligations.length && !cbtReminder) {
+  if (!pending && !taskDetails.total && !unpaidObligations.length && !cbtReminder && !luluEvening.length) {
     return { actor, sent:false, reason:'all-done', pending:0, personalTasks:0, sharedTasks:0, unpaidObligations:0 };
   }
 
@@ -149,7 +152,7 @@ async function sendHabitReminder(actor, options = {}) {
     };
   }
 
-  const text=buildEveningSummary(actor,{pendingHabits,taskDetails,obligationRows,cbtReminder});
+  const text=buildEveningSummary(actor,{pendingHabits,taskDetails,obligationRows,cbtReminder,luluEvening});
   const result = await telegramSendMessage(chatId, text, {
     ...options,
     fetchImpl: options.telegramFetchImpl || options.fetchImpl || globalThis.fetch,

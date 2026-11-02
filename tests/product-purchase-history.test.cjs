@@ -3,7 +3,19 @@ function setup(){const dom=new JSDOM('<div id="history"></div>',{url:'https://ru
 const receipt=(id,amount)=>({id,amount,currency:'RUB',rubAmount:amount,walletName:'Карта'});
 test('monthly total counts each receipt once and shows same-day purchases separately',()=>{const t=setup();try{
  const rows=[{id:'1',text:'Молоко',boughtAt:'2026-10-22T10:00:00Z',purchase:receipt('one',200)},{id:'2',text:'Хлеб',boughtAt:'2026-10-22T10:00:00Z',purchase:receipt('one',200)},{id:'3',text:'Сыр',boughtAt:'2026-10-22T16:00:00Z',purchase:receipt('two',300)},{id:'4',text:'Чай',boughtAt:'2026-09-22T10:00:00Z',purchase:receipt('three',100)}];
- t.ctx.renderProductHistoryMonths(t.list,rows);
+ t.ctx.renderProductHistoryMonths(t.list,rows,new Date('2026-10-30T12:00:00Z'));
  const october=t.list.querySelector('[data-month="2026-10"]');assert.equal(october.querySelectorAll('.product-history-item').length,2);assert.match(october.querySelector('.products-history-month-total').textContent,/500/);assert.equal(october.querySelectorAll('.product-history-amount').length,2);assert.match(t.list.querySelector('[data-month="2026-09"] .products-history-month-total').textContent,/100/);
 }finally{t.dom.window.close()}});
 test('old purchases without amounts never get a fictitious zero total',()=>{const t=setup();try{t.ctx.renderProductHistoryMonths(t.list,[{id:'old',text:'Хлеб',boughtAt:'2025-10-22T10:00:00Z'}]);assert.equal(t.list.querySelector('.products-history-month-total'),null);assert.equal(t.list.querySelector('.product-history-amount'),null)}finally{t.dom.window.close()}});
+test('purchase history displays purchase amount without wallet name',()=>{const t=setup();try{
+ t.ctx.renderProductHistoryMonths(t.list,[{id:'1',text:'Молоко',boughtAt:'2026-11-02T10:00:00Z',purchase:receipt('one',282)}]);
+ assert.match(t.list.textContent,/282/);assert.match(t.list.textContent,/Молоко/);assert.doesNotMatch(t.list.textContent,/Карта/);
+}finally{t.dom.window.close()}});
+test('chart covers older months while details show only current and previous month',()=>{const t=setup();try{
+ const rows=[{id:'a',text:'Хлеб',boughtAt:'2026-11-02T10:00:00Z',purchase:receipt('one',200)},{id:'b',text:'Молоко',boughtAt:'2026-10-02T10:00:00Z',purchase:receipt('two',300)},{id:'c',text:'Сыр',boughtAt:'2026-09-02T10:00:00Z',purchase:receipt('three',400)}];
+ t.ctx.renderProductHistoryMonths(t.list,rows,new Date('2026-11-02T12:00:00Z'));
+ assert.equal(t.list.querySelectorAll('.products-spend-bar').length,3);
+ assert.equal(t.list.querySelectorAll('.products-history-month').length,2);
+ assert.equal(t.list.querySelector('[data-month="2026-09"]'),null);
+ assert.match(t.list.querySelector('.products-spend-chart').textContent,/400/);
+}finally{t.dom.window.close()}});

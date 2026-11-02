@@ -160,3 +160,7 @@ test('v4.120 scope and view toggles are both compact in mobile and desktop theme
   assert.ok(release.includes('min-height:38px!important;height:38px!important;'));
   assert.ok(release.includes('font-size:11.5px!important;line-height:1.15!important'));
 });
+test('a failed TickTick completion is confirmed by reading task status without sending it twice',async()=>{
+ let reads=0,attempts=0;const {deps}=fakeDeps({fetchTask:async(token,project,id)=>({id,projectId:project,status:reads++?2:0}),completeTickTickTask:async()=>{attempts++;throw Error('ticktick-complete-failed:500')}});
+ const result=await completeRustamPersonalTask(base,deps);assert.equal(result.completed,true);assert.equal(attempts,1);assert.equal(reads,2);
+});
