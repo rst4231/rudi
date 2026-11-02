@@ -1024,7 +1024,7 @@ async function sendTaskCompletedNotificationToPartner(actor,title,options={}) {
   const recipient=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
   if(!recipient) return {sent:false,reason:'actor-invalid'};
   const recipientPrefs=await readUiPreferences(recipient,options).catch(()=>null);
-  if(recipientPrefs?.sharedTaskNotificationsEnabled===false) return {sent:false,recipient,reason:'disabled'};
+  if(recipientPrefs?.sharedTaskNotificationsEnabled!==true) return {sent:false,recipient,reason:'disabled'};
   try{
     const taskTitle=String(title||'Совместное дело').trim();
     const text=completedTaskPushText(actor,taskTitle);
@@ -1052,7 +1052,7 @@ async function sendChecklistCompletedNotificationToPartner(actor,itemTitle,taskT
   const recipient=actor==='Рустам'?'Диана':actor==='Диана'?'Рустам':'';
   if(!recipient) return {sent:false,reason:'actor-invalid'};
   const recipientPrefs=await readUiPreferences(recipient,options).catch(()=>null);
-  if(recipientPrefs?.sharedTaskNotificationsEnabled===false) return {sent:false,recipient,reason:'disabled'};
+  if(recipientPrefs?.sharedTaskNotificationsEnabled!==true) return {sent:false,recipient,reason:'disabled'};
   try{
     const item=String(itemTitle||'Пункт задачи').trim();
     const task=String(taskTitle||'').trim();

@@ -7,10 +7,10 @@ const {
   sendRewardRedeemedNotification,
 }=require('../api/partner-message.js');
 
-test('new notification preferences default on and can be disabled',()=>{
+test('mood notifications default off while other notification defaults stay on',()=>{
   const defaults=normalizeUiPreferencesState({});
-  assert.equal(defaults.moodNotifyPartnerEnabled,true);
-  assert.equal(defaults.moodReceivePartnerEnabled,true);
+  assert.equal(defaults.moodNotifyPartnerEnabled,false);
+  assert.equal(defaults.moodReceivePartnerEnabled,false);
   assert.equal(defaults.morningSummaryEnabled,true);
   assert.equal(defaults.rewardNotificationsEnabled,true);
   assert.equal(defaults.dailyQuestionNotificationEnabled,true);

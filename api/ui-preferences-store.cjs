@@ -84,10 +84,10 @@ function normalizeUiPreferencesState(value) {
   const contactPhone = contactDigits ? '+' + contactDigits : '';
   const moodNotifyPartnerEnabled = Object.prototype.hasOwnProperty.call(source, 'moodNotifyPartnerEnabled')
     ? Boolean(source.moodNotifyPartnerEnabled)
-    : true;
+    : false;
   const moodReceivePartnerEnabled = Object.prototype.hasOwnProperty.call(source, 'moodReceivePartnerEnabled')
     ? Boolean(source.moodReceivePartnerEnabled)
-    : true;
+    : false;
   const humidityAlertEnabled = Object.prototype.hasOwnProperty.call(source, 'humidityAlertEnabled')
     ? Boolean(source.humidityAlertEnabled)
     : true;
@@ -105,7 +105,7 @@ function normalizeUiPreferencesState(value) {
     : true;
   const sharedTaskNotificationsEnabled = Object.prototype.hasOwnProperty.call(source, 'sharedTaskNotificationsEnabled')
     ? Boolean(source.sharedTaskNotificationsEnabled)
-    : true;
+    : false;
   const luluWalkNotificationsEnabled = Object.prototype.hasOwnProperty.call(source, 'luluWalkNotificationsEnabled')
     ? Boolean(source.luluWalkNotificationsEnabled)
     : true;

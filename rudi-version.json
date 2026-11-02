@@ -1,16 +1,16 @@
 {
-  "current": "v4.421",
+  "current": "v4.422",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.420",
+  "basedOnProduction": "v4.421",
   "notes": [
-    "Убраны переключатели уведомлений о настроении"
+    "Отключены по умолчанию push о настроении и совместных делах"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Remove mood notification switches from settings"
+    "Remove shared-task notification switch and default mood and shared-task push notifications off"
   ]
 }

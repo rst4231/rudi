@@ -1,0 +1,4 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),Module=require('node:module');
+const original=Module._load;Module._load=function(id,...args){if(id==='./strict-runtime-cache.cjs')return {createStrictRuntimeCache:()=>({})};return original.call(this,id,...args)};
+let normalize;try{({normalizeUiPreferencesState:normalize}=require('../api/ui-preferences-store.cjs'))}finally{Module._load=original}
+test('mood and shared-task pushes default to off while explicit settings survive',()=>{const a=normalize({});for(const key of ['moodNotifyPartnerEnabled','moodReceivePartnerEnabled','sharedTaskNotificationsEnabled'])assert.equal(a[key],false);const b=normalize({moodNotifyPartnerEnabled:true,moodReceivePartnerEnabled:true,sharedTaskNotificationsEnabled:true});for(const key of ['moodNotifyPartnerEnabled','moodReceivePartnerEnabled','sharedTaskNotificationsEnabled'])assert.equal(b[key],true);assert.equal(a.humidityAlertEnabled,true)});

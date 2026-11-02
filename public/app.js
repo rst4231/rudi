@@ -970,19 +970,19 @@
       }
 
       function moodNotifyPartnerEnabled(){
-        if(!currentActor) return true;
+        if(!currentActor) return false;
         try{
           const value=localStorage.getItem(moodNotifyPartnerStorageKey());
-          return value===null?true:value!=='0';
-        }catch(_){return true}
+          return value==='1';
+        }catch(_){return false}
       }
 
       function moodReceivePartnerEnabled(){
-        if(!currentActor) return true;
+        if(!currentActor) return false;
         try{
           const value=localStorage.getItem(moodReceivePartnerStorageKey());
-          return value===null?true:value!=='0';
-        }catch(_){return true}
+          return value==='1';
+        }catch(_){return false}
       }
 
       function humidityAlertEnabled(){
@@ -1026,11 +1026,11 @@
       }
 
       function sharedTaskNotificationsEnabled(){
-        if(!currentActor) return true;
+        if(!currentActor) return false;
         try{
           const value=localStorage.getItem(sharedTaskNotificationsStorageKey());
-          return value===null?true:value!=='0';
-        }catch(_){return true}
+          return value==='1';
+        }catch(_){return false}
       }
 
       function luluWalkNotificationsEnabled(){
@@ -1198,14 +1198,14 @@
         let startupTabValue='home';
         let contactTelegramUsernameValue='';
         let contactPhoneValue='';
-        let moodNotifyPartnerEnabledValue=true;
-        let moodReceivePartnerEnabledValue=true;
+        let moodNotifyPartnerEnabledValue=false;
+        let moodReceivePartnerEnabledValue=false;
         let humidityAlertEnabledValue=true;
         let temperatureAlertEnabledValue=true;
         let morningSummaryEnabledValue=true;
         let rewardNotificationsEnabledValue=true;
         let dailyQuestionNotificationEnabledValue=true;
-        let sharedTaskNotificationsEnabledValue=true;
+        let sharedTaskNotificationsEnabledValue=false;
         let luluWalkNotificationsEnabledValue=true;
         let updatedAt='';
         try{homeOrder=JSON.parse(localStorage.getItem(homeLayoutStorageKey())||'[]')}catch(_){}
@@ -1379,7 +1379,7 @@
             localStorage.setItem(dailyQuestionNotificationStorageKey(),remote.dailyQuestionNotificationEnabled===false?'0':'1');
           }
           if(hasRemoteSharedTaskNotifications){
-            localStorage.setItem(sharedTaskNotificationsStorageKey(),remote.sharedTaskNotificationsEnabled===false?'0':'1');
+            localStorage.setItem(sharedTaskNotificationsStorageKey(),remote.sharedTaskNotificationsEnabled===true?'1':'0');
           }
           if(hasRemoteLuluWalkNotifications){
             localStorage.setItem(luluWalkNotificationsStorageKey(),remote.luluWalkNotificationsEnabled===false?'0':'1');
@@ -10358,10 +10358,6 @@
               '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Ответ на вопрос дня</strong><small>Присылать push, когда партнёр ответил</small></div>'+
                 '<button id="settingsDailyQuestionNotificationToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления об ответе партнёра на вопрос дня"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
-              '</div>'+
-              '<div class="home-settings-row">'+
-                '<div class="home-settings-copy"><strong>Совместные дела</strong><small>Push, когда партнёр выполнил совместную задачу</small></div>'+
-                '<button id="settingsSharedTaskNotificationsToggle" class="market-ticker-toggle" type="button" role="switch" aria-checked="true" aria-label="Уведомления о совместных делах"><span class="market-ticker-toggle-thumb" aria-hidden="true"></span></button>'+
               '</div>'+
               '<div class="home-settings-row">'+
                 '<div class="home-settings-copy"><strong>Гуляние с Лулу</strong><small>Push, когда партнёр отметил прогулку с Лулу</small></div>'+
