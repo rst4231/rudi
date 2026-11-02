@@ -13,7 +13,7 @@ async function render(target,date,actor){
   if(!habits.length){target.hidden=true;return}target.hidden=false;
   target.append(node('b','Привычки'));
   const past=date!==view.today,locked=past||!view.canCompleteToday||!!view.offlineSnapshot;
-  if(!past&&!view.canCompleteToday)target.append(node('p','Отметить можно после 20:00 по Москве.','calendar-habit-message'));
+  if(!past&&!view.canCompleteToday)target.append(node('p','Можно отметить после 20:00','calendar-habit-message'));
   if(view.offlineSnapshot)target.append(node('p','Показаны сохранённые данные. Для отметки нужен интернет.','calendar-habit-message'));
   for(const habit of habits){
    const id=String(habit.id||''),status=view.statuses?.[id]||'pending';
@@ -24,8 +24,9 @@ async function render(target,date,actor){
     actions.append(node('span',status==='done'?'✓ Выполнено':'✕ Не выполнено','calendar-habit-status '+(status==='done'?'is-done':'is-notdone')));
     if(undoId===id){const undo=node('button','Отменить');undo.type='button';undo.addEventListener('click',()=>save(id,'pending'));actions.append(undo)}
    }else for(const [value,label] of [['done','Выполнено'],['notdone','Не выполнено']]){
-    const button=node('button',label,value==='done'?'is-done':'is-notdone');button.type='button';button.disabled=locked;
-    if(locked)button.title=view.offlineSnapshot?'Для отметки нужен интернет':'Отметить можно после 20:00 по Москве';
+    const button=node('button',value==='done'?'✓':'×',value==='done'?'is-done':'is-notdone');button.type='button';button.disabled=locked;
+    button.setAttribute('aria-label',label+': '+String(habit.name||'Привычка'));
+    button.title=locked?(view.offlineSnapshot?'Для отметки нужен интернет':'Доступно после 20:00 по Москве'):label;
     button.addEventListener('click',()=>save(id,value));actions.append(button);
    }
    row.append(name,actions);target.append(row);

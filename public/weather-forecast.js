@@ -122,5 +122,14 @@ async function renderCalendarDay(target,date){
   card.append(node('p',detail.join(' · ')));
  }catch(_){if(card.isConnected)card.querySelector('p').textContent='Не удалось загрузить прогноз.'}
 }
-window.RUDI_WEATHER_FORECAST={model,open,close,currentHourTime,renderCalendarDay};
+function periodTemperatures(data,date){
+ const groups={morning:[],day:[],evening:[]};
+ for(const item of model(data).hours){if(item.date!==date||!Number.isFinite(item.temperature))continue;const h=Number(item.time.slice(11,13));const key=h>=6&&h<12?'morning':h>=12&&h<18?'day':h>=18&&h<24?'evening':'';if(key)groups[key].push(item.temperature)}
+ return Object.fromEntries(Object.entries(groups).map(([key,values])=>[key,values.length?{min:Math.min(...values),max:Math.max(...values)}:null]));
+}
+async function renderCalendarPeriods(target,date){
+ if(date<today())return;
+ try{const data=await window.RUDI_WEATHER.get({forecast:true});if(!target.isConnected||target.dataset.calendarWeatherDate!==date)return;const periods=periodTemperatures(data,date);for(const el of target.querySelectorAll('[data-weather-period]')){const value=periods[el.dataset.weatherPeriod];el.textContent=value?' ('+number(value.min)+'…'+number(value.max,'°')+')':'';el.title=value?(data.stale?'Сохранённый почасовой прогноз':'Почасовой прогноз'):''}}catch(_){}
+}
+window.RUDI_WEATHER_FORECAST={model,open,close,currentHourTime,renderCalendarDay,periodTemperatures,renderCalendarPeriods};
 })();

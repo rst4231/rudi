@@ -129,3 +129,9 @@ test('a slow response for the previous calendar day never replaces the new selec
  assert.equal(target.querySelector('.calendar-day-weather').dataset.date,'2026-10-19');
  assert.equal(target.querySelector('.calendar-day-weather-temperature').textContent,'4°…8°');
 });
+
+test('calendar dayparts use only hourly temperatures for the selected date',()=>{
+ const f=interactiveFixture();const data={hourly:{time:['2026-10-18T02:00','2026-10-18T06:00','2026-10-18T11:00','2026-10-18T12:00','2026-10-18T17:00','2026-10-18T18:00','2026-10-18T23:00','2026-10-19T08:00'],temperature_2m:[-99,8,10,12,15,9,6,99]}};
+ assert.equal(JSON.stringify(f.api.periodTemperatures(data,'2026-10-18')),JSON.stringify({morning:{min:8,max:10},day:{min:12,max:15},evening:{min:6,max:9}}));
+ assert.equal(JSON.stringify(f.api.periodTemperatures(data,'2026-10-20')),JSON.stringify({morning:null,day:null,evening:null}));
+});

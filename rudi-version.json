@@ -1,16 +1,16 @@
 {
-  "current": "v4.424",
+  "current": "v4.425",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.423",
+  "basedOnProduction": "v4.424",
   "notes": [
-    "Привычки и компактный прогноз в личном календаре"
+    "Погода по периодам дня и оформление привычек"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show habits below calendar tasks and move compact weather above"
+    "Show hourly temperatures by daypart and compact habit icons"
   ]
 }

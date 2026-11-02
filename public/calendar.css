@@ -1818,14 +1818,20 @@ body.calendar-connections-open{overflow:hidden!important}
 /* Keep the calendar close to its header. */
 body[data-app-tab="schedule"] #workCalendarSection.work-page{row-gap:6px!important}
 
-/* Habits share their status with the habit tracker. */
-.work-page .calendar-selected-habits{display:grid;gap:8px}
-.work-page .calendar-habit-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
-.work-page .calendar-habit-name{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px;font-weight:650}
-.work-page .calendar-habit-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}
-.work-page .calendar-habit-actions button{min-height:32px;padding:6px 9px;border:1px solid var(--line);border-radius:9px;background:var(--surface-strong);color:var(--text);font:inherit;font-size:11px;cursor:pointer}
-.work-page .calendar-habit-actions button:disabled{opacity:.45;cursor:default}
-.work-page .calendar-habit-actions .is-done{color:#23966a}.work-page .calendar-habit-actions .is-notdone{color:#c24c5d}
+/* Compact, readable habit controls. */
+.work-page .calendar-selected-habits{display:grid;gap:7px}
+.work-page .calendar-habit-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;padding:8px 10px;border:1px solid color-mix(in srgb,var(--line) 72%,transparent);border-radius:14px;background:color-mix(in srgb,var(--surface-strong) 76%,var(--soft))}
+.work-page .calendar-habit-name{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px;font-weight:650;color:var(--text)}
+.work-page .calendar-habit-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex:none}
+.work-page .calendar-habit-actions button{display:grid;place-items:center;box-sizing:border-box;width:42px;height:42px;padding:0;border:1px solid transparent;border-radius:12px;font:inherit;font-size:22px;font-weight:650;line-height:1;cursor:pointer}
+.work-page .calendar-habit-actions button.is-done{background:color-mix(in srgb,#35a875 13%,var(--surface-strong));border-color:color-mix(in srgb,#35a875 25%,transparent);color:#219467}
+.work-page .calendar-habit-actions button.is-notdone{background:color-mix(in srgb,#d95060 10%,var(--surface-strong));border-color:color-mix(in srgb,#d95060 22%,transparent);color:#c54c5d}
+.work-page .calendar-habit-actions button:disabled{opacity:.48;cursor:default}
+.work-page .calendar-habit-actions button:not(.is-done):not(.is-notdone){width:auto;padding:0 10px;font-size:11px;color:var(--text);background:var(--surface-strong);border-color:var(--line)}
 .work-page .calendar-habit-status{font-size:12px;font-weight:650;color:var(--muted)}
-.work-page .calendar-habit-message{margin:0;font-size:12px;line-height:1.35;color:var(--muted)}
+.work-page .calendar-habit-status.is-done{color:#23966a}.work-page .calendar-habit-status.is-notdone{color:#c24c5d}
+.work-page .calendar-habit-message{margin:0 0 2px;font-size:11px;line-height:1.35;color:var(--muted)}
 .work-page .calendar-habit-message.is-error{color:#c24c5d}
+
+.work-page .calendar-period-weather{color:var(--muted);font-size:.9em;font-weight:550;white-space:nowrap}
+.work-page .calendar-period-weather-strip{display:flex;gap:10px 16px;flex-wrap:wrap;margin:0 0 10px;font-size:12px;font-weight:700;color:var(--text)}
