@@ -1079,8 +1079,30 @@ window.addEventListener('rudi-content-operation-synced',event=>{
 window.addEventListener('rudi-content-network-recovered',()=>{
  if(document.body?.dataset?.appTab==='supplements')void loadHomeTools({force:true});
 });
+async function calendarHabitList(date,expectedActor){
+ if(actor!==expectedActor)await loadHomeTools({force:false});
+ if(actor!==expectedActor||document.body.dataset.rudiActor!==expectedActor)throw Error('habit-actor-changed');
+ try{return await habitRequest('list',{date},{force:true})}catch(error){
+  const saved=lastHabitSnapshot()?.data;
+  const view=date===saved?.today?saved:saved?.history?.[date];
+  if(!view)throw error;
+  return {...view,ok:true,actor:expectedActor,offlineSnapshot:true,today:saved.today,date};
+ }
+}
+async function calendarHabitStatus(date,id,status,expectedActor){
+ if(actor!==expectedActor||document.body.dataset.rudiActor!==expectedActor)throw Error('habit-actor-changed');
+ const data=await habitRequest('status',{date,id,status});
+ if(actor!==expectedActor||document.body.dataset.rudiActor!==expectedActor)throw Error('habit-actor-changed');
+ habitOptimisticStatuses.set(habitOptimisticKey(date,id),status);
+ if(habitSelectedDate===date)applyHabitView(data);
+ else if(date===data.today){habitTodayReminder={today:data.today,habits:data.habits||[],statuses:{...(data.statuses||{})}};updateReminderBadges()}
+ if(date===data.today)persistHabitSnapshot({...data,history:lastHabitSnapshot()?.data?.history||{}});
+ return data;
+}
 window.RudiSupplementApp={
   request,
+  calendarHabitList,
+  calendarHabitStatus,
   getActor:()=>actor,
   getItems:()=>items,
   setItems:(next)=>{items=Array.isArray(next)?next:items;render()},

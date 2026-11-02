@@ -1,16 +1,16 @@
 {
-  "current": "v4.423",
+  "current": "v4.424",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.422",
+  "basedOnProduction": "v4.423",
   "notes": [
-    "Напоминание о записи КПТ после 20:00"
+    "Привычки и компактный прогноз в личном календаре"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show CBT reminder dot at 20:00 if no entry today"
+    "Show habits below calendar tasks and move compact weather above"
   ]
 }

@@ -1817,3 +1817,15 @@ body.calendar-connections-open{overflow:hidden!important}
 
 /* Keep the calendar close to its header. */
 body[data-app-tab="schedule"] #workCalendarSection.work-page{row-gap:6px!important}
+
+/* Habits share their status with the habit tracker. */
+.work-page .calendar-selected-habits{display:grid;gap:8px}
+.work-page .calendar-habit-row{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.work-page .calendar-habit-name{flex:1;min-width:0;overflow-wrap:anywhere;font-size:14px;font-weight:650}
+.work-page .calendar-habit-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}
+.work-page .calendar-habit-actions button{min-height:32px;padding:6px 9px;border:1px solid var(--line);border-radius:9px;background:var(--surface-strong);color:var(--text);font:inherit;font-size:11px;cursor:pointer}
+.work-page .calendar-habit-actions button:disabled{opacity:.45;cursor:default}
+.work-page .calendar-habit-actions .is-done{color:#23966a}.work-page .calendar-habit-actions .is-notdone{color:#c24c5d}
+.work-page .calendar-habit-status{font-size:12px;font-weight:650;color:var(--muted)}
+.work-page .calendar-habit-message{margin:0;font-size:12px;line-height:1.35;color:var(--muted)}
+.work-page .calendar-habit-message.is-error{color:#c24c5d}
