@@ -51,3 +51,7 @@ test('monthly category totals combine repeated labels and match the month total'
 test('empty-state description includes car wash expenses',()=>{
   assert.match(source,/Расходов по меткам[^']*Мойка/);
 });
+test('fine-tagged expenses contribute once to vehicle totals even outside transport',()=>{
+ const data={categories:[{id:'transport',name:'Транспорт'},{id:'other',name:'Другое'}],personalExpenses:[{id:'1',categoryId:'transport',label:'Штраф',rubAmount:500,month:'2026-11'},{id:'2',categoryId:'other',label:' штраф ',rubAmount:250,month:'2026-11'}]};
+ const groups=JSON.parse(JSON.stringify(carExpenseGroups(data)));assert.equal(groups[0].total,750);assert.deepEqual(groups[0].categoryTotals,[{label:'Штраф',total:750}]);assert.equal(groups[0].operations.length,2);
+});

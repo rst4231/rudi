@@ -184,3 +184,8 @@ html[data-theme=dark] .lulu-profile-page .lulu-overview-plan-item,html[data-them
 .lulu-profile-page .lulu-profile-history h3{margin:12px 0 4px}
 .lulu-profile-page .lulu-profile-walk{padding:8px 0;gap:8px}
 .lulu-profile-page .lulu-profile-walk p{margin-top:2px;line-height:1.35}
+
+.lulu-care-root .lulu-care-weight{padding:10px 13px}
+.lulu-care-root .lulu-care-weight > .lulu-care-value,.lulu-care-root .lulu-care-weight > p.lulu-care-muted{display:inline-block;vertical-align:baseline}
+.lulu-care-root .lulu-care-weight > p.lulu-care-muted{margin-left:9px}
+.lulu-care-weight .lulu-care-weight-chart{height:46px;margin:4px 0}

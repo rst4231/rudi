@@ -4012,7 +4012,9 @@
             if(row.manualAdjustment)item.dataset.historyReadOnly='true';
             const copy=document.createElement('div');copy.className='finance-category-history-copy';
             const rowTitle=document.createElement('strong');
-            rowTitle.textContent=row.manualAdjustment?'Расход':row.label?(row.label+(row.note?' · '+row.note:'')):(row.note||'Расход');
+            rowTitle.textContent=row.manualAdjustment?'Расход':String(row.label||'').trim()||'Расход';
+            const comment=String(row.note||'').trim();
+            if(comment&&!row.manualAdjustment){const note=document.createElement('span');note.className='finance-category-history-note';note.textContent=comment;copy.append(rowTitle,note)}else copy.append(rowTitle);
             const detail=document.createElement('small');
             const wallet=financeWalletById(row.walletId);
             const sourceCurrency=String(row.sourceCurrency||'').toUpperCase();
@@ -4021,7 +4023,7 @@
               ?financeMoney(row.sourceAmount,sourceCurrency)+' → '
               :'';
             detail.textContent=[row.historicalImport?'CoinKeeper':'',wallet?.name||row.fromName,sourcePart?sourcePart+financeMoney(row.amount,targetCurrency):'',meta.time].filter(Boolean).join(' · ');
-            copy.append(rowTitle,detail);
+            copy.append(detail);
             const value=document.createElement('b');
             const rowAmount=Number(row.rubAmount??row.amount??0);
             value.textContent=(rowAmount<0?'+':'−')+financeOverviewMoney(Math.abs(rowAmount));
@@ -20501,7 +20503,7 @@
           const max=Math.max(...chartRows.map(row=>row.total));
           for(const row of chartRows){
             const column=document.createElement('div');column.className='products-spend-bar';
-            const value=document.createElement('strong');value.textContent=(row.partial?'Учтено: ':'')+productPurchaseMoney(row.total);if(row.partial)value.title='Учтены покупки с указанной суммой';
+            const value=document.createElement('strong');value.textContent=productPurchaseMoney(row.total);if(row.partial)value.title='Учтены покупки с указанной суммой';
             const track=document.createElement('div');track.className='products-spend-track';
             const bar=document.createElement('div');bar.className='products-spend-fill';bar.style.height=Math.max(3,100*row.total/max)+'%';track.append(bar);
             const label=document.createElement('span');label.textContent=row.month.label;
