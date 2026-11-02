@@ -1,16 +1,16 @@
 {
-  "current": "v4.426",
+  "current": "v4.427",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.425",
+  "basedOnProduction": "v4.426",
   "notes": [
-    "Погода, ветер и вероятность осадков в календаре"
+    "Погода в одной строке с периодом дня"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Add weather condition, wind and precipitation chance to dayparts"
+    "Align daypart forecast inline with calendar headings"
   ]
 }

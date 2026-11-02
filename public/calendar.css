@@ -1835,3 +1835,7 @@ body[data-app-tab="schedule"] #workCalendarSection.work-page{row-gap:6px!importa
 
 .work-page .calendar-period-weather{color:var(--muted);font-size:.9em;font-weight:550;white-space:normal;overflow-wrap:anywhere}
 .work-page .calendar-period-weather-strip{display:flex;gap:10px 16px;flex-wrap:wrap;margin:0 0 10px;font-size:12px;font-weight:700;color:var(--text)}
+
+/* Keep the forecast beside the daypart label on the same line. */
+body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-tasks-period-heading{display:flex!important;align-items:baseline;gap:4px;white-space:nowrap}
+body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-period-weather{display:inline!important;margin:0!important;font-size:clamp(9px,2.7vw,12px)!important;line-height:inherit!important;white-space:nowrap!important}
