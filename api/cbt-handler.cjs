@@ -31,6 +31,10 @@ function createHandler(deps={}){
     const state=core.refresh(stored||core.empty());
     return res.status(200).json({ok:true,actor,state,copy:copy?.version===content.version?copy:null});
    }
+   if(body.operation==='recover-backups'){
+    if(!Array.isArray(body.backups)||body.backups.length>30||JSON.stringify(body.backups).length>2000000)return res.status(400).json({ok:false,error:'cbt-invalid-backups'});
+    return await withLock(actor,async()=>{const current=await read(actor,KEY)||core.empty();const state=core.mergeBackups(current,body.backups);await write(actor,KEY,state);return res.status(200).json({ok:true,actor,state})});
+   }
    if(body.operation==='analyze'){
     const cycleId=String(body.cycleId||''),day=Number(body.day),entryId=String(body.entryId||'initial');
     if(!/^[a-zA-Z0-9_-]{1,90}$/.test(cycleId)||!Number.isInteger(day)||day<1||day>21||!/^[a-zA-Z0-9_-]{1,90}$/.test(entryId))return res.status(400).json({ok:false,error:'cbt-invalid-coach'});

@@ -39,7 +39,7 @@ function active(s){return s?.runs?.find(r=>r.status==='active')||null}
 function empty(){return {schema:1,runs:[]}}
 function error(code,fields){const e=Error(code);e.fields=fields||[];throw e}
 function filled(f,v){return f.type==='range'?Number.isFinite(v)&&v>=0&&v<=f.max:f.type==='check'?v===true:f.type==='emotions'?Array.isArray(v)&&v.length>0:typeof v==='string'&&!!v.trim()}
-function missing(day,answers,format='full'){if(format==='quick')return [answers?.situation,answers?.thought].some(v=>typeof v==='string'&&v.trim())||Array.isArray(answers?.emotions)&&answers.emotions.length?[]:['thought'];return content.days[day-1].fields.filter(f=>f.required&&!filled(f,answers?.[f.key])).map(f=>f.key)}
+function missing(day,answers,format='full'){return hasAnswers(answers)?[]:['thought']}
 function validate(op){
  if(!op||!validId(op.id)||!validId(op.cycleId)||!['start','schedule','new-entry','delete-entry','format','edit','complete','archive','coach','coach-check'].includes(op.type))error('cbt-invalid-operation');
  if(op.timeZone!==undefined&&!zone(op.timeZone))error('cbt-invalid-timezone');
@@ -56,7 +56,7 @@ function validate(op){
  if(op.coach.version!==undefined&&op.coach.version!==2)error('cbt-invalid-coach');
  return;
 }
-if(op.type==='coach-check'){if(!['done','partial','not-done'].includes(op.outcome))error('cbt-invalid-coach-check');return}
+if(op.type==='coach-check'){if(!['done','partial','not-done','not-applicable'].includes(op.outcome))error('cbt-invalid-coach-check');return}
 if(op.type==='complete'||op.type==='delete-entry')return;
  if(!op.patch||Array.isArray(op.patch)||typeof op.patch!=='object'||!Object.keys(op.patch).length||Object.keys(op.patch).length>15)error('cbt-invalid-fields');
  const fields=[...content.days[op.day-1].fields,{key:'situation',type:'text'},{key:'thought',type:'text'},{key:'moodBefore',type:'range',max:10},{key:'moodAfter',type:'range',max:10},{key:'emotionIntensity',type:'range',max:10},{key:'emotions',type:'emotions'}];
@@ -127,6 +127,30 @@ function apply(state,op,now=new Date().toISOString(),local=false){
  if(!run.calendar&&Object.values(run.days).filter(x=>x.completedAt).length===21){run.status='completed';run.completedAt=run.completedAt||now}
  return s;
 }
+// Fold historical device snapshots into the account history without replacing current answers.
+function mergeBackups(state,backups){
+ const result=clone(state||empty());
+ for(const backup of backups||[])for(const source of backup?.state?.runs||[]){
+  if(!validId(source?.id)||!source.days||typeof source.days!=='object')continue;
+  let target=result.runs.find(r=>r.id===source.id);
+  if(!target){target=clone(source);if(target.status==='active'&&active(result)){target.status='interrupted';target.interruptedAt=target.updatedAt||target.startedAt}result.runs.push(target);continue}
+  for(const [day,row] of Object.entries(source.days)){
+   if(!/^([1-9]|1[0-9]|2[01])$/.test(day)||!row||typeof row!=='object')continue;
+   if(!target.days[day]){target.days[day]=clone(row);continue}
+   const dest=target.days[day];dest.entries=dest.entries||[];
+   for(const item of entries(row,true)){
+    let current=item.id==='initial'?dest:dest.entries.find(e=>e.id===item.id);
+    if(!current){dest.entries.push(clone(item));continue}
+    if(!same(current.answers,item.answers)&&hasAnswers(item.answers)){
+     current.versions=current.versions||[];
+     if(!current.versions.some(v=>same(v.answers,item.answers)))current.versions.push({id:'recovered-'+current.versions.length,at:item.answerUpdatedAt||item.updatedAt||item.savedAt||source.startedAt,answers:clone(item.answers)});
+    }
+    for(const version of item.versions||[]){current.versions=current.versions||[];if(!current.versions.some(v=>same(v.answers,version.answers))&&!same(current.answers,version.answers))current.versions.push(clone(version))}
+   }
+  }
+ }
+ return result;
+}
 function nextDay(run,now=new Date().toISOString()){if(run?.calendar)return calendar(run,now).current;const draft=Object.entries(run?.days||{}).filter(([,r])=>!r.completedAt).sort((a,b)=>String(b[1].updatedAt).localeCompare(String(a[1].updatedAt)))[0];if(draft)return Number(draft[0]);for(let n=1;n<=21;n++)if(!run?.days[n]?.completedAt)return n;return 21}
 function stats(run,week,now=new Date().toISOString()){
  const allDays=Object.entries(run?.days||{}).filter(([day])=>!week||Math.ceil(Number(day)/7)===week);
@@ -140,5 +164,5 @@ function stats(run,week,now=new Date().toISOString()){
  return {completed,recordedDays:allDays.filter(([,r])=>entries(r).some(e=>hasAnswers(e.answers))).length,records:rows.length,exercises:rows.filter(r=>r.format!=='quick').length,percent:Math.round(completed/(week?7:21)*100),moodBefore:points('moodBefore'),moodAfter:points('moodAfter'),intensity:points('emotionIntensity'),beliefBefore:points('beliefBefore'),beliefAfter:points('beliefAfter'),moodPairs:mood.length,beliefPairs:belief.length,moodChange:avg(mood,r=>r.answers.moodAfter-r.answers.moodBefore),beliefChange:avg(belief,r=>r.answers.beliefAfter-r.answers.beliefBefore),emotions:Object.entries(counts).sort((a,b)=>b[1]-a[1]),actions:rows.filter(r=>r.answers.actionDone===true).length};
 }
 function report(run,week){const s=stats(run,week);const result=[`Завершено дней: ${s.completed} из ${week?7:21}.`,`Сохранено записей: ${s.records}.`,`Дней с записями: ${s.recordedDays}.`];if(s.moodPairs)result.push(`Среднее изменение настроения в ${s.moodPairs} записях с двумя оценками: ${s.moodChange>0?'+':''}${s.moodChange} из 10.`);if(s.beliefPairs)result.push(`Среднее изменение убеждённости в ${s.beliefPairs} разборах: ${s.beliefChange>0?'+':''}${s.beliefChange} п. п.`);if(s.emotions.length)result.push(`Чаще отмечалась эмоция: ${s.emotions[0][0]} (${s.emotions[0][1]}).`);if(s.actions)result.push(`Выполнено практических действий: ${s.actions}.`);if(s.records<2)result.push('Данных пока недостаточно для оценки динамики.');result.push('Эти записи описывают отдельные занятия и не позволяют оценить эффект терапии или поставить диагноз.');return result}
-return {active,empty,apply,stats,report,nextDay,missing,validate,same,entries,entry,nextEntry,hasAnswers,reusableEntry,canonicalEntryId,calendar,refresh,dayKey,midnight};
+return {active,empty,apply,mergeBackups,stats,report,nextDay,missing,validate,same,entries,entry,nextEntry,hasAnswers,reusableEntry,canonicalEntryId,calendar,refresh,dayKey,midnight};
 });

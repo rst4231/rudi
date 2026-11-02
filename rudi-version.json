@@ -1,16 +1,16 @@
 {
-  "current": "v4.418",
+  "current": "v4.419",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.417",
+  "basedOnProduction": "v4.418",
   "notes": [
-    "Убрана светлая полоса на странице партнёра"
+    "Понятные упражнения КПТ и объединение сохранённых записей"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Fix partner profile header and background"
+    "Clarify CBT questions and merge device backups into account history"
   ]
 }
