@@ -256,16 +256,14 @@ html:not([data-theme="dark"]) .rudi-meditation-page.partner-profile-page {
   --pp-bg:#f4f5fb;--pp-panel:#ffffff;--pp-edge:rgba(53,65,99,.075);
   --pp-muted:#68738a;--pp-mint:#136f63;--pp-blue:#545bc0;
   --pp-rose:#a64278;--pp-gold:#8e651d;
-  background:
-    radial-gradient(ellipse 85% 36% at 108% 5%,rgba(190,190,250,.26),transparent 70%),
-    radial-gradient(ellipse 60% 28% at -15% 68%,rgba(253,218,230,.19),transparent 76%),
-    #f4f5fb;
+  background:var(--pp-bg)!important;
   color:#29354b;
 }
 html:not([data-theme="dark"]) .partner-profile-page:not(.lulu-profile-page)>.partner-profile-bar {
-  background:rgba(252,252,255,.93)!important;
-  border-bottom:1px solid rgba(72,83,122,.075)!important;
-  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  -webkit-backdrop-filter:none!important;backdrop-filter:none!important;
 }
 html:not([data-theme="dark"]) .partner-profile-page .partner-profile-content {
   padding:12px 0 max(22px,env(safe-area-inset-bottom));

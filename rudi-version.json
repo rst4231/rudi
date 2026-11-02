@@ -1,16 +1,16 @@
 {
-  "current": "v4.417",
+  "current": "v4.418",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.416",
+  "basedOnProduction": "v4.417",
   "notes": [
-    "Автоматическое завершение КПТ после перерыва"
+    "Убрана светлая полоса на странице партнёра"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "End inactive CBT cycles after five days without entries"
+    "Fix partner profile header and background"
   ]
 }
