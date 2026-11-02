@@ -652,3 +652,6 @@ html:not([data-theme="dark"]) .partner-profile-page .partner-mood-cbt{color:#784
 /* A continuous page background behind the partner header. */
 html .rudi-meditation-page.partner-profile-page:not(.lulu-profile-page){background:var(--pp-bg)!important}
 html .partner-profile-page:not(.lulu-profile-page)>.partner-profile-bar{background:transparent!important;border:0!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+
+.partner-finances .partner-finance-limit{font-size:12px;font-weight:650;color:var(--text)}
+.partner-finances .partner-finance-budget-head strong{font-size:12px}

@@ -89,9 +89,7 @@ test('personal summary shows Diana schedule to Rustam, own workday to Diana, and
   assert.equal((rustam.match(/<b>Диана сегодня<\/b>/g)||[]).length,1);
   assert.doesNotMatch(rustam, /Шины: Можно на летних/);
   assert.match(rustam, /Мойка: сегодня/);
-  assert.match(rustam, /Рекомендации:/);
-  assert.match(rustam, /ТО через/);
-  assert.match(rustam, /Проверить давление в шинах/);
+  assert.doesNotMatch(rustam, /Рекомендации:|ТО через|Проверить давление в шинах/);
 
   const diana = buildMorningSummary('Диана', common);
   assert.match(diana, /Задача Дианы/);
@@ -239,9 +237,7 @@ test('daily summary replaces feed notice, personalizes new partner activity, and
   assert.doesNotMatch(rustam.text,/На улице: 11°C · пасмурно/);
   assert.doesNotMatch(rustam.text,/Шины: Лучше на зимних/);
   assert.match(rustam.text,/Мойка: сегодня/);
-  assert.match(rustam.text,/Рекомендации:/);
-  assert.match(rustam.text,/ТО через/);
-  assert.match(rustam.text,/Чек-ап машины/);
+  assert.doesNotMatch(rustam.text,/Рекомендации:|ТО через|Чек-ап машины/);
   assert.match(rustam.text,/Праздники сегодня/);
   assert.match(rustam.text,/День осенней прогулки/);
   assert.doesNotMatch(rustam.text,/Обновить Яндекс Карты/);
@@ -427,4 +423,7 @@ test('morning digest includes more than five holidays from the daily source', as
   assert.deepEqual(holidays, expected);
   const summary = buildMorningSummary('Рустам', { holidays, tasks:[] });
   for (const name of expected) assert.ok(summary.includes('• ' + name), name);
+});
+test('Diana sees only today’s explicit workplace in her morning summary',()=>{
+ const {buildMorningSummary}=require('../api/morning-summary.cjs');const d=buildMorningSummary('Диана',{tasks:[],rustamWorkplace:'coworking'});assert.match(d,/Рустам работает в коворкинге/);const h=buildMorningSummary('Диана',{tasks:[],rustamWorkplace:'home'});assert.match(h,/Рустам работает дома/);assert.doesNotMatch(buildMorningSummary('Диана',{tasks:[]}),/Рустам.*(?:дома|коворкинг)/i);assert.doesNotMatch(buildMorningSummary('Рустам',{tasks:[],rustamWorkplace:'coworking'}),/Рустам.*коворкинг/i);
 });

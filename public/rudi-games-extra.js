@@ -17,8 +17,8 @@ let battlePresence=null,battleSession='',battleLastHeartbeat=0,battleFeedback=''
 let battlePollController=null,battleLastPresence=0,battleEpoch=0,battleReminderBusy=false,battleLayout=null;
 let battlePendingCell=null,battleActionController=null;
 let previousLauncherBadge=null;
-function sum(){return Object.values(status).filter(x=>x.active).length}
-function myTurns(){return Object.values(status).filter(x=>x.active&&x.turn===actor()).length}
+function sum(){return status.battleship.active?1:0}
+function myTurns(){return status.battleship.active&&status.battleship.turn===actor()?1:0}
 function statusText(name){
  const x=status[name];return !x?.active?'':x.turn===actor()?'Твой ход':'Игра начата';
 }
@@ -34,7 +34,7 @@ function renderBadges(){
   btn.setAttribute('aria-label',btn.title);
  }
  if(g()?.getMode?.()==='home'){
-  for(const name of ['duel','battleship']){
+  for(const name of ['battleship']){
    const card=document.querySelector('#rudiGamesPage [data-rudi-game="'+name+'"]');
    if(!card)continue;
    const text=statusText(name);card.classList.toggle('has-live-game',!!text);
@@ -688,6 +688,11 @@ function nextThinkingQuestion(){
  const inSession=new Set(think.order);
  const fresh=candidates.filter(i=>!inSession.has(i)&&PUZZLES[i][4].id!==stored?.last);
  if(fresh.length)candidates=fresh;
+ const pattern=p=>p[4].id.startsWith('authored-')?p[4].id:p[4].family;
+ let shownPatterns=new Set(Array.isArray(stored?.patterns)?stored.patterns:[]);
+ let newPatterns=candidates.filter(i=>!shownPatterns.has(pattern(PUZZLES[i])));
+ if(!newPatterns.length){shownPatterns.clear();newPatterns=candidates}
+ candidates=newPatterns;
  const sessionFamilies=new Set(think.order.map(i=>PUZZLES[i][4].family));
  const recent=Array.isArray(stored?.recent)?stored.recent.slice(-2):[];
  const diverse=candidates.filter(i=>!sessionFamilies.has(PUZZLES[i][4].family)&&!recent.includes(PUZZLES[i][4].family));
@@ -698,7 +703,8 @@ function nextThinkingQuestion(){
  const group=candidates.filter(i=>PUZZLES[i][4].family===family);
  const index=group[Math.floor(Math.random()*group.length)],puzzle=PUZZLES[index];
  seen.add(puzzle[4].id);
- const history={seen:[...seen],last:puzzle[4].id,recent:[...recent,puzzle[4].family].slice(-2)};
+ shownPatterns.add(pattern(puzzle));
+ const history={seen:[...seen],last:puzzle[4].id,recent:[...recent,puzzle[4].family].slice(-2),patterns:[...shownPatterns]};
  thinkingMemory.set(actor(),history);write('thinking-history',history);
  think.order.push(index);
  const positions=shuffleThinking([0,1,2,3]);

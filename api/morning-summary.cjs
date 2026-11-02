@@ -1,4 +1,5 @@
 const {loadLuluIntakes}=require('./lulu-summary.cjs');
+const {readWorkplaceForSummary}=require('./calendar-workplace.cjs');
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const { readRecipients } = require('./partner-notification-store.cjs');
 const { readPartnerMessage } = require('./partner-message-store.cjs');
@@ -552,11 +553,7 @@ function shortCarRecommendations(data = {}) {
 
 function rustamCarBlock(data = {}) {
   const weather = data.environment?.weather || null;
-  const lines = [];
-  lines.push('Мойка: ' + washDayLabel(weather));
-  const recommendations = shortCarRecommendations(data);
-  lines.push('Рекомендации: ' + (recommendations.length ? recommendations.join('; ') : 'срочных действий нет'));
-  return '🚗 <b>Машина</b>\n' + lines.map(escapeTelegramHtml).join('\n');
+  return '🚗 <b>Машина</b>\n' + escapeTelegramHtml('Мойка: ' + washDayLabel(weather));
 }
 
 function buildMorningSummary(actor, data = {}) {
@@ -587,6 +584,8 @@ function buildMorningSummary(actor, data = {}) {
     if (diana.length) blocks.push('<b>Диана сегодня</b>\n' + diana.join('\n'));
   } else {
     if (data.workDay) blocks.push(workDayBlock(data.workDay));
+    if (actor === 'Диана' && data.rustamWorkplace === 'coworking') blocks.push('💼 Рустам работает в коворкинге');
+    if (actor === 'Диана' && data.rustamWorkplace === 'home') blocks.push('💼 Рустам работает дома');
     if (data.cycle?.moodWord) {
       blocks.push('🌸 <b>Твой статус по циклу</b>\n'
         + '<b>' + escapeTelegramHtml(data.cycle.moodWord) + '</b>'
@@ -789,6 +788,7 @@ async function collectMorningData(options = {}) {
     holidays,
     obligationsByActor,
     luluMorning,
+    rustamWorkplace,
   ] = await Promise.all([
     loadTodayTasks({ ...options, now }),
     loadDianaWorkDay({ ...options, now }),
@@ -804,12 +804,14 @@ async function collectMorningData(options = {}) {
     loadTodayHolidays({ ...options, now }).catch(() => []),
     loadDueObligationsByActor({ ...options, now }).catch(() => ({ 'Рустам':[], 'Диана':[] })),
     loadLuluIntakes(date,'morning',options).catch(()=>[]),
+    readWorkplaceForSummary(date,options).catch(()=>''),
   ]);
 
   return {
     now,
     date,
     luluMorning,
+    rustamWorkplace,
     dateLabel: formatDate(now),
     moonPhaseLabel: formatMoonPhase(now),
     holidays: Array.isArray(holidays) ? holidays : [],

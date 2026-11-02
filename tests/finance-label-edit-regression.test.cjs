@@ -1,0 +1,12 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
+test('adding a new label while editing selects and saves it on the original expense',async()=>{
+ const dom=new JSDOM(`<body><input id="financePersonalMonthInput" value="2026-11"><div id="financeCategoryList"></div><div id="financeCategoryHistoryPage"><div class="finance-category-history-day"><div class="finance-category-history-row" data-expense-id="e1"><div class="finance-category-history-copy"><strong>Расход</strong></div></div></div></div><div id="financeExpenseComposer" hidden><input id="financeExpenseComposerAmount"><input id="financeExpenseComposerDate"><input id="financeExpenseComposerTime"><input id="financeExpenseComposerNote"><div id="financeExpenseComposerStatus"></div><button id="financeExpenseComposerSave"></button><button id="financeExpenseLabelAddButton"></button><div id="financeExpenseLabelList"></div><div id="financeExpenseLabelCreate" hidden><input id="financeExpenseLabelInput"><button id="financeExpenseLabelSave"></button></div></div></body>`,{runScripts:'dangerously',url:'https://rudi.test'});
+ const {window:w}=dom,calls=[];const expense={id:'e1',categoryId:'c1',sourceAmount:562,sourceCurrency:'RUB',occurredAt:'2026-11-02T19:43:00Z',label:''};let labels=[];
+ w.fetch=async(url,opts)=>{const body=JSON.parse(opts.body);calls.push(body);if(body.operation==='add-category-label')labels=[body.label];return {ok:true,json:async()=>({ok:true,categories:[{id:'c1',name:'Транспорт',labels}],wallets:[],personalExpenses:[expense]})}};
+ const source=fs.readFileSync('public/index.html','utf8').match(/<script data-v468-expense-editor>([\s\S]*?)<\/script>/)[1];w.eval(source);
+ w.document.querySelector('.finance-category-history-row').dispatchEvent(new w.MouseEvent('click',{bubbles:true}));await new Promise(r=>setTimeout(r,40));
+ w.document.getElementById('financeExpenseLabelAddButton').click();w.document.getElementById('financeExpenseLabelInput').value='Штраф';w.document.getElementById('financeExpenseLabelSave').click();await new Promise(r=>setTimeout(r,30));
+ assert.ok(calls.some(x=>x.operation==='add-category-label'&&x.id==='c1'&&x.label==='Штраф'));
+ assert.equal(w.document.querySelector('#financeExpenseLabelList .is-active')?.textContent,'Штраф');
+ w.document.getElementById('financeExpenseComposerSave').click();await new Promise(r=>setTimeout(r,30));assert.equal(calls.find(x=>x.operation==='save-expense')?.label,'Штраф');dom.window.close();
+});

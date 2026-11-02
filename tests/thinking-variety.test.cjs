@@ -130,3 +130,8 @@ test('a fresh session varies reasoning families and rerendering keeps history an
  }
  assert.equal(new Set(families).size,10);
 });
+test('across new sessions, question patterns do not recur while unused patterns are available',()=>{
+ const f=fixture(),patterns=[];
+ for(let i=0;i<12;i++){f.api.startThinking();const meta=f.api.puzzles[f.api.state.order[0]][4];patterns.push(meta.id.startsWith('authored-')?meta.id:meta.family)}
+ assert.equal(new Set(patterns).size,patterns.length);
+});

@@ -3905,6 +3905,13 @@ async function handleRudiAction(req, res, action, options = {}) {
     }
   }
 
+  if (action === 'calendar-workplace') {
+    if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
+    try{const body=req.body&&typeof req.body==='object'?req.body:{};const {actor}=authorizeRequest(req,body.initData,options);
+      const result=await require('./calendar-workplace.cjs').workplace({...body,actor},options);return res.status(200).json(result);
+    }catch(error){const code=String(error?.message||error),status=code==='calendar-workplace-forbidden'?403:code==='calendar-workplace-invalid'?400:statusForError(error);return res.status(status).json({ok:false,error:status>=500?'calendar-workplace-unavailable':code})}
+  }
+
   if (action === 'ui-preferences') {
     if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method-not-allowed' });
     try {

@@ -16476,11 +16476,34 @@
         });
       }
 
+      const workplaceFlights=new Map();let workplaceFlush=null;
+      const workplaceKey='rudi:calendar-workplace:rustam:v1';
+      function readWorkplaces(){try{const data=JSON.parse(localStorage.getItem(workplaceKey)||'{}');return data&&typeof data==='object'?data:{}}catch(_){return {}}}
+      function writeWorkplaces(data){try{localStorage.setItem(workplaceKey,JSON.stringify(data));return true}catch(_){return false}}
+      function paintWorkplace(date){const data=readWorkplaces(),place=data[date]?.place||'';document.querySelectorAll('.calendar-workplace[data-date="'+date+'"] button').forEach(button=>{const active=button.dataset.place===place;button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active))})}
+      async function workplaceRequest(body){const response=await fetch('/api/partner-message?rudiAction=calendar-workplace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:telegramInitData(),...body}),cache:'no-store'});const data=await response.json().catch(()=>({}));if(!response.ok||!data.ok)throw Error('workplace-unavailable');return data}
+      async function flushWorkplaces(){
+        if(currentActor!=='Рустам'||!navigator.onLine)return;if(workplaceFlush)return workplaceFlush;
+        workplaceFlush=(async()=>{let passes=0;while(currentActor==='Рустам'&&navigator.onLine&&passes++<100){const pending=Object.entries(readWorkplaces()).find(([,row])=>row?.pending);if(!pending)break;const [date,row]=pending;try{await workplaceRequest({operation:'set',date,place:row.place});const next=readWorkplaces();if(next[date]?.revision===row.revision){next[date].pending=false;if(!writeWorkplaces(next))break}}catch(_){break}}})().finally(()=>{workplaceFlush=null});return workplaceFlush;
+      }
+      async function loadWorkplaces(month){
+        if(currentActor!=='Рустам'||!navigator.onLine)return;if(workplaceFlights.has(month))return workplaceFlights.get(month);
+        const flight=(async()=>{try{await flushWorkplaces();if(currentActor!=='Рустам')return;const result=await workplaceRequest({operation:'list',month});if(currentActor!=='Рустам')return;const data=readWorkplaces();for(const [date,row] of Object.entries(data))if(date.startsWith(month)&&!row.pending&&!Object.prototype.hasOwnProperty.call(result.days,date))delete data[date];for(const [date,place] of Object.entries(result.days||{}))if(!data[date]?.pending)data[date]={place,pending:false};writeWorkplaces(data);document.querySelectorAll('.calendar-workplace[data-date]').forEach(node=>paintWorkplace(node.dataset.date))}catch(_){}})().finally(()=>workplaceFlights.delete(month));workplaceFlights.set(month,flight);return flight;
+      }
+      function calendarWorkplaceControl(date){
+        if(currentActor!=='Рустам'||calendarScope!=='personal')return null;
+        const row=document.createElement('div');row.className='calendar-workplace';row.dataset.date=date;row.setAttribute('role','group');row.setAttribute('aria-label','Место работы');
+        for(const [place,label] of [['home','🏠 Дома'],['coworking','💻 Коворкинг']]){const button=document.createElement('button');button.type='button';button.dataset.place=place;button.textContent=label;button.setAttribute('aria-pressed',String(readWorkplaces()[date]?.place===place));button.classList.toggle('is-active',readWorkplaces()[date]?.place===place);button.addEventListener('click',()=>{const data=readWorkplaces(),next=data[date]?.place===place?'':place;data[date]={place:next,pending:true,revision:Date.now()+'-'+Math.random()};if(!writeWorkplaces(data)){button.title='Не удалось сохранить';return}paintWorkplace(date);void flushWorkplaces()});row.append(button)}
+        void loadWorkplaces(date.slice(0,7));return row;
+      }
+      window.addEventListener('online',()=>{if(currentActor==='Рустам')void flushWorkplaces()});
+
       function calendarWeekAgenda(dateKey,tasks,workEvents,holidays,obligations,sharedWritable=true){
         const panel=document.createElement('div');
         panel.className='calendar-week-agenda';
         panel.dataset.calendarDate=dateKey;
         panel.setAttribute('aria-label','Расписание на '+dateKey);
+        const workplace=calendarWorkplaceControl(dateKey);if(workplace)panel.append(workplace);
         const allDayItems=[];
         const timed=[];
         const put=(kind,title,startTime,endTime,task=null,amount='')=>{
@@ -16884,6 +16907,7 @@
 
             const details=document.createElement('div');
             details.className='calendar-selected-details';
+            if(calendarDisplayMode!=='week'){const workplace=calendarWorkplaceControl(day.date);if(workplace)details.append(workplace)}
 
             if(calendarDisplayMode!=='week'){
               const group=document.createElement('div');

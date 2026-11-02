@@ -89,12 +89,20 @@
   const card=page.querySelector('.partner-finances');if(!card)return;
   if(data?.partner&&data.partner!==actor)return;
   let limitStatus=card.querySelector('.partner-finance-limit');
-  if(!limitStatus){limitStatus=document.createElement('p');limitStatus.className='partner-finance-limit';limitStatus.setAttribute('role','status');card.querySelector('h2').after(limitStatus)}
+  if(!limitStatus){limitStatus=document.createElement('div');limitStatus.className='partner-finance-limit';limitStatus.setAttribute('role','status');card.querySelector('h2').after(limitStatus)}
   const planned=Number(data?.budget?.plannedLimit),spent=Number(data?.budget?.actualSpent);
-  limitStatus.textContent='Лимит исчерпан';
-  limitStatus.hidden=!(Number.isFinite(planned)&&planned>0&&Number.isFinite(spent)&&spent>=planned);
+  const available=Boolean(data?.budget)&&Number.isFinite(planned)&&planned>0&&Number.isFinite(spent);
+  limitStatus.hidden=!available;
+  if(available){const ratio=Math.max(0,spent/planned*100),exhausted=ratio>=100,percent=exhausted?Math.round(ratio):Math.min(99,Math.round(ratio));
+   limitStatus.replaceChildren();const head=document.createElement('div');head.className='partner-finance-budget-head';
+   const title=document.createElement('strong');title.textContent=exhausted?'Лимит исчерпан':'Лимит не исчерпан';
+   const number=document.createElement('span');number.className='partner-finance-percent';number.textContent=percent+'%';head.append(title,number);
+   const track=document.createElement('div');track.className='partner-finance-track';track.dataset.level=exhausted?'full':ratio>=75?'mid':'low';track.setAttribute('role','progressbar');track.setAttribute('aria-label','Использовано от лимита');track.setAttribute('aria-valuemin','0');track.setAttribute('aria-valuemax','100');track.setAttribute('aria-valuenow',String(Math.min(100,percent)));
+   const fill=document.createElement('i');fill.style.width=Math.min(100,ratio)+'%';track.append(fill);limitStatus.append(head,track);
+  }
   const money=(amount,currency='RUB')=>new Intl.NumberFormat('ru-RU',{style:'currency',currency,maximumFractionDigits:2}).format(Number(amount)||0);
   const expense=card.querySelector('.home-partner-last-expense');
+  if(expense&&data?.expense){const row=data.expense,when=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit'}).format(new Date(row.occurredAt));expense.textContent=['💸 '+money(row.amount,row.currency),row.category||'Расход',when].join(' · ');expense.hidden=false}
   const last=card.querySelector('.partner-finance-last');
   let empty=last.querySelector('.partner-finance-empty');
   if(!empty){empty=document.createElement('p');empty.className='partner-finance-empty';last.append(empty)}

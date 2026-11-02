@@ -20,12 +20,10 @@ function menu(){
  header('Игры и тренажёры','Твоя игровая комната');
  const s=stats();
  section('<div class="rudi-game-hero"><span class="rudi-games-overline">АРКАДНАЯ ЗОНА · RUDI</span><h2>Выбирай игру ✨</h2></div>'+
-  '<div class="rudi-games-stats"><div><small>Память</small><strong>'+s.memory+' ур.</strong></div><div><small>Игроки</small><strong>Р × Д</strong></div><div><small>Игры</small><strong>5</strong></div></div>'+
+  '<div class="rudi-games-stats"><div><small>Память</small><strong>'+s.memory+' ур.</strong></div><div><small>Игроки</small><strong>Р × Д</strong></div><div><small>Игры</small><strong>3</strong></div></div>'+
   '<div class="rudi-games-list">'+
   '<button data-rudi-game="memory" class="rudi-game-card"><span class="rudi-game-glyph">◎</span><span class="rudi-game-card-copy"><b>Тренировка памяти</b><small>Запомни последовательность чисел.</small></span><span class="rudi-game-arrow">›</span></button>'+
   '<button data-rudi-game="thinking" class="rudi-game-card"><span class="rudi-game-glyph">◈</span><span class="rudi-game-card-copy"><b>Тренировка мышления</b><small>Задачи на логику, закономерности и внимательность.</small></span><span class="rudi-game-arrow">›</span></button>'+
-  '<button data-rudi-game="word" class="rudi-game-card"><span class="rudi-game-glyph">АБ</span><span class="rudi-game-card-copy"><b>Угадай слово</b><small>Одно слово каждый день. 6 попыток.</small></span><span class="rudi-game-arrow">›</span></button>'+
-  '<button data-rudi-game="duel" class="rudi-game-card is-duel"><span class="rudi-game-glyph">×○</span><span class="rudi-game-card-copy"><b>Крестики-нолики · онлайн</b><small>Общее поле. Рустам против Дианы.</small></span><span class="rudi-game-arrow">›</span></button>'+
   '<button data-rudi-game="battleship" class="rudi-game-card is-duel"><span class="rudi-game-glyph">⚓</span><span class="rudi-game-card-copy"><b>Морской бой · онлайн</b><small>Поле 10×10. Расставь свой флот.</small></span><span class="rudi-game-arrow">›</span></button></div>');
  window.RudiGameExtras?.decorateMenu?.();
 }
@@ -177,8 +175,8 @@ function ensurePage(){
  page.addEventListener('click',e=>{
    const game=e.target.closest('[data-rudi-game]')?.dataset?.rudiGame;
    if(game==='memory'){level=1;memoryShow();return}
-    if(game==='duel'){duelStart();return}
-   if(['battleship','word','thinking'].includes(game)){window.RudiGameExtras?.openGame?.(game);return}
+    if(game==='duel'||game==='word')return;
+   if(['battleship','thinking'].includes(game)){window.RudiGameExtras?.openGame?.(game);return}
    const cell=e.target.closest('[data-duel-index]');if(cell){void duelAction('move',Number(cell.dataset.duelIndex));return}
    const duel=e.target.closest('[data-duel-action]');if(duel){void duelAction(duel.dataset.duelAction);return}
    if(window.RudiGameExtras?.onClick?.(e))return;
@@ -198,10 +196,9 @@ function ensureShortcut(){
 }
 document.addEventListener('rudi:home-tiles-ready',()=>{ensureShortcut();openDuelDeepLink()});
 function openDuelDeepLink(){
- if(new URLSearchParams(window.location.search).get('game')!=='duel'||!document.body?.dataset?.rudiActor)return;
+ if(new URLSearchParams(window.location.search).get('game')!=='duel')return;
  const next=new URL(window.location.href);next.searchParams.delete('game');
  window.history.replaceState(window.history.state,'',next.pathname+next.search+next.hash);
- open();duelStart();
 }
 window.addEventListener('popstate',openDuelDeepLink);
 window.addEventListener('rudi:profile-ready',openDuelDeepLink);
