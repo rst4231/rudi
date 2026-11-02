@@ -14,6 +14,10 @@ html[data-theme=dark] .lulu-care-root .lulu-care-delete{color:#efa8a8}
 .lulu-care-weight-chart polyline{fill:none;stroke:#b98c60;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
 .lulu-care-history{margin-top:14px;font-size:13px}
 .lulu-care-history>summary{cursor:pointer;color:var(--lulu-muted);padding:8px 0}
+.lulu-care-history>.lulu-care-row{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+.lulu-care-history>.lulu-care-row>.lulu-care-row-copy{flex:1;min-width:0}
+.lulu-care-root .lulu-care-history .lulu-care-row-actions .lulu-care-delete{min-width:32px;width:32px;height:32px;padding:6px;font-size:16px}
+.lulu-care-history .lulu-care-delete svg{width:15px;height:15px}
 .lulu-care-row{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--lulu-line);padding:14px 0;min-width:0}
 .lulu-care-row-copy{min-width:0;overflow-wrap:anywhere}
 .lulu-care-row-copy strong{font-size:15px}
@@ -71,6 +75,9 @@ html[data-theme=dark] .lulu-care-icon{color:#f0e5d9}
 html[data-theme=dark] .lulu-profile-page .partner-profile-layout>section{background:linear-gradient(135deg,rgba(var(--profile-care-rgb),.22),rgba(var(--profile-care-rgb),.05) 80%),var(--lulu-paper)!important}
 
 .lulu-care-root button.lulu-care-icon-button{display:inline-grid;place-items:center;min-width:40px;padding:8px;font-size:24px;line-height:1}
+.lulu-care-head-actions{display:flex;align-items:center;gap:8px;flex:none}
+#homeLuluTile.lulu-bath-overdue .lulu-name::after,.lulu-overview-plan-item.is-bath.lulu-bath-overdue strong::after,.lulu-care-bath.lulu-bath-overdue h2::after{content:'';display:inline-block;width:8px;height:8px;margin-left:7px;border-radius:50%;background:#ed4c5c;vertical-align:middle}
+.lulu-overview-plan-item.is-prevention.lulu-bath-overdue strong::after,.lulu-overview-plan-item.is-prescription.lulu-bath-overdue strong::after,.lulu-care-prevention.lulu-bath-overdue h2::after,.lulu-care-prescription.lulu-bath-overdue h2::after{content:'';display:inline-block;width:8px;height:8px;margin-left:7px;border-radius:50%;background:#ed4c5c;vertical-align:middle}
 
 /* Lulu overview: health first, care plan, then practical summaries. */
 .lulu-profile-page .lulu-profile-hero{display:flex;gap:10px;align-items:center}
@@ -154,3 +161,5 @@ html[data-theme=dark] .lulu-profile-page .partner-profile-layout>.lulu-profile-h
 html[data-theme=dark] .lulu-profile-page .lulu-overview-plan-item,html[data-theme=dark] .lulu-profile-page .lulu-overview-summary-item{border-color:rgba(190,202,232,.13)}
 @media(max-width:430px){.lulu-profile-page .lulu-overview-plan-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lulu-profile-page .lulu-overview-plan-item,.lulu-profile-page .lulu-overview-summary-item{padding:10px 8px}}
 .lulu-profile-page .lulu-category-heading{margin:8px 2px 0!important;padding:0!important;color:var(--lulu-muted)!important;-webkit-text-fill-color:var(--lulu-muted)!important;font-size:13px!important;line-height:1.3;font-weight:750;letter-spacing:.02em}
+
+.lulu-profile-page .lulu-overview-summary{grid-template-columns:repeat(2,minmax(0,1fr))}

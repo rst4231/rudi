@@ -8511,6 +8511,7 @@
       document.addEventListener('keydown',event=>{if(event.key==='Escape'&&luluProfilePage)closeLuluProfile()});
 
       function renderLulu(value){
+        void window.RudiLuluCare?.syncHomeBath?.({actor:currentActor,request:luluRequest});
         const state=value&&typeof value==='object'?value:{};
         state.walksMonth=luluMonthWalks(state);
         state.walksToday=state.walksMonth.filter(row=>sharedAlbumDateKey(new Date(row.walkedAt))===sharedAlbumDateKey(new Date()));

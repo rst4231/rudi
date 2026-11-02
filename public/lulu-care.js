@@ -6,6 +6,38 @@ const day=(value=new Date())=>{const p=Object.fromEntries(new Intl.DateTimeForma
 const dateLabel=value=>value?new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',year:'numeric',timeZone:TZ}).format(new Date(value+'T12:00:00Z')):'';
 const kg=value=>Number(value).toLocaleString('ru-RU',{maximumFractionDigits:2})+' кг';
 const clock=()=>new Intl.DateTimeFormat('en-GB',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date());
+function bathOverdue(rows,today=day()){
+ const date=(Array.isArray(rows)?rows:[]).filter(r=>r.kind==='bath'&&!r.deleted&&/^\d{4}-\d{2}-\d{2}$/.test(r.data?.date||'')).map(r=>r.data.date).filter(d=>d<=today).sort().at(-1);
+ return Boolean(date&&(Date.parse(today+'T00:00:00Z')-Date.parse(date+'T00:00:00Z'))>28*86400000);
+}
+function careAlerts(rows,today=day()){
+ const records=(Array.isArray(rows)?rows:[]).filter(r=>!r.deleted),latest=new Map();
+ for(const r of records.filter(r=>r.kind==='prevention'&&r.data?.date<=today)){
+  const k=String(r.data.type||'')+'|'+String(r.data.product||'').trim().toLocaleLowerCase('ru-RU');
+  if(!latest.has(k)||r.data.date>latest.get(k).data.date)latest.set(k,r);
+ }
+ const prevention=[...latest.values()].some(r=>r.data.nextDate&&r.data.nextDate<=today);
+ const prescription=records.some(r=>{
+  if(r.kind!=='prescription'||r.data?.completed||!r.data?.start||r.data.start>today||(r.data.end&&r.data.end<today))return false;
+  const text=String(r.data.schedule||'').toLocaleLowerCase('ru-RU');
+  const target=/утр/.test(text)&&/вечер/.test(text)?2:1;
+  const count=records.filter(i=>i.kind==='intake'&&i.data?.prescriptionId===r.id&&i.data.at&&!Number.isNaN(Date.parse(i.data.at))&&day(i.data.at)===today).length;
+  return count<target;
+ });
+ return {bath:bathOverdue(records,today),prevention,prescription};
+}
+function showBathAlert(rows){
+ const alerts=careAlerts(rows),tile=document.getElementById('homeLuluTile');
+ if(tile){tile.classList.toggle('lulu-bath-overdue',alerts.bath||alerts.prevention||alerts.prescription);tile.dataset.bathAlert=[alerts.bath?'Купание':null,alerts.prevention?'Прививки и обработки':null,alerts.prescription?'Назначения врача':null].filter(Boolean).join(' · ')}
+ return alerts;
+}
+let homeBathAt=0,homeBathFlight=null,homeBathActor='';
+async function syncHomeBath({actor,request}){
+ if(!actor||!request)return;
+ if(actor!==homeBathActor){homeBathActor=actor;homeBathAt=0;homeBathFlight=null}
+ if(homeBathFlight||Date.now()-homeBathAt<60000)return homeBathFlight;
+ const who=actor;homeBathFlight=(async()=>{try{const cached=await window.rudiOfflineContent?.cached?.('lulu-care',who);if(homeBathActor===who&&cached?.records)showBathAlert(cached.records);const data=await request('care-get');if(homeBathActor===who&&Array.isArray(data?.care?.records)){showBathAlert(data.care.records);homeBathAt=Date.now()}}catch(_){}finally{if(homeBathActor===who)homeBathFlight=null}})();return homeBathFlight;
+}
 const uid=()=>window.crypto?.randomUUID?.()||('care-'+Date.now()+'-'+Math.random().toString(36).slice(2));
 const node=(tag,cls='',text='')=>{const el=document.createElement(tag);el.className=cls;if(text)el.textContent=text;return el};
 const button=(text,click,cls='')=>{const el=node('button',cls,text);el.type='button';el.addEventListener('click',click);if(text==='Добавить'||text==='Выбрать дату'){el.textContent='+';el.setAttribute('aria-label',text);el.title=text;el.classList.add('lulu-care-icon-button')}else if(text==='Изменить'){el.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 5 5-12 12-6 1 1-6L16 3Zm-3 3 5 5"/></svg>';el.setAttribute('aria-label',text);el.title=text;el.classList.add('lulu-care-icon-button')}else if(text==='Удалить'){el.innerHTML='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>';el.setAttribute('aria-label',text);el.title=text;el.classList.add('lulu-care-icon-button','lulu-care-delete')}return el};
@@ -37,7 +69,7 @@ function mount(root,{actor,request}){
    const item=button('',()=>goTo('.lulu-care-'+kind),'lulu-overview-plan-item is-'+kind);item.innerHTML='<svg class="lulu-overview-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+careIcons[kind]+'"/></svg><strong>'+title+'</strong><small>—</small>';item.dataset.overview=kind;plan.append(item);
   }
   const cards=overview.querySelector('.lulu-overview-summary');
-  for(const [kind,icon,title,selector] of [['nutrition','◡','Питание','.lulu-care-nutrition'],['finances','◉','Расходы','.lulu-profile-finances'],['walks','🐾','Прогулки','.lulu-profile-journal']]){
+  for(const [kind,icon,title,selector] of [['nutrition','◡','Питание','.lulu-care-nutrition'],['finances','◉','Расходы','.lulu-profile-finances']]){
    const item=button('',()=>goTo(selector),'lulu-overview-summary-item is-'+kind);item.innerHTML='<span aria-hidden="true">'+icon+'</span><strong>'+title+'</strong><small>—</small>';item.dataset.overview=kind;cards.append(item);
   }
   root.before(overview);
@@ -50,6 +82,7 @@ function mount(root,{actor,request}){
  function overviewDate(value){if(!value)return '';const date=new Date(value+'T12:00:00Z');return new Intl.DateTimeFormat('ru-RU',{day:'numeric',month:'short',...(String(value).slice(0,4)===day().slice(0,4)?{}:{year:'numeric'}),timeZone:TZ}).format(date)}
  function updateOverview(rows){
   if(!overview)return;
+  const alerts=showBathAlert(rows);for(const kind of ['bath','prevention','prescription'])overview.querySelector('[data-overview="'+kind+'"]')?.classList.toggle('lulu-bath-overdue',alerts[kind]);
   const latest=kind=>rows.filter(r=>r.kind===kind).sort((a,b)=>String(b.data.date||b.data.start||'').localeCompare(String(a.data.date||a.data.start||''))||String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')))[0];
   const weight=latest('weight');if(weightShortcut){weightShortcut.querySelector('strong').textContent=weight?kg(weight.data.kg):'Нет данных';weightShortcut.querySelector('small').textContent=weight?overviewDate(weight.data.date):''}
   const prevention=rows.filter(r=>r.kind==='prevention'&&r.data.nextDate).sort((a,b)=>a.data.nextDate.localeCompare(b.data.nextDate))[0]||latest('prevention');
@@ -58,7 +91,6 @@ function mount(root,{actor,request}){
   for(const [kind,value] of Object.entries(values))overview.querySelector('[data-overview="'+kind+'"] small').textContent=value;
   const food=latest('nutrition');overview.querySelector('[data-overview="nutrition"] small').textContent=food?[food.data.food,food.data.grams?food.data.grams+' г/день':''].filter(Boolean).join(' · '):'Не указано';
   overview.querySelector('[data-overview="finances"] small').textContent=page.querySelector('.lulu-food-total')?.textContent||'Загружаю…';
-  const count=name=>page.querySelector('[data-lulu-count="'+name+'"]')?.textContent||'0';overview.querySelector('[data-overview="walks"] small').textContent='Диана: '+count('Диана')+' · Рустам: '+count('Рустам');
  }
  setupOverview();
  const offline=window.rudiOfflineContent;
@@ -130,9 +162,10 @@ function mount(root,{actor,request}){
   form.addEventListener('submit',event=>{event.preventDefault();if(form.reportValidity())void submit({kind:draft.kind,id:draft.id,data:structuredClone(draft.data),expectedUpdatedAt:draft.expectedUpdatedAt})});
   return form;
  }
- function actionsFor(record){
+ function actionsFor(record,{editable=true}={}){
   const actions=node('div','lulu-care-row-actions');
-  actions.append(button('Изменить',()=>edit(record.kind,record)),button('Удалить',()=>{void submit({kind:record.kind,id:record.id,deleted:true,expectedUpdatedAt:record.updatedAt})},'lulu-care-delete'));
+  if(editable)actions.append(button('Изменить',()=>edit(record.kind,record)));
+  actions.append(button('Удалить',()=>{void submit({kind:record.kind,id:record.id,deleted:true,expectedUpdatedAt:record.updatedAt})},'lulu-care-delete'));
   return actions;
  }
  async function discard(id){await offline?.discard?.(id,actor);await refreshPending();status='Изменение отменено';if(valid())render();void load()}
@@ -148,18 +181,19 @@ function mount(root,{actor,request}){
    const line=document.createElementNS(svg.namespaceURI,'polyline');line.setAttribute('points',series.map((r,i)=>(8+i/(series.length-1)*284).toFixed(1)+','+(68-(r.data.kg-low)/span*52).toFixed(1)).join(' '));svg.append(line);section.append(svg);
   }
   const f=formFor('weight');if(f)section.append(f);
-  if(weights.length){const details=node('details','lulu-care-history'),summary=node('summary','','История веса');details.append(summary);for(const r of weights){const item=row(kg(r.data.kg),[dateLabel(r.data.date),r.data.note].filter(Boolean).join(' · '),r);item.append(actionsFor(r));details.append(item)}section.append(details)}
+  if(weights.length){const details=node('details','lulu-care-history'),summary=node('summary','','История веса');details.append(summary);for(const r of weights){const item=row(kg(r.data.kg),[dateLabel(r.data.date),r.data.note].filter(Boolean).join(' · '),r);item.append(actionsFor(r,{editable:false}));details.append(item)}section.append(details)}
   return section;
  }
  function renderNutrition(rows){
   const r=rows.find(r=>r.kind==='nutrition'),section=card('Питание','nutrition',r?'Изменить':'Добавить');
   if(r){section.append(node('strong','lulu-care-value',r.data.food||'Корм не указан'));const lines=[r.data.grams?'Порция за день: '+r.data.grams+' г':'',r.data.treats?'Лакомства: '+r.data.treats:'',r.data.date?'С '+dateLabel(r.data.date):'',r.data.note];for(const line of lines.filter(Boolean))section.append(node('p','lulu-care-muted',line))}else section.append(node('p','lulu-care-muted','Пока не заполнено'));
-  if(r)section.append(button('Удалить',()=>void submit({kind:'nutrition',id:r.id,deleted:true,expectedUpdatedAt:r.updatedAt}),'lulu-care-delete'));
+  if(r){const head=section.querySelector('.lulu-care-head'),editButton=head.querySelector('.lulu-care-add'),actions=node('div','lulu-care-head-actions');actions.append(editButton,button('Удалить',()=>void submit({kind:'nutrition',id:r.id,deleted:true,expectedUpdatedAt:r.updatedAt}),'lulu-care-delete'));head.append(actions)}
   const f=formFor('nutrition');if(f)section.append(f);return section;
  }
  function renderGrooming(rows,kind,title){
   const items=rows.filter(r=>r.kind===kind).sort((a,b)=>(b.data.date+b.data.time).localeCompare(a.data.date+a.data.time)),latest=items[0];
   const section=card(title,kind,kind==='nails'?null:'Выбрать дату');
+  if(kind==='bath')section.classList.toggle('lulu-bath-overdue',bathOverdue(rows));
   section.append(node('div','lulu-care-value',latest?dateLabel(latest.data.date)+' · '+latest.data.time:'Пока не отмечали'));
   if(kind!=='nails'){
   const today=day(),already=items.some(r=>r.data.date===today),id='day-'+today;
@@ -168,11 +202,12 @@ function mount(root,{actor,request}){
   }
   const f=formFor(kind);if(f)section.append(f);
   if(items.length){const history=node('details','lulu-care-history');history.append(node('summary','','История'));
-   for(const r of items){const item=row(dateLabel(r.data.date)+' · '+r.data.time,[r.actor,r.data.note].filter(Boolean).join(' · '),r);item.append(actionsFor(r));history.append(item)}section.append(history)}
+   for(const r of items){const item=row(dateLabel(r.data.date)+' · '+r.data.time,[r.actor,r.data.note].filter(Boolean).join(' · '),r);item.append(actionsFor(r,{editable:false}));history.append(item)}section.append(history)}
   return section;
  }
  function renderPrevention(rows){
   const section=card('Прививки и обработки','prevention','Добавить'),items=rows.filter(r=>r.kind==='prevention').sort((a,b)=>(a.data.nextDate||'9999').localeCompare(b.data.nextDate||'9999')||b.data.date.localeCompare(a.data.date));
+  section.classList.toggle('lulu-bath-overdue',careAlerts(rows).prevention);
   const f=formFor('prevention');if(f)section.append(f);if(!items.length)section.append(node('p','lulu-care-muted','Пока нет записей'));
   for(const r of items){const title=(r.data.type==='vaccine'?'Прививка · ':'Обработка · ')+r.data.product,item=row(title,dateLabel(r.data.date),r);
    if(r.data.nextDate){const due=node('p','lulu-care-due',(r.data.nextDate<day()?'Плановая дата прошла: ':r.data.nextDate===day()?'Сегодня: ':'Следующая: ')+dateLabel(r.data.nextDate));item.firstChild.append(due)}
@@ -181,6 +216,7 @@ function mount(root,{actor,request}){
  }
  function renderPrescriptions(rows){
   const section=card('Назначения врача','prescription','Добавить'),items=rows.filter(r=>r.kind==='prescription').sort((a,b)=>Number(a.data.completed)-Number(b.data.completed)||b.data.start.localeCompare(a.data.start));
+  section.classList.toggle('lulu-bath-overdue',careAlerts(rows).prescription);
   const f=formFor('prescription');if(f)section.append(f);if(!items.length)section.append(node('p','lulu-care-muted','Пока нет назначений'));
   for(const r of items){
    const ended=r.data.completed||r.data.end&&r.data.end<day(),notStarted=r.data.start>day(),item=row(r.data.name,[r.data.dose,r.data.schedule].filter(Boolean).join(' · '),r),copy=item.firstChild;
@@ -212,5 +248,5 @@ function mount(root,{actor,request}){
  render();void load();
  return ()=>{disposed=true;observer?.disconnect();overview?.remove();weightShortcut?.remove();activityHeading?.remove();clearInterval(timer);window.removeEventListener('rudi-content-operation-synced',synced);window.removeEventListener('focus',foreground);document.removeEventListener('visibilitychange',visible)};
 }
-window.RudiLuluCare={mount};
+window.RudiLuluCare={mount,syncHomeBath,bathOverdue};
 })();

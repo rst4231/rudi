@@ -2794,3 +2794,12 @@ html[data-theme="dark"] .car-page .car-note-remove{background:rgba(206,57,75,.18
 #carTile .car-status-wash span{color:#aebcc5;font-size:9px;line-height:1.2}
 #carTile .car-status-wash strong{color:#f0f5f4;font-size:10px;line-height:1.3}
 #carTile .car-status-tyres>svg,#carTile .car-status-wash>svg{flex:none;width:15px;height:15px}
+
+/* Keep the home car header balanced in the wide web layout. */
+@media (min-width:701px){
+ @container (min-width:521px){
+  #carTile .car-status-header{grid-template-columns:minmax(0,36%) minmax(0,1fr);column-gap:20px!important}
+  #carTile .car-status-copy{padding-right:54px}
+  #carTile .car-status-image img{height:clamp(112px,13vw,160px)}
+ }
+}

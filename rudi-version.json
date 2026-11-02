@@ -1,16 +1,16 @@
 {
-  "current": "v4.414",
+  "current": "v4.415",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.413",
+  "basedOnProduction": "v4.414",
   "notes": [
-    "Обновлено оформление страницы Лулу и группировка карточек"
+    "Индикаторы ухода за Лулу, оформление истории и карточки автомобиля"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Refresh Lulu profile and group care cards"
+    "Lulu care indicators and layout improvements"
   ]
 }
