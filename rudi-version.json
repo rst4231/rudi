@@ -1,16 +1,16 @@
 {
-  "current": "v4.427",
+  "current": "v4.428",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.426",
+  "basedOnProduction": "v4.427",
   "notes": [
-    "Погода в одной строке с периодом дня"
+    "Погода в строках периодов совместного календаря"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Align daypart forecast inline with calendar headings"
+    "Show inline daypart weather in shared calendar"
   ]
 }

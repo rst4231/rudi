@@ -16880,7 +16880,7 @@
             const details=document.createElement('div');
             details.className='calendar-selected-details';
 
-            if((tasks.length||calendarScope==='personal')&&calendarDisplayMode!=='week'){
+            if(calendarDisplayMode!=='week'){
               const group=document.createElement('div');
               group.className='calendar-selected-group calendar-selected-tasks';
               const periods=[
@@ -16891,13 +16891,13 @@
               for(const task of tasks)byPeriod.get(calendarTaskPeriod(task)).push(task);
               for(const [period,label] of periods){
                 const items=byPeriod.get(period);
-                if(!items.length&&(calendarScope!=='personal'||period==='all-day'))continue;
+                if(!items.length&&period==='all-day')continue;
                 items.sort((a,b)=>String(a?.startTime||'').localeCompare(String(b?.startTime||''),'ru')||
                   String(a?.title||'').localeCompare(String(b?.title||''),'ru'));
                 const heading=document.createElement('h3');
                 heading.className='calendar-tasks-period-heading';
                 heading.textContent=label;
-                if(calendarScope==='personal'&&period!=='all-day'){const weather=document.createElement('span');weather.className='calendar-period-weather';weather.dataset.weatherPeriod=period;heading.appendChild(weather)}
+                if(period!=='all-day'){const weather=document.createElement('span');weather.className='calendar-period-weather';weather.dataset.weatherPeriod=period;heading.appendChild(weather)}
                 group.appendChild(heading);
                 for(const event of items){
                 const row=document.createElement('div');
@@ -17032,7 +17032,7 @@
             selected.replaceChildren();
             if(calendarScope!=='personal')selected.append(icon,copy);
             selected.dataset.calendarWeatherDate=day.date;
-            if(calendarScope==='personal'&&calendarDisplayMode==='week'){
+            if(calendarDisplayMode==='week'){
               const strip=document.createElement('div');strip.className='calendar-period-weather-strip';
               for(const [period,label] of [['morning','Утро'],['day','День'],['evening','Вечер']]){const item=document.createElement('span');item.textContent=label;const weather=document.createElement('span');weather.className='calendar-period-weather';weather.dataset.weatherPeriod=period;item.appendChild(weather);strip.appendChild(item)}
               selected.appendChild(strip);
@@ -17044,8 +17044,7 @@
             if(details.childElementCount) selected.appendChild(details);
             selected.classList.toggle('calendar-week-view',calendarDisplayMode==='week');
             selected.classList.toggle('is-off',!day.working);
-            if(calendarScope!=='personal')void window.RUDI_WEATHER_FORECAST?.renderCalendarDay(selected,day.date);
-            else void window.RUDI_WEATHER_FORECAST?.renderCalendarPeriods(selected,day.date);
+            void window.RUDI_WEATHER_FORECAST?.renderCalendarPeriods(selected,day.date);
             if(habitGroup)void window.RUDI_CALENDAR_HABITS?.render(habitGroup,day.date,currentActor);
             selected.hidden=false;
             if(!selected.hidden)restartRudiMotion(selected,'rudi-data-refresh',360);
