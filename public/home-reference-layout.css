@@ -1375,3 +1375,13 @@ body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):not(:has(#displayN
 
 /* Diana has a compact Home card without an expandable details section. */
 body[data-app-tab="home"] #homeDianaTile > .profile-person-details{display:none!important}
+
+/* Home reminders use the same dot as the game shortcut. */
+html body[data-app-tab="home"] .rudi-home-shortcuts .profile-tool-reminder-badge,
+html[data-theme="light"] body[data-app-tab="home"] .rudi-home-shortcuts .profile-tool-reminder-badge{
+ position:absolute!important;top:5px!important;right:5px!important;bottom:auto!important;left:auto!important;
+ box-sizing:border-box!important;width:13px!important;height:13px!important;min-width:13px!important;max-width:13px!important;min-height:13px!important;max-height:13px!important;
+ padding:0!important;margin:0!important;border:2px solid #15192b!important;border-radius:50%!important;
+ background:#ee3453!important;color:transparent!important;-webkit-text-fill-color:transparent!important;font-size:0!important;line-height:0!important;text-indent:-9999px!important;overflow:hidden!important;
+ box-shadow:0 0 0 1px rgba(238,52,83,.14)!important;pointer-events:none!important;
+}
