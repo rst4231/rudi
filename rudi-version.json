@@ -1,16 +1,16 @@
 {
-  "current": "v4.416",
+  "current": "v4.417",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.415",
+  "basedOnProduction": "v4.416",
   "notes": [
-    "Настройки, календарь, фон профилей и карточка автомобиля"
+    "Автоматическое завершение КПТ после перерыва"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Settings layout, calendar spacing, profile backgrounds and car card"
+    "End inactive CBT cycles after five days without entries"
   ]
 }

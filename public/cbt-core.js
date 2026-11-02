@@ -23,7 +23,14 @@ function calendar(run,now=new Date().toISOString()){
  return {elapsed,current:Math.min(21,elapsed+1),timeZone:c.timeZone};
 }
 function refresh(state,now=new Date().toISOString()){
- const s=clone(state||empty());for(const r of s.runs){const c=calendar(r,now);if(!c)continue;
+ const s=clone(state||empty());for(const r of s.runs){
+ if(r.status==='active'){
+  const times=Object.values(r.days||{}).flatMap(row=>entries(row).filter(e=>hasAnswers(e.answers)).map(e=>Date.parse(e.answerUpdatedAt||e.savedAt||e.updatedAt||e.startedAt||''))).filter(Number.isFinite);
+  const last=times.length?Math.max(...times):NaN,deadline=last+5*86400000;
+  const end=r.calendar?Date.parse(midnight(addDate(r.calendar.startDate,21),r.calendar.timeZone)):Infinity;
+  if(Number.isFinite(last)&&Date.parse(now)>deadline&&deadline<end){r.status='interrupted';r.interruptedAt=new Date(deadline).toISOString();r.interruptionReason='inactivity'}
+ }
+ const c=calendar(r,now);if(!c)continue;
  for(let n=1;n<=c.elapsed;n++){const row=r.days[n]||{answers:{},savedAt:null,entries:[]};if(!Object.hasOwn(row,'savedAt'))row.savedAt=row.completedAt||null;row.closedAt=midnight(addDate(r.calendar.startDate,n),r.calendar.timeZone);row.completedAt=row.closedAt;r.days[n]=row}
  if(c.elapsed===21&&r.status==='active'){r.status='completed';r.completedAt=r.days[21].closedAt}
  }return s;
@@ -72,7 +79,7 @@ function apply(state,op,now=new Date().toISOString(),local=false){
  }
  if(!run)error('cbt-run-missing');
  if(run.applied.includes(op.id))return s;
- if(run.status!=='active'&&!['archive','coach','coach-check'].includes(op.type)&&!local&&!(run.calendar&&run.status==='completed'&&now<run.completedAt))error('cbt-read-only');
+ if(run.status!=='active'&&!['archive','coach','coach-check'].includes(op.type)&&!local&&!(run.calendar&&run.status==='completed'&&now<run.completedAt)&&!(run.interruptionReason==='inactivity'&&now<=run.interruptedAt))error('cbt-read-only');
  if(op.type==='schedule'){
   if(!run.calendar){for(const row of Object.values(run.days)){row.savedAt=row.completedAt||null;row.completedAt=null}run.calendar={timeZone:op.timeZone||'UTC',startDate:dayKey(run.startedAt||now,op.timeZone||'UTC')}}
   run.applied.push(op.id);return refresh(s,now);
