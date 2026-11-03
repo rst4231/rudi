@@ -77,6 +77,8 @@ function renderSelfProfile(){
  const source=$(actor==='Диана'?'homeDianaTile':'homeRustamTile'),slot=$('pcSelfProfile');
  if(!slot)return;
  const head=source?.querySelector('.profile-person-head');
+ const supplementsSlot=$('pcSelfSupplements');
+ if(supplementsSlot){supplementsSlot.hidden=true;supplementsSlot.replaceChildren()}
  slot.hidden=!head;root.querySelector('.rudi-center__hero').hidden=!!head;
  if(!head)return;
  // Mirror the existing live Home data; never create a second request or move its nodes.
@@ -107,7 +109,12 @@ function renderSelfProfile(){
  const today=document.createElement('section');today.className='partner-today';today.innerHTML='<h2>БАДы</h2>';
  const intakes=clone(source.querySelector('.profile-supplement-intakes'));
  if(intakes)today.append(intakes);else today.insertAdjacentHTML('beforeend','<p class="profile-supplement-intakes-empty">Сегодня ещё ничего не отмечено</p>');
- details.append(hero);if(energy)details.append(energyCard);details.append(today);
+ details.append(hero);if(energy)details.append(energyCard);
+ if(actor==='Рустам'&&supplementsSlot){
+  const supplementLayout=document.createElement('div');supplementLayout.className='partner-profile-layout profile-person-card';
+  const supplementDetails=document.createElement('div');supplementDetails.className='profile-person-details';
+  supplementDetails.append(today);supplementLayout.append(supplementDetails);supplementsSlot.append(supplementLayout);supplementsSlot.hidden=false;
+ }else details.append(today);
  if(actor==='Диана'){
   const finances=document.createElement('section');finances.className='partner-finances pc-self-finances';
   finances.innerHTML='<h2>Финансы</h2><div class="partner-finance-last"><h3>Последний расход</h3><p data-self-finance-last>Загружаю…</p></div><div class="partner-finance-largest"><h3>Самая крупная покупка за месяц</h3><p data-self-finance-largest>Загружаю…</p></div>';
@@ -127,6 +134,7 @@ function makeMarkup(){
  p.push('<div id="pcSelfProfile" class="pc-self-profile partner-profile-page" hidden></div>');
  p.push('<div class="rudi-center__hero"><small>✦ ЛИЧНЫЙ ОБЗОР</small><div class="rudi-center__hero-identity"><div class="rudi-center__hero-avatar" aria-hidden="true"><span id="pcHeroInitial">Р</span><img id="pcHeroImage" alt="" hidden></div><div class="rudi-center__hero-name"><h1 id="pcPerson">Мой день</h1><p id="pcHeroMeta">Возраст — · Вес — · Рост —</p><div id="pcHeroAttention" class="rudi-center__hero-attention" hidden></div></div></div></div>');
  p.push('<div class="rudi-center__card rudi-center__report"><div class="rudi-center__head"><div><small class="rudi-center__eyebrow">ТВОЯ НЕДЕЛЯ</small></div><span class="rudi-center__meta" id="pcReportDate">Сегодня</span></div><p class="rudi-center__report-lead" id="pcReport">Обзор недели формируется по воскресеньям.</p><div class="rudi-center__summary-grid" id="pcSummaryGrid" hidden><div class="rudi-center__summary-main" id="pcMainBlock"><small>ГЛАВНОЕ</small><p id="pcMainChange">—</p></div><div class="rudi-center__summary-action" id="pcActionBlock"><small>ЧТО СДЕЛАТЬ</small><p id="pcMainAction">—</p></div><div class="rudi-center__summary-note" id="pcObservationBlock"><small>НАБЛЮДЕНИЕ</small><p id="pcMainObservation">—</p></div><div class="rudi-center__summary-note" id="pcForecastBlock"><small>ЧТО ДАЛЬШЕ</small><p id="pcForecast">—</p></div></div><button id="pcReportMore" class="rudi-center__report-more" data-open="report" type="button" hidden>Открыть подробности →</button><button id="pcGenerateReport" class="rudi-center__btn rudi-center__generate-report" type="button" hidden>Получить обзор</button><div class="rudi-center__status" id="pcStatus" role="status" aria-live="polite"></div></div>');
+ p.push('<div id="pcSelfSupplements" class="pc-self-profile partner-profile-page" hidden></div>');
  p.push('<div class="rudi-center__tile-grid"><button class="rudi-center__tile" data-open="symptoms"><span class="rudi-center__tile-icon">♡</span><strong>Здоровье</strong><small id="pcSymptomsCount">Дневник здоровья</small></button><button class="rudi-center__tile" data-open="weight"><span class="rudi-center__tile-icon">↟</span><strong>Моё тело</strong><small id="pcWeight">Вес и рост</small></button></div>');
  p.push('<div class="rudi-center__card"><div class="rudi-center__head"><h2>Динамика позитивных эмоций</h2></div><svg class="rudi-center__chart" id="pcGraph" viewBox="0 0 350 168" role="img" aria-label="График доли позитивных эмоций с датами"></svg></div>');
  p.push('<div id="pcDianaCycleSlot" class="rudi-center__cycle-slot" hidden><section class="rudi-center__card rudi-center__cycle-card"><div class="rudi-center__head"><h2>Цикл Дианы</h2><span class="rudi-center__meta">Прогноз</span></div><div class="rudi-center__cycle-grid"><div><span>Фаза</span><strong id="pcCyclePhase">—</strong></div><div><span>День цикла</span><strong id="pcCycleDay">—</strong></div><div><span>До следующих месячных</span><strong id="pcCycleCountdown">—</strong></div><div><span>Последнее начало</span><strong id="pcCyclePeriod">—</strong></div></div><p id="pcCycleNote" class="rudi-center__meta">Прогноз ориентировочный.</p><button id="pcCycleRecord" class="rudi-center__btn" type="button" hidden>Отметить начало сегодня</button></section></div>');

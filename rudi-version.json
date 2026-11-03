@@ -8,11 +8,13 @@
   "basedOnProduction": "v4.9",
   "notes": [
     "Диана видит место работы Рустама на сегодня и завтра в блоке Дела, если он выбрал Дома или Коворкинг.",
-    "Из личной страницы Рустама убрана карточка Финансы и её отдельная загрузка."
+    "Из личной страницы Рустама убрана карточка Финансы и её отдельная загрузка.",
+    "На личной странице Рустама БАДы перенесены сразу под блок Твоя неделя."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
     "Show Rustam saved workplace to Diana in partner task rows; preserve themed table and private task counts",
-    "Remove finance card and summary fetch from Rustam own profile"
+    "Remove finance card and summary fetch from Rustam own profile",
+    "Move Rustam own supplements below weekly overview, preserve live updates and theme"
   ]
 }

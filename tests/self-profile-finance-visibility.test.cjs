@@ -16,7 +16,18 @@ for(const actor of ['Рустам','Диана'])test('own profile finance visib
   assert.equal(w.document.querySelector('#personalAICenter').hidden,false);
   assert.equal(w.document.querySelectorAll('#pcSelfProfile .pc-self-finances').length,actor==='Рустам'?0:1);
   assert.equal(financeCalls,actor==='Рустам'?0:1);
-  assert.ok(w.document.querySelector('#pcSelfProfile .partner-today'));
+  const supplements=w.document.querySelector('#pcSelfSupplements');
+  if(actor==='Рустам'){
+   assert.equal(supplements.hidden,false);assert.ok(supplements.previousElementSibling.matches('.rudi-center__report'));
+   assert.equal(w.document.querySelector('#pcSelfProfile .partner-today'),null);
+   assert.ok(supplements.querySelector('.partner-today'));
+   w.document.querySelector('#'+tile+' .profile-supplement-intakes').textContent='Обновлённые БАДы';
+   await new Promise(resolve=>w.requestAnimationFrame(()=>w.requestAnimationFrame(resolve)));
+   assert.equal(supplements.querySelectorAll('.partner-today').length,1);
+   assert.match(supplements.textContent,/Обновлённые БАДы/);
+  }else{
+   assert.ok(w.document.querySelector('#pcSelfProfile .partner-today'));assert.equal(supplements.hidden,true);
+  }
   assert.equal(w.document.querySelector('#financeSection').textContent,'Основные финансы');
  }finally{w.close()}
 });
