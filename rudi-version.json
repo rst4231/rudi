@@ -1,18 +1,16 @@
 {
-  "current": "v4.436",
+  "current": "v4.437",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.435",
+  "createdAt": "2026-11-03",
+  "basedOnProduction": "v4.436",
   "notes": [
-    "Компактная шапка, день мойки и индикатор онлайн"
+    "Возвращено прежнее оформление дня мойки"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Compact greeting without new-message button",
-    "Fix wash day wrapping",
-    "Make presence indicator smaller and passive"
+    "Restore wash day layout from v4.435"
   ]
 }
