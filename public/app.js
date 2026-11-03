@@ -5071,12 +5071,15 @@
             amount.classList.toggle('is-budget-mid',usage>=.5&&usage<1);
             amount.classList.toggle('is-budget-full',usage>=1);
           }
-          const monthTrend=financeCategoryMonthTrend(category.id,month);
-          const trend=document.createElement('span');trend.className='finance-category-trend is-'+monthTrend.direction;trend.textContent=monthTrend.text;
-          if(monthTrend.previousMonth)trend.title='К '+financeMonthTitle(monthTrend.previousMonth);
           item.append(remove,label,coin,amount);
           if(limitValue>0)item.append(limit);
-          item.append(trend);
+          if(!financeBalanceHidden&&Number.isFinite(spent)&&Number.isFinite(limitRub)&&limitRub>0&&spent>limitRub){
+            const overPercent=(spent-limitRub)/limitRub*100;
+            const trend=document.createElement('span');trend.className='finance-category-trend is-up';
+            trend.textContent='↑ '+(overPercent<.1?'<0,1%':financePercent(overPercent));
+            trend.title='Перерасход относительно лимита категории';
+            item.append(trend);
+          }
           bindFinanceCategoryInteractions(item,list,category);
           list.append(item);
         });
