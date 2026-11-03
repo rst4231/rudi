@@ -364,3 +364,8 @@ body[data-app-tab="supplements"] .personal-supplements-list .supplement-group-ti
   content:none;
   display:none;
 }
+/* Courses starting tomorrow use a calm green accent in either theme. */
+body[data-app-tab="supplements"] .personal-supplements-list .supplement-card.is-starting-tomorrow{
+  border-color:color-mix(in srgb,#30a46c 65%,var(--line,transparent));
+  background:color-mix(in srgb,#30a46c 10%,var(--surface,#20242f));
+}

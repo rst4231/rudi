@@ -204,6 +204,8 @@ function applyGrouping(){
     button.setAttribute('aria-label',groupTitle(status)+': '+count);
   }
   const rows=all.map(item=>({item,card:list.querySelector('[data-id="'+CSS.escape(item.id)+'"]')})).filter(row=>row.card);
+  const tomorrow=addDays(today(),1);
+  for(const row of rows)row.card.classList.toggle('is-starting-tomorrow',String(row.item.status||'active')==='active'&&row.item.course?.startDate===tomorrow);
   const matches=rows.filter(row=>{
     const sameStatus=String(row.item?.status||'active')===selectedStatusTab;
     row.visible=sameStatus;
@@ -212,6 +214,10 @@ function applyGrouping(){
     if(selectedStatusTab==='active'){
       const group=SUPPLEMENT_DAYPART_ORDER.indexOf(supplementDaypart(a.item))-SUPPLEMENT_DAYPART_ORDER.indexOf(supplementDaypart(b.item));
       if(group)return group;
+      if(supplementDaypart(a.item)==='upcoming'){
+        const byDate=String(a.item.course.startDate).localeCompare(String(b.item.course.startDate));
+        if(byDate)return byDate;
+      }
     }
     const futureA=window.RudiSupplementCourse?.state(a.item)==='future',futureB=window.RudiSupplementCourse?.state(b.item)==='future';
     if(futureA!==futureB)return Number(futureA)-Number(futureB);

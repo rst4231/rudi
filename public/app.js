@@ -16998,7 +16998,7 @@
             }
 
             let habitGroup=null;
-            if(calendarScope==='personal'&&day.date<=todayState().key){
+            if(calendarScope==='personal'&&day.date===todayState().key){
               habitGroup=document.createElement('div');
               habitGroup.className='calendar-selected-group calendar-selected-habits';
               details.appendChild(habitGroup);
