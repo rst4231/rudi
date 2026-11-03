@@ -8214,77 +8214,6 @@
         }).format(date).replace('.','')+' в '+time;
       }
 
-      function luluLocalMinutes(date=new Date()){
-        const parts=new Intl.DateTimeFormat('en-GB',{
-          timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
-        }).formatToParts(date);
-        const hour=Number(parts.find(part=>part.type==='hour')?.value||0);
-        const minute=Number(parts.find(part=>part.type==='minute')?.value||0);
-        return hour*60+minute;
-      }
-
-      function luluWalkLikelyIncludedMeal(walkedAt){
-        const walked=new Date(String(walkedAt||''));
-        if(Number.isNaN(walked.getTime())) return false;
-        const minutes=luluLocalMinutes(walked);
-        return minutes<12*60||minutes>=20*60;
-      }
-
-      function luluMealWindowBoost(walkedAt,now=new Date()){
-        const walked=new Date(String(walkedAt||''));
-        if(Number.isNaN(walked.getTime())||!luluWalkLikelyIncludedMeal(walkedAt)) return 0;
-        const elapsedHours=Math.max(0,(now.getTime()-walked.getTime())/3600000);
-        if(elapsedHours<.5) return 0;
-        if(elapsedHours<1.5) return 7;
-        if(elapsedHours<3) return 10;
-        if(elapsedHours<4.5) return 7;
-        if(elapsedHours<6) return 4;
-        return 0;
-      }
-
-      function luluToiletProbability(walkedAt,now=new Date()){
-        const walked=new Date(String(walkedAt||''));
-        if(Number.isNaN(walked.getTime())) return null;
-        const elapsedHours=Math.max(0,(now.getTime()-walked.getTime())/3600000);
-        const points=[
-          [0,0],[.5,2],[1,5],[1.5,10],[2,18],[3,28],[4,43],[5,65],[6,85],[7,96],[8,100]
-        ];
-        if(elapsedHours>=points[points.length-1][0]) return 100;
-        for(let i=1;i<points.length;i+=1){
-          const [x2,y2]=points[i];
-          const [x1,y1]=points[i-1];
-          if(elapsedHours<=x2){
-            const t=(elapsedHours-x1)/(x2-x1);
-            return Math.max(0,Math.min(100,Math.round(y1+(y2-y1)*t)));
-          }
-        }
-        return 100;
-      }
-
-      function setLuluAvatar(needsWalk){
-        const image=document.querySelector('#homeLuluTile .lulu-avatar');
-        if(!image) return;
-        const next=needsWalk?'/lulu-walk.webp?v=2.118':'/lulu-avatar-hq.webp?v=4.393';
-        if(image.getAttribute('src')!==next) image.src=next;
-        image.dataset.walkDue=needsWalk?'1':'0';
-      }
-
-      let luluDueStatusTimer=null;
-      function luluPatienceLabel(ms){
-        const minutes=Math.max(0,Math.floor(Number(ms||0)/60000));if(minutes<60)return minutes+' мин';
-        const hours=Math.floor(minutes/60),rest=minutes%60;return hours+' ч'+(rest?' '+rest+' мин':'');
-      }
-      function syncLuluToiletStatus(){
-        const node=document.getElementById('luluToiletStatus');if(!node)return;
-        node.hidden=true;node.textContent='';
-        const state=homeDashboardState.lulu||{},fallback=state?.lastWalk?.walkedAt;
-        const peeStamp=new Date(String(state.lastPeeAt||fallback||''));
-        if(Number.isNaN(peeStamp.getTime())){setLuluAvatar(false);node.dataset.level='unknown';return}
-        const dueAt=peeStamp.getTime()+8*60*60*1000,now=Date.now(),needsWalk=now>=dueAt;setLuluAvatar(needsWalk);
-        if(needsWalk){node.hidden=false;node.textContent='Пора гулять (терпит '+luluPatienceLabel(now-dueAt)+')';node.dataset.level='high'}
-        clearTimeout(luluDueStatusTimer);luluDueStatusTimer=setTimeout(syncLuluToiletStatus,60000);
-      }
-
       function luluTodayWalks(state){
         const today=sharedAlbumDateKey(new Date());
         const rows=(Array.isArray(state?.walksToday)?state.walksToday:[])
@@ -8522,7 +8451,6 @@
         state.lastWalk=state.walksMonth.at(-1)||null;
         homeDashboardState.lulu=state;
         renderLuluProfile();
-        syncLuluToiletStatus();
         renderLuluWalkHistory(state);
         const status=document.getElementById('luluWalkStatus');
         const walk=state.lastWalk&&typeof state.lastWalk==='object'?state.lastWalk:null;
@@ -10695,7 +10623,7 @@
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
               '<button id="luluProfileAvatar" class="lulu-avatar-button" type="button" aria-label="Открыть профиль Лулу"><img class="lulu-avatar" src="/lulu-avatar-hq.webp?v=4.393" alt="Лулу" width="58" height="58"></button>'+
-              '<div class="lulu-copy"><h2><button id="luluWalkHistoryToggle" class="lulu-name lulu-name-button" type="button" aria-label="Открыть профиль Лулу">Лулу</button></h2><div id="luluToiletStatus" class="lulu-toilet-status" hidden></div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
+              '<div class="lulu-copy"><h2><button id="luluWalkHistoryToggle" class="lulu-name lulu-name-button" type="button" aria-label="Открыть профиль Лулу">Лулу</button></h2><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
             '</div>'+
             '<div class="lulu-head-actions">'+
               '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
