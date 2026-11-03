@@ -13,8 +13,24 @@ for(const actor of ['Рустам','Диана'])test('working profile status us
   const h=statusHarness({actor,place});assert.equal(typeof h.label,'function');
   assert.equal(h.label(new Date('2026-11-03T09:00:00Z')),expected);
   assert.equal(h.label(new Date('2026-11-03T15:00:00Z')),'Отдыхаю');
-  assert.equal(h.label(new Date('2026-11-07T09:00:00Z')),'Отдыхаю');
+  assert.equal(h.label(new Date('2026-11-07T09:00:00Z')),'Выходной');
  }
+});
+test('day off follows Moscow midnight while weekday time off remains rest',()=>{
+ const h=statusHarness();
+ for(const [date,expected] of [
+  ['2026-11-06T20:59:00Z','Отдыхаю'],['2026-11-06T21:01:00Z','Выходной'],
+  ['2026-11-08T20:59:00Z','Выходной'],['2026-11-08T21:01:00Z','Отдыхаю']
+ ])assert.equal(h.label(new Date(date)),expected);
+});
+test('Diana calendar day off differs from time before and after a working shift',()=>{
+ const context={clock:8*60,homeCurrentMinutes:()=>context.clock};
+ const start=app.indexOf('function dianaWorkingNow('),end=app.indexOf('function renderPartnerWorkStatus(',start);
+ vm.runInNewContext(app.slice(start,end)+';this.label=dianaWorkStatusText',context);
+ const off={working:false,events:[]},work={working:true,events:[{startTime:'09:00',endTime:'18:00'}]};
+ assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'Отдыхаю');
+ context.clock=12*60;assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'Работаю · 09:00–18:00');
+ context.clock=20*60;assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'Отдыхаю');
 });
 test('own pending calendar change wins; another date or account local data cannot leak',()=>{
  const now=new Date('2026-11-03T09:00:00Z');

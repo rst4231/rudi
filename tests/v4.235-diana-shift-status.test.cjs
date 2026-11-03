@@ -13,6 +13,7 @@ test('Diana work status only shows actual shift hours',()=>{
  assert.equal(context.format('Работаю · 10:15–21:30'),'10:15–21:30');
  assert.equal(context.format('Работаю'),'');
  assert.equal(context.format('Отдыхаю'),'Отдыхаю');
+ assert.equal(context.format('Выходной'),'Выходной');
  assert.equal(context.format('Проверяю график…'),'Проверяю график…');
 });
 test('scheduled status updates stay synchronized, without extra observers',()=>{

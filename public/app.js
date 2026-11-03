@@ -7129,7 +7129,10 @@
       }
 
       function rustamWorkStatusText(now=new Date()){
-        if(!rustamWorkState(now))return 'Отдыхаю';
+        if(!rustamWorkState(now)){
+          const weekday=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,weekday:'short'}).format(now);
+          return ['Sat','Sun'].includes(weekday)?'Выходной':'Отдыхаю';
+        }
         const date=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
         const local=currentActor==='Рустам'?readWorkplaces()[date]:null;
         const saved=homeDashboardState.rustamWorkplace;
@@ -15996,6 +15999,7 @@
       }
 
       function dianaWorkStatusText(row){
+        if(row?.working===false)return 'Выходной';
         const workingNow=dianaWorkingNow(row);
         if(!workingNow) return 'Отдыхаю';
         const activeShift=dianaActiveShiftLabel(row);

@@ -1,18 +1,18 @@
 {
-  "current": "v4.11",
+  "current": "v4.12",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-03",
-  "basedOnProduction": "v4.10",
+  "basedOnProduction": "v4.11",
   "notes": [
-    "Рабочий статус Рустама учитывает отметку Дома или Коворкинг на сегодня.",
-    "Имена Рустам, Диана и Лулу на главной оформлены курсивным шрифтом с засечками."
+    "В выходной статус Выходной вместо Отдыхаю: Рустам по графику 5/2, Диана по своему календарю.",
+    "Отступы на главной: имя → статус у Рустама и Дианы, статус → месячные у Дианы совпадают с Лулу: 2 px."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Use saved workplace in Rustam working status for both viewers, through existing home bootstrap",
-    "Style three home profile names with offline serif italic typography"
+    "Distinguish scheduled day off from non-working hours in profile status for both people",
+    "Match owner and partner name/status spacing to Lulu in both themes"
   ]
 }

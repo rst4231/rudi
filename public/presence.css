@@ -16,8 +16,9 @@ body[data-app-tab="home"] #homeLuluTile .lulu-name-button{
 }
 .profile-person-card .score-avatar-wrap>.rudi-online-dot.is-online{background:#21c55d!important}
 /* Identical owner/partner name, mood, and status geometry on both accounts. */
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person{
- gap:3px!important;align-self:center!important;justify-content:center!important;
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person,
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person{
+ gap:2px!important;align-self:center!important;justify-content:center!important;
  min-width:0!important;margin:0!important;padding:0!important;
 }
 body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .profile-name-row{
