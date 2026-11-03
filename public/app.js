@@ -129,6 +129,7 @@
       const homeDashboardState={
         tasks:[],
         workDay:null,
+        rustamWorkplace:null,
         feed:null,
         feedResults:[],
         moods:null,
@@ -7127,6 +7128,15 @@
         return workday&&minutes>=10*60&&minutes<18*60;
       }
 
+      function rustamWorkStatusText(now=new Date()){
+        if(!rustamWorkState(now))return 'Отдыхаю';
+        const date=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
+        const local=currentActor==='Рустам'?readWorkplaces()[date]:null;
+        const saved=homeDashboardState.rustamWorkplace;
+        const place=local?.pending?local.place:saved?.date===date?saved.place:local?.place;
+        return place==='coworking'?'Работаю в коворкинге':place==='home'?'Работаю дома':'Работаю';
+      }
+
       function rustamRhythmStatus(now=new Date()){
         const parts=Object.fromEntries(
           new Intl.DateTimeFormat('en-GB',{
@@ -7280,11 +7290,11 @@
         }
       }
 
-      function syncStaticProfileWorkStatus(){
-        const rustamWorking=rustamWorkState();
+      function syncStaticProfileWorkStatus(now=new Date()){
+        const rustamWorking=rustamWorkState(now);
         setProfileWorkStatus(
           'Рустам',
-          rustamWorking?'Работаю':'Отдыхаю',
+          rustamWorkStatusText(now),
           rustamWorking?'working':'off'
         );
         syncRustamRhythmStatus();
@@ -12848,6 +12858,14 @@
           if(partnerMessageBootstrapHandler)partnerMessageBootstrapHandler(home.partnerMessage||null);
           else renderPartnerMessage(home.partnerMessage||null);
         }
+        if(home.rustamWorkplace&&homeBootstrapSectionChanged('rustamWorkplace',home.rustamWorkplace)){
+          homeDashboardState.rustamWorkplace=home.rustamWorkplace;
+          if(currentActor==='Рустам'){
+            const places=readWorkplaces(),date=home.rustamWorkplace.date;
+            if(!places[date]?.pending){places[date]={place:home.rustamWorkplace.place,pending:false};writeWorkplaces(places)}
+          }
+          syncStaticProfileWorkStatus();
+        }
         if(Object.prototype.hasOwnProperty.call(home,'workDay')&&homeBootstrapSectionChanged('workDay',home.workDay,Math.floor(Date.now()/60000))){
           renderPartnerWorkStatus(home.workDay?[home.workDay]:[]);
         }
@@ -16407,7 +16425,7 @@
       const workplaceFlights=new Map();let workplaceFlush=null;
       const workplaceKey='rudi:calendar-workplace:rustam:v1';
       function readWorkplaces(){try{const data=JSON.parse(localStorage.getItem(workplaceKey)||'{}');return data&&typeof data==='object'?data:{}}catch(_){return {}}}
-      function writeWorkplaces(data){try{localStorage.setItem(workplaceKey,JSON.stringify(data));return true}catch(_){return false}}
+      function writeWorkplaces(data){try{localStorage.setItem(workplaceKey,JSON.stringify(data));if(currentActor==='Рустам'){const date=todayState().key;homeDashboardState.rustamWorkplace={date,place:data[date]?.place||''};syncStaticProfileWorkStatus()}return true}catch(_){return false}}
       function paintWorkplace(date){const data=readWorkplaces(),place=data[date]?.place||'';document.querySelectorAll('.calendar-workplace[data-date="'+date+'"] button').forEach(button=>{const active=button.dataset.place===place;button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active))})}
       async function workplaceRequest(body){const response=await fetch('/api/partner-message?rudiAction=calendar-workplace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:telegramInitData(),...body}),cache:'no-store'});const data=await response.json().catch(()=>({}));if(!response.ok||!data.ok)throw Error('workplace-unavailable');return data}
       async function flushWorkplaces(){

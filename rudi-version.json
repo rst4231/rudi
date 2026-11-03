@@ -1,20 +1,18 @@
 {
-  "current": "v4.10",
+  "current": "v4.11",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-03",
-  "basedOnProduction": "v4.9",
+  "basedOnProduction": "v4.10",
   "notes": [
-    "Диана видит место работы Рустама на сегодня и завтра в блоке Дела, если он выбрал Дома или Коворкинг.",
-    "Из личной страницы Рустама убрана карточка Финансы и её отдельная загрузка.",
-    "На личной странице Рустама БАДы перенесены сразу под блок Твоя неделя."
+    "Рабочий статус Рустама учитывает отметку Дома или Коворкинг на сегодня.",
+    "Имена Рустам, Диана и Лулу на главной оформлены курсивным шрифтом с засечками."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show Rustam saved workplace to Diana in partner task rows; preserve themed table and private task counts",
-    "Remove finance card and summary fetch from Rustam own profile",
-    "Move Rustam own supplements below weekly overview, preserve live updates and theme"
+    "Use saved workplace in Rustam working status for both viewers, through existing home bootstrap",
+    "Style three home profile names with offline serif italic typography"
   ]
 }

@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
 const { createRudiStateClient } = require('./rudi-state-client.cjs');
+const { readWorkplaceForSummary } = require('./calendar-workplace.cjs');
 const {archiveCompletedTask,readCompletedTasks,forgetCompletedTask}=require('./completed-task-history.cjs');
 async function updateCompletedTaskHistory(operation){
   try{await operation();}
@@ -643,6 +644,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     workWeek,
     album,
     partnerHabitsLive,
+    rustamWorkplace,
   ] = await Promise.all([
     readPartnerMessageForHome(options),
     readActivityJournal(options).catch(() => null),
@@ -658,6 +660,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     getWorkWeek({ ...options, view:'week' }).catch(() => null),
     getLatestPhotos(options).catch(() => null),
     readHabits(partnerActor, options).catch(() => null),
+    readWorkplaceForSummary(date, options).catch(() => null),
   ]);
 
   const journal = journalLive?.initialized ? journalLive : (backupSnapshot?.activityJournal || journalLive);
@@ -693,6 +696,7 @@ async function buildHomeBootstrap(actor, backupSnapshot, options = {}) {
     ...(dailyQuestion ? { dailyQuestion: { ok:true, operation:'get', ...dailyQuestion } } : {}),
     cycle: { configured: Boolean(cycle), cycle: cycle || null },
     ...(workDay !== undefined ? { workDay } : {}),
+    ...(rustamWorkplace !== null ? { rustamWorkplace: { date, place: rustamWorkplace } } : {}),
     ...(compactFeed ? { feed: compactFeed } : {}),
     ...(partnerHabitView ? { partnerHabits: { actor: partnerActor, date, done: partnerHabitView.done, total: partnerHabitView.total } } : {}),
     counts: {
