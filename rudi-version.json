@@ -1,16 +1,16 @@
 {
-  "current": "v4.440",
+  "current": "v4.5",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-03",
-  "basedOnProduction": "v4.439",
+  "basedOnProduction": "v4.440",
   "notes": [
-    "Одна звезда за пропущенный срок задачи с наградой"
+    "Убрано время следующей прогулки Лулу"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Apply deduplicated midnight penalties to scored tasks and document deadline/rescheduling rules"
+    "Hide future walk prediction and unknown-time placeholder on Lulu card"
   ]
 }

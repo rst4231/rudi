@@ -8276,12 +8276,12 @@
       }
       function syncLuluToiletStatus(){
         const node=document.getElementById('luluToiletStatus');if(!node)return;
+        node.hidden=true;node.textContent='';
         const state=homeDashboardState.lulu||{},fallback=state?.lastWalk?.walkedAt;
         const peeStamp=new Date(String(state.lastPeeAt||fallback||''));
-        if(Number.isNaN(peeStamp.getTime())){setLuluAvatar(false);node.textContent='Пока не знаю, когда следующая прогулка';node.dataset.level='unknown';return}
+        if(Number.isNaN(peeStamp.getTime())){setLuluAvatar(false);node.dataset.level='unknown';return}
         const dueAt=peeStamp.getTime()+8*60*60*1000,now=Date.now(),needsWalk=now>=dueAt;setLuluAvatar(needsWalk);
-        if(needsWalk){node.textContent='Пора гулять (терпит '+luluPatienceLabel(now-dueAt)+')';node.dataset.level='high'}
-        else{const time=new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(dueAt));node.textContent='Следующая прогулка — '+time;const left=dueAt-now;node.dataset.level=left<=3600000?'high':left<=10800000?'medium':'low'}
+        if(needsWalk){node.hidden=false;node.textContent='Пора гулять (терпит '+luluPatienceLabel(now-dueAt)+')';node.dataset.level='high'}
         clearTimeout(luluDueStatusTimer);luluDueStatusTimer=setTimeout(syncLuluToiletStatus,60000);
       }
 
@@ -10697,7 +10697,7 @@
           '<div class="lulu-head">'+
             '<div class="lulu-identity">'+
               '<button id="luluProfileAvatar" class="lulu-avatar-button" type="button" aria-label="Открыть профиль Лулу"><img class="lulu-avatar" src="/lulu-avatar-hq.webp?v=4.393" alt="Лулу" width="58" height="58"></button>'+
-              '<div class="lulu-copy"><h2><button id="luluWalkHistoryToggle" class="lulu-name lulu-name-button" type="button" aria-label="Открыть профиль Лулу">Лулу</button></h2><div id="luluToiletStatus" class="lulu-toilet-status">Туалет пока не отмечен</div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
+              '<div class="lulu-copy"><h2><button id="luluWalkHistoryToggle" class="lulu-name lulu-name-button" type="button" aria-label="Открыть профиль Лулу">Лулу</button></h2><div id="luluToiletStatus" class="lulu-toilet-status" hidden></div><div id="luluWalkStatus" class="lulu-walk-status">Сегодня с Лулу ещё не гуляли</div></div>'+
             '</div>'+
             '<div class="lulu-head-actions">'+
               '<button id="luluWalkButton" class="lulu-walk-button" type="button" aria-label="Отметить прогулку" title="Отметить прогулку">'+
