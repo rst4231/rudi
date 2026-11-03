@@ -57,9 +57,10 @@ async function handler(req, res) {
     return res.status(401).json({ ok: false, error: 'unauthorized-cron' });
   }
 
-  const [lulu, fasting] = await Promise.allSettled([
+  const [lulu, fasting, taskPenalties] = await Promise.allSettled([
     runLuluToiletAlert(),
     runFastingGoalNotifications(),
+    require('./task-overdue-stars.cjs').finalize(),
   ]);
 
   if (lulu.status === 'fulfilled') {
@@ -72,6 +73,11 @@ async function handler(req, res) {
     console.log('RUDI_FASTING_GOAL_NOTIFY_RESULT', JSON.stringify(fasting.value));
   } else {
     console.error('RUDI_FASTING_GOAL_NOTIFY_ERROR', String(fasting.reason?.message || fasting.reason));
+  }
+
+  if(taskPenalties.status==='rejected') {
+    console.error('RUDI_TASK_OVERDUE_PENALTY_ERROR',String(taskPenalties.reason?.message||taskPenalties.reason));
+    return res.status(503).json({ok:false,error:'task-penalties-failed'});
   }
 
   if (lulu.status === 'rejected') {

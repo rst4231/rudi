@@ -7806,6 +7806,7 @@
               <section class="score-rules-group score-rules-spend" aria-label="Когда звёзды уменьшаются">
                 <h3><span class="score-rules-group-symbol">−</span> Звёзды уменьшаются</h3>
                 <div class="score-rules-item"><span class="score-rules-emoji">🔴</span><span>Не выполнил привычку</span><strong>−2 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">⏰</span><span>Не выполнил задачу с наградой в срок<small>После полуночи по Москве: −1 звезда за каждый пропущенный срок. Перенёс до полуночи — штрафа нет. Перенос после полуночи штраф не отменяет. Списывается с тех, кому полагалась награда.</small></span><strong>−1 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🛍️</span><span>Купил награду<small>Снимается столько звёзд, сколько она стоит</small></span><strong>−⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">💝</span><span>Подарил звёзды партнёру<small>Они переходят партнёру</small></span><strong>−⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">↩️</span><span>Отменил действие<small>Выданные за него звёзды могут забрать обратно</small></span><strong>−⭐</strong></div>

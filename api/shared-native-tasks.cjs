@@ -344,11 +344,13 @@ async function modify(action,body,actor,options={}){
   const date=String(body.date||'').trim(),time=String(body.time??taskTime(task.startDate)).trim();
   const endTime=String(body.endTime??task.endTime??'').trim();
   const moved=normalizeTask({date,time,endTime,repeat:task.repeat,repeatCount:task.repeatCount,preserveRepeat:true},task,actor);
+  if(moved.date!==task.date)await require('./task-overdue-stars.cjs').rememberLateMove(task,options);
   await client.set(TASK_NS,task.id,moved);
   return {ok:true,taskId:body.taskId,date,confirmed:true};
  }
  if(action==='update'){
   const updated=normalizeTask(body,task,actor);
+  if(updated.date!==task.date)await require('./task-overdue-stars.cjs').rememberLateMove(task,options);
   await client.set(TASK_NS,task.id,updated);
   return {ok:true,taskId:body.taskId,date:updated.date,confirmed:true,task:view(updated,updated.date,actor)};
  }
