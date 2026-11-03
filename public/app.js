@@ -7792,7 +7792,7 @@
             <div class="score-rules-content">
               <section class="score-rules-group score-rules-earn" aria-label="Как получить звёзды">
                 <h3><span class="score-rules-group-symbol">＋</span> Звёзды прибавляются</h3>
-                <div class="score-rules-item"><span class="score-rules-emoji">✅</span><span>Выполнил задачу</span><strong>+2 ⭐</strong></div>
+                <div class="score-rules-item"><span class="score-rules-emoji">✅</span><span>Выполнил задачу</span><strong>+1 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🐾</span><span>Погулял с Лулу<small>Рустам: +2 · Диана: +1</small></span><strong>⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🟢</span><span>Выполнил привычку</span><strong>+0,1 ⭐</strong></div>
                 <div class="score-rules-item"><span class="score-rules-emoji">🔥</span><span>21 день подряд выполнял привычку</span><strong>+5 ⭐</strong></div>
@@ -15129,7 +15129,7 @@
           meta.textContent=task.financeObligation?'Счёт на оплату · '+financeOverviewMoney(task.amount):task.externalCalendar?'iCloud · только просмотр':ownerLabel;
           if(task.personal!==true&&!task.financeObligation&&!task.externalCalendar){
             meta.classList.add('ticktick-today-reward');
-            meta.textContent='+2 ⭐ за выполнение';
+            meta.textContent='+1 ⭐ за выполнение';
           }
           meta.hidden=!meta.textContent;
           copy.append(taskTitle,meta);

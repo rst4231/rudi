@@ -1599,7 +1599,7 @@ async function handleTickTick(req, res, action, options = {}) {
             await recordActivity({type:'task-complete',actor:who,text:who+' выполнил(а) задачу: '+result.title,icon:'✅',targetTab:'schedule'},options);
           }catch(error){console.warn('RUDI_SHARED_TASK_NOTIFY_WARN',String(error?.message||error))}
           for(const recipient of (result.responsible?[result.responsible]:['Рустам','Диана'])){
-            try{const award=await awardScore(recipient,20,{label:'Общая задача',detail:result.title,icon:'✅',
+            try{const award=await awardScore(recipient,10,{label:'Общая задача',detail:result.title,icon:'✅',
               dedupeKey:'score:task:'+result.taskId+':'+result.scoreDate+':'+recipient},options);
               scheduleShopUnlockNotification(recipient,award?.unlockedRewards,options);
             }catch(error){console.warn('RUDI_SHARED_TASK_SCORE_WARN',String(error?.message||error))}
@@ -2687,7 +2687,7 @@ async function handleTickTick(req, res, action, options = {}) {
       const scoreDate = completedAt ? moscowDateKey(completedAt) : moscowDateKey(options.now || Date.now());
       let scoreState = null;
       for (const scoreActor of scoreActors) {
-        const award = await awardScore(scoreActor, 20, {
+        const award = await awardScore(scoreActor, 10, {
           label: responsibleActor ? 'Задача' : 'Общая задача',
           detail: String(task?.title || 'Совместное дело').trim(),
           icon: '✅',
