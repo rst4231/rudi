@@ -3114,6 +3114,16 @@ async function handleTickTick(req, res, action, options = {}) {
 }
 
 async function handleRudiAction(req, res, action, options = {}) {
+  if(action==='partner-task-counts'){
+    res.setHeader('Cache-Control','private, no-store');
+    if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
+    try{
+      const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
+      const {actor}=authorizeRequest(req,body.initData,options);
+      const {partnerTaskCounts}=require('./partner-task-counts.cjs');
+      return res.status(200).json(await partnerTaskCounts(actor,options));
+    }catch(error){return res.status(statusForError(error)).json({ok:false,error:'partner-task-counts-unavailable'})}
+  }
   if (['push-config','push-subscribe','push-unsubscribe','push-pending','push-inbox'].includes(action)) {
     if (req.method !== 'POST') return res.status(405).json({ ok:false, error:'method-not-allowed' });
     try {

@@ -1,4 +1,22 @@
 /* Meditation header geometry, with the partner content outside the Home grid. */
+.partner-profile-page .partner-task-counts{--pt-ink:#202936;--pt-muted:#627084;--pt-line:#e5e9ef;--pt-head:#f6f8fa;--pt-total:#eef2f6;box-sizing:border-box;width:100%;min-width:0;color:var(--pt-ink)}
+html[data-theme="dark"] .partner-profile-page .partner-task-counts{--pt-ink:#edf1f7;--pt-muted:#a7b2c1;--pt-line:#343e4d;--pt-head:#202936;--pt-total:#263142}
+.partner-profile-page .partner-profile-layout>.profile-person-details>.partner-task-counts{padding:16px!important;border:1px solid var(--pt-line);border-radius:14px;background:var(--pp-panel);box-shadow:none}
+.partner-task-counts>h2{margin:0;color:var(--pt-ink);font-size:15px;line-height:1.4;font-weight:650;letter-spacing:-.01em}
+.partner-task-caption{margin:4px 0 15px;font-size:12px;line-height:1.4;font-weight:400;color:var(--pt-muted)}
+.partner-task-table{width:100%;table-layout:fixed;border-collapse:collapse;border-spacing:0;color:var(--pt-ink);font-variant-numeric:tabular-nums;line-height:1.4}
+.partner-task-date-col{width:27%}
+.partner-task-table :is(th,td){box-sizing:border-box;padding:12px 3px;text-align:center;vertical-align:middle;border:0;white-space:nowrap}
+.partner-task-table thead th{padding-top:8px;padding-bottom:8px;background:var(--pt-head);color:var(--pt-muted);font-size:10px;font-weight:500}
+.partner-task-table thead th:first-child{border-radius:6px 0 0 6px}
+.partner-task-table thead th:last-child{border-radius:0 6px 6px 0}
+.partner-task-table tbody th{text-align:left;font-size:12px;font-weight:500}
+.partner-task-table tbody td{font-size:17px;font-weight:500}
+.partner-task-table tbody tr+tr>:is(th,td){border-top:1px solid var(--pt-line)}
+.partner-task-table .partner-task-total{background:var(--pt-total);font-weight:700}
+.partner-task-table thead th:last-child{color:var(--pt-ink)}
+.partner-task-day-error:not([hidden]){display:block;margin-top:3px;color:var(--pt-muted);font-size:9px;font-weight:400}
+@media(max-width:360px){.partner-profile-page .partner-profile-layout>.profile-person-details>.partner-task-counts{padding:13px 10px!important}.partner-task-table :is(th,td){padding-left:2px;padding-right:2px}.partner-task-table thead th{font-size:9px}}
 .partner-profile-page .partner-hero .partner-presence-status{
  display:flex;align-items:center;gap:6px;min-width:0;margin:0!important;padding:0!important;
  color:#c4cbd9!important;-webkit-text-fill-color:#c4cbd9!important;font-size:11px!important;font-weight:400!important;line-height:1.35!important;

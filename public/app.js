@@ -10766,6 +10766,13 @@
       function bindHomePartnerProfile(section,actor){
         if(!section?.querySelector('#partnerHeaderName')||!window.RudiPartnerProfile)return false;
         window.RudiPartnerProfile.bind(section,actor,{
+          loadTaskCounts:async()=>{
+            const viewer=currentActor;
+            const data=await managedJsonRequest('partner-task-counts:'+viewer,'/api/partner-message?rudiAction=partner-task-counts',{
+              body:{initData:telegramInitData()},ttlMs:0,timeoutMs:15000});
+            if(currentActor!==viewer||data.partner!==actor)throw Error('actor-changed');
+            return data;
+          },
           loadFinances:async()=>{await loadHomePartnerLastExpense();return homeDashboardState.partnerFinance},
           openStars:openScoreModal,
           loadPlans:()=>loadPartnerProfilePlans(actor),

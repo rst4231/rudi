@@ -37,6 +37,28 @@
   }).catch(()=>{if(card.isConnected){off.textContent='Не удалось обновить график';event.textContent='Не удалось обновить календарь'}});
   return card;
  }
+ function addTaskCounts(page,actor,loadTaskCounts){
+  const card=document.createElement('section');card.className='partner-task-counts';
+  const dayRow=(key,label)=>'<tr data-task-day="'+key+'"><th scope="row">'+label+'<small class="partner-task-day-error" hidden>Недоступно</small></th><td data-period="morning">…</td><td data-period="day">…</td><td data-period="evening">…</td><td class="partner-task-total">…</td></tr>';
+  card.innerHTML='<h2>Дела</h2><p class="partner-task-caption" aria-live="polite">Обновляю календарь…</p><table class="partner-task-table" aria-label="Количество дел партнёра на сегодня и завтра"><colgroup><col class="partner-task-date-col"><col><col><col><col></colgroup><thead><tr><th scope="col" aria-label="Дата"></th><th scope="col">Утром</th><th scope="col">Днём</th><th scope="col">Вечером</th><th scope="col">Всего</th></tr></thead><tbody>'+dayRow('today','Сегодня')+dayRow('tomorrow','Завтра')+'</tbody></table>';
+  page.querySelector('.partner-today').before(card);
+  const renderDay=(key,data)=>{
+   const row=card.querySelector('[data-task-day="'+key+'"]');
+   const valid=data?.available&&Number.isInteger(data.total)&&data.total>=0&&['morning','day','evening'].every(period=>Number.isInteger(data.counts?.[period])&&data.counts[period]>=0);
+   row.querySelector('.partner-task-total').textContent=valid?String(data.total):'—';
+   row.querySelector('.partner-task-day-error').hidden=valid;
+   for(const count of row.querySelectorAll('[data-period]'))count.textContent=valid?String(data.counts[count.dataset.period]):'—';
+   return valid;
+  };
+  const unavailable=()=>{if(!card.isConnected)return;card.querySelector('.partner-task-caption').textContent='Не удалось обновить дела';renderDay('today',null);renderDay('tomorrow',null)};
+  Promise.resolve().then(()=>loadTaskCounts?.()).then(data=>{
+   if(!card.isConnected)return;
+   if(!data?.ok||data.partner!==actor){unavailable();return}
+   const todayOk=renderDay('today',data),tomorrowOk=renderDay('tomorrow',data.tomorrow);
+   card.querySelector('.partner-task-caption').textContent=todayOk&&tomorrowOk?'Осталось выполнить':todayOk||tomorrowOk?'Часть календаря недоступна':'Не удалось обновить дела';
+  }).catch(unavailable);
+  return card;
+ }
  function composePage(page,energy,advice,details){
   const parts=[],groups=[],layout=page.querySelector('.partner-profile-layout');
   const move=(node,target)=>{if(!node)return;const marker=document.createComment('partner-group');node.before(marker);parts.push({node,marker});target.append(node)};
@@ -214,7 +236,7 @@
   if(!fromHistory&&history.state?.rudiPartnerProfile)history.back();
   saved.trigger?.focus?.({preventScroll:true});
  }
- function bind(tile,actor,{openStars,balance,refreshBalance,loadWishes,openWish,loadCbtStatus,loadPlans,loadFinances}){
+ function bind(tile,actor,{openStars,balance,refreshBalance,loadWishes,openWish,loadCbtStatus,loadPlans,loadFinances,loadTaskCounts}){
   if(bindings.has(tile))return;
   const details=tile.querySelector('.profile-person-details');
   if(!details)return;
@@ -256,6 +278,7 @@
    active.birthdayTimer=setInterval(active.updateBirthday,60000);
    addCbtStatus(page,actor,loadCbtStatus);
    Object.assign(active,composePage(page,energy,advice,details));
+   active.groups.push(addTaskCounts(page,actor,loadTaskCounts));
    active.unmountPresence=window.RudiPresence?.mountProfile(page.querySelector('.partner-hero .person'),actor);
    const today=page.querySelector('.partner-today'),note=window.RudiHomeNote?.mountPartner?.();
    if(today&&note)(page.querySelector('.partner-finances')||today).after(note);
