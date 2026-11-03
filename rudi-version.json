@@ -1,16 +1,16 @@
 {
-  "current": "v4.5",
+  "current": "v4.6",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-03",
-  "basedOnProduction": "v4.440",
+  "basedOnProduction": "v4.5",
   "notes": [
-    "Убрано время следующей прогулки Лулу"
+    "Краткая строка последней прогулки Лулу"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Hide future walk prediction and unknown-time placeholder on Lulu card"
+    "Show only walk time on Lulu home card without companion or extra icons"
   ]
 }

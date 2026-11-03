@@ -8536,9 +8536,7 @@
         const time=new Intl.DateTimeFormat('ru-RU',{
           timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
         }).format(date);
-        const companion=actor==='Диана'?'Дианой':actor==='Рустам'?'Рустамом':actor;
-        const toilet=[walk?.peed?'💧':'',walk?.pooped?'💩':''].filter(Boolean).join(' ');
-        status.textContent='Гуляла с '+companion+' в '+time+(toilet?' · '+toilet:'');
+        status.textContent='Гуляла в '+time;
       }
 
       function ensureLuluWalkModal(){
