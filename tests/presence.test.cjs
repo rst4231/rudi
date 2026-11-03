@@ -53,15 +53,15 @@ test('last-seen date is retained when partner is no longer online',async()=>{
   assert.equal(later.lastSeen['Диана'],'2026-10-14T09:00:00.000Z');
   assert.equal(later.lastSeen['Рустам'],new Date(start+ACTIVE_WINDOW_MS+5000).toISOString());
 });
-test('status dot reveals a compact inline last-seen line without a modal or backdrop',()=>{
+test('status dot is compact and never reveals last-seen details',()=>{
   const script=fs.readFileSync(path.join(__dirname,'../public/presence.js'),'utf8');
   const css=fs.readFileSync(path.join(__dirname,'../public/presence.css'),'utf8');
-  assert.match(script,/rudi-presence-detail/);
+  assert.doesNotMatch(script,/rudi-presence-detail/);
   assert.doesNotMatch(script,/aria-modal|role="dialog"|rudi-presence-overlay|rudi-presence-backdrop/);
-  assert.match(script,/event\.key==='Escape'/);
+  assert.match(script,/createElement\('span'\)/);
   assert.match(script,/lastSeen\[actor\]/);
   assert.match(css,/pointer-events:auto!important/);
-  assert.match(css,/\.rudi-presence-detail/);
+  assert.match(css,/width:12px!important;height:12px!important/);
   assert.doesNotMatch(css,/\.rudi-presence-backdrop|\.rudi-presence-overlay/);
 });
 test('role-symmetric mood layout and double-tap navigation without secondary fetches',()=>{

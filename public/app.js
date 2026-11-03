@@ -9923,9 +9923,6 @@
           if(open)open.hidden=currentActor!=='Диана';
         }
 
-        const message=document.getElementById('homeMessageNew');
-        if(message) message.hidden=!partnerMessageIsNew();
-
         const nearest=document.getElementById('homeNearestRows');
         const nearestWrap=document.getElementById('homeNearestBlock');
         if(nearest&&nearestWrap){
@@ -10010,7 +10007,6 @@
           button.dataset.bound='1';
           button.addEventListener('click',()=>openHomeQuickAction(button.dataset.homeQuick));
         });
-        document.getElementById('homeMessageNew')?.addEventListener('click',()=>openHomeQuickAction('message'));
         document.getElementById('luluWalkButton')?.addEventListener('click',markLuluWalk);
         document.getElementById('luluWalkHistoryToggle')?.addEventListener('click',openLuluProfile);
         document.getElementById('luluProfileAvatar')?.addEventListener('click',openLuluProfile);
@@ -10454,13 +10450,7 @@
         tools.append(notifications,settings);
         top.append(greeting,tools,dateHeading,moonPhase,sunEvent);
 
-        const messageNew=document.createElement('button');
-        messageNew.id='homeMessageNew';
-        messageNew.className='home-message-new';
-        messageNew.type='button';
-        messageNew.textContent='💌 Новое послание';
-        messageNew.hidden=true;
-        profile.replaceChildren(top,messageNew);
+        profile.replaceChildren(top);
 
         const cycleSummary=document.createElement('div');
         cycleSummary.id='homeCycleSummary';

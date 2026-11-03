@@ -1430,3 +1430,14 @@ body[data-app-tab="home"] #rudiHomeCbtButton.has-cbt-reminder::after{content:"";
     body[data-app-tab="home"] .home-nearest-link:hover .home-nearest-icon{transform:translateX(2px)}
   }
 }
+
+/* Compact greeting: one content block without a separate message action row. */
+body[data-app-tab="home"] .home-dashboard-summary{
+  gap:0!important;
+  padding:13px 14px!important;
+}
+body[data-app-tab="home"] .home-dashboard-summary .home-dashboard-head{
+  align-content:start;
+  grid-auto-rows:min-content;
+  row-gap:5px!important;
+}

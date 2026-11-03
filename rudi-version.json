@@ -1,17 +1,18 @@
 {
-  "current": "v4.435",
+  "current": "v4.436",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-02",
-  "basedOnProduction": "v4.434",
+  "basedOnProduction": "v4.435",
   "notes": [
-    "Порядок будущих курсов и привычки без повторов в календаре"
+    "Компактная шапка, день мойки и индикатор онлайн"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Sort upcoming courses by start date and highlight tomorrow",
-    "Remove duplicated past-day habits outside recap"
+    "Compact greeting without new-message button",
+    "Fix wash day wrapping",
+    "Make presence indicator smaller and passive"
   ]
 }
