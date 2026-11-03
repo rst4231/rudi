@@ -21,7 +21,7 @@ function testStore(now=Date.parse('2026-10-13T08:00:00Z')){
   NOTIFICATIONS_KEY:'push:notifications:v1',INBOX_KEY:'push:inbox:v1',
   MAX_NOTIFICATIONS:24,MAX_INBOX_ITEMS:240,
   INBOX_RETENTION_MS:120*24*60*60*1000,NOTIFICATION_TTL_MS:24*60*60*1000};
- const api=vm.runInNewContext(code+';({queuePushNotification,readPushInbox,normalizePushInbox})',context);
+ const api=vm.runInNewContext(code+';({queuePushNotification,readPushInbox,normalizePushInbox,readPendingPushNotifications})',context);
  return {records,api,now};
 }
 test('push creates a durable private inbox record while keeping existing push queue',async()=>{
@@ -67,4 +67,16 @@ test('inbox endpoint is actor-authorized and notifications reuse existing UI',()
  assert.match(appSource,/activityNotificationItems\(withoutProductAdds\)/);
  assert.match(appSource,/RUDI_PUSH_RECEIVED/);
  assert.match(appSource,/push:.*row\.id/);
+});
+
+test('retired Lulu toilet pushes disappear from pending delivery and saved inbox for both actors',async()=>{
+ const {api,records,now}=testStore();
+ const row=(id,tag)=>({id,tag,kind:'show',title:'Напоминание',body:'Текст',createdAt:new Date(now-1000).toISOString()});
+ for(const actor of ['Рустам','Диана']){
+  records.set(actor+':push:notifications:v1',{items:[row('toilet-queue','lulu-toilet'),row('walk','lulu-walk')]});
+  records.set(actor+':push:inbox:v1',{items:[row('toilet-archive','lulu-toilet'),row('medicine','lulu-medicine')]});
+  assert.deepEqual(Array.from(await api.readPendingPushNotifications(actor,{now}),r=>r.id),['walk']);
+  const inbox=await api.readPushInbox(actor,{now});
+  assert.deepEqual(Array.from(inbox,r=>r.id).sort(),['medicine','walk']);
+ }
 });

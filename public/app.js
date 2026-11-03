@@ -9191,6 +9191,7 @@
         'task-complete','checklist-complete','fasting-stop','like','photo','calendar'
       ]);
       function activityNotificationItem(item){
+        if(String(item?.notificationTag||'')==='lulu-toilet')return false;
         const type=String(item?.type||'');
         const actor=String(item?.actor||'').trim();
         const visibleTo=String(item?.visibleTo||'').trim();
@@ -9562,7 +9563,7 @@
         if(activityPanelMode==='notifications'&&noticePanel?.classList.contains('is-open')&&!noticePanel.hidden)markActivityItemsRead(activityNotificationItems(source),{render:false});
         // Product list edits are intentionally kept out of the shared activity feed.
         // This also hides legacy records without deleting other historical activity.
-        const withoutProductAdds=source.filter(item=>String(item?.type||'')!=='products');
+        const withoutProductAdds=source.filter(item=>String(item?.type||'')!=='products'&&String(item?.notificationTag||'')!=='lulu-toilet');
         const filtered=activityPanelMode==='history'?withoutProductAdds:activityNotificationItems(withoutProductAdds);
         const summaries=compactActivityItems(filtered);
         const visible=activityJournalExpanded?summaries:summaries.slice(0,5);

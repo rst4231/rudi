@@ -1,16 +1,17 @@
 {
-  "current": "v4.437",
+  "current": "v4.438",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-03",
-  "basedOnProduction": "v4.436",
+  "basedOnProduction": "v4.437",
   "notes": [
-    "Возвращено прежнее оформление дня мойки"
+    "Удалены пуши о туалете Лулу и их старые записи в уведомлениях"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Restore wash day layout from v4.435"
+    "Retire Lulu toilet push sender while retaining shared cron and fasting notifications",
+    "Exclude retired toilet reminders from pending delivery, inbox and activity history"
   ]
 }

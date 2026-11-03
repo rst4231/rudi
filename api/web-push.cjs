@@ -223,6 +223,7 @@ function normalizeNotificationQueue(value, now = Date.now()) {
   return rows
     .map(normalizePushNotification)
     .filter(Boolean)
+    .filter((row) => row.tag !== 'lulu-toilet')
     .filter((row) => now - Date.parse(row.createdAt) <= NOTIFICATION_TTL_MS)
     .slice(-MAX_NOTIFICATIONS);
 }
@@ -231,7 +232,7 @@ function normalizePushInbox(value, now=Date.now()) {
   const source=Array.isArray(value?.items)?value.items:Array.isArray(value)?value:[];
   const seen=new Set();
   return source.map(normalizePushNotification).filter(row=>{
-    if(!row||row.kind!=='show'||seen.has(row.id))return false;
+    if(!row||row.kind!=='show'||row.tag==='lulu-toilet'||seen.has(row.id))return false;
     if(now-Date.parse(row.createdAt)>INBOX_RETENTION_MS)return false;
     seen.add(row.id);
     return true;
