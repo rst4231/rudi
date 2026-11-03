@@ -1,16 +1,18 @@
 {
-  "current": "v4.9",
+  "current": "v4.10",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-03",
-  "basedOnProduction": "v4.8",
+  "basedOnProduction": "v4.9",
   "notes": [
-    "Блок Дела над БАДами: сегодня и завтра, утро, день, вечер и всего. Деловое оформление для обеих тем."
+    "Диана видит место работы Рустама на сегодня и завтра в блоке Дела, если он выбрал Дома или Коворкинг.",
+    "Из личной страницы Рустама убрана карточка Финансы и её отдельная загрузка."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Private partner task counts for today and tomorrow, including untimed tasks in totals; business table in light and dark themes"
+    "Show Rustam saved workplace to Diana in partner task rows; preserve themed table and private task counts",
+    "Remove finance card and summary fetch from Rustam own profile"
   ]
 }

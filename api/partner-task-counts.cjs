@@ -2,6 +2,7 @@
 const {occurrences}=require('./shared-native-tasks.cjs');
 const {personalTasks}=require('./diana-personal-tasks.cjs');
 const {readPersonalToken}=require('./ticktick-store.cjs');
+const {readWorkplaceForSummary}=require('./calendar-workplace.cjs');
 const {fetchPersonalProjectTasks,buildTickTickCalendar,loadTickTickConfig,calendarDateKey}=require('./ticktick-client.cjs');
 async function rustamTasks(options){
  const token=await readPersonalToken('Рустам',options);
@@ -41,6 +42,7 @@ async function partnerTaskCounts(actor,options={}){
  if(!['Рустам','Диана'].includes(actor))throw Error('rudi-access-denied');
  const partner=actor==='Рустам'?'Диана':'Рустам',now=new Date(options.now||Date.now()),date=calendarDateKey(now);
  const tomorrow=new Date(Date.parse(date+'T12:00:00Z')+86400000).toISOString().slice(0,10);
+ const workplaceReads=actor==='Диана'?Promise.allSettled([readWorkplaceForSummary(date,options),readWorkplaceForSummary(tomorrow,options)]):null;
  const months=[...new Set([date.slice(0,7),tomorrow.slice(0,7)])];
  // Reuse one personal TickTick fetch for both days, including month boundaries.
  const source=partner==='Рустам'?rustamTasks(options):null;
@@ -48,6 +50,14 @@ async function partnerTaskCounts(actor,options={}){
   personalEvents(partner,month,now,options,source),occurrences(month,partner,options)
  ])]));
  const byMonth=new Map(loaded);
- return {ok:true,partner,...countDay(date,partner,byMonth.get(date.slice(0,7))),tomorrow:countDay(tomorrow,partner,byMonth.get(tomorrow.slice(0,7)))};
+ const result={ok:true,partner,...countDay(date,partner,byMonth.get(date.slice(0,7))),tomorrow:countDay(tomorrow,partner,byMonth.get(tomorrow.slice(0,7)))};
+ if(workplaceReads){
+  const places=await workplaceReads;
+  for(const [index,day] of [result,result.tomorrow].entries()){
+   const read=places[index];
+   if(read.status==='fulfilled'&&['home','coworking'].includes(read.value))day.workplace=read.value;
+  }
+ }
+ return result;
 }
 module.exports={partnerTaskCounts};

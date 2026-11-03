@@ -39,11 +39,14 @@
  }
  function addTaskCounts(page,actor,loadTaskCounts){
   const card=document.createElement('section');card.className='partner-task-counts';
-  const dayRow=(key,label)=>'<tr data-task-day="'+key+'"><th scope="row">'+label+'<small class="partner-task-day-error" hidden>Недоступно</small></th><td data-period="morning">…</td><td data-period="day">…</td><td data-period="evening">…</td><td class="partner-task-total">…</td></tr>';
+  const dayRow=(key,label)=>'<tr data-task-day="'+key+'"><th scope="row">'+label+'<small class="partner-task-workplace" hidden></small><small class="partner-task-day-error" hidden>Недоступно</small></th><td data-period="morning">…</td><td data-period="day">…</td><td data-period="evening">…</td><td class="partner-task-total">…</td></tr>';
   card.innerHTML='<h2>Дела</h2><p class="partner-task-caption" aria-live="polite">Обновляю календарь…</p><table class="partner-task-table" aria-label="Количество дел партнёра на сегодня и завтра"><colgroup><col class="partner-task-date-col"><col><col><col><col></colgroup><thead><tr><th scope="col" aria-label="Дата"></th><th scope="col">Утром</th><th scope="col">Днём</th><th scope="col">Вечером</th><th scope="col">Всего</th></tr></thead><tbody>'+dayRow('today','Сегодня')+dayRow('tomorrow','Завтра')+'</tbody></table>';
   page.querySelector('.partner-today').before(card);
   const renderDay=(key,data)=>{
    const row=card.querySelector('[data-task-day="'+key+'"]');
+   const place=row.querySelector('.partner-task-workplace');
+   place.textContent=actor==='Рустам'?({home:'Дома',coworking:'Коворкинг'}[data?.workplace]||''):'';
+   place.hidden=!place.textContent;
    const valid=data?.available&&Number.isInteger(data.total)&&data.total>=0&&['morning','day','evening'].every(period=>Number.isInteger(data.counts?.[period])&&data.counts[period]>=0);
    row.querySelector('.partner-task-total').textContent=valid?String(data.total):'—';
    row.querySelector('.partner-task-day-error').hidden=valid;

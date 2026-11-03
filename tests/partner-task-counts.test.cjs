@@ -1,12 +1,13 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {createRequire}=require('node:module');
-function fixture({personal=[],shared=[],failure=false,failureMonth='',realDianaCalendar=false}={}){
+function fixture({personal=[],shared=[],failure=false,failureMonth='',realDianaCalendar=false,realWorkplace=false}={}){
  const filename=path.resolve('api/partner-task-counts.cjs');
  if(!fs.existsSync(filename))return {};
  const real=createRequire(filename),client=real('./ticktick-client.cjs'),module={exports:{}};
  const calls={shared:[],personal:[],ticktick:0};
  const deps={
+  './calendar-workplace.cjs':realWorkplace?real('./calendar-workplace.cjs'):{readWorkplaceForSummary:async()=>''},
   './shared-native-tasks.cjs':{occurrences:async month=>{calls.shared.push(month);if(month===failureMonth)throw Error('calendar-unavailable');return shared.filter(event=>event.date?.startsWith(month))}},
   './diana-personal-tasks.cjs':{personalTasks:async input=>{calls.personal.push(input.month);if(failure)throw Error('private');return {ok:true,tasks:personal.filter(event=>event.date?.startsWith(input.month))}}},
   './ticktick-store.cjs':{readPersonalToken:async()=>({accessToken:'private'})},
@@ -35,6 +36,26 @@ test('only partner open tasks for Moscow today are counted, without private fiel
  const result=await f.partnerTaskCounts('Рустам',{now:'2026-11-03T21:01:00Z'});
  assert.deepEqual(result,{ok:true,partner:'Диана',date:'2026-11-04',available:true,counts:{morning:2,day:1,evening:1},total:5,tomorrow:{date:'2026-11-05',available:true,counts:{morning:0,day:0,evening:0},total:0}});
  assert.doesNotMatch(JSON.stringify(result),/Секрет|responsible|title|mine/);
+});
+test('Diana sees Rustam saved workplace for each day, including a changed selection',async()=>{
+ const {workplace}=require('../api/calendar-workplace.cjs'),rows=new Map();
+ const client={getRecord:async(ns,key)=>({value:rows.get(ns+'|'+key)||null}),set:async(ns,key,value)=>rows.set(ns+'|'+key,value)};
+ const options={client,now:'2026-11-03T12:00:00Z'},f=fixture({realWorkplace:true});
+ await workplace({actor:'Рустам',operation:'set',date:'2026-11-03',place:'coworking'},options);
+ await workplace({actor:'Рустам',operation:'set',date:'2026-11-04',place:'home'},options);
+ const result=await f.partnerTaskCounts('Диана',options);
+ assert.equal(result.workplace,'coworking');assert.equal(result.tomorrow.workplace,'home');
+ await workplace({actor:'Рустам',operation:'set',date:'2026-11-03',place:'home'},options);
+ assert.equal((await f.partnerTaskCounts('Диана',options)).workplace,'home');
+ await workplace({actor:'Рустам',operation:'set',date:'2026-11-04',place:''},options);
+ assert.equal((await f.partnerTaskCounts('Диана',options)).tomorrow.workplace,undefined);
+ const rustam=await f.partnerTaskCounts('Рустам',options);
+ assert.equal(rustam.workplace,undefined);assert.equal(rustam.tomorrow.workplace,undefined);
+});
+test('workplace read failure does not hide task counts or invent home location',async()=>{
+ const f=fixture({realWorkplace:true}),client={getRecord:async()=>{throw Error('store-unavailable')}};
+ const result=await f.partnerTaskCounts('Диана',{client,now:'2026-11-03T12:00:00Z'});
+ assert.equal(result.available,true);assert.equal(result.workplace,undefined);assert.equal(result.tomorrow.workplace,undefined);
 });
 test('Rustam personal recurrence is expanded and assigned shared tasks counted',async()=>{
  const f=fixture({personal:[{id:'repeat',projectId:'own',title:'Приватное',status:0,startDate:'2026-11-01T09:00:00+0300',repeatFlag:'RRULE:FREQ=DAILY'}],shared:[{id:'s',date:'2026-11-04',startTime:'20:00',responsible:'Рустам'}]});

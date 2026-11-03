@@ -53,7 +53,7 @@ function renderSelfFinanceCard(card,actor){
 }
 function refreshSelfFinance(){
  const actor=document.body.dataset.rudiActor||who;
- if(!open||!['Рустам','Диана'].includes(actor))return Promise.resolve();
+ if(!open||actor!=='Диана')return Promise.resolve();
  if(selfFinanceRequests.has(actor))return selfFinanceRequests.get(actor);
  const pending=fetch('/api/finances',{
   method:'POST',credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},
@@ -108,9 +108,11 @@ function renderSelfProfile(){
  const intakes=clone(source.querySelector('.profile-supplement-intakes'));
  if(intakes)today.append(intakes);else today.insertAdjacentHTML('beforeend','<p class="profile-supplement-intakes-empty">Сегодня ещё ничего не отмечено</p>');
  details.append(hero);if(energy)details.append(energyCard);details.append(today);
- const finances=document.createElement('section');finances.className='partner-finances pc-self-finances';
- finances.innerHTML='<h2>Финансы</h2><div class="partner-finance-last"><h3>Последний расход</h3><p data-self-finance-last>Загружаю…</p></div><div class="partner-finance-largest"><h3>Самая крупная покупка за месяц</h3><p data-self-finance-largest>Загружаю…</p></div>';
- details.append(finances);renderSelfFinanceCard(finances,actor);
+ if(actor==='Диана'){
+  const finances=document.createElement('section');finances.className='partner-finances pc-self-finances';
+  finances.innerHTML='<h2>Финансы</h2><div class="partner-finance-last"><h3>Последний расход</h3><p data-self-finance-last>Загружаю…</p></div><div class="partner-finance-largest"><h3>Самая крупная покупка за месяц</h3><p data-self-finance-largest>Загружаю…</p></div>';
+  details.append(finances);renderSelfFinanceCard(finances,actor);
+ }
  layout.append(details);slot.replaceChildren(layout);
  if(selfProfileSource!==source){
   selfProfileObserver?.disconnect();selfProfileSource=source;
