@@ -17,7 +17,8 @@ module.exports=defineConfig({
     locale:'ru-RU',
     timezoneId:'Europe/Moscow',
     colorScheme:'dark',
-    trace:'retain-on-failure'
+    trace:'retain-on-failure',
+    launchOptions:process.env.RUDI_BROWSER_EXECUTABLE?{executablePath:process.env.RUDI_BROWSER_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage','--disable-gpu']}:undefined
   },
   webServer:{
     command:'node tests/ui/server.cjs',

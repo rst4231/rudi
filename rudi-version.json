@@ -1,18 +1,17 @@
 {
-  "current": "v4.12",
+  "current": "v4.13",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-03",
-  "basedOnProduction": "v4.11",
+  "basedOnProduction": "v4.12",
   "notes": [
-    "В выходной статус Выходной вместо Отдыхаю: Рустам по графику 5/2, Диана по своему календарю.",
-    "Отступы на главной: имя → статус у Рустама и Дианы, статус → месячные у Дианы совпадают с Лулу: 2 px."
+    "Исправлены реальные расстояния между именами, статусами и строкой цикла на главной: кнопка настроения больше не увеличивает высоту строки имени."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Distinguish scheduled day off from non-working hours in profile status for both people",
-    "Match owner and partner name/status spacing to Lulu in both themes"
+    "Fix name row height and partner specificity; retain 26px mood targets outside text flow",
+    "Verify rendered text spacing against Lulu in both accounts, themes and phone widths"
   ]
 }
