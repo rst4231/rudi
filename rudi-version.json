@@ -1,18 +1,16 @@
 {
-  "current": "v4.7",
+  "current": "v4.8",
   "versionBranch": "main",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-03",
-  "basedOnProduction": "v4.6",
+  "basedOnProduction": "v4.7",
   "notes": [
-    "Удалён расчёт прогулки и грустная аватарка Лулу",
-    "Выровнены имена и статусы в карточках Рустама и Дианы"
+    "Возвращено прежнее расположение имён и подписей"
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Remove walk prediction, due status and avatar switching; preserve last walk time and journal",
-    "Use aligned name, work status and cycle rows in both home profile cards"
+    "Revert profile label alignment while preserving Lulu changes"
   ]
 }

@@ -11,27 +11,9 @@
 }
 .profile-person-card .score-avatar-wrap>.rudi-online-dot.is-online{background:#21c55d!important}
 /* Identical owner/partner name, mood, and status geometry on both accounts. */
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person,
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person{
- display:grid!important;grid-template-columns:minmax(0,1fr)!important;
- grid-template-rows:26px 11px 11px!important;row-gap:3px!important;column-gap:0!important;
- height:54px!important;min-height:54px!important;
- align-self:center!important;align-content:start!important;align-items:center!important;
- justify-content:stretch!important;justify-items:start!important;
+body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person{
+ gap:3px!important;align-self:center!important;justify-content:center!important;
  min-width:0!important;margin:0!important;padding:0!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person > .profile-name-row{
- grid-row:1!important;grid-column:1!important;align-self:center!important;max-width:100%!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person > .profile-work-status{
- grid-row:2!important;grid-column:1!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person > .profile-cycle-mood{
- grid-row:3!important;grid-column:1!important;
-}
-body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person > :is(.profile-work-status,.profile-cycle-mood){
- width:100%!important;min-width:0!important;max-width:100%!important;
- white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important;
 }
 body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .profile-name-row{
  display:inline-flex!important;align-items:center!important;gap:4px!important;
