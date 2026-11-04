@@ -1,18 +1,16 @@
 {
-  "current": "v4.27",
-  "versionBranch": "rudi-release-v427",
+  "current": "v4.28",
+  "versionBranch": "rudi-release-v428",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.26",
+  "basedOnProduction": "v4.27",
   "notes": [
-    "Под аватарками пользователей не в сети показано только время последнего входа.",
-    "Подпись расположена компактно ниже ореола голодания, не увеличивает карточку и скрывается при появлении онлайн."
+    "Время последнего входа под аватаркой уменьшено и поднято ближе к фото."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show a time-only last-visit caption beneath offline home avatars without hiding existing profile statuses.",
-    "Place the caption below the fasting outline and above its layer without changing card layout; hide it while online or when no valid visit is known."
+    "Reduce avatar last-visit caption from 9px to 7px and raise it by 3px, retaining separation from the fasting outline."
   ]
 }
