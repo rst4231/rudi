@@ -1,19 +1,16 @@
 {
-  "current": "v4.14",
-  "versionBranch": "rudi-release-v414",
+  "current": "v4.15",
+  "versionBranch": "rudi-release-v415",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-11-03",
-  "basedOnProduction": "v4.13",
+  "createdAt": "2026-11-04",
+  "basedOnProduction": "v4.14",
   "notes": [
-    "Автоматический финансовый план на следующий месяц с лимитами и предупреждением о нехватке денег к обязательным платежам.",
-    "Список продуктов на ближайшие 7 дней по повторным покупкам, общий для Рустама и Дианы."
+    "Удалён блок Частые покупки. Список на неделю перенесён под корзину перед историей покупок."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Generate actor-private next-month budgets from recurring bills, real spending and income; accept limits atomically without replacing manual targets",
-    "Project cash before bill dates with known wallet balances, FX and payday; report missing data explicitly",
-    "Suggest weekly groceries from recurring purchase intervals and add selected items to the shared basket without marking them bought"
+    "Replace frequent purchases with the weekly list between the basket and purchase history; keep autocomplete and product editing."
   ]
 }

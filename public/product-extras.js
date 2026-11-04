@@ -41,12 +41,7 @@
     }
     return [...byName.values()].sort((a,b) => b.count-a.count || b.last-a.last);
   }
-  const isRecent = (item, now = Date.now()) => {
-    if (!item.last) return false;
-    const slow = ['Бакалея','Для дома','Гигиена','Для Лулу'].includes(item.category);
-    return now-item.last < (slow ? 14 : 3) * 86400000;
-  };
-  let dropdown, frequent, input, modal, editItem, originalFocus, submitting = false, keepSuggestions = false;
+  let dropdown, input, modal, editItem, originalFocus, keepSuggestions = false;
   function allSuggestions(query) {
     const q = key(query);
     if (!q) return [];
@@ -99,43 +94,6 @@
     }
     dropdown.hidden=false;
     input.setAttribute('aria-expanded','true');
-  }
-  async function quickAdd(name,button) {
-    const api = window.RUDI_PRODUCTS_API;
-    if (!api?.request || submitting || inCart(name)) return;
-    submitting = true;
-    if(button) button.disabled = true;
-    try {
-      await api.request('add',{items:[name]});
-      await api.reload({silent:true});
-    } catch (error) {
-      console.warn('RUDI_PRODUCTS_QUICK_ADD_WARN',String(error?.message||error));
-      window.alert('Не получилось добавить продукт. Проверь подключение.');
-    } finally {
-      submitting=false;
-      if(button) button.disabled=false;
-      renderFrequent();
-      renderDropdown();
-    }
-  }
-  function renderFrequent() {
-    if (!frequent) return;
-    frequent.replaceChildren();
-    const recommended=aggregateHistory()
-      .filter(item => !inCart(item.name) && !isRecent(item))
-      .slice(0,8);
-    if (!recommended.length) {frequent.hidden=true;return;}
-    const header = element('div','rudi-frequent-head');
-    header.append(element('strong','', 'Частые покупки'),element('small','', 'Добавить одним нажатием'));
-    const chips=element('div','rudi-frequent-chips');
-    for (const item of recommended) {
-      const b=element('button','rudi-frequent-chip','+ '+item.name);
-      b.type='button';
-      b.addEventListener('click',()=>quickAdd(item.name,b));
-      chips.appendChild(b);
-    }
-    frequent.append(header,chips);
-    frequent.hidden=false;
   }
   function buildModal() {
     if (modal) return;
@@ -233,10 +191,6 @@
     input.addEventListener('blur',()=>setTimeout(()=>{if(!keepSuggestions)closeDropdown()},120));
     input.addEventListener('keydown',event=>{if(event.key==='Escape')closeDropdown()});
     form.addEventListener('submit',()=>closeDropdown());
-    const history=$('productsHistoryTitle')?.closest('.products-history');
-    frequent=element('section','rudi-frequent-products');
-    frequent.hidden=true;
-    if(history?.parentNode)history.parentNode.insertBefore(frequent,history);
     const list=$('productsGroups');
     list?.addEventListener('click',event=>{
       const content=event.target.closest('.product-main');
@@ -251,7 +205,6 @@
       if(!content)return;
       event.preventDefault();content.click();
     });
-    renderFrequent();
     renderDropdown();
   }
   // Both household members can confirm their own purchases.
@@ -266,7 +219,7 @@
     updateBoughtVisibility();
     new MutationObserver(updateBoughtVisibility).observe(button,{childList:true,characterData:true,subtree:true});
   }
-  window.addEventListener('rudi-products-update',()=>{updateBoughtVisibility();renderFrequent();renderDropdown();});
+  window.addEventListener('rudi-products-update',()=>{updateBoughtVisibility();renderDropdown();});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{setup();watchBoughtVisibility()},{once:true});
   else {setup();watchBoughtVisibility();}
 })();
