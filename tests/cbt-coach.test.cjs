@@ -95,3 +95,39 @@ test('previous method v2 is reanalyzed only on request and all earlier analyses 
  const h=harness(old);const read=await request(h.handler,{operation:'state'});assert.equal(h.calls(),0);assert.deepEqual(read.payload.state.runs[0].days[1].answers,answers);
  const response=await request(h.handler,{operation:'analyze',cycleId:'cycle',day:1,entryId:'initial'});assert.equal(response.status,200);assert.equal(response.payload.result.version,D.coachVersion);assert.equal(h.calls(),1);const record=h.get().runs[0].days[1];assert.equal(record.coachHistory.length,5);assert.equal(record.coachHistory[4].result.version,2);assert.deepEqual(record.answers,answers);
 });
+
+test('English cached analysis is regenerated in Russian and archived without changing answers',async()=>{
+ const {state,answers}=fixture(),english={...makeResult(),version:D.coachVersion,pattern:'You noticed anger when your path was blocked.'};
+ const old=C.apply(state,{id:'english-coach',type:'coach',cycleId:'cycle',day:1,base:answers,coach:english},new Date().toISOString()),h=harness(old);
+ const response=await request(h.handler,{operation:'analyze',cycleId:'cycle',day:1});
+ assert.equal(response.status,200);assert.equal(h.calls(),1);assert.equal(response.payload.cached,undefined);
+ assert.equal(h.get().runs[0].days[1].coach.result.pattern,'Появилась мысль');
+ assert.equal(h.get().runs[0].days[1].coachHistory.at(-1).result.pattern,english.pattern);assert.deepEqual(h.get().runs[0].days[1].answers,answers);
+});
+test('model output rejects English prose in any field but accepts Russian prose with product names',()=>{
+ const {validateResult}=require('../api/cbt-coach.cjs');
+ assert.throws(()=>validateResult({...makeResult(),pattern:'You felt anger.'}),/cbt-coach-language/);
+ assert.throws(()=>validateResult({...makeResult(),step:'Notice the thought without judging it.'}),/cbt-coach-language/);
+ assert.doesNotThrow(()=>validateResult({...makeResult(),pattern:'Вас расстроил сбой в Facebook Ads и Google Ads.'}));
+});
+test('an English model response is retried once and never returned as a valid analysis',async()=>{
+ const {analyze}=require('../api/cbt-coach.cjs');let calls=0;
+ const english={...makeResult(),pattern:'You felt anger.'};
+ const fetchImpl=async()=>({ok:true,json:async()=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify(++calls===1?english:makeResult())}}]})});
+ const result=await analyze({day:1,answers:{thought:'Мне неприятно'}},{env:{GROQ_API_KEY:'fixture'},fetchImpl});
+ assert.equal(calls,2);assert.equal(result.pattern,'Появилась мысль');calls=0;
+ await assert.rejects(()=>analyze({day:1,answers:{thought:'Мне неприятно'}},{env:{GROQ_API_KEY:'fixture'},fetchImpl:async()=>{calls++;return{ok:true,json:async()=>({choices:[{finish_reason:'stop',message:{content:JSON.stringify(english)}}]})}}}),/cbt-coach-language/);
+ assert.equal(calls,2);
+});
+
+test('automatic translation preserves completed sessions, answers and original analyses and translates history independently',async()=>{
+ const {state,answers}=fixture(),english={...makeResult(),version:D.coachVersion,pattern:'You noticed anger when your path was blocked.'};
+ let current=C.apply(state,{id:'english-auto',type:'coach',cycleId:'cycle',day:1,base:answers,coach:english},new Date().toISOString()),calls=0;
+ current.runs[0].status='completed';current.runs[0].completedAt=new Date().toISOString();current.runs[0].days[1].coachHistory=[structuredClone(current.runs[0].days[1].coach)];
+ const handler=require('../api/cbt-handler.cjs').createHandler({authorizeRequest:()=>({actor:'Рустам'}),readAppState:async()=>structuredClone(current),writeAppState:async(_a,_k,value)=>{current=structuredClone(value)},stateClient:{setIfAbsent:async()=>true,remove:async()=>{}},translateCoach:async result=>{calls++;assert.equal(result.pattern,english.pattern);return makeResult()}});
+ const payload={operation:'translate-coach',cycleId:'cycle',day:1,entryId:'initial'};
+ let response=await request(handler,payload);assert.equal(response.status,200);assert.equal(calls,1);assert.equal(current.runs[0].days[1].coach.result.pattern,'Появилась мысль');assert.equal(current.runs[0].days[1].coach.originalResult.pattern,english.pattern);assert.deepEqual(current.runs[0].days[1].answers,answers);assert.equal(current.runs[0].status,'completed');
+ response=await request(handler,payload);assert.equal(response.status,200);assert.equal(calls,1);
+ response=await request(handler,{...payload,historyIndex:0});assert.equal(response.status,200);assert.equal(calls,2);assert.equal(current.runs[0].days[1].coachHistory[0].result.pattern,'Появилась мысль');
+ assert.deepEqual(current.runs[0].days[1].answers,answers);
+});

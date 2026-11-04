@@ -1,18 +1,21 @@
 {
-  "current": "v4.22",
-  "versionBranch": "rudi-release-v422",
+  "current": "v4.23",
+  "versionBranch": "rudi-release-v423",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.21",
+  "basedOnProduction": "v4.22",
   "notes": [
-    "Шкала и ореол КПТ обнуляются после завершения сессии, в том числе офлайн и после повторного открытия приложения.",
-    "История, ответы, черновики и итоги завершённой сессии сохранены."
+    "Объяснения КПТ сворачиваются на всех трёх неделях и запоминают состояние отдельно для каждой недели и профиля.",
+    "Разборы КПТ проверяются на русский язык; английский ответ автоматически исправляется одной повторной попыткой.",
+    "Сохранённые английские разборы и их история автоматически переводятся на русский при загрузке данных без дополнительных кнопок; исходные записи сохранены.",
+    "Из кухни убран блок Список на неделю."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Use only an active CBT session for Home progress; preserve finished session statistics in history.",
-    "Clear the selected session after finishing and when returning to the program overview."
+    "Persist weekly CBT instruction disclosure state locally without changing answers or sync operations.",
+    "Require Russian coach prose, retry English generation once, and automatically translate foreign-language saved analyses and their history without changing answers.",
+    "Remove weekly shopping suggestion panel and its unused client script loading."
   ]
 }

@@ -5,6 +5,7 @@ const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>
 const uid=()=>crypto.randomUUID(),date=s=>s?new Date(s).toLocaleString('ru-RU',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Нет даты';
 let ctx=null,page=null,screen='home',selected='',day=1,notice='',timer=0,retry=0,flight=null,lastFocus=null,backupIndex=-1,entryId='initial';
 let deleteTarget=null,finishTarget=null,analysisBusy=false,analysisMessage='';
+let languageFlight=null;
 let recordFilters={query:'',emotion:'',from:'',to:''},exportSelection=new Set();
 let scrollLock=null,viewportFrame=0,revealTimer=0,renderedMarkup='',renderedRoute='';
 const localZone=()=>Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';
@@ -17,6 +18,10 @@ const entryTime=s=>s?new Date(s).toLocaleTimeString('ru-RU',{hour:'2-digit',minu
 const emotionEmoji={'Тревога':'😰','Грусть':'😢','Злость':'😠','Обида':'😞','Страх':'😨','Стыд':'😳','Вина':'😔','Разочарование':'😕','Радость':'😊','Спокойствие':'😌','Интерес':'🤔','Облегчение':'😮‍💨'};
 const fieldEmoji={situation:'📍',thought:'💭',emotions:'💗',reaction:'⚡',evidence:'🔎',alternative:'💡',action:'🎯',conclusion:'📝',moodBefore:'🌧️',moodAfter:'☀️',emotionIntensity:'📊',beliefBefore:'🧠',beliefAfter:'🌿',distortion:'🔍',actionDone:'✅'};
 const key=a=>'rudi:cbt:v1:'+a;
+const instructionStates=new Map();
+const instructionKey=week=>'rudi:cbt:instruction:v1:'+ctx.actor+':'+week;
+function instructionIsOpen(week){const id=instructionKey(week);if(!instructionStates.has(id)){let open=true;try{open=localStorage.getItem(id)!=='closed'}catch{}instructionStates.set(id,open)}return instructionStates.get(id)}
+function saveInstructionState(event){const el=event.target,week=Number(el?.dataset?.cbtInstruction);if(!ctx||!el.isConnected||el.dataset.cbtInstructionActor!==ctx.actor||![1,2,3].includes(week))return;const id=instructionKey(week);if(instructionStates.get(id)===el.open)return;instructionStates.set(id,el.open);try{localStorage.setItem(id,el.open?'open':'closed')}catch{}}
 function load(a){let v;try{v=JSON.parse(localStorage.getItem(key(a))||'null')}catch{}return {actor:a,server:v?.server||C.empty(),queue:Array.isArray(v?.queue)?v.queue:[],backups:Array.isArray(v?.backups)?v.backups:[],copy:v?.copy||null,error:'',conflict:v?.conflict||null,loaded:!!v,syncing:false,failed:false}}
 function snapshot(c=ctx){let s=c.server;for(const op of c.queue){try{s=C.apply(s,op,op.at,true)}catch{}}return C.refresh(s)}
 function persist(){if(!ctx)return false;try{localStorage.setItem(key(ctx.actor),JSON.stringify({server:ctx.server,queue:ctx.queue,backups:ctx.backups,copy:ctx.copy,conflict:ctx.conflict}));ctx.failed=false;window.dispatchEvent(new Event('rudi-cbt-progress'));return true}catch{ctx.failed=true;ctx.error='Не удалось сохранить на устройстве. Освободи место и нажми «Повторить синхронизацию». Не закрывай эту страницу до сохранения.';status();return false}}
@@ -35,7 +40,26 @@ function enqueue(op){
  const saved=persist();status();schedule();return saved;
 }
 function schedule(ms=1600){clearTimeout(timer);timer=setTimeout(()=>void sync(),ms)}
-async function request(body,c){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),body.operation==='analyze'?28000:12000);try{const res=await fetch('/api/cbt',{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({expectedActor:c.actor,initData:window.Telegram?.WebApp?.initData||'',...body})});const data=await res.json();if(data.error==='cbt-actor-changed')throw Error('auth');if(data.actor&&data.actor!==c.actor)throw Error('actor-changed');return {res,data}}finally{clearTimeout(timeout)}}
+function untranslatedCoach(c){
+ const targets=[];
+ for(const r of c.server.runs||[])for(const [n,row]of Object.entries(r.days||{}))for(const entry of C.entries(row)){
+  const candidates=[{value:entry.coach},...(entry.coachHistory||[]).map((value,historyIndex)=>({value,historyIndex}))];
+  for(const item of candidates)if(item.value?.result?.pattern&&!D.isRussianCoach(item.value.result))targets.push({cycleId:r.id,day:Number(n),entryId:entry.id,...item.historyIndex===undefined?{}:{historyIndex:item.historyIndex}});
+ }
+ return targets.find(t=>screen==='day'&&t.cycleId===selected&&t.day===day&&t.entryId===entryId)||targets[0];
+}
+async function translateSavedCoaches(c=ctx){
+ if(!c||languageFlight||!c.loaded||c.syncing||c.queue.length||c.conflict||navigator.onLine===false||c.actor!==document.body.dataset.rudiActor||!document.body.classList.contains('auth-ok'))return;
+ languageFlight=c;
+ try{while(ctx===c&&!c.syncing&&!c.queue.length&&!c.conflict&&navigator.onLine!==false){
+  const target=untranslatedCoach(c);if(!target)break;const before=c.server;
+  const {res,data}=await request({operation:'translate-coach',...target},c);
+  if(ctx!==c)return;if(!res.ok||!data.ok)break;
+  if(c.server!==before||c.syncing||c.queue.length){schedule(0);break}
+  c.server=data.state;persist();if(!editing())render(false);
+ }}catch{}finally{languageFlight=null;if(ctx&&ctx!==c)void translateSavedCoaches(ctx)}
+}
+async function request(body,c){const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),['analyze','translate-coach'].includes(body.operation)?55000:12000);try{const res=await fetch('/api/cbt',{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{'content-type':'application/json'},body:JSON.stringify({expectedActor:c.actor,initData:window.Telegram?.WebApp?.initData||'',...body})});const data=await res.json();if(data.error==='cbt-actor-changed')throw Error('auth');if(data.actor&&data.actor!==c.actor)throw Error('actor-changed');return {res,data}}finally{clearTimeout(timeout)}}
 async function sync(){
  const c=ctx;if(!c||c.syncing||c.conflict||c.actor!==document.body.dataset.rudiActor||!document.body.classList.contains('auth-ok'))return;
  if(navigator.onLine===false){status();return}
@@ -66,7 +90,7 @@ async function sync(){
   if(!editing())render(false);
   if(!c.queue.length&&c.backups.length&&!c.conflict)schedule(0);
  }catch(e){if(c!==ctx)return;c.error=e.message==='auth'?'Войди в RUDI, чтобы записи были доступны на других устройствах.':'Не удалось обновить записи. Ответы остались на этом устройстве.';retry=Math.min(retry+1,5);if(c.queue.length&&retry<5)schedule(Math.min(30000,2000*2**retry))}
- finally{if(c===ctx){c.syncing=false;flight=null;status()}}
+ finally{if(c===ctx){c.syncing=false;flight=null;status();void translateSavedCoaches(c)}}
 }
 function editing(){return page?.contains(document.activeElement)&&/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)}
 function status(){const el=$('#cbtSyncStatus');if(!el||!ctx)return;el.textContent=ctx.failed?ctx.error:ctx.conflict?'Есть разные версии ответов. Выбери, какую оставить.':ctx.error||notice||'';el.hidden=!el.textContent;el.classList.toggle('is-error',!!ctx.error||!!ctx.conflict||ctx.failed);const btn=page?.querySelector('[data-do="sync"]');if(btn)btn.hidden=!(ctx.error||ctx.failed)}
@@ -85,7 +109,7 @@ scroll.addEventListener('touchmove',e=>{
  if((atTop&&dy>0)||(atBottom&&dy<0)){if(e.cancelable)e.preventDefault()}
 },{passive:false});
 scroll.addEventListener('touchend',()=>{touch=null},{passive:true});scroll.addEventListener('touchcancel',()=>{touch=null},{passive:true});
-page.addEventListener('focusin',()=>updateViewport());page.addEventListener('click',click);page.addEventListener('input',input);page.addEventListener('change',input);page.addEventListener('focusout',e=>{if(e.target?.matches?.('#cbtExercise textarea'))queueProofread(e.target,true)});page.addEventListener('pointerup',e=>{const el=e.target.closest('input[type="range"]');if(el&&el.dataset.empty==='true')setField(el.dataset.field,Number(el.value),el)});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!page.hidden)back()})}
+page.addEventListener('toggle',saveInstructionState,true);page.addEventListener('focusin',()=>updateViewport());page.addEventListener('click',click);page.addEventListener('input',input);page.addEventListener('change',input);page.addEventListener('focusout',e=>{if(e.target?.matches?.('#cbtExercise textarea'))queueProofread(e.target,true)});page.addEventListener('pointerup',e=>{const el=e.target.closest('input[type="range"]');if(el&&el.dataset.empty==='true')setField(el.dataset.field,Number(el.value),el)});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!page.hidden)back()})}
 function lockScroll(){if(scrollLock)return;scrollLock={x:window.scrollX,y:window.scrollY,top:document.body.style.top};document.documentElement.classList.add('cbt-page-open');document.body.classList.add('cbt-page-open')}
 function unlockScroll(){if(!scrollLock)return;const saved=scrollLock;scrollLock=null;document.documentElement.classList.remove('cbt-page-open');document.body.classList.remove('cbt-page-open');document.body.style.top=saved.top;window.scrollTo({left:saved.x,top:saved.y,behavior:'instant'})}
 function revealFocusedField(){if(page?.hidden)return;const input=document.activeElement,scroll=scroller();if(!scroll||!page.contains(input)||!input.matches('textarea,input,select'))return;const a=input.getBoundingClientRect(),b=scroll.getBoundingClientRect();if(a.bottom>b.bottom-12)scroll.scrollTop+=a.bottom-b.bottom+12;else if(a.top<b.top+12)scroll.scrollTop+=a.top-b.top-12}
@@ -123,12 +147,14 @@ function field(f,a,readonly){const v=a[f.key],id='cbt-field-'+f.key,label='<labe
 function allFields(n,answers={}){const fields=D.fieldsForDay(n);for(const key of Object.keys(answers))if(!fields.some(f=>f.key===key))fields.push({key,label:key,type:'text'});return fields}
 function previewRecord(e){const a=e.answers||{};return String(a.situation||a.thought||a.action||a.alternative||a.conclusion||(a.emotions||[]).join(', ')||'Пустой черновик').replace(/\s+/g,' ').slice(0,100)}
 function coachCard(record){
- const saved=!!record?.savedAt,current=saved&&record.coach&&C.same(record.coach.source,record.answers)?record.coach:null,result=current?.result?.version===D.coachVersion?current.result:null;
+ const saved=!!record?.savedAt,current=saved&&record.coach&&C.same(record.coach.source,record.answers)?record.coach:null,wrongLanguage=!!current&&!D.isRussianCoach({trap:'',reason:'',check:'',alternative:'',step:'',question:'',...current.result}),result=current?.result?.version===D.coachVersion&&!wrongLanguage?current.result:null;
  const cleanCoach=value=>esc(String(value||'').replace(/пользовательница/gi,'вы').replace(/у пользователя/gi,'у вас').replace(/пользователя/gi,'вас').replace(/пользователю/gi,'вам').replace(/пользователь/gi,'вы'));
  const heading='<section class="cbt-card cbt-coach-card" id="cbtCoachCard"><h2>🧠 Разбор вашей записи</h2>';
  const past=[...(record?.coachHistory||[]),...(!result&&record?.coach?[record.coach]:[])];
- const pastHtml=past.length?'<details class="cbt-help"><summary>Предыдущие разборы · '+past.length+'</summary>'+past.map(item=>'<article><p class="cbt-meta">'+date(item.createdAt)+' · Сохранённый разбор</p>'+['pattern','trap','reason','check','alternative','step','question'].filter(k=>item.result?.[k]).map(k=>'<p>'+cleanCoach(item.result[k])+'</p>').join('')+'</article>').join('')+'</details>':'';
+ const visiblePast=past.filter(item=>D.isRussianCoach(item.result));
+ const pastHtml=visiblePast.length?'<details class="cbt-help"><summary>Предыдущие разборы · '+visiblePast.length+'</summary>'+visiblePast.map(item=>'<article><p class="cbt-meta">'+date(item.createdAt)+' · Сохранённый разбор</p>'+['pattern','trap','reason','check','alternative','step','question'].filter(k=>item.result?.[k]).map(k=>'<p>'+cleanCoach(item.result[k])+'</p>').join('')+'</article>').join('')+'</details>':'';
 
+ if(wrongLanguage)return heading+pastHtml+'<p class="cbt-meta" role="status">'+(navigator.onLine===false?'Для автоматического перевода разбора нужен интернет. Ваша запись сохранена.':'Разбор автоматически переводится на русский язык.')+'</p></section>';
  if(result)return heading+pastHtml+
  '<div class="cbt-coach-conversation"><p>'+cleanCoach(result.pattern)+'</p>'+
  (result.trap||result.reason?'<p>'+[result.trap,result.reason].filter(Boolean).map(cleanCoach).join(' ')+'</p>':'')+
@@ -178,11 +204,11 @@ function openFreshEntry(targetDay=day){
 }
 function explanationHtml(d){
  const paragraphs=d.explanation.split(/\n\n/);
- return '<article class="cbt-card cbt-explanation cbt-instruction-week-'+d.week+'"><header class="cbt-instruction-heading"><span class="cbt-bulb" aria-hidden="true">'+['☀','🧩','💬'][d.week-1]+'</span><h2>'+esc(d.title)+'</h2></header><div class="cbt-instruction-copy">'+paragraphs.map((text,i)=>{
+ return '<details class="cbt-card cbt-explanation cbt-instruction-week-'+d.week+'" data-cbt-instruction="'+d.week+'" data-cbt-instruction-actor="'+esc(ctx.actor)+'"'+(instructionIsOpen(d.week)?' open':'')+'><summary class="cbt-instruction-heading"><span class="cbt-bulb" aria-hidden="true">'+['☀','🧩','💬'][d.week-1]+'</span><h2>'+esc(d.title)+'</h2>'+icon('arrow','cbt-instruction-chevron')+'</summary><div class="cbt-instruction-copy">'+paragraphs.map((text,i)=>{
   let copy=esc(text).replace(/^(\d+\. [А-ЯЁ ()]+\.)/, '<strong class="cbt-instruction-label">$1</strong>').replace(/0 до (10|100)/g,'<b class="cbt-instruction-scale">$&</b>');
   copy=copy.replace(/СИТУАЦИЯ → ИНТЕРПРЕТАЦИЯ → ЭМОЦИЯ \+ ПОВЕДЕНИЕ/g,flow=>'<span class="cbt-method-flow">'+flow.split(/( → | \+ )/).map((part,j)=>'<span class="'+(j%2?'cbt-method-arrow':'cbt-method-node')+'">'+part+'</span>').join('')+'</span>');
   return '<p class="'+(d.week===1&&i>0&&i<4?'cbt-instruction-step':i===paragraphs.length-1?'cbt-instruction-goal':'cbt-instruction-lead')+'">'+copy+'</p>';
- }).join('')+'</div></article>';
+ }).join('')+'</div></details>';
 }
 function dayView(){
  const r=run(),d=lesson(day),row=r?.days[day],record=C.entry(r,day,entryId),a=record?.answers||{};
@@ -261,6 +287,7 @@ function doneView(){const d=lesson(day),r=run(),record=C.entry(r,day,entryId);re
 function conflictView(){if(!ctx.conflict)return '';const conflict=ctx.conflict,op=conflict.op,remote=ctx.server.runs.find(r=>r.id===op.cycleId),values=C.entry(remote,op.day,op.entryId,true)?.answers||{},localValues=C.entry(snapshot().runs.find(r=>r.id===op.cycleId),op.day,op.entryId,true)?.answers||op.patch||{};return '<section class="cbt-card cbt-conflict" role="alert"><h2>Ответы изменились на другом устройстве</h2><p>'+(conflict.error==='cbt-conflict-deleted'?'Этот черновик удалён на другом устройстве. Можно сохранить свои изменения отдельным новым черновиком.':'Обе версии сохранены. Выбери, какие ответы использовать. Оба варианта останутся в истории.')+'</p>'+(conflict.fields||[]).map(k=>'<div><b>'+esc(allFields(op.day).find(f=>f.key===k)?.label||k)+'</b><p>С другого устройства:</p><pre>'+esc(Array.isArray(values[k])?values[k].join(', '):values[k])+'</pre><p>На этом устройстве:</p><pre>'+esc(Array.isArray(localValues[k])?localValues[k].join(', '):localValues[k])+'</pre></div>').join('')+'<button type="button" data-do="conflict-local" class="cbt-primary">'+(conflict.error==='cbt-conflict-delete'?'Удалить обновлённый черновик':conflict.error==='cbt-conflict-deleted'?'Сохранить как новый черновик':conflict.error==='cbt-read-only'||conflict.error==='cbt-conflict-start'?'Перенести мои ответы в новый цикл':'Оставить мои ответы')+'</button><button type="button" data-do="conflict-server" class="cbt-secondary">Оставить ответы с другого устройства</button></section>'}
 function render(scroll=true){
  if(!page||page.hidden||!ctx)return;
+ const instruction=page.querySelector('details[data-cbt-instruction]');if(instruction)saveInstructionState({target:instruction});
  const currentRun=run(),raw=C.entry(currentRun,day,entryId,true);if(screen==='day'&&!C.entry(currentRun,day,entryId)&&raw?.deletedAt&&!ctx.queue.some(op=>op.type==='edit'&&op.cycleId===currentRun.id&&op.day===day&&C.canonicalEntryId(currentRun.days[day],op.entryId)===raw.id))entryId=C.nextEntry(currentRun.days[day]);
  const host=$('#cbtView'),area=scroller(),pos=area?.scrollTop||0,route=[screen,selected,day,entryId,backupIndex].join(':'),markup=conflictView()+({home:overview,day:dayView,done:doneView,history:historyView,report:reportView,records:recordsView}[screen]||overview)();
  if(!scroll&&markup===renderedMarkup&&route===renderedRoute){status();return}

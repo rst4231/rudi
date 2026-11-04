@@ -1,7 +1,7 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
 const {JSDOM}=require('jsdom'),C=require('../public/cbt-core.js');
-function fixture(n=15){
+function fixture(n=15,preferences={}){
  const now=new Date(),start=new Date(now.getTime()-(n-1)*86400000).toISOString();
  let state=C.apply(null,{id:'existing-start',type:'start',cycleId:'preserve-this-cycle',timeZone:'UTC'},start);
  state.runs[0].contentVersion=1;
@@ -12,6 +12,7 @@ function fixture(n=15){
  const dom=new JSDOM('<!doctype html><html><body data-rudi-actor="Рустам" class="auth-ok"></body></html>',{url:'https://rudi.test/',runScripts:'outside-only',pretendToBeVisual:true});
  const w=dom.window;Object.defineProperty(w.navigator,'onLine',{value:false,configurable:true});w.scrollTo=()=>{};w.HTMLElement.prototype.scrollIntoView=()=>{};w.fetch=async()=>{throw Error('Network must stay offline in this fixture')};
  w.localStorage.setItem('rudi:cbt:v1:Рустам',JSON.stringify(stored));
+ for(const [key,value]of Object.entries(preferences))w.localStorage.setItem(key,value);
  for(const f of ['cbt-content.js','cbt-core.js','cbt.js']){
   let source=fs.readFileSync('public/'+f,'utf8');
   if(f==='cbt.js')source=source.replace('window.RudiCbt={open,close,progress,reminder};','window.RudiCbt={open,close,progress,reminder,testAnswerHtml:answerHtml,testWeekly:weekly};');
@@ -33,8 +34,41 @@ test('opening existing third week uses oral method and retains old answers, pend
  const html=f.w.RudiCbt.testAnswerHtml({day:15,entry:projected.runs[0].days[15]});for(const value of ['Старый выбранный шаг','Офлайн результат','Старое ожидание','Старый вывод'])assert.ok(html.includes(value));assert.ok(f.w.RudiCbt.testWeekly(projected.runs[0],3).includes('Старый выбранный шаг'));
  }finally{f.dom.window.close()}
 });
+
+test('weekly instructions collapse independently, persist across days and reloads, and never change answers',async()=>{
+ const f=fixture(21),tick=()=>new Promise(resolve=>f.w.setTimeout(resolve,0));try{
+ for(const first of [1,8,15]){
+  f.w.RudiCbt.open();f.click('[data-day="'+first+'"]');
+  let card=f.w.document.querySelector('details.cbt-explanation');assert.ok(card,'instruction must have an accessible disclosure');assert.equal(card.open,true);
+  f.click('.cbt-explanation > summary');await tick();assert.equal(card.open,false);
+  f.click('[data-day="'+(first+1)+'"]');card=f.w.document.querySelector('details.cbt-explanation');assert.equal(card.open,false,'same week shares disclosure state');
+ }
+ const preferences=Object.fromEntries(Object.keys(f.w.localStorage).filter(k=>!k.startsWith('rudi:cbt:v1:')).map(k=>[k,f.w.localStorage.getItem(k)]));
+ assert.deepEqual(f.get().server,f.stored.server);assert.deepEqual(f.get().queue,f.stored.queue);
+ const reload=fixture(21,preferences);try{
+  for(const day of [1,8,15]){reload.w.RudiCbt.open();reload.click('[data-day="'+day+'"]');assert.equal(reload.w.document.querySelector('details.cbt-explanation').open,false)}
+  reload.click('.cbt-explanation > summary');await new Promise(resolve=>reload.w.setTimeout(resolve,0));
+  reload.w.RudiCbt.open();reload.click('[data-day="15"]');assert.equal(reload.w.document.querySelector('details.cbt-explanation').open,true);
+  reload.w.RudiCbt.open();reload.click('[data-day="8"]');assert.equal(reload.w.document.querySelector('details.cbt-explanation').open,false);
+  reload.w.localStorage.setItem('rudi:cbt:v1:Диана',JSON.stringify(reload.stored));reload.w.document.body.dataset.rudiActor='Диана';reload.w.RudiCbt.open();reload.click('[data-day="8"]');assert.equal(reload.w.document.querySelector('details.cbt-explanation').open,true,'different profile starts expanded');
+ }finally{reload.dom.window.close()}
+ }finally{f.dom.window.close()}
+});
 test('first-week quick entries show all three blocks with both scales and no duplicate controls',()=>{
  const f=fixture(1);try{f.click('[data-day="1"]');f.click('[data-entry="initial"]');const fields=[...f.w.document.querySelectorAll('#cbtExercise > .cbt-step')].map(el=>el.querySelector('[data-wrap]').dataset.wrap);assert.deepEqual(fields,['situation','emotions','thought']);assert.equal(f.w.document.querySelector('[data-field="emotionIntensity"]').max,'10');assert.equal(f.w.document.querySelector('[data-field="beliefBefore"]').max,'100');const names=[...f.w.document.querySelectorAll('#cbtExercise [id]')].map(el=>el.id);assert.equal(names.length,new Set(names).size)}finally{f.dom.window.close()}
+});
+
+test('a saved English analysis waits for automatic translation without displaying English or requiring a button',()=>{
+ const f=fixture(1);try{
+ const state=f.get();state.queue=[];state.server.runs[0].applied.push('old-offline-edit');state.server.runs[0].days[1].answers.actual='Офлайн результат';const record=state.server.runs[0].days[1],english='You noticed anger when your path was blocked.';
+ record.coach={source:structuredClone(record.answers),result:{version:f.w.RudiCbtContent.coachVersion,pattern:english,trap:'',reason:'',check:'',alternative:'',step:'Notice the emotion.',question:''}};
+ f.w.localStorage.setItem('rudi:cbt:v1:Рустам',JSON.stringify(state));
+ f.w.dispatchEvent(new f.w.StorageEvent('storage',{key:'rudi:cbt:v1:Рустам',newValue:JSON.stringify(state)}));
+ f.w.RudiCbt.open();f.click('[data-day="1"]');f.click('[data-entry="initial"]');
+ const doc=f.w.document;assert.equal(doc.querySelector('#cbtCoachCard [data-do="coach"]'),null);assert.equal(doc.querySelector('.cbt-coach-conversation'),null);
+ assert.ok(!doc.querySelector('#cbtCoachCard').textContent.includes(english));assert.match(doc.querySelector('#cbtCoachCard').textContent,/автоматического перевода/);
+ assert.equal(f.get().server.runs[0].days[1].coach.result.pattern,english);assert.deepEqual(f.get().server.runs[0].days[1].answers,record.answers);
+ }finally{f.dom.window.close()}
 });
 test('all 21 days show only their screenshot explanation and exact positions, including saved records',()=>{
  const f=fixture(21);try{

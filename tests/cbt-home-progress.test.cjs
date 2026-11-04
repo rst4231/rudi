@@ -58,3 +58,16 @@ test('finished sessions never fill the Home halo, including a cached session bef
   assert.equal(JSON.parse(stored.get('rudi:cbt:v1:Рустам')).server.runs[0].id,'progress-cycle');
  }
 });
+
+test('loading account data automatically translates English analyses and their history without a button or answer mutations',async()=>{
+ let state=started();const stamp=new Date().toISOString(),english={version:D.coachVersion,pattern:'You noticed anger.',trap:'',reason:'',check:'',alternative:'',step:'',question:''};
+ state.runs[0].days[1]={answers:{thought:'Моя запись'},savedAt:stamp,coach:{source:{thought:'Моя запись'},result:english},coachHistory:[{result:structuredClone(english)}]};
+ const f=fixture({actor:'Рустам',authenticated:true,fetchImpl:async body=>{
+  if(body.operation==='translate-coach'){const row=state.runs[0].days[1],item=body.historyIndex===0?row.coachHistory[0]:row.coach;item.result={...english,pattern:'Вы заметили злость.'}}
+  return{ok:true,status:200,json:async()=>({ok:true,actor:'Рустам',state:structuredClone(state)})};
+ }});
+ await f.tick();await f.tick();
+ assert.deepEqual(f.requests.map(r=>r.operation),['state','translate-coach','translate-coach']);
+ assert.equal(f.requests[1].cycleId,'progress-cycle');assert.equal(f.requests[2].historyIndex,0);
+ const stored=JSON.parse(f.stored.get('rudi:cbt:v1:Рустам'));assert.equal(stored.server.runs[0].days[1].coach.result.pattern,'Вы заметили злость.');assert.equal(stored.server.runs[0].days[1].coachHistory[0].result.pattern,'Вы заметили злость.');assert.deepEqual(stored.server.runs[0].days[1].answers,{thought:'Моя запись'});assert.equal(stored.queue.length,0);
+});

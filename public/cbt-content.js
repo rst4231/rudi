@@ -116,5 +116,6 @@ const distortions=[
  ['Эмоциональное обоснование','Чувство превращается в доказательство. Пример: мне страшно, значит ситуация опасна.'],
  ['Не уверен / искажения нет','Мысль может точно описывать трудность. Проверить факты полезно и без названия искажения.']
 ];
-return {version:3,coachVersion:4,weeks,days,legacyDays,fieldsForDay,distortions,emotions:['Тревога','Грусть','Злость','Обида','Страх','Стыд','Вина','Разочарование','Радость','Спокойствие','Интерес','Облегчение'],sources:['https://cares.beckinstitute.org/about-cbt/','https://beckinstitute.org/about/understanding-cbt/']};
+function isRussianCoach(value){return !!value&&/[А-ЯЁа-яё]/.test(value.pattern||'')&&['pattern','trap','reason','check','alternative','step','question'].every(key=>{const text=value[key]??'';if(typeof text!=='string')return false;const ru=(text.match(/[А-ЯЁа-яё]/g)||[]).length,latin=(text.match(/[A-Za-z]/g)||[]).length;return !latin||ru>=latin/2})}
+return {version:3,coachVersion:4,isRussianCoach,weeks,days,legacyDays,fieldsForDay,distortions,emotions:['Тревога','Грусть','Злость','Обида','Страх','Стыд','Вина','Разочарование','Радость','Спокойствие','Интерес','Облегчение'],sources:['https://cares.beckinstitute.org/about-cbt/','https://beckinstitute.org/about/understanding-cbt/']};
 });
