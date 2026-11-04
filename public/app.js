@@ -16519,6 +16519,21 @@
           });
           row.prepend(checkbox);
           if(task.supplementId)return;
+          if(!isPersonal&&task.id&&!task.completed&&!task.externalCalendar&&sharedWritable===true&&task.canEdit===true){
+            row.classList.add('calendar-external-task');
+            row.style.cursor='pointer';
+            row.tabIndex=0;
+            row.setAttribute('role','button');
+            row.setAttribute('aria-label','Редактировать: '+String(task.title||'Дело'));
+            row.addEventListener('click',event=>{
+              if(event.target===checkbox||checkbox.contains(event.target))return;
+              openTickTickTaskForEditing?.(task);
+            });
+            row.addEventListener('keydown',event=>{
+              if(event.target!==row||(event.key!=='Enter'&&event.key!==' '))return;
+              event.preventDefault();openTickTickTaskForEditing?.(task);
+            });
+          }
           if(!task.completed&&!task.externalCalendar&&isPersonal&&calendarScope==='personal'&&(task.privateLocal===true||calendarTickTickTaskWebUrl(task))){
             row.classList.add('calendar-external-task');
             row.style.cursor='pointer';

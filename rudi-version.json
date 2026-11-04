@@ -1,27 +1,20 @@
 {
-  "current": "v4.25",
-  "versionBranch": "rudi-release-v425",
+  "current": "v4.26",
+  "versionBranch": "rudi-release-v426",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.24",
+  "basedOnProduction": "v4.25",
   "notes": [
-    "В почасовой погоде убраны ветер и вероятность дождя; рядом с температурой показан значок погоды, при осадках — лёгкая анимация дождя или снега.",
-    "Часы сделаны светлее, погода выровнена по центру между соседними часовыми отметками.",
-    "У офлайн-профилей остаётся только время последнего входа вместо статусов работы и ритма.",
-    "Время и название в карточках календаря выровнены по вертикальному центру.",
-    "Кошелёк в шапке календаря заменён поиском по личному, общему и подключённым календарям.",
-    "Задачи совместного календаря имеют зелёную обводку, личного — синюю.",
-    "При нажатии плюса сначала предлагается выбор личного или совместного календаря."
+    "Совместные дела с правом редактирования открывают редактор нажатием на карточку из личного и совместного календаря.",
+    "Убрана обводка крестика в окне выбора календаря при добавлении дела.",
+    "Восстановлены прежние статусы под аватарками для пользователей не в сети."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show condition emoji and temperature only, with subtle rain/snow particles for precipitation hours.",
-    "Brighten time labels and vertically centre weather in each hour interval.",
-    "Show last visit only for offline profiles; restore existing work and rhythm labels when online.",
-    "Centre weekly calendar card time and title vertically without changing checkbox placement.",
-    "Replace the header wallet shortcut with authenticated cross-calendar search and date navigation.",
-    "Colour task borders by actual source and prompt for the target calendar before opening a composer."
+    "Open editable shared tasks from weekly timed and all-day cards in either calendar, preserving completion and drag gestures.",
+    "Remove the close button outline in the calendar target chooser.",
+    "Restore home profile work and rhythm statuses regardless of presence; retain the previous online indicators and partner profile last visit."
   ]
 }

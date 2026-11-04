@@ -1862,6 +1862,8 @@ html body[data-app-tab="schedule"] .work-page #workCalendarSelected.calendar-wee
 .calendar-search-dialog::backdrop{background:#0008;backdrop-filter:blur(4px)}
 .calendar-search-dialog form{display:flex;align-items:center;gap:12px;margin:0 0 14px}.calendar-search-dialog h2{flex:1;font-size:18px;margin:0}
 .calendar-search-dialog form button{border:0;background:transparent;color:inherit;font-size:26px;width:36px;height:36px}
+#calendarCreateTarget form button{outline:none;box-shadow:none;border:0;border-radius:8px}
+#calendarCreateTarget form button:focus-visible{background:color-mix(in srgb,currentColor 12%,transparent)}
 .calendar-search-dialog input{width:100%;box-sizing:border-box;min-height:44px;font:inherit;font-size:16px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:inherit;padding:10px}
 .calendar-search-status,.calendar-search-results>p{font-size:12px;color:var(--muted)}
 .calendar-search-results{display:grid;gap:8px;margin-top:14px}.calendar-search-results button{display:grid;gap:6px;text-align:left;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:inherit;padding:12px;font:inherit}.calendar-search-results small{color:var(--muted);font-size:11px}
