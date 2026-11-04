@@ -1,21 +1,19 @@
 {
-  "current": "v4.23",
-  "versionBranch": "rudi-release-v423",
+  "current": "v4.24",
+  "versionBranch": "rudi-release-v424",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.22",
+  "basedOnProduction": "v4.23",
   "notes": [
-    "Объяснения КПТ сворачиваются на всех трёх неделях и запоминают состояние отдельно для каждой недели и профиля.",
-    "Разборы КПТ проверяются на русский язык; английский ответ автоматически исправляется одной повторной попыткой.",
-    "Сохранённые английские разборы и их история автоматически переводятся на русский при загрузке данных без дополнительных кнопок; исходные записи сохранены.",
-    "Из кухни убран блок Список на неделю."
+    "В недельном виде календаря погода над сеткой убрана; температура, вероятность дождя и ветер показаны между часовыми отметками.",
+    "Погода в месячном календаре и отдельный прогноз остаются без изменений.",
+    "При открытии сегодняшнего дня недельная сетка прокручивается к красной линии текущего времени."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Persist weekly CBT instruction disclosure state locally without changing answers or sync operations.",
-    "Require Russian coach prose, retry English generation once, and automatically translate foreign-language saved analyses and their history without changing answers.",
-    "Remove weekly shopping suggestion panel and its unused client script loading."
+    "Replace the weekly daypart weather strip with exact hourly temperature, precipitation chance and wind in the time gutter.",
+    "Scroll today to the current-time marker instead of clamping the weekly agenda to the morning."
   ]
 }

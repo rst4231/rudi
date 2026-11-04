@@ -169,5 +169,23 @@ async function renderCalendarPeriods(target,date){
  if(date<today())return;
  try{const data=await window.RUDI_WEATHER.get({forecast:true});if(!target.isConnected||target.dataset.calendarWeatherDate!==date)return;const periods=periodForecast(data,date);for(const el of target.querySelectorAll('[data-weather-period]')){const value=periods[el.dataset.weatherPeriod],parts=[];if(value){if(value.code!==null)parts.push(emoji(value.code));if(value.min!==null&&value.max!==null)parts.push(number(value.min)+'…'+number(value.max,'°'));if(value.wind!==null)parts.push('💨 до '+String(value.wind).replace('.',',')+' м/с');if(value.probability!==null)parts.push('☔ до '+number(value.probability,'%'))}el.textContent=parts.length?' ('+parts.join(' · ')+')':'';el.title=parts.length?(data.stale?'Сохранённый почасовой прогноз; ветер и вероятность — максимум за период':'Почасовой прогноз; ветер и вероятность — максимум за период'):''}}catch(_){}
 }
-window.RUDI_WEATHER_FORECAST={model,open,close,currentHourTime,renderCalendarDay,periodTemperatures,periodForecast,renderCalendarPeriods};
+async function renderCalendarHours(target,date){
+ if(date<today())return;
+ try{
+  const data=await window.RUDI_WEATHER.get({forecast:true});
+  if(!target.isConnected||target.dataset.calendarWeatherDate!==date)return;
+  const hours=new Map(model(data).hours.filter(row=>row.date===date).map(row=>[row.time.slice(11,13),row]));
+  for(const el of target.querySelectorAll('[data-weather-hour]')){
+   const row=hours.get(el.dataset.weatherHour),parts=[];
+   if(Number.isFinite(row?.temperature))parts.push(number(row.temperature,'°'));
+   if(Number.isFinite(row?.probability)&&row.probability>=0&&row.probability<=100)parts.push('☔ '+number(row.probability,'%'));
+   if(Number.isFinite(row?.wind)&&row.wind>=0){const wind=row.wind/(data.hourly_units?.wind_speed_10m==='m/s'?1:3.6);parts.push(String(Math.round(wind*10)/10).replace('.',',')+' м/с')}
+   el.replaceChildren(...parts.map(part=>node('span',part)));
+   el.hidden=!parts.length;
+   el.setAttribute('aria-label',el.dataset.weatherHour+':00: '+parts.join(', '));
+   el.title=(data.stale?'Сохранённый почасовой прогноз':'Почасовой прогноз')+' · '+date+' '+el.dataset.weatherHour+':00';
+  }
+ }catch(_){}
+}
+window.RUDI_WEATHER_FORECAST={model,open,close,currentHourTime,renderCalendarDay,periodTemperatures,periodForecast,renderCalendarPeriods,renderCalendarHours};
 })();

@@ -35,6 +35,16 @@ function interactiveFixture(now='2026-10-18T06:37:00Z',options={}){
  return {api:window.RUDI_WEATHER_FORECAST,root:()=>document.getElementById('weatherForecastPage'),window,document,calls,get back(){return back},dom,make:tag=>{const el=document.createElement(tag);document.body.append(el);return el}};
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
+
+test('weekly hour gaps show the selected hour temperature, rain chance and wind in metres per second',async()=>{
+ const f=interactiveFixture(undefined,{get:async()=>({hourly:{time:['2026-10-18T12:00','2026-10-18T13:00','2026-10-19T12:00'],temperature_2m:[6,7,99],precipitation_probability:[0,35,99],wind_speed_10m:[10.8,0,99]}})});
+ try{const host=f.make('div');host.dataset.calendarWeatherDate='2026-10-18';host.innerHTML='<span data-weather-hour="12" hidden></span><span data-weather-hour="13" hidden></span><span data-weather-hour="14" hidden></span>';
+ await f.api.renderCalendarHours(host,'2026-10-18');const labels=host.querySelectorAll('[data-weather-hour]');assert.equal(labels[0].hidden,false);assert.deepEqual([...labels[0].children].map(x=>x.textContent),['6°','☔ 0%','3 м/с']);assert.deepEqual([...labels[1].children].map(x=>x.textContent),['7°','☔ 35%','0 м/с']);assert.equal(labels[2].hidden,true);
+ }finally{f.dom.window.close()}
+});
+test('late hourly weather cannot fill a different selected date',async()=>{
+ let resolve;const f=interactiveFixture(undefined,{get:()=>new Promise(done=>{resolve=done})});try{const host=f.make('div');host.dataset.calendarWeatherDate='2026-10-18';host.innerHTML='<span data-weather-hour="12" hidden></span>';const request=f.api.renderCalendarHours(host,'2026-10-18');host.dataset.calendarWeatherDate='2026-10-19';resolve({hourly:{time:['2026-10-18T12:00'],temperature_2m:[6]}});await request;assert.equal(host.firstChild.hidden,true);assert.equal(host.firstChild.textContent,'')}finally{f.dom.window.close()}
+});
 const clickView=(f,view)=>f.root().querySelector('[data-forecast-view="'+view+'"]').click();
 test('forecast opens as a routed page without a dialog or locking the body',async()=>{
  const f=interactiveFixture();await f.api.open();assert.equal(f.document.body.dataset.appTab,'weather');assert.equal(f.window.location.search,'?tab=weather');assert.ok(f.root());assert.equal(f.root().matches('[role="dialog"]'),false);assert.equal(f.document.querySelector('.weather-forecast-backdrop'),null);assert.equal(f.document.body.style.position,'');assert.equal(f.root().querySelectorAll('.weather-forecast-hour').length,24);assert.equal(f.root().querySelector('.is-current').dataset.forecastTime,'2026-10-18T09:00');assert.equal(f.calls.months,0);f.dom.window.close();

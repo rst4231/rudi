@@ -16585,6 +16585,9 @@
           stamp.textContent=String(hour).padStart(2,'0')+':00';
           stamp.dateTime=stamp.textContent;
           row.appendChild(stamp);
+          const weather=document.createElement('span');
+          weather.className='calendar-week-hour-weather';weather.dataset.weatherHour=String(hour).padStart(2,'0');weather.hidden=true;
+          row.appendChild(weather);
           track.appendChild(row);
         }
         timed.sort((left,right)=>left.start-right.start||right.end-left.end);
@@ -16629,7 +16632,7 @@
         }
         viewport.appendChild(track);panel.appendChild(viewport);
         const startMinutes=dateKey===todayState().key
-          ?Math.max(0,Math.min(5*60,homeCurrentMinutes()-8*60))
+          ?Math.max(0,homeCurrentMinutes()-60)
           :timed.length?Math.max(0,Math.min(5*60,timed[0].start-60)):5*60;
         requestAnimationFrame(()=>{
           if(viewport.isConnected)viewport.scrollTop=startMinutes/60*CALENDAR_AGENDA_HOUR_HEIGHT;
@@ -17023,18 +17026,14 @@
             if(calendarScope!=='personal')selected.append(icon,copy);
             selected.dataset.calendarWeatherDate=day.date;
             if(calendarDisplayMode==='week'){
-              const strip=document.createElement('div');strip.className='calendar-period-weather-strip';
-              for(const [period,label] of [['morning','Утро'],['day','День'],['evening','Вечер']]){const item=document.createElement('span');item.textContent=label;const weather=document.createElement('span');weather.className='calendar-period-weather';weather.dataset.weatherPeriod=period;item.appendChild(weather);strip.appendChild(item)}
-              selected.appendChild(strip);
-            }
-            if(calendarDisplayMode==='week'){
               const agenda=calendarWeekAgenda(day.date,tasks,events,holidays,obligations,payload?.ticktickWritable!==false);
               selected.appendChild(agenda);
             }
             if(details.childElementCount) selected.appendChild(details);
             selected.classList.toggle('calendar-week-view',calendarDisplayMode==='week');
             selected.classList.toggle('is-off',!day.working);
-            void window.RUDI_WEATHER_FORECAST?.renderCalendarPeriods(selected,day.date);
+            if(calendarDisplayMode!=='week')void window.RUDI_WEATHER_FORECAST?.renderCalendarPeriods(selected,day.date);
+            else void window.RUDI_WEATHER_FORECAST?.renderCalendarHours(selected,day.date);
             if(habitGroup)void window.RUDI_CALENDAR_HABITS?.render(habitGroup,day.date,currentActor);
             selected.hidden=false;
             if(!selected.hidden)restartRudiMotion(selected,'rudi-data-refresh',360);
