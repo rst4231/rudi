@@ -15,6 +15,17 @@ body[data-app-tab="home"] #homeLuluTile .lulu-name-button{
  -webkit-tap-highlight-color:transparent;
 }
 .profile-person-card .score-avatar-wrap>.rudi-online-dot.is-online{background:#21c55d!important}
+/* Below the fasting outline, out of flow to preserve the card's compact height. */
+.profile-person-card .score-avatar-wrap>.rudi-avatar-last-seen{
+ position:absolute!important;top:calc(100% + 7px)!important;left:50%!important;
+ bottom:auto!important;right:auto!important;transform:translateX(-50%)!important;
+ z-index:41!important;display:block!important;width:max-content!important;
+ margin:0!important;padding:0!important;font-size:9px!important;line-height:11px!important;
+ font-weight:500!important;font-style:normal!important;font-family:inherit!important;
+ font-variant-numeric:tabular-nums!important;white-space:nowrap!important;
+ color:var(--muted,#9aa1ac)!important;pointer-events:none!important;
+}
+.profile-person-card .score-avatar-wrap>.rudi-avatar-last-seen[hidden]{display:none!important}
 /* Identical owner/partner name, mood, and status geometry on both accounts. */
 body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile) .profile-person-head .identity > .person,
 body[data-app-tab="home"] :is(#homeRustamTile,#homeDianaTile):has(#displayName) .profile-person-head .identity > .person,

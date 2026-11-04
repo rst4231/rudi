@@ -32,6 +32,18 @@
      const active=isOnline(actor);
      dot.classList.toggle('is-online',active);
      dot.setAttribute('aria-label',actor+(active?' сейчас онлайн':' сейчас не в сети'));
+     let caption=holder.querySelector('.rudi-avatar-last-seen');
+     if(!caption){
+       caption=document.createElement('time');
+       caption.className='rudi-avatar-last-seen';
+       holder.appendChild(caption);
+     }
+     const value=lastSeen[actor],date=value?new Date(value):null;
+     const show=!active&&date&&Number.isFinite(date.getTime())&&date.getTime()<=Date.now();
+     caption.hidden=!show;
+     caption.textContent=show?new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(date):'';
+     caption.setAttribute('datetime',show?String(value):'');
+     caption.setAttribute('aria-label',show?'Последний вход: '+caption.textContent:'');
    }
    for(const [line,actor] of profileLines)paintProfileLine(line,actor);
  }

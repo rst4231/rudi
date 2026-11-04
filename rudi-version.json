@@ -1,20 +1,18 @@
 {
-  "current": "v4.26",
-  "versionBranch": "rudi-release-v426",
+  "current": "v4.27",
+  "versionBranch": "rudi-release-v427",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.25",
+  "basedOnProduction": "v4.26",
   "notes": [
-    "Совместные дела с правом редактирования открывают редактор нажатием на карточку из личного и совместного календаря.",
-    "Убрана обводка крестика в окне выбора календаря при добавлении дела.",
-    "Восстановлены прежние статусы под аватарками для пользователей не в сети."
+    "Под аватарками пользователей не в сети показано только время последнего входа.",
+    "Подпись расположена компактно ниже ореола голодания, не увеличивает карточку и скрывается при появлении онлайн."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Open editable shared tasks from weekly timed and all-day cards in either calendar, preserving completion and drag gestures.",
-    "Remove the close button outline in the calendar target chooser.",
-    "Restore home profile work and rhythm statuses regardless of presence; retain the previous online indicators and partner profile last visit."
+    "Show a time-only last-visit caption beneath offline home avatars without hiding existing profile statuses.",
+    "Place the caption below the fasting outline and above its layer without changing card layout; hide it while online or when no valid visit is known."
   ]
 }
