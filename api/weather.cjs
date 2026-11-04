@@ -1,3 +1,4 @@
+const {createMonthlyWeatherService}=require('./weather-months.cjs');
 const URL = 'https://api.open-meteo.com/v1/forecast?latitude=59.9386&longitude=30.3141&current=temperature_2m,apparent_temperature,weather_code,precipitation,rain&hourly=precipitation_probability,precipitation,rain,temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_min,temperature_2m_max,precipitation_sum,sunrise,sunset,wind_speed_10m_max,precipitation_probability_max&forecast_days=16&timezone=Europe%2FMoscow';
 const FRESH = 15 * 60 * 1000;
 const MAX_AGE = 2 * 60 * 60 * 1000;
@@ -50,15 +51,17 @@ function createWeatherService({fetchImpl = globalThis.fetch, now = Date.now, tim
   };
 }
 const getWeather = createWeatherService();
+const getMonthlyWeather=createMonthlyWeatherService();
 async function handleWeatherRequest(req, res) {
   if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); return res.status(405).json({error: 'Method not allowed'}); }
   try {
-    const data = await getWeather();
-    res.setHeader('Cache-Control', data.stale ? 'no-store' : 'public, max-age=60, s-maxage=600');
+    const monthly=req.query?.range==='months';
+    const data = await (monthly?getMonthlyWeather():getWeather());
+    res.setHeader('Cache-Control', data.stale ? 'no-store' : monthly?'public, max-age=60, s-maxage=3600':'public, max-age=60, s-maxage=600');
     return res.status(200).json(data);
   } catch (_) {
     res.setHeader('Cache-Control', 'no-store');
     return res.status(503).json({error: 'Weather temporarily unavailable'});
   }
 }
-module.exports = {createWeatherService, getWeather, handleWeatherRequest, normalizeForecast};
+module.exports = {createMonthlyWeatherService, createWeatherService, getWeather, handleWeatherRequest, normalizeForecast};

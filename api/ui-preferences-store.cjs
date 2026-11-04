@@ -67,7 +67,7 @@ function normalizeUiPreferencesState(value) {
     : true;
   const rainAnimationEnabled=Object.prototype.hasOwnProperty.call(source,'rainAnimationEnabled')?Boolean(source.rainAnimationEnabled):true;
   const snowAnimationEnabled=Object.prototype.hasOwnProperty.call(source,'snowAnimationEnabled')?Boolean(source.snowAnimationEnabled):true;
-  const startupTabAllowed=['home','finances','supplements','habits','car','schedule','feed','products','photos','fasting'];
+  const startupTabAllowed=['weather','home','finances','supplements','habits','car','schedule','feed','products','photos','fasting'];
   const requestedStartupTab=String(source.startupTab||'home').trim();
   const startupTab=startupTabAllowed.includes(requestedStartupTab)?requestedStartupTab:'home';
   const interfaceTextSize = ['small', 'normal', 'large'].includes(String(source.interfaceTextSize || '').trim())

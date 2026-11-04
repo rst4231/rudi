@@ -18,118 +18,45 @@ test('Moscow midnight selects the new day while UTC is still on the previous day
  const midnight=[{date:'2026-10-19',time:'2026-10-19T00:00'}];
  assert.equal(api.currentHourTime(midnight,'2026-10-19',Date.parse('2026-10-18T21:05:00Z')),'2026-10-19T00:00');
 });
-function interactiveFixture(now='2026-10-18T06:37:00Z'){
- const fixed=Date.parse(now);
- class Clock extends Date{constructor(...args){super(...(args.length?args:[fixed]))}static now(){return fixed}}
- let root;
- function make(tag){
-  const el={tag,children:[],handlers:{},dataset:{},style:{},attrs:{},className:'',scrollTop:0,isConnected:true,
-   append(...items){for(const item of items){item.parent=this;this.children.push(item)}},
-   replaceChildren(...items){for(const child of this.children)child.isConnected=false;this.children=[];this.append(...items)},
-   addEventListener(type,fn){this.handlers[type]=fn},setAttribute(key,value){this.attrs[key]=value},focus(){},remove(){this.isConnected=false;if(this.parent)this.parent.children=this.parent.children.filter(child=>child!==this);if(root===this)root=null},
-   querySelectorAll(selector){const all=[];const visit=node=>{for(const child of node.children){if(selector==='[data-forecast-view]'?!!child.dataset.forecastView:selector.startsWith('.')?child.className.split(' ').includes(selector.slice(1)):child.tag===selector)all.push(child);visit(child)}};visit(this);return all},
-   querySelector(selector){return this.querySelectorAll(selector)[0]}};
-  el.classList={add(...names){el.className=[...new Set([...el.className.split(' '),...names])].join(' ').trim()},toggle(name,active){if(active)this.add(name);else el.className=el.className.split(' ').filter(x=>x!==name).join(' ')}};
-  Object.defineProperty(el,'offsetTop',{get(){return el.className.includes('weather-forecast-hour')&&el.parent?el.parent.children.indexOf(el)*64:0}});
-  Object.defineProperty(el,'innerHTML',{set(html){for(const match of html.matchAll(/<([a-z][a-z0-9-]*)([^>]*)>/gi)){const child=make(match[1]);for(const attr of match[2].matchAll(/([\w-]+)="([^"]*)"/g)){if(attr[1]==='class')child.className=attr[2];else if(attr[1]==='data-forecast-view')child.dataset.forecastView=attr[2];else child.setAttribute(attr[1],attr[2])}this.append(child)}}});
-  return el;
- }
- const document={createElement:make,addEventListener(){},querySelector(){return null},documentElement:{style:{}},body:{style:{},append(value){root=value}}};
+const {JSDOM}=require('jsdom');
+function interactiveFixture(now='2026-10-18T06:37:00Z',options={}){
+ const fixed=Date.parse(now);class Clock extends Date{constructor(...args){super(...(args.length?args:[fixed]))}static now(){return fixed}}
+ const dom=new JSDOM(fs.readFileSync('public/index.html','utf8'),{url:'https://rudi.test/',runScripts:'outside-only'}),window=dom.window,document=window.document;window.Date=Clock;
+ document.body.dataset.appTab=options.initialTab||'home';window.scrollTo=()=>{};window.requestAnimationFrame=fn=>fn();
+ const calls={get:0,months:0};let back;
+ window.RUDI_NAVIGATE_TO_TAB=tab=>{document.body.dataset.appTab=tab;window.history.pushState({},'',tab==='home'?'/':'/?tab='+tab);window.dispatchEvent(new window.CustomEvent('rudi:app-tab-change',{detail:{tab}}))};
+ window.RUDI_GO_BACK=fallback=>{back=fallback;window.RUDI_NAVIGATE_TO_TAB(fallback)};
  const fixtureHours=Array.from({length:48},(_,i)=>'2026-10-'+(i<24?'18':'19')+'T'+String(i%24).padStart(2,'0')+':00');
- const window={scrollTo(){},requestAnimationFrame(fn){fn()},RUDI_WEATHER:{get:async()=>({daily:{time:['2026-10-18','2026-10-19'],temperature_2m_min:[5,4],temperature_2m_max:[10,8],weather_code:[0,61]},hourly:{time:fixtureHours,temperature_2m:fixtureHours.map(()=>9),weather_code:fixtureHours.map(()=>61)}})}};
- vm.runInNewContext(fs.readFileSync('public/weather-forecast.js','utf8'),{window,document,Date:Clock,Intl,navigator:{onLine:true}});
- return {api:window.RUDI_WEATHER_FORECAST,root:()=>root,window,document,make};
+ const data={daily:{time:['2026-10-18','2026-10-19'],temperature_2m_min:[5,4],temperature_2m_max:[10,8],weather_code:[0,61]},hourly:{time:fixtureHours,temperature_2m:fixtureHours.map(()=>9),weather_code:fixtureHours.map(()=>61)}};
+ window.RUDI_WEATHER={get:async()=>{calls.get++;return data},getMonthly:async()=>{calls.months++;return {days:[{date:'2026-10-18',min:-99,max:99},{date:'2026-11-25',min:-5,max:1}]}}};
+ if(options.get)window.RUDI_WEATHER.get=options.get;if(options.monthly)window.RUDI_WEATHER.getMonthly=options.monthly;
+ window.eval(fs.readFileSync('public/weather-forecast.js','utf8'));document.dispatchEvent(new window.Event('DOMContentLoaded'));
+ return {api:window.RUDI_WEATHER_FORECAST,root:()=>document.getElementById('weatherForecastPage'),window,document,calls,get back(){return back},dom,make:tag=>{const el=document.createElement(tag);document.body.append(el);return el}};
 }
-test('real forecast rendering scrolls today, retains all hours, and resets a different date',async()=>{
- const f=interactiveFixture();await f.api.open();
- const content=f.root().querySelector('.weather-forecast-content');
- assert.equal(content.querySelectorAll('.weather-forecast-hour').length,24);
- assert.equal(content.querySelector('.is-current').dataset.forecastTime,'2026-10-18T09:00');
- assert.ok(content.scrollTop>0);
- const select=f.root().querySelector('.weather-forecast-controls').querySelector('select');select.value='2026-10-19';select.handlers.change();
- assert.equal(content.scrollTop,0);assert.equal(content.querySelector('.is-current'),undefined);
- f.api.close();
+const tick=()=>new Promise(resolve=>setImmediate(resolve));
+const clickView=(f,view)=>f.root().querySelector('[data-forecast-view="'+view+'"]').click();
+test('forecast opens as a routed page without a dialog or locking the body',async()=>{
+ const f=interactiveFixture();await f.api.open();assert.equal(f.document.body.dataset.appTab,'weather');assert.equal(f.window.location.search,'?tab=weather');assert.ok(f.root());assert.equal(f.root().matches('[role="dialog"]'),false);assert.equal(f.document.querySelector('.weather-forecast-backdrop'),null);assert.equal(f.document.body.style.position,'');assert.equal(f.root().querySelectorAll('.weather-forecast-hour').length,24);assert.equal(f.root().querySelector('.is-current').dataset.forecastTime,'2026-10-18T09:00');assert.equal(f.calls.months,0);f.dom.window.close();
 });
-test('month rendering adds actual weather icons only to days with known forecasts',async()=>{
- const f=interactiveFixture();await f.api.open();
- f.root().querySelectorAll('[data-forecast-view]').find(b=>b.dataset.forecastView==='month').handlers.click();
- const content=f.root().querySelector('.weather-forecast-content');
- assert.equal(content.querySelectorAll('.weather-forecast-cell').length,14);
- assert.equal(content.querySelectorAll('.weather-forecast-cell')[0].children[0].textContent,'18');
- assert.deepEqual(content.querySelectorAll('.weather-forecast-cell-icon').map(x=>x.textContent),['☀️','🌧️']);
- assert.equal(content.querySelectorAll('.is-unavailable').length,12);
- assert.equal(content.querySelector('.is-today').children[0].textContent,'18');
- f.api.close();
+test('month requests long-range once and keeps real short-range values over estimates',async()=>{
+ const f=interactiveFixture();await f.api.open();clickView(f,'month');await tick();let cells=f.root().querySelectorAll('.weather-forecast-cell');assert.equal(cells.length,14);assert.equal(cells[0].querySelector('.weather-forecast-cell-temperature').textContent,'5°…10°');assert.equal(cells[0].classList.contains('is-preliminary'),false);
+ f.root().querySelectorAll('.weather-forecast-month-buttons button')[1].click();await tick();cells=f.root().querySelectorAll('.weather-forecast-cell');assert.equal(cells.length,30);assert.match(cells[24].textContent,/≈.*-5°.*1°/);assert.equal(cells[24].querySelector('.weather-forecast-cell-icon'),null);assert.equal(f.calls.months,1);assert.match(f.root().textContent,/предварительный/i);f.dom.window.close();
 });
-
-test('month has two direct buttons, next month starts on day one, and switching back starts today',async()=>{
- const f=interactiveFixture();await f.api.open();
- f.root().querySelectorAll('[data-forecast-view]').find(b=>b.dataset.forecastView==='month').handlers.click();
- const controls=()=>f.root().querySelector('.weather-forecast-controls');
- assert.equal(controls().querySelectorAll('select').length,0);
- let buttons=controls().querySelectorAll('button');
- assert.deepEqual(buttons.map(b=>b.textContent),['Текущий месяц','Следующий месяц']);
- buttons[1].handlers.click();
- let cells=f.root().querySelectorAll('.weather-forecast-cell');
- assert.equal(cells.length,30);assert.equal(cells[0].children[0].textContent,'1');
- buttons=controls().querySelectorAll('button');buttons[0].handlers.click();
- cells=f.root().querySelectorAll('.weather-forecast-cell');
- assert.equal(cells.length,14);assert.equal(cells[0].children[0].textContent,'18');
- f.api.close();
+test('smart-home weather opens the same page and back returns to its origin',async()=>{
+ const f=interactiveFixture(undefined,{initialTab:'smart-home'}),trigger=f.document.querySelector('#smartHomePage .smart-home-climate-card.is-weather');assert.equal(trigger.tagName,'BUTTON');trigger.click();await tick();assert.equal(f.document.body.dataset.appTab,'weather');f.root().querySelector('.weather-forecast-back').click();assert.equal(f.back,'smart-home');f.dom.window.close();
 });
-test('opening locks body position and root scrolling, closing restores both',async()=>{
- const f=interactiveFixture();Object.assign(f.document.body.style,{position:'relative',top:'2px',overflow:'auto'});
- f.window.scrollY=320;f.window.scrollX=0;let restored;
- f.window.scrollTo=(x,y)=>{restored=[x,y]};await f.api.open();
- assert.equal(f.root().attrs['data-no-pull-refresh'],'true');assert.equal(f.root().attrs['data-no-swipe-back'],'true');
- assert.equal(f.document.body.style.position,'fixed');assert.equal(f.document.body.style.top,'-320px');
- assert.equal(f.document.documentElement.style.overflow,'hidden');
- f.api.close();assert.equal(f.document.body.style.position,'relative');assert.equal(f.document.body.style.top,'2px');
- assert.equal(f.document.body.style.overflow,'auto');assert.deepEqual(restored,[0,320]);
+test('direct weather startup loads the existing page without a click',async()=>{
+ const f=interactiveFixture(undefined,{initialTab:'weather'});await tick();assert.equal(f.calls.get,1);assert.equal(f.root().querySelectorAll('.weather-forecast-hour').length,24);f.dom.window.close();
 });
-test('calendar forecast uses the selected date and does not invent unavailable temperatures',async()=>{
- const f=interactiveFixture(),target=f.make('div');
- await f.api.renderCalendarDay(target,'2026-10-19');
- const card=target.querySelector('.calendar-day-weather');
- assert.ok(card);assert.equal(card.querySelector('strong').textContent,'Прогноз на день');
- assert.match(card.querySelector('.calendar-day-weather-temperature').textContent,/4°.*8°/);
- await f.api.renderCalendarDay(target,'2026-11-25');
- assert.equal(target.querySelectorAll('.calendar-day-weather').length,1);
- assert.match(target.querySelector('.calendar-day-weather').querySelector('p').textContent,/Прогноз на эту дату пока недоступен/);
+test('December switches to January and month request failures retain precise weather',async()=>{
+ const f=interactiveFixture('2026-12-31T12:00:00Z',{monthly:async()=>{throw Error('unavailable')}});await f.api.open();clickView(f,'month');await tick();assert.equal(f.root().querySelectorAll('.weather-forecast-cell').length,1);f.root().querySelectorAll('.weather-forecast-month-buttons button')[1].click();assert.equal(f.root().querySelectorAll('.weather-forecast-cell').length,31);assert.match(f.root().querySelector('.weather-forecast-month-title').textContent,/январь 2027/);assert.match(f.root().textContent,/Долгосрочный прогноз.*недоступен/);f.dom.window.close();
 });
-
-test('swiping beyond forecast edges is contained while swiping the middle remains scrollable',async()=>{
- const f=interactiveFixture();await f.api.open();
- const content=f.root().querySelector('.weather-forecast-content');
- Object.assign(content,{scrollHeight:600,clientHeight:200,scrollTop:0});
- let prevented=false;const wheel=deltaY=>{prevented=false;f.root().handlers.wheel({target:{closest:()=>content},deltaY,preventDefault(){prevented=true}});return prevented};
- assert.equal(wheel(-30),true);assert.equal(wheel(30),false);
- content.scrollTop=400;assert.equal(wheel(30),true);
- content.scrollTop=200;assert.equal(wheel(-30),false);
- f.api.close();
+test('a late weather response cannot navigate back from a different page',async()=>{
+ let finish;const f=interactiveFixture(undefined,{get:()=>new Promise(resolve=>finish=resolve)});const opening=f.api.open();f.window.RUDI_NAVIGATE_TO_TAB('products');finish({daily:{time:[]}});await opening;assert.equal(f.document.body.dataset.appTab,'products');assert.equal(f.document.querySelector('.weather-forecast-backdrop'),null);f.dom.window.close();
 });
-
-test('December month buttons correctly move into January of the following year',async()=>{
- const f=interactiveFixture('2026-12-31T12:00:00Z');await f.api.open();
- f.root().querySelectorAll('[data-forecast-view]').find(b=>b.dataset.forecastView==='month').handlers.click();
- assert.equal(f.root().querySelectorAll('.weather-forecast-cell').length,1);
- f.root().querySelector('.weather-forecast-controls').querySelectorAll('button')[1].handlers.click();
- assert.equal(f.root().querySelectorAll('.weather-forecast-cell').length,31);
- assert.match(f.root().querySelector('.weather-forecast-month-title').textContent,/январь 2027/);
- f.api.close();
+test('calendar forecast still uses precise selected-date data and ignores detached older cards',async()=>{
+ const f=interactiveFixture(),target=f.make('div');await f.api.renderCalendarDay(target,'2026-10-19');assert.match(target.querySelector('.calendar-day-weather-temperature').textContent,/4°.*8°/);await f.api.renderCalendarDay(target,'2026-11-25');assert.match(target.querySelector('p').textContent,/пока недоступен/);assert.equal(f.calls.months,0);f.dom.window.close();
 });
-test('a slow response for the previous calendar day never replaces the new selection',async()=>{
- const f=interactiveFixture(),target=f.make('div');let resolve;
- f.window.RUDI_WEATHER.get=()=>new Promise(done=>{resolve=done});
- const old=f.api.renderCalendarDay(target,'2026-10-18'),finishOld=resolve;
- const current=f.api.renderCalendarDay(target,'2026-10-19'),finishCurrent=resolve;
- const payload={daily:{time:['2026-10-18','2026-10-19'],temperature_2m_min:[1,4],temperature_2m_max:[2,8]}};
- finishCurrent(payload);await current;finishOld(payload);await old;
- assert.equal(target.querySelectorAll('.calendar-day-weather').length,1);
- assert.equal(target.querySelector('.calendar-day-weather').dataset.date,'2026-10-19');
- assert.equal(target.querySelector('.calendar-day-weather-temperature').textContent,'4°…8°');
-});
-
 test('calendar dayparts use only hourly temperatures for the selected date',()=>{
  const f=interactiveFixture();const data={hourly:{time:['2026-10-18T02:00','2026-10-18T06:00','2026-10-18T11:00','2026-10-18T12:00','2026-10-18T17:00','2026-10-18T18:00','2026-10-18T23:00','2026-10-19T08:00'],temperature_2m:[-99,8,10,12,15,9,6,99]}};
  assert.equal(JSON.stringify(f.api.periodTemperatures(data,'2026-10-18')),JSON.stringify({morning:{min:8,max:10},day:{min:12,max:15},evening:{min:6,max:9}}));

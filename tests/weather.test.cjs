@@ -99,7 +99,7 @@ test('forecast model never invents hourly temperature or future dates',()=>{
  assert.equal(model.days.length,2);assert.equal(model.hours.length,2);assert.equal(model.hours[0].temperature,undefined);assert.equal(model.days.some(day=>day.date==='2026-10-25'),false);
  const real=window.RUDI_WEATHER_FORECAST.model({...sample,hourly:{...sample.hourly,temperature_2m:[12,null],apparent_temperature:[10,null]}});
  assert.equal(real.hours[0].temperature,12);assert.equal(real.hours[1].temperature,null);
- const js=fs.readFileSync('public/weather-forecast.js','utf8');assert.match(js,/нет данных/);assert.match(js,/За этим горизонтом данных нет/);assert.match(js,/event\.key==='Escape'/);assert.match(js,/generation!==revision/);
+ const js=fs.readFileSync('public/weather-forecast.js','utf8');assert.match(js,/нет данных/);assert.match(js,/За этим горизонтом данных нет/);assert.match(js,/generation!==revision/);
 });
 
 test('provider null tail is removed consistently without turning missing future values into zero',async()=>{

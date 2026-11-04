@@ -1,16 +1,20 @@
 {
-  "current": "v4.15",
-  "versionBranch": "rudi-release-v415",
+  "current": "v4.16",
+  "versionBranch": "rudi-release-v416",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.14",
+  "basedOnProduction": "v4.15",
   "notes": [
-    "Удалён блок Частые покупки. Список на неделю перенесён под корзину перед историей покупок."
+    "Прогноз погоды на отдельной странице в прежнем стиле, с открытием из погоды на главной и в Умном доме.",
+    "Текущий и следующий месяц с отметкой предварительного долгосрочного прогноза.",
+    "Погода в выборе стартовой страницы; вероятность осадков и скорость ветра рядом с температурой на главной."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Replace frequent purchases with the weekly list between the basket and purchase history; keep autocomplete and product editing."
+    "Route weather forecast to its own page with existing hourly, weekly and monthly design; open from both smart-home cards.",
+    "Fetch and cache ECMWF long-range temperatures lazily through the end of next month; mark estimates and prefer detailed short-range data.",
+    "Persist weather startup selection for both accounts; show current-hour precipitation probability and wind in m/s with emoji."
   ]
 }

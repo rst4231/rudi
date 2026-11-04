@@ -2148,10 +2148,10 @@
         setTimeout(()=>section.classList.remove(className),560);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','score','settings','smart-saves','car','smart-home'];
+      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','score','settings','smart-saves','car','smart-home','weather'];
       const PRIMARY_NAV_TABS=new Set(['home','feed','schedule','products','photos']);
-      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','smart-home','wishlist','smart-saves']);
-      const STARTUP_TABS=['home','finances','schedule'];
+      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','smart-home','wishlist','smart-saves','weather']);
+      const STARTUP_TABS=['home','finances','schedule','weather'];
       function startupTabStorageKey(){
         return 'rudi:startup-tab:v1:'+(currentActor==='Диана'?'diana':'rustam');
       }
@@ -7434,7 +7434,10 @@
         if(!Number.isFinite(temperature)||!Number.isFinite(code)) return '';
         const rounded=Math.round(temperature);
         const signed=rounded>0?'+'+rounded:String(rounded);
-        return homeWeatherEmoji(code)+'\u00a0'+signed+'°';
+        const parts=[homeWeatherEmoji(code)+'\u00a0'+signed+'°'];
+        if(Number.isFinite(homeWeatherCurrent?.probability))parts.push('☔\u00a0'+Math.round(homeWeatherCurrent.probability)+'%');
+        if(Number.isFinite(homeWeatherCurrent?.wind))parts.push('💨\u00a0'+String(homeWeatherCurrent.wind).replace('.',',')+'\u00a0м/с');
+        return parts.join('  ');
       }
 
       function renderHomeDashboardDateWeather(node,label=homeDashboardDateLabel()){
@@ -10259,7 +10262,7 @@
                 '<span class="home-settings-copy"><strong>Стартовая страница</strong><small>Какой раздел открывать при запуске</small></span>'+
                 '<select id="settingsStartupTab" class="settings-startup-select" aria-label="Стартовая страница">'+
                   '<option value="home">Главная</option><option value="finances">Финансы</option>'+
-                  '<option value="schedule">Календарь</option>'+
+                  '<option value="schedule">Календарь</option><option value="weather">Погода</option>'+
                 '</select>'+
               '</label>'+
 
@@ -13957,7 +13960,7 @@
           const currentTemperature=Number(current.temperature_2m);
           const currentWeatherCode=Number(current.weather_code);
           homeWeatherCurrent=Number.isFinite(currentTemperature)&&Number.isFinite(currentWeatherCode)
-            ?{temperature:currentTemperature,code:currentWeatherCode}
+            ?(window.RUDI_WEATHER?.currentSummary?.(data)||{temperature:currentTemperature,code:currentWeatherCode})
             :null;
           const dashboardDate=document.getElementById('homeDashboardDate');
           if(dashboardDate) renderHomeDashboardDateWeather(dashboardDate);
