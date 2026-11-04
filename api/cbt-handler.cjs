@@ -44,7 +44,7 @@ function createHandler(deps={}){
     if(record.coach?.result?.version===coach.COACH_VERSION&&core.same(record.coach.source,record.answers))return res.status(200).json({ok:true,result:record.coach.result,state,actor,cached:true});
     const source=JSON.parse(JSON.stringify(record.answers));
     const recent=Object.entries(run.days||{}).filter(([n])=>Number(n)<day).sort((a,b)=>Number(a[0])-Number(b[0]))
-     .flatMap(([,row])=>core.entries(row).filter(e=>e.coach?.result?.step?.trim()&&core.same(e.coach.source,e.answers)).map(e=>({step:e.coach.result.step,outcome:e.coachCheck?.outcome||''}))).slice(-3);
+     .flatMap(([,row])=>core.entries(row).filter(e=>e.coach?.result?.version===coach.COACH_VERSION&&e.coach.result.step?.trim()&&core.same(e.coach.source,e.answers)).map(e=>({step:e.coach.result.step,outcome:e.coachCheck?.outcome||''}))).slice(-3);
     const result=coach.validateResult(await generateCoach({day,answers:source,recent}));
     return await withLock(actor,async()=>{
      const latest=await read(actor,KEY)||core.empty(),r=latest.runs.find(x=>x.id===cycleId),e=core.entry(r,day,entryId);

@@ -61,13 +61,13 @@ function validate(op){
  const fields=['pattern','trap','reason','check','alternative','step','question'];
  if(!op.coach||typeof op.coach!=='object'||Array.isArray(op.coach)||!op.base||typeof op.base!=='object'||Array.isArray(op.base)||JSON.stringify(op.base).length>55000)error('cbt-invalid-coach');
  for(const key of fields)if(typeof op.coach[key]!=='string'||(key==='pattern'&&!op.coach[key].trim())||op.coach[key].length>900)error('cbt-invalid-coach');
- if(op.coach.version!==undefined&&op.coach.version!==2)error('cbt-invalid-coach');
+ if(op.coach.version!==undefined&&![2,content.coachVersion].includes(op.coach.version))error('cbt-invalid-coach');
  return;
 }
 if(op.type==='coach-check'){if(!['done','partial','not-done','not-applicable'].includes(op.outcome))error('cbt-invalid-coach-check');return}
 if(op.type==='complete'||op.type==='delete-entry')return;
- if(!op.patch||Array.isArray(op.patch)||typeof op.patch!=='object'||!Object.keys(op.patch).length||Object.keys(op.patch).length>15)error('cbt-invalid-fields');
- const fields=[...content.days[op.day-1].fields,{key:'situation',type:'text'},{key:'thought',type:'text'},{key:'moodBefore',type:'range',max:10},{key:'moodAfter',type:'range',max:10},{key:'emotionIntensity',type:'range',max:10},{key:'emotions',type:'emotions'}];
+ if(!op.patch||Array.isArray(op.patch)||typeof op.patch!=='object'||!Object.keys(op.patch).length||Object.keys(op.patch).length>content.fieldsForDay(op.day).length)error('cbt-invalid-fields');
+ const fields=content.fieldsForDay(op.day);
  for(const [k,v]of Object.entries(op.patch)){
   const f=fields.find(x=>x.key===k);if(!f)error('cbt-invalid-field');
   if(f.type==='range'){if(v!==null&&(!Number.isFinite(v)||v<0||v>f.max||!Number.isInteger(v)))error('cbt-invalid-rating')}
@@ -110,7 +110,7 @@ function apply(state,op,now=new Date().toISOString(),local=false){
   }else if(target.deletedAt&&op.type!=='archive'&&!local)error('cbt-conflict-deleted',Object.keys(op.patch||{}));
   else if(op.type==='coach'){
      if(!local&&(!target.savedAt||!same(target.answers,op.base)))error('cbt-conflict-coach');
-     if(target.coach){target.coachHistory=[...(target.coachHistory||[]),{...clone(target.coach),check:clone(target.coachCheck||null)}].slice(-3)}
+     if(target.coach){target.coachHistory=[...(target.coachHistory||[]),{...clone(target.coach),check:clone(target.coachCheck||null)}]}
      target.coach={source:clone(op.base),result:clone(op.coach),createdAt:now};
      target.coachCheck=null;
     }

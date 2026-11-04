@@ -1,18 +1,20 @@
 {
-  "current": "v4.18",
-  "versionBranch": "rudi-release-v418",
+  "current": "v4.19",
+  "versionBranch": "rudi-release-v419",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.17",
+  "basedOnProduction": "v4.18",
   "notes": [
-    "В редакторе дела после даты и времени идут подзадачи, затем описание и остальные настройки.",
-    "Повтор и интервал Каждые расположены в одной строке."
+    "КПТ: первая неделя — факт, эмоции 0–10, мысли и вера 0–100.",
+    "Вторая неделя — письменная проверка интерпретаций, третья — устный разбор в моменте.",
+    "Текущий цикл и день, сохранённые ответы, старые поля, история и офлайн-очередь сохраняются."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Move existing subtasks and description immediately after date/time in the task editor, preserving editing behavior.",
-    "Keep repeat frequency and interval on one responsive row."
+    "Replace the 21-day CBT method in place with observation, written restructuring and immediate oral review.",
+    "Preserve legacy fields in editing, validation, history and exports; keep cycle storage keys and schedules unchanged.",
+    "Align optional AI reflection with the weekly method and retain previous analyses."
   ]
 }

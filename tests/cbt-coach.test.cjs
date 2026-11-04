@@ -52,7 +52,7 @@ test('AI response is rejected if saved answers changed while the model was runni
 });
 test('model JSON validates all seven fields and rejects untrusted malformed output',()=>{
  const {validateResult,safeAnswers}=require('../api/cbt-coach.cjs');
- assert.deepEqual(validateResult(makeResult()),{...makeResult(),version:2});
+ assert.deepEqual(validateResult(makeResult()),{...makeResult(),version:D.coachVersion});
  assert.throws(()=>validateResult({pattern:'Недостаточно данных'}),/cbt-coach-invalid/);
  assert.deepEqual(safeAnswers({thought:'Пример',password:{key:'secret'},emotions:['Радость'],count:2}),{thought:'Пример',emotions:['Радость'],count:2});
 });
@@ -60,7 +60,7 @@ test('model JSON validates all seven fields and rejects untrusted malformed outp
 test('ordinary positive events need no invented trap or action',()=>{
  const {validateResult}=require('../api/cbt-coach.cjs');
  const result=validateResult({pattern:'Поели то, что вам понравилось, и смогли расслабиться. Иногда этого объяснения вполне достаточно.',trap:'',reason:'',check:'',alternative:'',step:'',question:''});
- assert.equal(result.version,2);
+ assert.equal(result.version,D.coachVersion);
  for(const key of ['trap','reason','check','alternative','step','question'])assert.equal(result[key],'');
 });
 test('previously cached robotic report is replaced and archived without losing answers',async()=>{
@@ -71,7 +71,7 @@ test('previously cached robotic report is replaced and archived without losing a
  const h=harness(old);
  const first=await request(h.handler,{operation:'analyze',cycleId:'cycle',day:1,entryId:'initial'});
  assert.equal(first.status,200);assert.equal(first.payload.cached,undefined);
- assert.equal(first.payload.result.version,2);
+ assert.equal(first.payload.result.version,D.coachVersion);
  assert.equal(h.calls(),1);
  const record=C.entry(h.get().runs[0],1);
  assert.equal(record.coachHistory.length,1);
@@ -87,4 +87,11 @@ test('sample window observation may omit distortion and keeps a practical choice
  assert.ok(result.pattern.includes('окно'));
  assert.equal(result.trap,'');
  assert.ok(result.step.includes('сказать'));
+});
+test('previous method v2 is reanalyzed only on request and all earlier analyses survive',async()=>{
+ const {state,answers}=fixture();const previous={...makeResult(),version:2};
+ let old=C.apply(state,{id:'previous-method',type:'coach',cycleId:'cycle',day:1,entryId:'initial',base:answers,coach:previous},new Date().toISOString());
+ old.runs[0].days[1].coachHistory=Array.from({length:4},(_,i)=>({source:answers,result:{...previous,pattern:'Старый разбор '+i}}));
+ const h=harness(old);const read=await request(h.handler,{operation:'state'});assert.equal(h.calls(),0);assert.deepEqual(read.payload.state.runs[0].days[1].answers,answers);
+ const response=await request(h.handler,{operation:'analyze',cycleId:'cycle',day:1,entryId:'initial'});assert.equal(response.status,200);assert.equal(response.payload.result.version,D.coachVersion);assert.equal(h.calls(),1);const record=h.get().runs[0].days[1];assert.equal(record.coachHistory.length,5);assert.equal(record.coachHistory[4].result.version,2);assert.deepEqual(record.answers,answers);
 });
