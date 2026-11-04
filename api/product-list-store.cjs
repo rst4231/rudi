@@ -284,6 +284,22 @@ async function addProducts(values, addedBy = '', options = {}) {
   });
 }
 
+async function addWeeklyProducts(ids, addedBy = '', options = {}) {
+  return enqueue(async () => {
+    const state = await readProductList(options);
+    const selected = new Set((Array.isArray(ids) ? ids : []).map(String).slice(0, 40));
+    const proposal = require('../public/product-weekly-core.js').build(state, options.now || Date.now());
+    const rows = proposal.items.filter(item => selected.has(item.id)).slice(0, Math.max(0, MAX_ACTIVE - state.items.length));
+    if (!rows.length) return state;
+    const now = new Date(options.now || Date.now()).toISOString();
+    for (const item of rows) state.items.push({
+      id: crypto.randomUUID(), text: normalizeText(item.text), addedBy: String(addedBy || ''),
+      ...normalizeEditorFields(item), checked: false, createdAt: now,
+    });
+    return writeState(state, options);
+  });
+}
+
 async function updateProduct(id, changes = {}, options = {}) {
   return enqueue(async () => {
     const state = await readProductList(options);
@@ -484,7 +500,7 @@ function resetMutationQueueForTests() {
 
 module.exports = {
   NAMESPACE, MAX_ACTIVE, MAX_HISTORY, MAX_TEXT,
-  readProductList, readProductListRaw, restoreProductListSnapshot, addProducts, removeProduct, updateProduct, removeProductByText,
+  readProductList, readProductListRaw, restoreProductListSnapshot, addProducts, addWeeklyProducts, removeProduct, updateProduct, removeProductByText,
   toggleProductChecked, setProductCheckedSelection, markCheckedProductsBought, markProductsBoughtByIds, markProductBought, clearProducts, restoreProducts, normalizeText, keyOf, categorizeProduct, estimateWeeklyAmount,
   normalizeProductListState: normalizeState,
   resetMutationQueueForTests,

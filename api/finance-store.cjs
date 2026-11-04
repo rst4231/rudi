@@ -199,6 +199,7 @@ function cleanPlan(value = {}) {
     goalMonthlyContribution: cleanMoney(source.goalMonthlyContribution || 0),
     expectedMonthlyIncome: source.expectedMonthlyIncome === undefined || source.expectedMonthlyIncome === null || source.expectedMonthlyIncome === '' ? null : cleanMoney(source.expectedMonthlyIncome),
     expectedIncomeDay: source.expectedIncomeDay === undefined || source.expectedIncomeDay === null || source.expectedIncomeDay === '' ? null : (Number.isInteger(Number(source.expectedIncomeDay)) && Number(source.expectedIncomeDay)>=1 && Number(source.expectedIncomeDay)<=31 ? Number(source.expectedIncomeDay) : null),
+    monthlyPlanApplied: /^20\d{2}-(0[1-9]|1[0-2])$/.test(String(source.monthlyPlanApplied?.month||''))&&/^[a-f0-9]{64}$/.test(String(source.monthlyPlanApplied?.idHash||''))?{month:source.monthlyPlanApplied.month,idHash:source.monthlyPlanApplied.idHash,at:String(source.monthlyPlanApplied.at||'')}:null,
     plannedMonthlyVariableExpenses: source.plannedMonthlyVariableExpenses === undefined || source.plannedMonthlyVariableExpenses === null || source.plannedMonthlyVariableExpenses === '' ? null : cleanMoney(source.plannedMonthlyVariableExpenses),
     obligations: cleanObligations(source.obligations).filter(row=>row.id!==HOUSING_ID),
     housingPaymentDay: Number.isInteger(Number(source.housingPaymentDay))&&Number(source.housingPaymentDay)>=1&&Number(source.housingPaymentDay)<=31?Number(source.housingPaymentDay):1,
@@ -653,6 +654,21 @@ async function saveFinancePlan(actor, payload = {}, options = {}) {
   });
 }
 
+async function applyMonthlyFinancePlan(actor,payload={},options={}){
+ const safeActor=cleanActor(actor),month=cleanMonth(payload.month),id=String(payload.id||''),idHash=createHash('sha256').update(id).digest('hex');
+ return enqueueMutation(async()=>{
+  const current=await readFinanceState(options),previous=current.plans[safeActor]||cleanPlan();
+  if(previous.monthlyPlanApplied?.month===month&&previous.monthlyPlanApplied?.idHash===idHash)return current;
+  const proposal=require('../public/finance-monthly-plan-core.js').build({...viewState(current,safeActor),actor:safeActor},options.now||Date.now(),options);
+  if(proposal.month!==month||proposal.id!==id)throw Error('finance-monthly-plan-stale');
+  if(!proposal.canApply)throw Error('finance-monthly-plan-empty');
+  const byId=new Map(proposal.categories.filter(row=>!row.locked&&row.limit!==null).map(row=>[row.id,cleanMoney(row.limit)]));
+  const next=normalizeState({...current,initialized:true,version:current.version+1,
+   categories:{...current.categories,[safeActor]:current.categories[safeActor].map(row=>byId.has(row.id)?{...row,monthlyLimits:{...row.monthlyLimits,[month]:byId.get(row.id)}}:row)},
+   plans:{...current.plans,[safeActor]:{...previous,monthlyPlanApplied:{month,idHash,at:new Date(options.now||Date.now()).toISOString()}}}});
+  await writeState(next,options);return next;
+ });
+}
 async function setFinanceObligationPaid(actor,id,month,paid,options={}){
   const safeActor=cleanActor(actor);
   const safeId=cleanText(id,100,{required:true});
@@ -1675,6 +1691,6 @@ function resetMutationQueueForTests() { mutationTail = Promise.resolve(); }
 module.exports = {
   NAMESPACE, TTL_SECONDS, DEFAULT_CATEGORIES, DEFAULT_CATEGORY_LABELS, cleanMonth, cleanMoney, cleanSignedMoney, cleanAssetAmount, cleanWalletBalance, cleanCurrency, cleanExpenseLabel, cleanExpenseLabels, cleanObligations, cleanPlan, cleanCapitalHistory, cleanSharedItems, splitAmounts, personalAmounts,
   normalizeState, viewState, expenseTotal, incomeTotal, readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome,
-  saveFinancePlan, setFinanceObligationPaid, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
+  saveFinancePlan, applyMonthlyFinancePlan, setFinanceObligationPaid, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, syncLinkedWalletBalance, cryptoOperationKey, classifyCryptoOperation, resetMutationQueueForTests,
 };

@@ -11,6 +11,7 @@ WEB_ASSETS.push('viewport.js','positive-emotion-chart.js','partner-profile.js','
 
 WEB_ASSETS.push('fasting-history.js','finance-month-rollover.js','finance-shared-autosave.js');
 WEB_ASSETS.push('finance-category-limits.js');
+WEB_ASSETS.push('planning-cards.css','finance-monthly-plan-core.js','finance-monthly-plan.js','product-weekly-core.js','product-weekly.js');
 WEB_ASSETS.push('cbt-content.js','cbt-core.js','cbt.js','cbt.css');
 
 WEB_ASSETS.push('mood-catalog.js','mood-picker.js','mood-picker.css');

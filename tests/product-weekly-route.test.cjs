@@ -1,0 +1,8 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const store=require('../api/product-list-store.cjs');
+const source=fs.readFileSync(require.resolve('../api/partner-message.js'),'utf8'),start=source.indexOf("  if (action === 'products')"),end=source.indexOf("  if (action === 'fasting')",start);
+test('actual products route adds server recommendations under authenticated Diana and ignores forged text',async()=>{
+ let state={initialized:true,items:[],history:[{id:'first',text:'Молоко',boughtAt:'2026-10-21T12:00:00Z'},{id:'last',text:'Молоко',boughtAt:'2026-10-28T12:00:00Z'}]};const options={now:'2026-11-04T13:00:00Z',productCache:{get:async()=>structuredClone(state),set:async(k,v)=>{state=structuredClone(v)}}};
+ const scope={...store,console,authorizeRequest:()=>({actor:'Диана'}),backupSnapshotFromToken:()=>null,refreshBackupToken:async()=> 'test-backup',statusForError:()=>500};vm.runInNewContext('this.handler=async function(req,res,options){const action="products";'+source.slice(start,end)+'}',scope);
+ let response;const res={status(code){assert.equal(code,200);return this},json(value){response=value;return this}};await scope.handler({method:'POST',body:{operation:'add-weekly',actor:'Рустам',ids:['last','fake'],text:'Подмена'}},res,options);assert.equal(response.actor,'Диана');assert.equal(response.items.length,1);assert.equal(response.items[0].text,'Молоко');assert.equal(response.items[0].addedBy,'Диана');assert.equal(response.items[0].checked,false);assert.equal(response.history.length,2);assert.equal(response.backupToken,'test-backup');
+});

@@ -1,17 +1,19 @@
 {
-  "current": "v4.13",
-  "versionBranch": "main",
+  "current": "v4.14",
+  "versionBranch": "rudi-release-v414",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-03",
-  "basedOnProduction": "v4.12",
+  "basedOnProduction": "v4.13",
   "notes": [
-    "Исправлены реальные расстояния между именами, статусами и строкой цикла на главной: кнопка настроения больше не увеличивает высоту строки имени."
+    "Автоматический финансовый план на следующий месяц с лимитами и предупреждением о нехватке денег к обязательным платежам.",
+    "Список продуктов на ближайшие 7 дней по повторным покупкам, общий для Рустама и Дианы."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Fix name row height and partner specificity; retain 26px mood targets outside text flow",
-    "Verify rendered text spacing against Lulu in both accounts, themes and phone widths"
+    "Generate actor-private next-month budgets from recurring bills, real spending and income; accept limits atomically without replacing manual targets",
+    "Project cash before bill dates with known wallet balances, FX and payday; report missing data explicitly",
+    "Suggest weekly groceries from recurring purchase intervals and add selected items to the shared basket without marking them bought"
   ]
 }

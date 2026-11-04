@@ -4,7 +4,7 @@ const { authorizeRequest, statusForError } = require('./rudi-request-auth.cjs');
 const coinKeeperHistory=require('./coinkeeper-history.cjs');
 const { withD1ReadCoalescing } = require('./d1-state-client.cjs');
 const {
-  readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan, setFinanceObligationPaid,
+  readFinanceState, saveFinanceMonth, savePersonalMonth, savePersonalIncome, saveFinancePlan, applyMonthlyFinancePlan, setFinanceObligationPaid,
   saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory,
   savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, viewState, cryptoOperationKey, classifyCryptoOperation,
@@ -28,6 +28,7 @@ function cryptoAssignmentKey(walletId,row){
   return cryptoOperationKey(walletId,row.id);
 }
 const { readScoreState,reverseScoreByDedupeKey,scoreView } = require('./score-store.cjs');
+const monthlyPlanner=require('../public/finance-monthly-plan-core.js');
 
 // Retain reversal of bonuses awarded before expense rewards were disabled.
 async function reverseDeletedDailyExpense(actor, expenseId) {
@@ -51,6 +52,8 @@ function statusFor(code, error) {
   const auth = statusForError(error);
   if (auth !== 500) return auth;
   if (code === 'finance-literacy-stale') return 409;
+  if (code === 'finance-monthly-plan-stale') return 409;
+  if (code === 'finance-monthly-plan-empty') return 400;
   if (code === 'finance-literacy-explanation-unavailable') return 503;
   if (code === 'finance-owner-only') return 403;
   if (code === 'crypto-owner-only') return 403;
@@ -142,6 +145,15 @@ function categorySummary(view, month) {
     ...category,
     spent: Math.round(expenses.filter((row) => row.categoryId === category.id).reduce((sum, row) => sum + Number(row.rubAmount || row.amount || 0), 0) * 100) / 100,
   }));
+}
+async function monthlyPlanContext(actor,view){
+ const month=monthlyPlanner.dateKey(Date.now()).slice(0,7),periods=[1,2,3].map(n=>monthlyPlanner.monthShift(month,-n));
+ const needsRates=[...(view.wallets||[]),...(view.categories||[])].some(row=>row.currency&&row.currency!=='RUB');
+ const [quotes,history]=await Promise.allSettled([
+  needsRates?financeRubRates():Promise.resolve({RUB:1}),
+  actor==='Рустам'&&periods.some(m=>m<'2026-10')?coinKeeperHistory.overview(actor):Promise.resolve({months:{}})
+ ]);
+ return {rates:quotes.status==='fulfilled'?quotes.value:{RUB:1},archive:history.status==='fulfilled'?Object.fromEntries(periods.filter(m=>history.value.months?.[m]).map(m=>[m,history.value.months[m]])):{},archiveUnavailable:history.status==='rejected'};
 }
 async function handler(req, res) {
   res.setHeader?.('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
@@ -309,7 +321,13 @@ async function handler(req, res) {
     }
     if (operation === 'list') {
       const state = await readFinanceState();
-      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...viewState(state, actor) });
+      const view=viewState(state,actor),context=await monthlyPlanContext(actor,view);
+      return res.status(200).json({ ok: true, actor, canEdit: actor === 'Рустам', ...view,monthlyPlanContext:context,monthlyPlan:monthlyPlanner.build({...view,actor},Date.now(),context) });
+    }
+    if(operation==='apply-monthly-plan'){
+      const current=await readFinanceState(),context=await monthlyPlanContext(actor,viewState(current,actor));
+      const state=await applyMonthlyFinancePlan(actor,{month:body.month,id:body.id},context),view=viewState(state,actor);
+      return res.status(200).json({ok:true,actor,canEdit:actor==='Рустам',...view,monthlyPlanContext:context,monthlyPlan:monthlyPlanner.build({...view,actor},Date.now(),context)});
     }
     if (operation === 'record-capital-snapshot') {
       const state = await readFinanceState();

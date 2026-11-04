@@ -5814,6 +5814,9 @@
         if(!month||month.dataset.bound==='1')return;
         month.dataset.bound='1';month.value=financeCurrentMonthKey();
         document.addEventListener('rudi-finance-plan-saved',()=>loadFinances({silent:true}).catch(()=>{}));
+        document.addEventListener('rudi-finance-monthly-plan-applied',event=>{
+          if(event.detail?.actor===currentActor)renderFinanceState(event.detail);
+        });
         const personalMonth=document.getElementById('financePersonalMonthInput');
         if(personalMonth)personalMonth.value=financeCurrentMonthKey();
         if(!window.__rudiFinancePeriodWatcher){
@@ -21753,7 +21756,7 @@
         setKitchenView(activeKitchenView);
       }
 
-      window.RUDI_PRODUCTS_API={request:productsRequest,reload:loadProducts};
+      window.RUDI_PRODUCTS_API={request:productsRequest,reload:loadProducts,render:renderProducts};
       async function openProductPurchaseDialog(checkedIds){
         const actor=currentActor;
         const overlay=document.createElement('div');

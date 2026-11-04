@@ -36,6 +36,7 @@ const {
   restoreProductListSnapshot,
   normalizeProductListState,
   addProducts,
+  addWeeklyProducts,
   removeProduct,
   updateProduct,
   toggleProductChecked,
@@ -4723,6 +4724,11 @@ async function handleRudiAction(req, res, action, options = {}) {
         const state=await addProducts(values,actor,options);
         const backupToken=await refreshBackupToken(previousSnapshot,options,{products:state});
         return res.status(200).json({ok:true,actor,...state,backupToken});
+      }
+      if (operation === 'add-weekly') {
+        const state = await addWeeklyProducts(body.ids, actor, options);
+        const backupToken = await refreshBackupToken(previousSnapshot, options, {products: state});
+        return res.status(200).json({ok: true, actor, ...state, backupToken});
       }
       if (operation === 'update') {
         const state = await updateProduct(body.id, {
