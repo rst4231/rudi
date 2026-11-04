@@ -14,7 +14,7 @@
      ' V '+(inset+r)+' A '+r+' '+r+' 0 0 1 '+(inset+r)+' '+inset+
      ' H '+width/2;
  }
- function updateCbtProgress(){const button=$('rudiHomeCbtButton');if(!button)return;const percent=Math.max(0,Math.min(100,Number(window.RudiCbt?.progress?.())||0)),reminder=!!window.RudiCbt?.reminder?.();button.style.setProperty('--rudi-cbt-percent',percent+'%');button.classList?.toggle('has-cbt-reminder',reminder);button.setAttribute('aria-label','КПТ · пройдено '+Math.round(percent)+'%'+(reminder?' · сегодня нет записи':''));button.title='КПТ · '+Math.round(percent)+'%'+(reminder?' · сегодня нет записи':'');}
+ function updateCbtProgress(){const button=$('rudiHomeCbtButton');if(!button)return;const percent=Math.max(0,Math.min(100,Number(window.RudiCbt?.progress?.())||0)),reminder=!!window.RudiCbt?.reminder?.();button.style.setProperty('--rudi-cbt-percent',percent+'%');const halo=button.querySelector?.('.rudi-cbt-progress-halo');if(halo)halo.hidden=percent===0;button.classList?.toggle('has-cbt-reminder',reminder);button.setAttribute('aria-label','КПТ · пройдено '+Math.round(percent)+'%'+(reminder?' · сегодня нет записи':''));button.title='КПТ · '+Math.round(percent)+'%'+(reminder?' · сегодня нет записи':'');}
  function restoreTrackerOutlines(rail){
    for(const id of ['fastingProfileButton','supplementProfileButton']){
      const button=rail.querySelector('#'+id);

@@ -46,3 +46,15 @@ test('Home shortcut redraws the halo immediately when the initial server progres
  done({ok:true,status:200,json:async()=>({ok:true,actor:'Рустам',state:started()})});await f.tick();
  assert.equal(styles.get('--rudi-cbt-percent'),f.api.progress()+'%');assert.notEqual(styles.get('--rudi-cbt-percent'),'0%');
 });
+
+test('finished sessions never fill the Home halo, including a cached session before server sync',async()=>{
+ for(const status of ['completed','interrupted']){
+  const state=started(),at=new Date().toISOString();
+  Object.assign(state.runs[0],{status,[status==='completed'?'completedAt':'interruptedAt']:at});
+  if(status==='completed')state.runs[0].completionReason='manual';
+  const stored=new Map([['rudi:cbt:v1:Рустам',JSON.stringify({server:state,queue:[],backups:[]})]]);
+  const f=fixture({actor:'Рустам',authenticated:true,stored,fetchImpl:async()=>({ok:true,status:200,json:async()=>({ok:true,actor:'Рустам',state})})});
+  assert.equal(f.api.progress(),0,status+' cached');await f.tick();assert.equal(f.api.progress(),0,status+' synced');
+  assert.equal(JSON.parse(stored.get('rudi:cbt:v1:Рустам')).server.runs[0].id,'progress-cycle');
+ }
+});

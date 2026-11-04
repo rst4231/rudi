@@ -1,24 +1,18 @@
 {
-  "current": "v4.21",
-  "versionBranch": "rudi-release-v421",
+  "current": "v4.22",
+  "versionBranch": "rudi-release-v422",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.20",
+  "basedOnProduction": "v4.21",
   "notes": [
-    "Кнопка завершения сессии КПТ с подтверждением и сохранением записей и черновиков.",
-    "Объяснения недель оформлены по этапам, с выделенными оценками и схемой второй недели.",
-    "Новые разборы используют только поля текущей недели; прежние разборы остаются в истории.",
-    "Порядок на главной: БАДы, Финансы, Медитация, КПТ, Голодание, Привычки, Игры.",
-    "Приветствие остаётся выше иконок; исправлены сброс порядка и перестановка блоков стрелками."
+    "Шкала и ореол КПТ обнуляются после завершения сессии, в том числе офлайн и после повторного открытия приложения.",
+    "История, ответы, черновики и итоги завершённой сессии сохранены."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Finish CBT sessions without deleting answers, queued edits or history; freeze actual progress.",
-    "Improve weekly instruction readability without changing the screenshot text or adding questions.",
-    "Restrict AI input and guidance to current weekly fields and keep all prior analyses.",
-    "Reorder existing home shortcuts without replacing controls or changing click handlers.",
-    "Keep shortcut rail after the dashboard across resets and tile movement; skip non-tile rail in arrow navigation."
+    "Use only an active CBT session for Home progress; preserve finished session statistics in history.",
+    "Clear the selected session after finishing and when returning to the program overview."
   ]
 }

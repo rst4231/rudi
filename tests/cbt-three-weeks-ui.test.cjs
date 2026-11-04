@@ -50,6 +50,10 @@ test('all 21 days show only their screenshot explanation and exact positions, in
 test('finishing requires confirmation, cancelling preserves session, and confirming retains offline answers',()=>{
  const f=fixture(15);try{
  const w=f.w,doc=w.document;
+ doc.body.insertAdjacentHTML('beforeend','<button id="rudiHomeCbtButton"><span class="rudi-cbt-progress-halo"></span></button>');
+ w.eval(fs.readFileSync('public/home-reference-layout.js','utf8'));
+ w.dispatchEvent(new w.Event('rudi-cbt-progress'));
+ assert.equal(doc.querySelector('.rudi-cbt-progress-halo').hidden,false);
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true};
  w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'))};
  f.click('[data-do="finish-session"]');assert.ok(doc.querySelector('#cbtFinishDialog').open);
@@ -59,5 +63,18 @@ test('finishing requires confirmation, cancelling preserves session, and confirm
  let projected=stored.server;for(const op of stored.queue)projected=C.apply(projected,op,op.at,true);
  assert.equal(projected.runs[0].completionReason,'manual');assert.equal(projected.runs[0].days[15].answers.actual,'Офлайн результат');assert.equal(projected.runs[0].days[15].entries[0].answers.thought,'Другой черновик');assert.equal(doc.querySelector('[data-do="finish-session"]'),null);
  assert.match(doc.body.textContent,/Все записи сохранены/);
+ assert.equal(doc.querySelector('.cbt-progress progress').value,0);
+ assert.equal(doc.querySelector('.cbt-progress strong').textContent,'0 из 21 дней');
+ assert.equal(w.RudiCbt.progress(),0);
+ assert.equal(doc.querySelector('.rudi-cbt-progress-halo').hidden,true);
+ assert.equal(w.RudiCbt.reminder(),false);
+ f.click('[data-do="history"]');f.click('[data-run="preserve-this-cycle"]');
+ assert.equal(doc.querySelector('.cbt-progress progress').value,14);
+ f.click('[data-do="report"]');assert.match(doc.querySelector('.cbt-report-text').textContent,/Завершено дней: 14 из 21/);
+ w.RudiCbt.close();w.RudiCbt.open();
+ assert.equal(doc.querySelector('.cbt-progress progress').value,0);
+ assert.equal(w.RudiCbt.progress(),0);
+ assert.deepEqual(f.get().server,f.stored.server);
+ assert.equal(f.get().queue.filter(op=>op.type==='finish-session').length,1);
  }finally{f.dom.window.close()}
 });
