@@ -4514,6 +4514,7 @@ async function handleRudiAction(req, res, action, options = {}) {
       const view = ['week','month','next-month'].includes(String(body.view || ''))
         ? String(body.view)
         : 'week';
+      if(String(body.search||'').trim()){const results=await require('./work-calendar.cjs').searchWorkCalendar(String(body.search).slice(0,100),options);return res.status(200).json({ok:true,results})}
       const week = await getWorkWeek({
         ...options,
         view,

@@ -16,6 +16,8 @@ WEB_ASSETS.push('cbt-content.js','cbt-core.js','cbt.js','cbt.css');
 
 WEB_ASSETS.push('mood-catalog.js','mood-picker.js','mood-picker.css');
 
+WEB_ASSETS.push('calendar-search.js');
+
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
 const runtimeDir = path.join(__dirname, 'runtime');

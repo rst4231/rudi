@@ -32,6 +32,15 @@
      const active=isOnline(actor);
      dot.classList.toggle('is-online',active);
      dot.setAttribute('aria-label',actor+(active?' сейчас онлайн':' сейчас не в сети'));
+     const person=holder.closest('.profile-person-head')?.querySelector('.person');
+     if(person){
+       person.classList.toggle('rudi-presence-offline',!active);
+       let line=person.querySelector('.home-presence-status');
+       if(!line){line=document.createElement('p');line.className='home-presence-status';person.appendChild(line)}
+       const text=visitText(actor);
+       line.hidden=active||text==='Не в сети';
+       line.textContent=line.hidden?'':text.replace(' в сети ',' ');
+     }
    }
    for(const [line,actor] of profileLines)paintProfileLine(line,actor);
  }
@@ -48,6 +57,7 @@
  }
  function paintProfileLine(line,actor){
    line.classList.toggle('is-online',isOnline(actor));
+   line.parentNode?.classList.toggle('rudi-presence-offline',!isOnline(actor));
    const text=visitText(actor);
    if(line.textContent!==text)line.textContent=text;
  }

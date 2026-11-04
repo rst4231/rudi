@@ -1,19 +1,27 @@
 {
-  "current": "v4.24",
-  "versionBranch": "rudi-release-v424",
+  "current": "v4.25",
+  "versionBranch": "rudi-release-v425",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.23",
+  "basedOnProduction": "v4.24",
   "notes": [
-    "В недельном виде календаря погода над сеткой убрана; температура, вероятность дождя и ветер показаны между часовыми отметками.",
-    "Погода в месячном календаре и отдельный прогноз остаются без изменений.",
-    "При открытии сегодняшнего дня недельная сетка прокручивается к красной линии текущего времени."
+    "В почасовой погоде убраны ветер и вероятность дождя; рядом с температурой показан значок погоды, при осадках — лёгкая анимация дождя или снега.",
+    "Часы сделаны светлее, погода выровнена по центру между соседними часовыми отметками.",
+    "У офлайн-профилей остаётся только время последнего входа вместо статусов работы и ритма.",
+    "Время и название в карточках календаря выровнены по вертикальному центру.",
+    "Кошелёк в шапке календаря заменён поиском по личному, общему и подключённым календарям.",
+    "Задачи совместного календаря имеют зелёную обводку, личного — синюю.",
+    "При нажатии плюса сначала предлагается выбор личного или совместного календаря."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Replace the weekly daypart weather strip with exact hourly temperature, precipitation chance and wind in the time gutter.",
-    "Scroll today to the current-time marker instead of clamping the weekly agenda to the morning."
+    "Show condition emoji and temperature only, with subtle rain/snow particles for precipitation hours.",
+    "Brighten time labels and vertically centre weather in each hour interval.",
+    "Show last visit only for offline profiles; restore existing work and rhythm labels when online.",
+    "Centre weekly calendar card time and title vertically without changing checkbox placement.",
+    "Replace the header wallet shortcut with authenticated cross-calendar search and date navigation.",
+    "Colour task borders by actual source and prompt for the target calendar before opening a composer."
   ]
 }

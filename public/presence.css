@@ -95,3 +95,7 @@ html[data-rudi-resuming]::view-transition-new(rudi-content){animation:none!impor
  body[data-rudi-fallback-transition] [data-app-tab-section].rudi-route-leave,
  [data-app-tab-section].rudi-internal-view-enter{animation:none!important}
 }
+/* Offline profiles retain only the last-visit caption beneath the name. */
+html .person.rudi-presence-offline > :is(.profile-work-status,.profile-rhythm-status,.profile-cycle-mood){display:none!important}
+.home-presence-status{font-size:10px!important;line-height:1.25!important;color:var(--muted)!important;margin:0!important;padding:0!important}
+.home-presence-status[hidden]{display:none!important}

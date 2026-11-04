@@ -15660,7 +15660,7 @@
       function calendarUpdateCreateButtons(){
         const shared=document.getElementById('calendarCreateTask');
         const personal=document.getElementById('calendarPersonalCreateTask');
-        const isPersonalReady=calendarScope==='personal'&&(currentActor==='Диана'||currentActor==='Рустам'&&calendarPersonalTickTickConnected);
+        const isPersonalReady=calendarScope==='personal'&&['Рустам','Диана'].includes(currentActor);
         if(shared)shared.hidden=calendarScope!=='shared';
         if(personal)personal.hidden=!isPersonalReady;
         document.body.dataset.personalTicktickConnected=(calendarPersonalTickTickConnected||currentActor==='Диана')?'true':'false';
@@ -15778,10 +15778,41 @@
         refreshCalendarConnections().catch(()=>{});
         document.getElementById('calendarConnectionsClose')?.focus({preventScroll:true});
       }
+      function calendarSearchLocalEntries(){
+        const rows=[];
+        for(const [key,payload]of Object.entries(calendarViewCache)){
+          if(!key.endsWith(':'+currentActor))continue;
+          for(const field of ['days','ticktickDays','holidayDays'])for(const day of payload?.[field]||[])for(const event of day.events||[]){
+            if(!event?.title)continue;const scope=event.personal===true?'personal':'shared';
+            rows.push({...event,date:day.date,scope,source:scope==='personal'?'Личный':'Совместный'});
+          }
+        }
+        return rows;
+      }
+      async function calendarSearchAll(query,signal){
+        const actor=currentActor,base={initData:telegramInitData(),backupToken:currentStateBackupToken};
+        const post=async(url,body)=>{const response=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...base,...body}),signal,cache:'no-store'});const data=await response.json();if(!response.ok||!data.ok)throw Error('calendar-search-unavailable');return data};
+        const jobs=['shared',actor==='Диана'?'diana':'rustam'].map(scope=>post('/api/ticktick/calendar',{scope,search:query}).then(data=>(data.results||[]).map(row=>({...row,scope:row.personal?'personal':'shared',source:row.personal?'Личный':'Совместный'}))));
+        jobs.push(post('/api/work-calendar',{search:query}).then(data=>data.results||[]));
+        if(actor==='Диана')jobs.push(post('/api/partner-message?ticktickAction=personal-task-list',{}).then(data=>(data.tasks||[]).map(row=>({...row,scope:'personal',source:row.externalCalendar?'Личный · iCloud':'Личный'}))));
+        const results=await Promise.allSettled(jobs);
+        if(actor!==currentActor)throw Error('actor-changed');
+        return {rows:results.flatMap(result=>result.status==='fulfilled'?result.value:[]),partial:results.some(result=>result.status==='rejected')};
+      }
+      async function calendarSearchOpenResult(row){
+        if(!calendarValidDateKey(row.date))return;
+        calendarDateCursor=row.date;currentSelectedWorkDate=row.date;
+        calendarSetScope(row.scope==='personal'?'personal':'shared',{reload:false});calendarSaveView();
+        await loadWorkCalendar('month',{silent:false,force:true});
+        const minutes=calendarAgendaMinutes(row.startTime);
+        if(minutes!==null)requestAnimationFrame(()=>{const viewport=document.querySelector('#workCalendarSelected .calendar-week-time-viewport');if(viewport)viewport.scrollTop=Math.max(0,minutes-30)/60*CALENDAR_AGENDA_HOUR_HEIGHT});
+      }
       function setupCalendarConnections(){
         const gear=document.getElementById('calendarConnectionsGear');
         if(!gear||gear.dataset.bound==='1')return;
         gear.dataset.bound='1';
+        window.RudiCalendarSearch?.configure({actor:()=>currentActor,localEntries:calendarSearchLocalEntries,search:calendarSearchAll,openResult:calendarSearchOpenResult});
+        document.getElementById('calendarSearchButton')?.addEventListener('click',()=>window.RudiCalendarSearch?.open());
         gear.addEventListener('click',()=>openCalendarConnections());
         document.getElementById('calendarConnectionsClose')?.addEventListener('click',closeCalendarConnections);
         document.getElementById('calendarConnectionsBackdrop')?.addEventListener('click',()=>closeCalendarConnections());
@@ -15906,6 +15937,23 @@
           openTickTick:()=>calendarOpenPersonalTickTickTask(task)
         };
       }
+      function calendarChooseTaskCalendar(){
+        if(!['Рустам','Диана'].includes(currentActor))return;
+        const actor=currentActor,date=currentSelectedWorkDate||calendarDateCursor||todayState().key,time=financeNowDateTimeInputs().time;
+        let chooser=document.getElementById('calendarCreateTarget');
+        if(chooser?.open)return;
+        if(chooser)chooser.remove();
+        chooser=document.createElement('dialog');chooser.id='calendarCreateTarget';chooser.className='calendar-search-dialog';chooser.setAttribute('aria-labelledby','calendarCreateTargetTitle');
+        chooser.innerHTML='<form method="dialog"><h2 id="calendarCreateTargetTitle">В какой календарь добавить?</h2><button type="submit" aria-label="Отмена">×</button></form><div class="calendar-search-results"><button type="button" data-target-calendar="personal">Личный</button><button type="button" data-target-calendar="shared">Совместный</button></div>';
+        chooser.addEventListener('click',event=>{
+          const target=event.target.closest('[data-target-calendar]');if(!target)return;chooser.close();if(actor!==currentActor)return;
+          const scope=target.dataset.targetCalendar;
+          calendarSetScope(scope,{reload:false});loadWorkCalendar('month',{silent:true}).catch(()=>{});
+          if(scope==='shared')openTickTickTaskForCreation?.({date,time});
+          else window.RUDIPersonalTaskEditor?.create({initData:telegramInitData(),actor,date,time,queueOffline:queueCalendarWhenOffline,refresh:()=>refreshAfterTickTickTaskChange({preserveExpanded:false}),openTickTick:()=>calendarOpenPersonalTickTickComposer()});
+        });
+        document.body.append(chooser);chooser.showModal();
+      }
       function setupWorkCalendarDisclosure(){
         setupCalendarConnections();
         const saved=calendarReadSavedView();
@@ -15937,44 +15985,7 @@
           currentWorkCalendarRenderSignature='';
           loadWorkCalendar('month',{silent:true}).catch(()=>{});
         });
-        document.getElementById('calendarCreateTask')?.addEventListener('click',()=>{
-          if(calendarScope!=='shared'||!currentActor)return;
-          const date=currentSelectedWorkDate||calendarDateCursor||todayState().key;
-          const time=financeNowDateTimeInputs().time;
-          openTickTickTaskForCreation?.({date,time});
-        });
-        const personalPlus=document.getElementById('calendarPersonalCreateTask');
-        if(personalPlus){
-          let hold=0,suppressUntil=0,point=null;
-          const clear=()=>{clearTimeout(hold);hold=0;point=null};
-          personalPlus.addEventListener('pointerdown',event=>{
-            if(event.button!==0)return;
-            clear();point={id:event.pointerId,x:event.clientX,y:event.clientY};
-            hold=setTimeout(()=>{
-              if(!point)return;
-              suppressUntil=Date.now()+1500;
-              clear();
-              calendarOpenPersonalTickTickComposer();
-            },550);
-          });
-          personalPlus.addEventListener('pointermove',event=>{
-            if(point&&Math.hypot(event.clientX-point.x,event.clientY-point.y)>12)clear();
-          });
-          personalPlus.addEventListener('pointerup',clear);
-          personalPlus.addEventListener('pointercancel',clear);
-          personalPlus.addEventListener('contextmenu',event=>event.preventDefault());
-          personalPlus.addEventListener('click',event=>{
-            event.preventDefault();event.stopPropagation();
-            if(Date.now()<suppressUntil||calendarScope!=='personal'||!['Рустам','Диана'].includes(currentActor))return;
-            const date=currentSelectedWorkDate||calendarDateCursor||todayState().key;
-            const time=financeNowDateTimeInputs().time;
-            window.RUDIPersonalTaskEditor?.create({
-              initData:telegramInitData(),actor:currentActor,date,time,queueOffline:queueCalendarWhenOffline,
-              refresh:()=>refreshAfterTickTickTaskChange({preserveExpanded:false}),
-              openTickTick:()=>calendarOpenPersonalTickTickComposer()
-            });
-          });
-        }
+        for(const id of ['calendarCreateTask','calendarPersonalCreateTask'])document.getElementById(id)?.addEventListener('click',calendarChooseTaskCalendar);
         const grid=document.getElementById('workCalendarDays');
         let startX=0,startY=0;
         grid?.addEventListener('touchstart',event=>{
@@ -16479,6 +16490,7 @@
         const attachCompletion=(row,task)=>{
           if(!task)return;
           row.classList.add('calendar-agenda-task');
+          row.setAttribute('data-calendar-task-source',task.personal===true?'personal':'shared');
           const isPersonal=task.personal===true;
           const writable=Boolean(task.supplementId)||calendarTaskCanReopen(task)||(isPersonal?task.canComplete!==false:sharedWritable);
           const allowed=task.supplementId

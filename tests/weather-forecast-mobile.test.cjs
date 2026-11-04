@@ -36,14 +36,19 @@ function interactiveFixture(now='2026-10-18T06:37:00Z',options={}){
 }
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 
-test('weekly hour gaps show the selected hour temperature, rain chance and wind in metres per second',async()=>{
- const f=interactiveFixture(undefined,{get:async()=>({hourly:{time:['2026-10-18T12:00','2026-10-18T13:00','2026-10-19T12:00'],temperature_2m:[6,7,99],precipitation_probability:[0,35,99],wind_speed_10m:[10.8,0,99]}})});
+test('weekly hour gaps show condition emoji and temperature without wind or rain percentages',async()=>{
+ const f=interactiveFixture(undefined,{get:async()=>({hourly:{time:['2026-10-18T12:00','2026-10-18T13:00','2026-10-19T12:00'],temperature_2m:[6,7,99],weather_code:[0,3,61],precipitation_probability:[0,35,99],wind_speed_10m:[10.8,0,99]}})});
  try{const host=f.make('div');host.dataset.calendarWeatherDate='2026-10-18';host.innerHTML='<span data-weather-hour="12" hidden></span><span data-weather-hour="13" hidden></span><span data-weather-hour="14" hidden></span>';
- await f.api.renderCalendarHours(host,'2026-10-18');const labels=host.querySelectorAll('[data-weather-hour]');assert.equal(labels[0].hidden,false);assert.deepEqual([...labels[0].children].map(x=>x.textContent),['6°','☔ 0%','3 м/с']);assert.deepEqual([...labels[1].children].map(x=>x.textContent),['7°','☔ 35%','0 м/с']);assert.equal(labels[2].hidden,true);
+ await f.api.renderCalendarHours(host,'2026-10-18');const labels=host.querySelectorAll('[data-weather-hour]');assert.equal(labels[0].hidden,false);assert.deepEqual([...labels[0].children].map(x=>x.textContent),['☀️ 6°']);assert.deepEqual([...labels[1].children].map(x=>x.textContent),['☁️ 7°']);assert.equal(labels[2].hidden,true);
  }finally{f.dom.window.close()}
 });
 test('late hourly weather cannot fill a different selected date',async()=>{
  let resolve;const f=interactiveFixture(undefined,{get:()=>new Promise(done=>{resolve=done})});try{const host=f.make('div');host.dataset.calendarWeatherDate='2026-10-18';host.innerHTML='<span data-weather-hour="12" hidden></span>';const request=f.api.renderCalendarHours(host,'2026-10-18');host.dataset.calendarWeatherDate='2026-10-19';resolve({hourly:{time:['2026-10-18T12:00'],temperature_2m:[6]}});await request;assert.equal(host.firstChild.hidden,true);assert.equal(host.firstChild.textContent,'')}finally{f.dom.window.close()}
+});
+test('hourly precipitation decoration follows rain and snow codes and stays absent for clouds',async()=>{
+ const f=interactiveFixture(undefined,{get:async()=>({hourly:{time:['2026-10-18T12:00','2026-10-18T13:00','2026-10-18T14:00'],temperature_2m:[5,-2,6],weather_code:[61,73,3],precipitation_probability:[90,95,0]}})});
+ try{const host=f.make('div');host.dataset.calendarWeatherDate='2026-10-18';host.innerHTML=[12,13,14].map(h=>'<span data-weather-hour="'+h+'" hidden></span>').join('');await f.api.renderCalendarHours(host,'2026-10-18');const rows=host.children;assert.equal(rows[0].dataset.precipitation,'rain');assert.equal(rows[1].dataset.precipitation,'snow');assert.equal(rows[2].dataset.precipitation,undefined);for(const row of [rows[0],rows[1]]){assert.equal(row.querySelector('.calendar-hour-precipitation').getAttribute('aria-hidden'),'true');assert.equal(row.querySelectorAll('i').length,3);assert.ok(!row.textContent.includes('%'))}assert.equal(rows[2].querySelector('.calendar-hour-precipitation'),null);
+ }finally{f.dom.window.close()}
 });
 const clickView=(f,view)=>f.root().querySelector('[data-forecast-view="'+view+'"]').click();
 test('forecast opens as a routed page without a dialog or locking the body',async()=>{

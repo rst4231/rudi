@@ -1214,7 +1214,7 @@ body[data-calendar-scope="personal"] .work-page #workCalendarDays[data-calendar-
 }
 .work-page .calendar-week-time-event.calendar-agenda-task{
   display:grid!important;grid-template-columns:26px minmax(0,1fr)!important;
-  grid-template-rows:auto minmax(0,1fr)!important;align-content:center!important;
+  grid-template-rows:auto auto!important;align-content:center!important;
   column-gap:7px!important;row-gap:0!important;padding:4px 6px!important
 }
 .work-page .calendar-week-time-event.calendar-agenda-task .calendar-agenda-task-checkbox{
@@ -1842,6 +1842,28 @@ body[data-app-tab="schedule"] .work-page #workCalendarSelected .calendar-period-
 
 .calendar-workplace{display:flex;gap:6px;margin:3px 0 10px;flex-wrap:wrap}.calendar-workplace button{font:inherit;font-size:11px;padding:7px 10px;border:1px solid var(--line);border-radius:11px;background:var(--surface);color:var(--text)}.calendar-workplace button.is-active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 18%,var(--surface));color:var(--text)}
 /* Compact hourly forecast stays in the time gutter, below each hour label. */
-.work-page .calendar-week-hour-weather{position:absolute!important;right:calc(100% + 10px)!important;top:12px!important;width:53px!important;display:grid!important;gap:1px!important;text-align:right!important;font-size:9px!important;line-height:1.2!important;font-weight:400!important;color:var(--muted)!important;font-variant-numeric:tabular-nums;white-space:nowrap}
+.work-page .calendar-week-hour-weather{position:absolute!important;right:calc(100% + 10px)!important;top:36px!important;transform:translateY(-50%)!important;width:53px!important;display:grid!important;gap:1px!important;text-align:right!important;font-size:9px!important;line-height:1.2!important;font-weight:400!important;color:var(--muted)!important;font-variant-numeric:tabular-nums;white-space:nowrap}
 .work-page .calendar-week-hour-weather[hidden]{display:none!important}
 @media(max-width:380px){.work-page .calendar-week-hour-weather{right:calc(100% + 7px)!important;width:40px!important;font-size:8px!important}}
+
+/* Keep hourly labels legible, with the forecast centred in each 72px interval. */
+html body[data-app-tab="schedule"] .work-page #workCalendarSelected.calendar-week-view .calendar-week-hour time{color:var(--text,#e4e7f0)!important;opacity:.9!important}
+
+.work-page .calendar-week-time-event{justify-content:center!important}
+.calendar-hour-precipitation{position:relative;display:block;height:12px;overflow:hidden;pointer-events:none}
+.calendar-hour-precipitation i{position:absolute;top:-4px;left:25%;width:1px;height:4px;background:#8ab5e8;opacity:0;animation:calendar-hour-rain 1.5s linear infinite}
+.calendar-hour-precipitation i:nth-child(2){left:50%;animation-delay:.5s}
+.calendar-hour-precipitation i:nth-child(3){left:75%;animation-delay:1s}
+[data-precipitation="snow"] .calendar-hour-precipitation i{width:2px;height:2px;border-radius:50%;background:var(--text,#dfe8f5);animation-name:calendar-hour-snow;animation-duration:2.8s}
+@keyframes calendar-hour-rain{0%{opacity:0;transform:translate(0,0)}20%{opacity:.4}90%{opacity:.4}100%{opacity:0;transform:translate(-2px,16px)}}
+@keyframes calendar-hour-snow{0%{opacity:0;transform:translate(0,0)}25%{opacity:.45}80%{opacity:.45}100%{opacity:0;transform:translate(3px,16px)}}
+@media(prefers-reduced-motion:reduce){.calendar-hour-precipitation i{animation:none;top:4px;opacity:.3}}
+.calendar-search-dialog{width:min(520px,calc(100vw - 24px));max-height:80svh;box-sizing:border-box;overflow:auto;border:1px solid var(--line);border-radius:18px;background:var(--surface,#171b25);color:var(--text,#edf0f8);padding:18px}
+.calendar-search-dialog::backdrop{background:#0008;backdrop-filter:blur(4px)}
+.calendar-search-dialog form{display:flex;align-items:center;gap:12px;margin:0 0 14px}.calendar-search-dialog h2{flex:1;font-size:18px;margin:0}
+.calendar-search-dialog form button{border:0;background:transparent;color:inherit;font-size:26px;width:36px;height:36px}
+.calendar-search-dialog input{width:100%;box-sizing:border-box;min-height:44px;font:inherit;font-size:16px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:inherit;padding:10px}
+.calendar-search-status,.calendar-search-results>p{font-size:12px;color:var(--muted)}
+.calendar-search-results{display:grid;gap:8px;margin-top:14px}.calendar-search-results button{display:grid;gap:6px;text-align:left;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:inherit;padding:12px;font:inherit}.calendar-search-results small{color:var(--muted);font-size:11px}
+.work-page :is(.calendar-week-time-event,.calendar-week-allday-item)[data-calendar-task-source="shared"]{border:1px solid #23966a!important;border-left-width:3px!important}
+.work-page :is(.calendar-week-time-event,.calendar-week-allday-item)[data-calendar-task-source="personal"]{border:1px solid #4578e6!important;border-left-width:3px!important}

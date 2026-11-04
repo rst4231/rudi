@@ -377,7 +377,21 @@ async function getWorkWeek(options = {}) {
   }
 }
 
+async function searchWorkCalendar(query,options={}){
+  const words=String(query||'').toLocaleLowerCase('ru-RU').replace(/ё/g,'е').trim().split(/\s+/).filter(Boolean);
+  if(!words.length)return [];
+  const cache=cacheOf(options),url=await readCalendarUrl({...options,cache}).catch(()=> '');
+  if(!url)return [];
+  const key='search-events:'+sha256(url).slice(0,16);
+  let events=await cache.get(key).catch(()=>null);
+  if(!Array.isArray(events)){
+    events=parseEvents(await fetchCalendarText(url,options)).filter(e=>e.start&&e.status!=='CANCELLED').map(e=>({id:String(e.uid||''),title:String(e.summary||'Работа'),date:dateKey(e.start.date),startTime:e.start.allDay?'':formatTime(e.start.date),scope:'shared',source:'Рабочий календарь'}));
+    await cache.set(key,events,{ttl:WEEK_TTL_SECONDS}).catch(()=>false);
+  }
+  return events.filter(e=>words.every(word=>(e.title+' '+e.date).toLocaleLowerCase('ru-RU').replace(/ё/g,'е').includes(word))).slice(0,500);
+}
 module.exports = {
+  searchWorkCalendar,
   NAMESPACE, EXPECTED_URL_SHA256, DEFAULT_TIMEZONE,
   normalizeCalendarUrl, sha256, decodeSetupKey, saveCalendarUrl, readCalendarUrl, fetchCalendarText,
   unfoldIcs, parseEvents, parseRRule, parseIcsDate, rollingStart, monthRange, buildRange, buildWeek, getWorkWeek,

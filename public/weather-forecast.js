@@ -177,10 +177,15 @@ async function renderCalendarHours(target,date){
   const hours=new Map(model(data).hours.filter(row=>row.date===date).map(row=>[row.time.slice(11,13),row]));
   for(const el of target.querySelectorAll('[data-weather-hour]')){
    const row=hours.get(el.dataset.weatherHour),parts=[];
-   if(Number.isFinite(row?.temperature))parts.push(number(row.temperature,'°'));
-   if(Number.isFinite(row?.probability)&&row.probability>=0&&row.probability<=100)parts.push('☔ '+number(row.probability,'%'));
-   if(Number.isFinite(row?.wind)&&row.wind>=0){const wind=row.wind/(data.hourly_units?.wind_speed_10m==='m/s'?1:3.6);parts.push(String(Math.round(wind*10)/10).replace('.',',')+' м/с')}
+   if(Number.isFinite(row?.temperature)){const code=Number.isFinite(row.code)&&[0,1,2,3,45,48,51,53,55,56,57,61,63,65,66,67,71,73,75,77,80,81,82,85,86,95,96,99].includes(row.code)?emoji(row.code)+' ':'';parts.push(code+number(row.temperature,'°'))}
    el.replaceChildren(...parts.map(part=>node('span',part)));
+   const precipitation=[71,73,75,77,85,86].includes(row?.code)?'snow':[51,53,55,56,57,61,63,65,66,67,80,81,82,95,96,99].includes(row?.code)?'rain':'';
+   if(parts.length&&precipitation){
+    el.dataset.precipitation=precipitation;
+    const particles=node('span',undefined,'calendar-hour-precipitation');particles.setAttribute('aria-hidden','true');
+    for(let i=0;i<3;i++)particles.appendChild(node('i'));
+    el.appendChild(particles);
+   }else delete el.dataset.precipitation;
    el.hidden=!parts.length;
    el.setAttribute('aria-label',el.dataset.weatherHour+':00: '+parts.join(', '));
    el.title=(data.stale?'Сохранённый почасовой прогноз':'Почасовой прогноз')+' · '+date+' '+el.dataset.weatherHour+':00';
