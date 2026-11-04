@@ -227,7 +227,7 @@ function mount(root,{actor,request}){
   if(loading)root.append(node('p','lulu-care-muted','Загружаю…'));
   if(status){const msg=node('div','lulu-care-message',status);msg.setAttribute('role','status');root.append(msg)}
   for(const q of pending.filter(row=>row.error)){const error=node('div','lulu-care-message','Не удалось сохранить изменение');error.append(button('Отменить изменение',()=>void discard(q.id)));root.append(error)}
-  root.append(node('h2','lulu-category-heading','Вес и питание'),renderWeights(rows),renderNutrition(rows),node('h2','lulu-category-heading','Уход'),renderGrooming(rows,'nails','Стрижка когтей'),renderGrooming(rows,'bath','Купание'),node('h2','lulu-category-heading','Здоровье'),renderPrevention(rows),renderPrescriptions(rows));
+  root.append(node('h2','lulu-category-heading','Здоровье'),renderPrescriptions(rows),renderPrevention(rows),node('h2','lulu-category-heading','Уход'),renderGrooming(rows,'nails','Стрижка когтей'),renderGrooming(rows,'bath','Купание'),node('h2','lulu-category-heading','Вес и питание'),renderWeights(rows),renderNutrition(rows));
   updateOverview(rows);
   if(focused){const input=root.querySelector('[name="'+focused+'"]');input?.focus({preventScroll:true});if(typeof selection==='number'&&input?.type==='text')input.setSelectionRange(selection,selection)}
  }

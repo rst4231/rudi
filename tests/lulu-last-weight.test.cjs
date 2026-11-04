@@ -13,13 +13,13 @@ async function setup(offline,request){
 const settle=()=>new Promise(r=>setTimeout(r,25));
 test('weight is not reported absent while loading',async()=>{
  const h=await setup(null,()=>new Promise(()=>{}));
- try{assert.equal(h.root.querySelector('.lulu-care-value').textContent,'Загружаю вес…')}finally{h.close()}
+ try{assert.equal(h.root.querySelector('.lulu-care-weight .lulu-care-value').textContent,'Загружаю вес…')}finally{h.close()}
 });
 test('cache failure does not block loading the latest weight from server',async()=>{
  const h=await setup({cached:async()=>{throw Error('disk unavailable')}},async()=>({care:{records:[weight],revisions:{}}}));
- try{await settle();assert.equal(h.root.querySelector('.lulu-care-value').textContent,'12,5 кг')}finally{h.close()}
+ try{await settle();assert.equal(h.root.querySelector('.lulu-care-weight .lulu-care-value').textContent,'12,5 кг')}finally{h.close()}
 });
 test('cached latest weight and date remain visible without network',async()=>{
  const h=await setup({cached:async()=>({records:[weight],revisions:{}})},async()=>{throw TypeError('offline')});
- try{await settle();assert.equal(h.root.querySelector('.lulu-care-value').textContent,'12,5 кг');assert.match(h.root.textContent,/30 окт/)}finally{h.close()}
+ try{await settle();assert.equal(h.root.querySelector('.lulu-care-weight .lulu-care-value').textContent,'12,5 кг');assert.match(h.root.textContent,/30 окт/)}finally{h.close()}
 });

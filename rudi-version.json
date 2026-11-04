@@ -1,16 +1,18 @@
 {
-  "current": "v4.28",
-  "versionBranch": "rudi-release-v428",
+  "current": "v4.29",
+  "versionBranch": "rudi-release-v429",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.27",
+  "basedOnProduction": "v4.28",
   "notes": [
-    "Время последнего входа под аватаркой уменьшено и поднято ближе к фото."
+    "На странице Лулу категории Здоровье и Вес и питание поменяны местами; Уход остаётся посередине.",
+    "В категории Здоровье блок Прививки и обработки расположен под Назначениями врача."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Reduce avatar last-visit caption from 9px to 7px and raise it by 3px, retaining separation from the fasting outline."
+    "Swap the Health and Weight & Nutrition categories with their contents on the Lulu page, keeping Grooming in the middle.",
+    "Place vaccinations and treatments below doctor prescriptions in the Health category."
   ]
 }
