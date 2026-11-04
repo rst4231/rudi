@@ -1,18 +1,18 @@
 {
-  "current": "v4.29",
-  "versionBranch": "rudi-release-v429",
+  "current": "v4.30",
+  "versionBranch": "rudi-release-v430",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.28",
+  "basedOnProduction": "v4.29",
   "notes": [
-    "На странице Лулу категории Здоровье и Вес и питание поменяны местами; Уход остаётся посередине.",
-    "В категории Здоровье блок Прививки и обработки расположен под Назначениями врача."
+    "Карточка текущих проблем Лулу перенесена в конец категории Здоровье, под Прививки и обработки.",
+    "При обновлении блоков сохраняются текст, фокус и выделение в поле текущих проблем."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Swap the Health and Weight & Nutrition categories with their contents on the Lulu page, keeping Grooming in the middle.",
-    "Place vaccinations and treatments below doctor prescriptions in the Health category."
+    "Move the existing Lulu current-health card beneath vaccinations inside Health while retaining its input and save handlers.",
+    "Preserve unsaved text and textarea focus/selection during care rerenders."
   ]
 }

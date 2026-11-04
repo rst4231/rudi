@@ -189,3 +189,6 @@ html[data-theme=dark] .lulu-profile-page .lulu-overview-plan-item,html[data-them
 .lulu-care-root .lulu-care-weight > .lulu-care-value,.lulu-care-root .lulu-care-weight > p.lulu-care-muted{display:inline-block;vertical-align:baseline}
 .lulu-care-root .lulu-care-weight > p.lulu-care-muted{margin-left:9px}
 .lulu-care-weight .lulu-care-weight-chart{height:46px;margin:4px 0}
+
+.lulu-profile-page .lulu-care-root>.lulu-profile-health{padding:14px;border-radius:17px}
+.lulu-profile-page .lulu-care-root>.lulu-profile-health h2{font-size:16px!important}

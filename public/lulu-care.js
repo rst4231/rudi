@@ -52,7 +52,7 @@ const schema={
 };
 function mount(root,{actor,request}){
  let confirmed=[],revisions={},pending=[],editor=null,disposed=false,status='',loading=true,loaded=false,busy=new Set(),intaking=new Set(),loadPromise=null,generation=0;
- const page=root.closest('.lulu-profile-page'),layout=root.parentElement;
+ const page=root.closest('.lulu-profile-page'),layout=root.parentElement,healthBlock=page?.querySelector('.lulu-profile-health');
  let overview=null,weightShortcut=null,observer=null,activityHeading=null;
  function goTo(selector,openEditor=false){
   const target=page?.querySelector(selector);if(!target)return;
@@ -69,7 +69,6 @@ function mount(root,{actor,request}){
    const item=button('',()=>goTo('.lulu-care-'+kind),'lulu-overview-plan-item is-'+kind);item.innerHTML='<svg class="lulu-overview-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="'+careIcons[kind]+'"/></svg><strong>'+title+'</strong><small>—</small>';item.dataset.overview=kind;plan.append(item);
   }
   root.before(overview);
-  const healthBlock=page.querySelector('.lulu-profile-health');if(healthBlock)root.after(healthBlock);
   const finances=page.querySelector('.lulu-profile-finances');if(finances){activityHeading=node('h2','lulu-category-heading','Расходы и прогулки');finances.before(activityHeading)}
   const hero=page.querySelector('.lulu-profile-hero');if(hero){weightShortcut=button('Вес',()=>goTo('.lulu-care-weight'),'lulu-overview-weight');weightShortcut.innerHTML='<span>Вес</span><strong>—</strong><small></small>';(hero.querySelector('.lulu-profile-meta')||hero).append(weightShortcut)}
   observer=new MutationObserver(()=>updateOverview(currentRecords()));
@@ -223,13 +222,15 @@ function mount(root,{actor,request}){
  function render(){
   if(!valid())return;
   const active=root.contains(document.activeElement)?document.activeElement:null,focused=active?.name,selection=active?.selectionStart;
+  const healthFocused=active&&healthBlock?.contains(active),selectionEnd=active?.selectionEnd;
   const rows=currentRecords();root.replaceChildren();
   if(loading)root.append(node('p','lulu-care-muted','Загружаю…'));
   if(status){const msg=node('div','lulu-care-message',status);msg.setAttribute('role','status');root.append(msg)}
   for(const q of pending.filter(row=>row.error)){const error=node('div','lulu-care-message','Не удалось сохранить изменение');error.append(button('Отменить изменение',()=>void discard(q.id)));root.append(error)}
-  root.append(node('h2','lulu-category-heading','Здоровье'),renderPrescriptions(rows),renderPrevention(rows),node('h2','lulu-category-heading','Уход'),renderGrooming(rows,'nails','Стрижка когтей'),renderGrooming(rows,'bath','Купание'),node('h2','lulu-category-heading','Вес и питание'),renderWeights(rows),renderNutrition(rows));
+  root.append(node('h2','lulu-category-heading','Здоровье'),renderPrescriptions(rows),renderPrevention(rows),...(healthBlock?[healthBlock]:[]),node('h2','lulu-category-heading','Уход'),renderGrooming(rows,'nails','Стрижка когтей'),renderGrooming(rows,'bath','Купание'),node('h2','lulu-category-heading','Вес и питание'),renderWeights(rows),renderNutrition(rows));
   updateOverview(rows);
-  if(focused){const input=root.querySelector('[name="'+focused+'"]');input?.focus({preventScroll:true});if(typeof selection==='number'&&input?.type==='text')input.setSelectionRange(selection,selection)}
+  if(healthFocused){active.focus({preventScroll:true});if(typeof selection==='number')active.setSelectionRange(selection,selectionEnd)}
+  else if(focused){const input=root.querySelector('[name="'+focused+'"]');input?.focus({preventScroll:true});if(typeof selection==='number'&&input?.type==='text')input.setSelectionRange(selection,selection)}
  }
  const synced=async event=>{if(event.detail?.actor!==actor||event.detail?.operation!=='care-command'||!valid())return;generation++;if(event.detail.result?.record)adopt(event.detail.result.record);await capture();await refreshPending();if(valid())render()};
  const foreground=()=>{if(valid()){render();void load();if(overview)void loadSharedLuluExpenses()}};
@@ -237,7 +238,7 @@ function mount(root,{actor,request}){
  const visible=()=>{if(!document.hidden)foreground()};document.addEventListener('visibilitychange',visible);
  const timer=setInterval(()=>{if(valid()&&!editor)render()},60000);
  render();void load();
- return ()=>{disposed=true;observer?.disconnect();overview?.remove();weightShortcut?.remove();activityHeading?.remove();clearInterval(timer);window.removeEventListener('rudi-content-operation-synced',synced);window.removeEventListener('focus',foreground);document.removeEventListener('visibilitychange',visible)};
+ return ()=>{disposed=true;if(healthBlock&&root.contains(healthBlock))root.after(healthBlock);observer?.disconnect();overview?.remove();weightShortcut?.remove();activityHeading?.remove();clearInterval(timer);window.removeEventListener('rudi-content-operation-synced',synced);window.removeEventListener('focus',foreground);document.removeEventListener('visibilitychange',visible)};
 }
 window.RudiLuluCare={mount,syncHomeBath,bathOverdue};
 })();
