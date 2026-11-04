@@ -16,9 +16,10 @@ test('personal editor style and offline cache use the same release version', () 
   const html = read('public/index.html');
   const sw = read('public/sw.js');
   const version = read('VERSION').trim();
-  assert.equal(version, 'v4.374');
-  assert.ok(html.includes('/personal-task-editor.css?v=4.374'));
-  assert.ok(sw.includes('/personal-task-editor.css?v=4.374'));
-  assert.ok(sw.includes("rudi-shell-v4.374"));
-  assert.ok(html.includes('name="rudi-version" content="v4.374"'));
+  const assetsVersion=version.replace(/^v/,'');
+  assert.equal(version, JSON.parse(read('rudi-version.json')).current);
+  assert.ok(html.includes('/personal-task-editor.css?v='+assetsVersion));
+  assert.ok(sw.includes('/personal-task-editor.css?v='+assetsVersion));
+  assert.ok(sw.includes("rudi-shell-"+version));
+  assert.ok(html.includes('name="rudi-version" content="'+version+'"'));
 });

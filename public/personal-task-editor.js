@@ -48,16 +48,19 @@ function init(){
        '<label class="ticktick-task-field"><span>Дата</span><input id="rudiPersonalTaskDate" class="rudi-personal-picker-input" type="date" aria-label="Дата дела"></label>'+
        '<label class="ticktick-task-field"><span>Время</span><input id="rudiPersonalTaskTime" class="rudi-personal-picker-input" type="time" aria-label="Время дела"></label></div>'+
 
+      '<section id="rudiPersonalChecklistSection" class="rudi-personal-checklist-section" hidden><div class="rudi-personal-checklist-header"><strong>Подзадачи</strong><small id="rudiPersonalChecklistCount"></small></div><div id="rudiPersonalChecklistItems" class="rudi-personal-checklist-items"></div><small id="rudiPersonalChecklistStatus" role="status"></small></section>'+
+      '<label class="ticktick-task-field"><span>Описание</span><textarea id="rudiPersonalTaskDescription" maxlength="5000" rows="3" placeholder="Необязательно"></textarea></label>'+
+
       '<label class="ticktick-task-field"><span>Список TickTick</span><select id="rudiPersonalTaskProject"><option value="">Загружаю списки…</option></select></label>'+
       '<div id="rudiPersonalTaskRepeatFields">'+
+      '<div class="rudi-personal-repeat-row">'+
       '<label class="ticktick-task-field"><span>Повтор</span><select id="rudiPersonalTaskRepeat"><option value="none">Не повторять</option><option value="daily">Каждый день</option><option value="weekly">По дням недели</option><option value="monthly">Каждый месяц</option><option value="yearly">Каждый год</option><option value="keep" hidden>Сохранить правило TickTick</option></select></label>'+
       '<label class="ticktick-task-field" id="rudiPersonalTaskIntervalField" hidden><span>Каждые</span><span class="rudi-personal-interval-row"><input id="rudiPersonalTaskRepeatEvery" type="number" min="1" max="365" value="1" aria-label="Интервал повторения"><small id="rudiPersonalTaskRepeatUnit">дней</small></span></label>'+
+      '</div>'+
       '<fieldset id="rudiPersonalTaskWeekdays" class="rudi-personal-weekdays" hidden><legend>По каким дням</legend>'+[1,2,3,4,5,6,0].map((day,index)=>'<label><input type="checkbox" name="personalRepeatDay" value="'+day+'"><span>'+['Пн','Вт','Ср','Чт','Пт','Сб','Вс'][index]+'</span></label>').join('')+'</fieldset>'+
       '<div id="rudiPersonalTaskRepeatEndFields" hidden><label class="ticktick-task-field"><span>Окончание</span><select id="rudiPersonalTaskRepeatEnd"><option value="never">Никогда</option><option value="date">До даты</option><option value="count">После заданного числа выполнений</option></select></label>'+
       '<label class="ticktick-task-field" id="rudiPersonalTaskRepeatUntilField" hidden><span>Последний день</span><input id="rudiPersonalTaskRepeatUntil" type="date" aria-label="Последний день повторения"></label>'+
       '<label class="ticktick-task-field" id="rudiPersonalTaskRepeatCountField" hidden><span>Количество выполнений</span><input id="rudiPersonalTaskRepeatCount" type="number" min="1" max="365" value="10"></label></div></div>'+
-      '<label class="ticktick-task-field"><span>Описание</span><textarea id="rudiPersonalTaskDescription" maxlength="5000" rows="3" placeholder="Необязательно"></textarea></label>'+
-      '<section id="rudiPersonalChecklistSection" class="rudi-personal-checklist-section" hidden><div class="rudi-personal-checklist-header"><strong>Подзадачи</strong><small id="rudiPersonalChecklistCount"></small></div><div id="rudiPersonalChecklistItems" class="rudi-personal-checklist-items"></div><small id="rudiPersonalChecklistStatus" role="status"></small></section>'+
       '<p class="rudi-personal-repeat-note" id="rudiPersonalRepeatNote" hidden>Повторение сохранится. Для сложных правил используйте TickTick.</p>'+
       '<div class="ticktick-task-form-actions"><button type="button" class="rudi-personal-cancel" data-personal-close>Отмена</button>'+
       '<button type="submit" class="rudi-personal-save">Сохранить</button></div>'+

@@ -1,19 +1,18 @@
 {
-  "current": "v4.17",
-  "versionBranch": "rudi-release-v417",
+  "current": "v4.18",
+  "versionBranch": "rudi-release-v418",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.16",
+  "basedOnProduction": "v4.17",
   "notes": [
-    "Страница прогноза меняет фон, палитру и атмосферу по текущей погоде: солнце, облака, дождь, снег, туман и гроза.",
-    "Почасовой прогноз сразу прокручивается к текущему московскому часу после открытия страницы. Обновление свайпом вниз на странице погоды отключено."
+    "В редакторе дела после даты и времени идут подзадачи, затем описание и остальные настройки.",
+    "Повтор и интервал Каждые расположены в одной строке."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Apply current-weather palettes and sky decoration to the entire forecast page, with light/dark theme and motion preferences.",
-    "Reveal the current Moscow hour after the real page transition, including instant cache hits.",
-    "Disable app and native pull-to-refresh on the weather page while retaining forecast scrolling."
+    "Move existing subtasks and description immediately after date/time in the task editor, preserving editing behavior.",
+    "Keep repeat frequency and interval on one responsive row."
   ]
 }

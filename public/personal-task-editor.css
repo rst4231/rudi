@@ -101,3 +101,12 @@
 .rudi-personal-checklist-item input{width:19px;height:19px;flex:0 0 19px;accent-color:#31c76c}
 .rudi-personal-checklist-item span{overflow-wrap:anywhere}
 .rudi-personal-checklist-item.is-completed span{text-decoration:line-through;opacity:.55}
+
+/* Recurrence and its interval share one row, including narrow phone sheets. */
+.rudi-personal-repeat-row{display:flex;align-items:flex-start;gap:10px;min-width:0}
+.rudi-personal-repeat-row>.ticktick-task-field:first-child{flex:1 1 0;min-width:0}
+.rudi-personal-task-modal .rudi-personal-repeat-row #rudiPersonalTaskIntervalField{flex:0 0 120px;min-width:0}
+.rudi-personal-task-modal .rudi-personal-repeat-row .rudi-personal-interval-row{gap:6px;min-height:46px}
+.rudi-personal-task-modal .rudi-personal-repeat-row .rudi-personal-interval-row input{flex:0 0 56px;width:56px;min-width:0;min-height:46px;padding:8px;font-size:16px}
+.rudi-personal-task-modal .rudi-personal-repeat-row .rudi-personal-interval-row small{font-size:11px;white-space:nowrap}
+@media(max-width:350px){.rudi-personal-repeat-row{gap:8px}.rudi-personal-task-modal .rudi-personal-repeat-row #rudiPersonalTaskIntervalField{flex-basis:110px}.rudi-personal-task-modal .rudi-personal-repeat-row .rudi-personal-interval-row input{flex-basis:50px;width:50px}}
