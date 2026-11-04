@@ -1731,6 +1731,7 @@
           if(currentAtIndex!==tile) host.insertBefore(tile,currentAtIndex);
         }
         if(animate) animateHomeReorder(host,before);
+        document.dispatchEvent(new Event('rudi:home-order-change'));
       }
 
       function loadHomeOrder(){
@@ -1769,6 +1770,7 @@
           if(up) up.disabled=index===0;
           if(down) down.disabled=index===tiles.length-1;
         });
+        document.dispatchEvent(new Event('rudi:home-order-change'));
       }
 
       function resetHomeOrder(){
@@ -1782,8 +1784,10 @@
       function moveHomeTile(tile,direction){
         const host=ensureHomeTileHost();
         if(!host||!tile||tile.parentElement!==host) return;
-        const sibling=direction==='up'?tile.previousElementSibling:tile.nextElementSibling;
-        if(!sibling||!sibling.matches?.('[data-home-tile]')) return;
+        const tiles=[...host.querySelectorAll(':scope > [data-home-tile]')];
+        const index=tiles.indexOf(tile);
+        const sibling=tiles[index+(direction==='up'?-1:1)];
+        if(!sibling) return;
 
         const before=homeTileRects(host);
         if(direction==='up') host.insertBefore(tile,sibling);

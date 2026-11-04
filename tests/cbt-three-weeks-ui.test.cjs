@@ -46,3 +46,18 @@ test('all 21 days show only their screenshot explanation and exact positions, in
  }
  }finally{f.dom.window.close()}
 });
+
+test('finishing requires confirmation, cancelling preserves session, and confirming retains offline answers',()=>{
+ const f=fixture(15);try{
+ const w=f.w,doc=w.document;
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true};
+ w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'))};
+ f.click('[data-do="finish-session"]');assert.ok(doc.querySelector('#cbtFinishDialog').open);
+ f.click('[data-do="cancel-finish"]');assert.equal(f.get().queue.some(op=>op.type==='finish-session'),false);
+ f.click('[data-do="finish-session"]');f.click('[data-do="confirm-finish"]');
+ const stored=f.get();assert.equal(stored.queue.filter(op=>op.type==='finish-session').length,1);assert.deepEqual(stored.server,f.stored.server);
+ let projected=stored.server;for(const op of stored.queue)projected=C.apply(projected,op,op.at,true);
+ assert.equal(projected.runs[0].completionReason,'manual');assert.equal(projected.runs[0].days[15].answers.actual,'Офлайн результат');assert.equal(projected.runs[0].days[15].entries[0].answers.thought,'Другой черновик');assert.equal(doc.querySelector('[data-do="finish-session"]'),null);
+ assert.match(doc.body.textContent,/Все записи сохранены/);
+ }finally{f.dom.window.close()}
+});

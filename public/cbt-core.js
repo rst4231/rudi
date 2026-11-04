@@ -18,7 +18,7 @@ function reusableEntry(row,preferred){const drafts=entries(row).filter(e=>!e.sav
 function nextEntry(row){const list=entries(row);return list.filter(e=>!e.savedAt).at(-1)?.id||list.at(-1)?.id||'initial'}
 function calendar(run,now=new Date().toISOString()){
  if(!run?.calendar)return null;
- const end=run.status==='interrupted'?run.interruptedAt||now:now,c=run.calendar;
+ const end=run.status==='interrupted'?run.interruptedAt||now:run.status==='completed'?run.completedAt||now:now,c=run.calendar;
  const elapsed=Math.max(0,Math.min(21,distance(c.startDate,dayKey(end,c.timeZone))));
  return {elapsed,current:Math.min(21,elapsed+1),timeZone:c.timeZone};
 }
@@ -49,9 +49,9 @@ function error(code,fields){const e=Error(code);e.fields=fields||[];throw e}
 function filled(f,v){return f.type==='range'?Number.isFinite(v)&&v>=0&&v<=f.max:f.type==='check'?v===true:f.type==='emotions'?Array.isArray(v)&&v.length>0:typeof v==='string'&&!!v.trim()}
 function missing(day,answers,format='full'){return hasAnswers(answers)?[]:['thought']}
 function validate(op){
- if(!op||!validId(op.id)||!validId(op.cycleId)||!['start','schedule','new-entry','delete-entry','format','edit','complete','archive','coach','coach-check'].includes(op.type))error('cbt-invalid-operation');
+ if(!op||!validId(op.id)||!validId(op.cycleId)||!['start','schedule','new-entry','delete-entry','format','edit','complete','archive','coach','coach-check','finish-session'].includes(op.type))error('cbt-invalid-operation');
  if(op.timeZone!==undefined&&!zone(op.timeZone))error('cbt-invalid-timezone');
- if(['start','schedule'].includes(op.type))return;
+ if(['start','schedule','finish-session'].includes(op.type))return;
  if(op.entryId!==undefined&&!validId(op.entryId))error('cbt-invalid-entry');
  if(!Number.isInteger(op.day)||op.day<1||op.day>21)error('cbt-invalid-day');
  if(op.reuseDraft!==undefined&&typeof op.reuseDraft!=='boolean')error('cbt-invalid-entry');
@@ -61,7 +61,7 @@ function validate(op){
  const fields=['pattern','trap','reason','check','alternative','step','question'];
  if(!op.coach||typeof op.coach!=='object'||Array.isArray(op.coach)||!op.base||typeof op.base!=='object'||Array.isArray(op.base)||JSON.stringify(op.base).length>55000)error('cbt-invalid-coach');
  for(const key of fields)if(typeof op.coach[key]!=='string'||(key==='pattern'&&!op.coach[key].trim())||op.coach[key].length>900)error('cbt-invalid-coach');
- if(op.coach.version!==undefined&&![2,content.coachVersion].includes(op.coach.version))error('cbt-invalid-coach');
+ if(op.coach.version!==undefined&&![2,3,content.coachVersion].includes(op.coach.version))error('cbt-invalid-coach');
  return;
 }
 if(op.type==='coach-check'){if(!['done','partial','not-done','not-applicable'].includes(op.outcome))error('cbt-invalid-coach-check');return}
@@ -88,6 +88,11 @@ function apply(state,op,now=new Date().toISOString(),local=false){
  if(!run)error('cbt-run-missing');
  if(run.applied.includes(op.id))return s;
  if(run.status!=='active'&&!['archive','coach','coach-check'].includes(op.type)&&!local&&!(run.calendar&&run.status==='completed'&&now<run.completedAt)&&!(run.interruptionReason==='inactivity'&&now<=run.interruptedAt))error('cbt-read-only');
+ if(op.type==='finish-session'){
+  if(run.status!=='active')error('cbt-read-only');
+  for(const row of Object.values(run.days)){for(const item of [row,...(row.entries||[])])if(!item.deletedAt&&hasAnswers(item.answers)&&!item.savedAt)item.savedAt=now}
+  run.status='completed';run.completedAt=now;run.completionReason='manual';run.updatedAt=now;run.applied.push(op.id);return s;
+ }
  if(op.type==='schedule'){
   if(!run.calendar){for(const row of Object.values(run.days)){row.savedAt=row.completedAt||null;row.completedAt=null}run.calendar={timeZone:op.timeZone||'UTC',startDate:dayKey(run.startedAt||now,op.timeZone||'UTC')}}
   run.applied.push(op.id);return refresh(s,now);

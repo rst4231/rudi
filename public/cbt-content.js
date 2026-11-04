@@ -116,5 +116,5 @@ const distortions=[
  ['Эмоциональное обоснование','Чувство превращается в доказательство. Пример: мне страшно, значит ситуация опасна.'],
  ['Не уверен / искажения нет','Мысль может точно описывать трудность. Проверить факты полезно и без названия искажения.']
 ];
-return {version:3,coachVersion:3,weeks,days,legacyDays,fieldsForDay,distortions,emotions:['Тревога','Грусть','Злость','Обида','Страх','Стыд','Вина','Разочарование','Радость','Спокойствие','Интерес','Облегчение'],sources:['https://cares.beckinstitute.org/about-cbt/','https://beckinstitute.org/about/understanding-cbt/']};
+return {version:3,coachVersion:4,weeks,days,legacyDays,fieldsForDay,distortions,emotions:['Тревога','Грусть','Злость','Обида','Страх','Стыд','Вина','Разочарование','Радость','Спокойствие','Интерес','Облегчение'],sources:['https://cares.beckinstitute.org/about-cbt/','https://beckinstitute.org/about/understanding-cbt/']};
 });

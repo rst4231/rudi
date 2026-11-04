@@ -287,12 +287,9 @@
        if(button)outlineResizeObserver.observe(button);
      }
    }
-   // Existing meditation module inserts its conditional hint before the self tile.
-   // Keep the rail directly before that hint or the tile, including customized home order.
-   const hint=$('meditationMoodNudgeRustam')||$('meditationMoodNudgeDiana');
-   const anchor=hint&&hint.parentElement===self.parentElement&&!hint.hidden?hint:self;
-   if(rail.parentElement!==anchor.parentElement||rail.nextElementSibling!==anchor)
-     anchor.parentElement.insertBefore(rail,anchor);
+   // Keep shortcuts with the greeting when saved order, reset or drag moves tiles.
+   if(rail.parentElement!==dashboard.parentElement||rail.previousElementSibling!==dashboard)
+     dashboard.parentElement.insertBefore(rail,dashboard.nextSibling);
    // Ensure the shortcut rail is restored after any internal route switch.
    rail.hidden=false;
    if(rail.style.getPropertyValue('display')==='none')rail.style.removeProperty('display');
@@ -346,6 +343,7 @@
  if(document.fonts?.ready)document.fonts.ready.then(schedule).catch(()=>{});
  window.addEventListener('rudi:profile-ready',schedule);
  document.addEventListener('rudi:home-tiles-ready',schedule);
+ document.addEventListener('rudi:home-order-change',schedule);
  window.addEventListener('rudi:app-tab-change',schedule);
  if(typeof MutationObserver==='function'){
    new MutationObserver(schedule).observe(document.body,{attributes:true,attributeFilter:['data-app-tab']});

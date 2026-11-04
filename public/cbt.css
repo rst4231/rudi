@@ -129,3 +129,22 @@ html[data-theme="dark"] .cbt-thought-brain{box-shadow:0 12px 36px #2c184f82}
 /* iPhone: cover the whole available screen unless the software keyboard is truly open. */
 .cbt-page:not(.cbt-keyboard-open){inset:0!important;height:auto!important;min-height:0!important}
 .cbt-page.cbt-keyboard-open{bottom:auto!important;min-height:0!important}
+
+/* Weekly instructions keep the supplied text with a readable hierarchy. */
+.cbt-page .cbt-explanation{display:block;padding:20px;min-width:0}
+.cbt-instruction-heading{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.cbt-instruction-heading .cbt-bulb{flex:0 0 38px;width:38px;height:38px;margin:0;display:grid;place-items:center}
+.cbt-page .cbt-instruction-heading h2{margin:0;line-height:1.35;font-size:17px;overflow-wrap:anywhere}
+.cbt-instruction-copy{min-width:0;overflow-wrap:anywhere}
+.cbt-page .cbt-instruction-copy p{font-size:13px;line-height:1.75;margin:0 0 14px}
+.cbt-page .cbt-instruction-copy p:last-child{margin-bottom:0}
+.cbt-page .cbt-instruction-step{padding:14px 15px;border:1px solid var(--cbt-border);border-radius:14px;background:var(--cbt-field)}
+.cbt-instruction-label{display:block;color:var(--cbt-ink);font-size:13px;margin-bottom:5px}
+.cbt-instruction-scale{color:var(--cbt-purple);font-weight:650}
+.cbt-page .cbt-instruction-goal{border-left:3px solid var(--cbt-purple);padding:12px 14px;background:var(--cbt-field);border-radius:0 12px 12px 0;color:var(--cbt-ink)}
+.cbt-method-flow{display:flex;align-items:center;flex-wrap:wrap;gap:5px;margin:13px 0 3px;max-width:100%;font-size:10px;color:var(--cbt-ink)}
+.cbt-method-node{padding:7px 8px;border-radius:8px;background:var(--cbt-field);border:1px solid var(--cbt-border);font-weight:650}
+.cbt-method-arrow{color:var(--cbt-purple);white-space:pre}
+.cbt-page .cbt-finish-session{display:block;width:100%;margin:20px 0 12px;font-size:13px}
+.cbt-coach-conversation p:empty,.cbt-coach-tomorrow:empty{display:none}
+@media(max-width:400px){.cbt-page .cbt-explanation{padding:15px}.cbt-page .cbt-instruction-heading h2{font-size:15px}.cbt-page .cbt-instruction-step{padding:12px}.cbt-method-node{font-size:9px;padding:6px}.cbt-method-flow{gap:3px}}

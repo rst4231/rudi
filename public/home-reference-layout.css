@@ -1441,3 +1441,12 @@ body[data-app-tab="home"] .home-dashboard-summary .home-dashboard-head{
   grid-auto-rows:min-content;
   row-gap:5px!important;
 }
+
+/* v4.21: requested order for the seven existing home shortcuts. */
+body[data-app-tab="home"] #rudiHomeShortcuts #supplementProfileButton{order:1}
+body[data-app-tab="home"] #rudiHomeShortcuts #financeProfileButton{order:2}
+body[data-app-tab="home"] #rudiHomeShortcuts #meditationProfileButton{order:3}
+body[data-app-tab="home"] #rudiHomeShortcuts #rudiHomeCbtButton{order:4}
+body[data-app-tab="home"] #rudiHomeShortcuts #fastingProfileButton{order:5}
+body[data-app-tab="home"] #rudiHomeShortcuts #habitProfileButton{order:6}
+body[data-app-tab="home"] #rudiHomeShortcuts #rudiHomeGamesButton{order:7}

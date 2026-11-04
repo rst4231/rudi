@@ -7,11 +7,11 @@ test('reference hero is narrower horizontally while preserving its original heig
  const hero=css.match(/home-dashboard-summary\\{[\\s\\S]*?\\}/)?.[0]||'';
  assert.doesNotMatch(hero,/min-height:0!important/);
 });
-test('six shortcuts sit before conditional meditation hint and profile',()=>{
+test('seven shortcuts follow the greeting when home blocks move',()=>{
  const js=src('public/home-reference-layout.js'),css=src('public/home-reference-layout.css');
  assert.match(js,/rudiHomeShortcuts/);
- assert.match(js,/const anchor=hint&&hint.parentElement===self.parentElement&&!hint.hidden\?hint:self/);
- assert.match(js,/anchor.parentElement.insertBefore\(rail,anchor\)/);
+ assert.match(js,/rail.previousElementSibling!==dashboard/);
+ assert.match(js,/dashboard.parentElement.insertBefore\(rail,dashboard.nextSibling\)/);
  assert.match(css,/body\[data-app-tab="home"\] \.rudi-home-shortcuts\{[\s\S]*?width:100%!important/);
  assert.match(css,/\.rudi-home-self-line/);
 });
