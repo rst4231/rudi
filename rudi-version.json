@@ -1,20 +1,19 @@
 {
-  "current": "v4.16",
-  "versionBranch": "rudi-release-v416",
+  "current": "v4.17",
+  "versionBranch": "rudi-release-v417",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.15",
+  "basedOnProduction": "v4.16",
   "notes": [
-    "Прогноз погоды на отдельной странице в прежнем стиле, с открытием из погоды на главной и в Умном доме.",
-    "Текущий и следующий месяц с отметкой предварительного долгосрочного прогноза.",
-    "Погода в выборе стартовой страницы; вероятность осадков и скорость ветра рядом с температурой на главной."
+    "Страница прогноза меняет фон, палитру и атмосферу по текущей погоде: солнце, облака, дождь, снег, туман и гроза.",
+    "Почасовой прогноз сразу прокручивается к текущему московскому часу после открытия страницы. Обновление свайпом вниз на странице погоды отключено."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Route weather forecast to its own page with existing hourly, weekly and monthly design; open from both smart-home cards.",
-    "Fetch and cache ECMWF long-range temperatures lazily through the end of next month; mark estimates and prefer detailed short-range data.",
-    "Persist weather startup selection for both accounts; show current-hour precipitation probability and wind in m/s with emoji."
+    "Apply current-weather palettes and sky decoration to the entire forecast page, with light/dark theme and motion preferences.",
+    "Reveal the current Moscow hour after the real page transition, including instant cache hits.",
+    "Disable app and native pull-to-refresh on the weather page while retaining forecast scrolling."
   ]
 }

@@ -11842,7 +11842,7 @@
         };
 
         document.addEventListener('touchstart',event=>{
-          if(document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'){reset();return}
+          if(document.body.dataset.appTab==='weather'||document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'){reset();return}
           if(refreshing||!appAccessReady||!currentActor||event.touches?.length!==1||scrollTop()>topTolerance) return;
           if(document.body.classList.contains('score-modal-open')) return;
           if(event.target?.closest?.('[data-no-pull-refresh="true"]')) return;
@@ -11854,7 +11854,7 @@
         },{passive:false,capture:true});
 
         document.addEventListener('touchmove',event=>{
-          if(document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'){reset();return}
+          if(document.body.dataset.appTab==='weather'||document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'){reset();return}
           if(!tracking||refreshing||event.touches?.length!==1) return;
           if(document.body.classList.contains('score-modal-open')){reset();return}
           if(event.target?.closest?.('[data-no-pull-refresh="true"]')){reset();return}
@@ -11873,7 +11873,7 @@
         },{passive:false,capture:true});
 
         const finish=()=>{
-          if(document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'){if(!refreshing)reset();return}
+          if(document.body.dataset.appTab==='weather'||document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'){if(!refreshing)reset();return}
           if(!tracking||refreshing) return;
           if(!armed){reset();return}
           tracking=false;

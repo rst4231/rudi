@@ -36,8 +36,23 @@ function ensureMonthly(){
  monthlyLoading=true;monthlyAttempted=true;monthlyError=false;const revision=generation;
  Promise.resolve().then(()=>window.RUDI_WEATHER.getMonthly()).then(data=>{if(active&&generation===revision)monthlyPayload=data}).catch(()=>{if(active&&generation===revision)monthlyError=true}).finally(()=>{if(active&&generation===revision){monthlyLoading=false;if(view==='month')render()}});
 }
+function renderAppearance(){
+ const code=payload?.current?.weather_code;
+ const kind=!Number.isFinite(code)?'idle':code===0||code===1?'clear':code===2?'partly':code===3?'cloudy':[45,48].includes(code)?'fog':[51,53,55,56,57,61,63,65,66,67,80,81,82].includes(code)?'rain':[71,73,75,77,85,86].includes(code)?'snow':[95,96,99].includes(code)?'storm':'idle';
+ modal.dataset.weather=kind;
+ const now=modal.querySelector('.weather-forecast-now'),temperature=payload?.current?.temperature_2m;
+ now.hidden=kind==='idle'||!Number.isFinite(temperature);
+ if(!now.hidden){
+  now.querySelector('.weather-forecast-now-temperature').textContent=number(temperature,'°');
+  now.querySelector('.weather-forecast-now-description').textContent={clear:'Солнечно',partly:'Переменная облачность',cloudy:'Облачно',rain:'Дождь',snow:'Снег',fog:'Туман',storm:'Гроза'}[kind];
+ }
+ let animate=!window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+ if(['rain','snow','storm'].includes(kind))try{const actor=document.body.dataset.rudiActor==='Диана'?'diana':'rustam';animate=animate&&localStorage.getItem('rudi:weather-effects:'+(kind==='snow'?'snow':'rain')+':'+actor)!=='0'}catch(_){}
+ modal.dataset.weatherAnimation=animate?'on':'off';
+}
 function render(){
  if(!modal||!active)return;
+ renderAppearance();
  const content=modal.querySelector('.weather-forecast-content'),controls=modal.querySelector('.weather-forecast-controls'),status=modal.querySelector('.weather-forecast-status');content.replaceChildren();controls.replaceChildren();content.scrollTop=0;
  for(const button of modal.querySelectorAll('[data-forecast-view]')){const active=button.dataset.forecastView===view;button.setAttribute('aria-selected',String(active));button.classList.toggle('is-active',active)}
  if(!payload)return;
@@ -57,7 +72,7 @@ function render(){
     node('span','Ощущается '+number(hour.feels,'°'),'weather-hour-feels'),node('span','Осадки '+number(hour.probability,'%')+' · '+number(hour.rain,' мм'),'weather-hour-rain'),node('span','Ветер '+number(hour.wind,' км/ч'),'weather-hour-wind'));list.append(row);
   }
   content.append(list);if(!list.children.length)content.append(node('p','Почасовой прогноз недоступен. Открой неделю или повтори позже.'));
-  if(currentRow){const activeModal=modal;window.requestAnimationFrame(()=>{if(modal===activeModal&&active&&currentRow.isConnected&&view==='day')content.scrollTop=Math.max(0,currentRow.offsetTop-list.offsetTop)})}return;
+  if(currentRow){const activeModal=modal;const revealCurrent=()=>{if(modal===activeModal&&active&&currentRow.isConnected&&view==='day')content.scrollTop=Math.max(0,content.scrollTop+currentRow.getBoundingClientRect().top-content.getBoundingClientRect().top)};revealCurrent();window.requestAnimationFrame(()=>window.requestAnimationFrame(revealCurrent))}return;
  }
  if(view==='week'){
   const list=node('div',undefined,'weather-forecast-week');
@@ -103,7 +118,8 @@ async function activate(){
 async function open(){
  const source=document.body?.dataset.appTab||'home';if(source!=='weather')returnTab=source;
  window.RUDI_NAVIGATE_TO_TAB?.('weather',{scroll:true});
- return activate();
+ // Animated navigation reveals the section later; its route event activates it.
+ if(document.body?.dataset.appTab==='weather')return activate();
 }
 function routeChanged(event){
  if((event?.detail?.tab||document.body?.dataset.appTab)==='weather')void activate();

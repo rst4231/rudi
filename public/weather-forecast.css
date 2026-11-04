@@ -70,3 +70,56 @@ button.smart-home-climate-card.is-weather{appearance:none;border:0;background:tr
 button.smart-home-climate-card.is-weather:focus-visible{outline:2px solid #ffc24e;outline-offset:-2px;border-radius:10px}
 .home-weather-forecast-trigger{max-width:100%;white-space:normal;text-align:left;line-height:inherit}
 @media(max-height:500px){.weather-forecast-page-card{min-height:0;height:calc(100dvh - 16px)}}
+
+/* Current conditions set the palette for the whole forecast page. */
+.weather-forecast-page[data-weather]{--weather-accent:#526d93;--weather-on-accent:#fff;--weather-glass:rgba(255,255,255,.64);--weather-sky:linear-gradient(160deg,#dbe8f3,#edf1f7 65%,#dfe7f1);--weather-ink:#18364e;--weather-muted:#3f5b71;--weather-line:rgba(32,67,91,.17)}
+.weather-forecast-page[data-weather="clear"]{--weather-sky:radial-gradient(circle at 90% 9%,#ffe9a2 0,transparent 29%),linear-gradient(160deg,#80cbf6 0%,#c9e9f7 45%,#fff2d7 100%);--weather-accent:#95510e}
+.weather-forecast-page[data-weather="partly"]{--weather-sky:radial-gradient(circle at 90% 8%,#fff2c5,transparent 26%),linear-gradient(155deg,#8ec3e5,#d9e8ef 48%,#e9e9e4);--weather-accent:#3d6381}
+.weather-forecast-page[data-weather="cloudy"]{--weather-sky:linear-gradient(160deg,#a7b8c9,#d2dce3 52%,#bccbd6);--weather-accent:#4d627c}
+.weather-forecast-page[data-weather="fog"]{--weather-sky:linear-gradient(160deg,#becad1,#e4e9e9 50%,#b8c8cd);--weather-accent:#4c6974}
+.weather-forecast-page[data-weather="rain"],.weather-forecast-page[data-weather="storm"]{--weather-sky:linear-gradient(155deg,#395d7d,#1d3b59 52%,#15283f);--weather-glass:rgba(240,248,255,.08);--weather-ink:#f4f9ff;--weather-muted:#c9dce9;--weather-line:rgba(217,238,255,.19);--weather-accent:#a1d6f7;--weather-on-accent:#102f46}
+.weather-forecast-page[data-weather="storm"]{--weather-sky:radial-gradient(ellipse at 90% 0%,#6f6a94,transparent 48%),linear-gradient(160deg,#3b4667,#202d47 70%,#192638)}
+.weather-forecast-page[data-weather="snow"]{--weather-sky:linear-gradient(155deg,#a9d1e6,#e0f0f7 48%,#f3fafc);--weather-accent:#276182;--weather-ink:#163e58;--weather-muted:#3e5e73}
+.weather-forecast-page[data-weather] .weather-forecast-page-card{position:relative;isolation:isolate;background:var(--weather-sky);color:var(--weather-ink);--text:var(--weather-ink);--muted:var(--weather-muted);--soft:var(--weather-glass);--line:var(--weather-line);--icon-bg:var(--weather-glass);--icon-stroke:var(--weather-accent);border-color:var(--weather-line)}
+.weather-forecast-page-card>header,.weather-forecast-now,.weather-forecast-page-card>.weather-forecast-tabs,.weather-forecast-page-card>.weather-forecast-status,.weather-forecast-page-card>.weather-forecast-controls,.weather-forecast-page-card>.weather-forecast-content,.weather-forecast-page-card>footer{position:relative;z-index:1}
+.weather-forecast-now{flex:none;display:flex;align-items:center;gap:16px;padding:2px 22px 16px;min-height:62px}
+.weather-forecast-now[hidden]{display:none}
+.weather-forecast-now-temperature{font-size:52px;line-height:1;font-weight:650;letter-spacing:-3px}
+.weather-forecast-now>div{display:grid;gap:5px;max-width:65%}
+.weather-forecast-now span{font-size:11px;color:var(--weather-muted)}
+.weather-forecast-now-description{font-size:16px;line-height:1.2;font-weight:650}
+.weather-forecast-page[data-weather] .weather-forecast-tabs,.weather-forecast-page[data-weather] .weather-forecast-controls select,.weather-forecast-page[data-weather] .weather-forecast-month-buttons button,.weather-forecast-page[data-weather] .weather-forecast-cell{background:var(--weather-glass);color:var(--weather-ink);border-color:var(--weather-line)}
+.weather-forecast-page[data-weather] .weather-forecast-controls select{-webkit-text-fill-color:var(--weather-ink);color-scheme:light}
+.weather-forecast-page[data-weather] .weather-forecast-controls option{background:#eaf0f5;color:#18364e;-webkit-text-fill-color:#18364e}
+.weather-forecast-page[data-weather] .weather-forecast-tabs button.is-active,.weather-forecast-page[data-weather] .weather-forecast-month-buttons button.is-active{background:var(--weather-accent);color:var(--weather-on-accent);border-color:var(--weather-accent)}
+.weather-forecast-page[data-weather] .weather-forecast-cell.is-today{border-color:var(--weather-accent)}
+.weather-forecast-page[data-weather] .weather-forecast-hour.is-current{box-shadow:inset 3px 0 var(--weather-accent)}
+.weather-forecast-sky{position:absolute;inset:0 0 auto;height:260px;pointer-events:none;overflow:hidden;opacity:.55;z-index:0;border-radius:inherit}
+.weather-forecast-sky i{display:none;position:absolute}
+.forecast-sun{width:86px;height:86px;top:30px;right:24px;border-radius:50%;background:#ffe5a0;box-shadow:0 0 0 17px #ffe8a230,0 0 0 36px #ffe8a21a,0 0 70px 35px #ffe6a233}
+[data-weather="clear"] .forecast-sun,[data-weather="partly"] .forecast-sun{display:block}
+.forecast-cloud{width:150px;height:35px;top:92px;right:0;border-radius:50px;background:#f0f7fc;box-shadow:-43px 38px 35px -12px #cbdde9}
+.forecast-cloud::before,.forecast-cloud::after{content:"";position:absolute;border-radius:50%;background:inherit}
+.forecast-cloud::before{width:65px;height:65px;left:22px;bottom:6px}
+.forecast-cloud::after{width:87px;height:87px;right:13px;bottom:2px}
+[data-weather="partly"] .forecast-cloud,[data-weather="cloudy"] .forecast-cloud,[data-weather="rain"] .forecast-cloud,[data-weather="snow"] .forecast-cloud,[data-weather="storm"] .forecast-cloud{display:block}
+[data-weather="rain"] .forecast-cloud,[data-weather="storm"] .forecast-cloud{background:#94acbf;opacity:.65}
+[data-weather="rain"] .forecast-precipitation,[data-weather="storm"] .forecast-precipitation{display:block;inset:125px 0 -60px;background:repeating-linear-gradient(108deg,transparent 0 24px,#bfe6ff6b 25px 26px,transparent 27px 54px);mask-image:linear-gradient(transparent,#000 20%,transparent 90%);-webkit-mask-image:linear-gradient(transparent,#000 20%,transparent 90%);animation:forecast-rain 1.6s linear infinite;opacity:.55}
+[data-weather="snow"] .forecast-precipitation{display:block;inset:0 0 -100px;background-image:radial-gradient(circle,#fff 1.8px,transparent 2.8px),radial-gradient(circle,#fff 1.2px,transparent 2px);background-size:43px 67px,71px 53px;background-position:0 0,17px 26px;animation:forecast-snow 12s linear infinite}
+[data-weather="fog"] .forecast-fog{display:block;inset:50px 0 0;background:repeating-linear-gradient(0deg,transparent 0 19px,#f5fafb85 20px 28px,transparent 35px 53px);filter:blur(7px)}
+@keyframes forecast-rain{to{transform:translate(-12px,45px)}}
+@keyframes forecast-snow{to{transform:translate(12px,67px)}}
+.weather-forecast-page[data-weather-animation="off"] .forecast-precipitation{animation:none}
+.weather-forecast-page[hidden] .forecast-precipitation{animation-play-state:paused}
+html[data-theme="dark"] .weather-forecast-page[data-weather]{--weather-ink:#f3f8fd;--weather-muted:#cfdeeb;--weather-line:rgba(217,238,255,.2);--weather-glass:rgba(225,243,255,.09);--weather-on-accent:#153347;--weather-accent:#b2d9f0;--weather-sky:linear-gradient(155deg,#2b4259,#182b42)}
+html[data-theme="dark"] .weather-forecast-page[data-weather="clear"]{--weather-sky:radial-gradient(circle at 90% 9%,#9d793d88,transparent 34%),linear-gradient(155deg,#214566,#1a2e47 65%,#353643);--weather-accent:#ffcf88}
+html[data-theme="dark"] .weather-forecast-page[data-weather="partly"]{--weather-sky:radial-gradient(ellipse at 90% 8%,#8d81534d,transparent 36%),linear-gradient(155deg,#3b5571,#20334c)}
+html[data-theme="dark"] .weather-forecast-page[data-weather="rain"]{--weather-sky:linear-gradient(155deg,#31536f,#142e49 60%,#11223b)}
+html[data-theme="dark"] .weather-forecast-page[data-weather="storm"]{--weather-sky:radial-gradient(ellipse at 90% 0%,#5f5e88,transparent 45%),linear-gradient(155deg,#2e3b5b,#17243a)}
+html[data-theme="dark"] .weather-forecast-page[data-weather="snow"]{--weather-sky:linear-gradient(155deg,#476b81,#263f56 60%,#213249)}
+html[data-theme="dark"] .weather-forecast-page[data-weather="fog"]{--weather-sky:linear-gradient(155deg,#53636c,#293c4c 65%,#273846)}
+html[data-theme="dark"] .weather-forecast-page[data-weather] .forecast-cloud{opacity:.24}
+@media(prefers-reduced-motion:reduce){.forecast-precipitation{animation:none!important}}
+@media(max-height:600px){.weather-forecast-now{padding-bottom:10px;min-height:42px}.weather-forecast-now-temperature{font-size:36px}.weather-forecast-now-description{font-size:13px}}
+
+body[data-app-tab="weather"],html:has(body[data-app-tab="weather"]){overscroll-behavior-y:none}
