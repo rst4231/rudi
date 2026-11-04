@@ -1,20 +1,21 @@
 {
-  "current": "v4.19",
-  "versionBranch": "rudi-release-v419",
+  "current": "v4.20",
+  "versionBranch": "rudi-release-v420",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-04",
-  "basedOnProduction": "v4.18",
+  "basedOnProduction": "v4.19",
   "notes": [
-    "КПТ: первая неделя — факт, эмоции 0–10, мысли и вера 0–100.",
-    "Вторая неделя — письменная проверка интерпретаций, третья — устный разбор в моменте.",
-    "Текущий цикл и день, сохранённые ответы, старые поля, история и офлайн-очередь сохраняются."
+    "В каждой неделе остались только позиции со своего скриншота.",
+    "В первой неделе три блока с оценками внутри; во второй четыре поля; в третьей пять пунктов и устная практика.",
+    "Объяснения со скриншотов повторяются каждый день соответствующей недели. Прежние объяснения и дополнительные вопросы убраны.",
+    "Сессия, календарь, старые ответы и офлайн-правки сохраняются."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Replace the 21-day CBT method in place with observation, written restructuring and immediate oral review.",
-    "Preserve legacy fields in editing, validation, history and exports; keep cycle storage keys and schedules unchanged.",
-    "Align optional AI reflection with the weekly method and retain previous analyses."
+    "Restrict each CBT week to the supplied screenshot positions and group first-week ratings under emotion and interpretation.",
+    "Replace invented daily explanations with screenshot week instructions on all 21 days; remove additional examples and follow-up questions.",
+    "Keep previous form keys valid and available in record history and exports without displaying them as extra exercise questions."
   ]
 }

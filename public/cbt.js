@@ -70,7 +70,7 @@ async function sync(){
 }
 function editing(){return page?.contains(document.activeElement)&&/^(TEXTAREA|INPUT|SELECT)$/.test(document.activeElement.tagName)}
 function status(){const el=$('#cbtSyncStatus');if(!el||!ctx)return;el.textContent=ctx.failed?ctx.error:ctx.conflict?'Есть разные версии ответов. Выбери, какую оставить.':ctx.error||notice||'';el.hidden=!el.textContent;el.classList.toggle('is-error',!!ctx.error||!!ctx.conflict||ctx.failed);const btn=page?.querySelector('[data-do="sync"]');if(btn)btn.hidden=!(ctx.error||ctx.failed)}
-function lesson(n){const base=D.days[n-1],copy=ctx?.copy?.version===D.version?ctx.copy.days?.find(x=>x.day===n):null;if(!copy)return base;const safe={...base};for(const k of ['title','explanation','example','prompt','takeaway'])if(typeof copy[k]==='string'&&copy[k].length<8000)safe[k]=copy[k];return safe}
+function lesson(n){const base=D.days[n-1],copy=ctx?.copy?.version===D.version?ctx.copy.days?.find(x=>x.day===n):null;if(!copy)return base;const safe={...base};for(const k of ['title','takeaway'])if(typeof copy[k]==='string'&&copy[k].length<8000)safe[k]=copy[k];return safe}
 function ensure(){if(page)return;page=document.createElement('section');page.id='rudiCbtPage';page.className='cbt-page';page.hidden=true;page.setAttribute('aria-label','Программа КПТ');page.innerHTML='<div class="cbt-wrap"><header class="cbt-nav"><button type="button" data-do="back" class="cbt-back" aria-label="Назад">'+icon('back')+'</button><span class="cbt-nav-label">Время для себя</span><span class="cbt-nav-spacer" aria-hidden="true"></span></header><div id="cbtView"></div><p id="cbtSyncStatus" class="cbt-sync" role="status" aria-live="polite"></p><button type="button" data-do="sync" class="cbt-link" hidden>Повторить</button><p class="cbt-disclaimer">Тренажёр самопомощи на основе КПТ. Записывай наблюдения в течение дня. Он не заменяет психотерапию или помощь специалиста.</p></div>';page.dataset.noPullRefresh='true';page.dataset.noSwipeBack='true';
 const wrap=page.firstElementChild,nav=wrap.querySelector('.cbt-nav'),scroll=document.createElement('div');
 scroll.id='cbtScroll';scroll.className='cbt-scroll';scroll.append(wrap);page.replaceChildren(nav,scroll);document.body.append(page);
@@ -180,15 +180,15 @@ function dayView(){
  const r=run(),d=lesson(day),row=r?.days[day],record=C.entry(r,day,entryId),a=record?.answers||{};
  const readonly=!r||r.status!=='active'||backupIndex>=0||!!(r.calendar&&day>C.nextDay(r)),emptyDeleted=!record&&!!row?.deletedAt&&!C.entries(row).length;
  const fields=d.fields;
- const optional=allFields(day,a).filter(f=>!fields.some(x=>x.key===f.key)&&Object.hasOwn(a,f.key));
+ const positions=[];for(const [i,f]of fields.entries()){const position=f.position??i;(positions[position]??=[]).push(f)}
  return '<div class="cbt-day-heading"><div><h1 tabindex="-1">День '+day+'</h1><p id="cbtDayTitle">'+esc(d.title)+'</p></div><span>Неделя '+d.week+' из 3</span></div>'+ringDays(r,d.week,day)+
- coachFollowUp(r,day)+'<article class="cbt-card cbt-explanation"><span class="cbt-bulb" aria-hidden="true">☀</span><div><h2>'+esc(d.title)+'</h2><p>'+esc(d.explanation)+'</p><blockquote class="cbt-life-example">'+esc(d.example)+'</blockquote></div></article><p class="cbt-prompt">'+esc(d.prompt)+'</p>'+
+ '<article class="cbt-card cbt-explanation"><span class="cbt-bulb" aria-hidden="true">☀</span><div><h2>'+esc(d.title)+'</h2>'+d.explanation.split(/\n\n/).map(p=>'<p>'+esc(p)+'</p>').join('')+'</div></article><p class="cbt-prompt">'+esc(d.prompt)+'</p>'+
  (readonly?'<p class="cbt-meta">'+(r?.calendar&&day>C.nextDay(r)?'Этот день ещё не начался · просмотр темы':'Сохранённое прохождение · просмотр')+'</p>':'')+
  (day%7===0&&r?'<details class="cbt-card cbt-week-review"><summary>Твои записи и итоги недели</summary>'+weekly(r,d.week)+'</details>':'')+
  (!readonly?'<button type="button" data-do="add-entry" class="cbt-primary cbt-add-entry">Добавить запись</button>':'')+
 
-   entryDetail(r,row,record,readonly)+'<form id="cbtExercise"'+(emptyDeleted?' hidden':'')+' novalidate>'+fields.map((f,i)=>'<div class="cbt-step" data-cbt-step="'+i+'">'+field(f,a,readonly)+'</div>').join('')+
- (optional.length?'<details class="cbt-card cbt-optional" id="cbtOptionalFields"><summary>Ранее сохранённые поля</summary>'+optional.map(f=>field(f,a,readonly)).join('')+'</details>':'')+'</form>'+versionsView(record)+
+   entryDetail(r,row,record,readonly)+'<form id="cbtExercise"'+(emptyDeleted?' hidden':'')+' novalidate>'+positions.map((group,i)=>'<div class="cbt-step" data-cbt-step="'+i+'">'+group.map(f=>field(f,a,readonly)).join('')+'</div>').join('')+
+ '</form>'+versionsView(record)+
  coachCard(record)+entryPicker(r,row,readonly)+'<div class="cbt-day-nav"><button type="button" data-day="'+Math.max(1,day-1)+'" '+(day===1?'disabled':'')+'>Предыдущий день</button><button type="button" data-day="'+Math.min(21,day+1)+'" '+(day===21||day>=C.nextDay(r)?'disabled':'')+'>Следующий день</button></div>';
 }
 function thoughtSentiment(entry){
