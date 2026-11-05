@@ -1229,6 +1229,8 @@ body[data-calendar-scope="personal"] .work-page #workCalendarDays[data-calendar-
 .work-page .calendar-agenda-task-checkbox{
   appearance:none!important;display:grid!important;place-items:center!important;
   flex:none!important;width:26px!important;height:26px!important;min-width:26px!important;
+  box-sizing:border-box!important;min-height:0!important;padding:0!important;margin:0!important;
+  line-height:1!important;letter-spacing:0!important;
   border:1.5px solid currentColor!important;border-radius:50%!important;
   background:transparent!important;color:inherit!important;cursor:pointer!important;
   touch-action:manipulation!important;-webkit-tap-highlight-color:transparent!important
@@ -1236,7 +1238,8 @@ body[data-calendar-scope="personal"] .work-page #workCalendarDays[data-calendar-
 .work-page .calendar-agenda-task-checkbox:disabled{opacity:.45!important;cursor:default!important}
 .work-page .calendar-agenda-task.is-completing{opacity:.5!important}
 .work-page .calendar-agenda-task-checkbox svg{
-  display:block!important;width:16px!important;height:16px!important
+  display:block!important;width:70%!important;height:70%!important;
+  max-width:16px!important;max-height:16px!important;margin:0!important;pointer-events:none!important
 }
 
 

@@ -16520,7 +16520,7 @@
           checkbox.className='calendar-agenda-task-checkbox';
           checkbox.setAttribute('role','checkbox');
           checkbox.setAttribute('aria-checked',task.completed?'true':'false');
-          if(task.completed){row.classList.add('is-completed');checkbox.textContent='✓'}
+          if(task.completed){row.classList.add('is-completed');checkbox.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 12 4 4 8-9"/></svg>'}
           checkbox.setAttribute('aria-label','Отметить выполненным: '+String(task.title||'Дело'));
           if(task.skipped){row.classList.add('is-skipped');checkbox.textContent='–';checkbox.setAttribute('aria-label','Пропущено: '+String(task.title||'БАД'));}
           const futureCompletion=taskCompletionIsFuture(task,dateKey);

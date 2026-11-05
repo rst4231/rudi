@@ -1,18 +1,18 @@
 {
-  "current": "v4.34",
-  "versionBranch": "rudi-release-v434",
+  "current": "v4.35",
+  "versionBranch": "rudi-release-v435",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.33",
+  "basedOnProduction": "v4.34",
   "notes": [
-    "Карточки БАДов в почасовом календаре открывают тот же редактор, что и в месячном режиме.",
-    "Нажатие чекбокса по-прежнему отмечает приём; нажатие карточки и Enter/Пробел открывают редактор."
+    "Галочки выполненных задач в почасовом календаре всегда отображаются одинаковыми SVG-значками.",
+    "У кружков убраны внутренние отступы, значки масштабируются для обычных и компактных карточек."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Open the existing supplement editor by supplement ID from timed and all-day weekly agenda cards.",
-    "Keep intake checkbox actions independent and support keyboard activation without enabling task drag for supplements."
+    "Use the existing vector completion tick for initially checked weekly and all-day agenda cards.",
+    "Reset checkbox padding and box sizing and proportionally scale ticks inside regular, concurrent and dense checkbox circles."
   ]
 }
