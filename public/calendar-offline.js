@@ -114,7 +114,7 @@
       id: 'rudi-'+String(value.clientId||row.id), title: String(value.title || 'Новое дело'),
       date: String(value.date || ''), startTime: String(value.time || ''),
       endTime: String(value.endTime||''), allDay: !value.time, description: String(value.description || ''),
-      responsible: String(value.responsible || ''), repeat: value.repeat || 'none',
+      responsible: String(value.responsible || ''),noStars:value.noStars===true, repeat: value.repeat || 'none',
       repeatCount: value.repeatCount ?? 0, repeatDays:Array.isArray(value.repeatDays)?value.repeatDays:[], together: !value.responsible,
       assigned: Boolean(value.responsible), personal: false, canEdit: false,
       canComplete: false, canDelete: false, offlinePending: true
@@ -249,6 +249,7 @@
         ...old, title: value.title === undefined ? old.title : value.title,
         description: value.description === undefined ? old.description : value.description,
         responsible: value.responsible === undefined ? old.responsible : value.responsible,
+        noStars:value.noStars===undefined?old.noStars===true:value.noStars===true,
         repeat: value.repeat === undefined ? old.repeat : value.repeat,
         repeatCount: value.repeatCount === undefined ? old.repeatCount : value.repeatCount,
         repeatDays: value.repeatDays===undefined?old.repeatDays:value.repeatDays,

@@ -485,3 +485,11 @@ test('unlimited weekday creation stays visible offline beyond two occurrences an
  const dates=view.ticktickDays.filter(day=>day.events.length).map(day=>day.date);
  assert.equal(dates.length,21);assert.equal(dates[0],'2026-11-02');assert.equal(dates.at(-1),'2026-11-30');
 });
+test('shared no-stars setting survives offline create and edit and reaches synchronization',async()=>{
+ const h=harness();await h.api.init('Рустам');
+ await h.api.enqueue('Рустам','create',{value:{clientId:'no-stars',title:'Дело',date:'2026-11-05',time:'12:00',noStars:true}});
+ let view=await h.api.materialize('Рустам','2026-11',{ticktickDays:[]},'shared');const task=view.ticktickDays[0].events[0];assert.equal(task.noStars,true);
+ await h.api.enqueue('Рустам','update',{taskId:task.id,task,value:{title:'Изменено',date:task.date,time:'12:00',noStars:false}});
+ view=await h.api.materialize('Рустам','2026-11',{ticktickDays:[]},'shared');assert.equal(view.ticktickDays[0].events[0].noStars,false);
+ h.setOnline(true);await h.api.flush('Рустам',()=>({}));assert.equal(h.calls[0].body.noStars,true);
+});

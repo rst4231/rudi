@@ -1,18 +1,20 @@
 {
-  "current": "v4.35",
-  "versionBranch": "rudi-release-v435",
+  "current": "v4.36",
+  "versionBranch": "rudi-release-v436",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.34",
+  "basedOnProduction": "v4.35",
   "notes": [
-    "Галочки выполненных задач в почасовом календаре всегда отображаются одинаковыми SVG-значками.",
-    "У кружков убраны внутренние отступы, значки масштабируются для обычных и компактных карточек."
+    "В форме совместной задачи добавлена галочка Не начислять звёзды за эту задачу.",
+    "Настройка хранится у задачи, сохраняется при редактировании и повторениях и передаётся при офлайн-синхронизации.",
+    "Для задач без награды скрыта подпись +1 звезда; выполнение и уведомления работают как прежде."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Use the existing vector completion tick for initially checked weekly and all-day agenda cards.",
-    "Reset checkbox padding and box sizing and proportionally scale ticks inside regular, concurrent and dense checkbox circles."
+    "Add a persisted no-stars option to shared task creation and editing, defaulting to normal reward behavior.",
+    "Respect the authoritative saved flag when awarding completion stars, including recurring snapshots and legacy TickTick metadata.",
+    "Preserve the setting in offline create/update projections and hide the reward caption when rewards are disabled."
   ]
 }

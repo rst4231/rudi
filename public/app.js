@@ -14503,7 +14503,7 @@
             date:String(value?.date||'').trim(),
             time:String(value?.time||'').trim(),
             endTime:String(value?.endTime||'').trim(),
-            responsible:String(value?.responsible||'').trim(),
+            responsible:String(value?.responsible||'').trim(),noStars:value?.noStars===true,
             description:String(value?.description||'').trim(),
             repeat:String(value?.repeat||'none').trim(),
             repeatCount:Number(value?.repeatCount??0),repeatDays:Array.isArray(value?.repeatDays)?value.repeatDays:[]
@@ -14522,7 +14522,7 @@
           body:{initData:telegramInitData(),backupToken:currentStateBackupToken,taskId:id,
             title:String(value?.title||'').trim(),date:String(value?.date||'').trim(),
             time:String(value?.time||'').trim(),endTime:String(value?.endTime||'').trim(),responsible:String(value?.responsible||'').trim(),
-            description:String(value?.description||'').trim(),repeat:String(value?.repeat||'none'),
+            description:String(value?.description||'').trim(),...(typeof value?.noStars==='boolean'?{noStars:value.noStars}:{}),repeat:String(value?.repeat||'none'),
             repeatCount:Number(value?.repeatCount??0),repeatDays:Array.isArray(value?.repeatDays)?value.repeatDays:[],preserveRepeat:value?.preserveRepeat===true},
           ttlMs:0,timeoutMs:12000
         });
@@ -15088,7 +15088,7 @@
           meta.textContent=task.financeObligation?'Счёт на оплату · '+financeOverviewMoney(task.amount):task.externalCalendar?'iCloud · только просмотр':ownerLabel;
           if(task.personal!==true&&!task.financeObligation&&!task.externalCalendar){
             meta.classList.add('ticktick-today-reward');
-            meta.textContent='+1 ⭐ за выполнение';
+            meta.textContent=task.noStars===true?'':'+1 ⭐ за выполнение';
           }
           meta.hidden=!meta.textContent;
           copy.append(taskTitle,meta);
@@ -15186,6 +15186,7 @@
         const timeInput=document.getElementById('ticktickTaskTimeInput');
         const endTimeInput=document.getElementById('ticktickTaskEndTimeInput');
         const responsibleInput=document.getElementById('ticktickTaskResponsibleInput');
+        const noStarsInput=document.getElementById('ticktickTaskNoStarsInput');
         const descriptionInput=document.getElementById('ticktickTaskDescriptionInput');
         const repeatInput=document.getElementById('ticktickTaskRepeatInput');
         const repeatDaysField=document.getElementById('ticktickTaskRepeatDaysField');
@@ -15226,6 +15227,7 @@
           if(titleInput)titleInput.value=editingTask?.title||'';
           if(responsibleInput)responsibleInput.value=editingTask?.responsible||'';
           if(descriptionInput)descriptionInput.value=editingTask?.description||'';
+          if(noStarsInput)noStarsInput.checked=editingTask?.noStars===true;
           if(repeatInput)repeatInput.value=editingTask?.repeat||'none';
           const selectedDays=Array.isArray(editingTask?.repeatDays)?editingTask.repeatDays:[];
           repeatDaysField?.querySelectorAll('input').forEach(checkbox=>checkbox.checked=selectedDays.includes(Number(checkbox.value)));
@@ -15304,7 +15306,7 @@
           const editedId=editingTask?.id||'';
           try{
             const data={title,date,time,endTime,responsible:String(responsibleInput?.value||'').trim(),
-              description:String(descriptionInput?.value||'').trim(),repeat:String(repeatInput?.value||'none'),repeatCount,repeatDays,
+              description:String(descriptionInput?.value||'').trim(),noStars:noStarsInput?.checked===true,repeat:String(repeatInput?.value||'none'),repeatCount,repeatDays,
               preserveRepeat:Boolean(editingTask&&(repeatInput?.value!=='custom'||JSON.stringify(repeatDays)===JSON.stringify([...(editingTask.repeatDays||[])].sort((a,b)=>a-b)))&&String(repeatInput?.value||'none')===String(editingTask.repeat||'none')
                 &&(!repeating||repeatCount===Math.max(0,Math.min(365,Math.round(Number(editingTask.repeatCount)||0)))))};
             const payload=editedId?await requestTickTickTaskUpdate(editedId,data,editingTask):await requestTickTickTaskCreate(data);

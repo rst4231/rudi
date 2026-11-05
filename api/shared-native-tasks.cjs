@@ -105,6 +105,7 @@ function normalizeTask(input,previous={},actor=''){
  return {...previous,id:String(previous.id||input.taskId||'rudi-'+randomUUID()),title,date,
   startDate:encodeDate(date,time),dueDate:encodeDate(date,endTime||time),isAllDay:!time,
   timeZone:'Europe/Moscow',endTime:time&&endTime||'',responsible,
+  noStars:input.noStars===undefined?previous.noStars===true:input.noStars===true,
   assigneeUsername:responsible==='Рустам'?'rudi-rustam':responsible==='Диана'?'rudi-diana':'',
   desc:String(input.description??previous.desc??previous.content??'').trim().slice(0,5000),
   content:String(input.description??previous.desc??previous.content??'').trim().slice(0,5000),
@@ -126,7 +127,7 @@ function importTask(source,meta){
   startDate:date?encodeDate(date,time):'',dueDate:date?encodeDate(date,endTime||time):'',endTime,
   repeatFlag:String(source.repeatFlag||''),repeat:repeatOf(source.repeatFlag),repeatDays:daysOf(source.repeatFlag),
   repeatCount:Math.max(1,Number(String(source.repeatFlag||'').match(/COUNT=(\d+)/)?.[1]||2)-1),
-  createdBy:meta?.createdBy||'',isAllDay:!time,version:1,
+  createdBy:meta?.createdBy||'',noStars:meta?.noStars===true,isAllDay:!time,version:1,
   status:Number(source.status||0),items:Array.isArray(source.items)?source.items:[]};
 }
 function parseTaskId(id){
@@ -149,7 +150,7 @@ function view(task,date=task.date,actor=''){
   repeat:repeatOf(task.repeatFlag),repeatDays:daysOf(task.repeatFlag),repeatFlag:task.repeatFlag||'',repeatCount:recurrenceCount(task)?recurrenceCount(task)-1:0,
   canEdit:permitted(task,actor),canDelete:permitted(task,actor),canComplete:permitted(task,actor),
   checklist:(task.items||[]).map(item=>({id:item.id,title:item.title,completed:Number(item.status||0)===1,changedBy:item.changedBy||'',changedAt:item.changedAt||''})),
-  personal:false,completed:false,projectId:'native-shared',projectName:'Общий'};
+  noStars:task.noStars===true,personal:false,completed:false,projectId:'native-shared',projectName:'Общий'};
 }
 async function ready(options={}){return (await clientOf(options).getRecord(STATE_NS,'ready'))?.value||null}
 async function migrate(options={}){
@@ -314,7 +315,7 @@ async function modifyCompletion(action,body,actor,options={}){
    if(!parsed.date&&!parseRule(task.repeatFlag).FREQ)await client.set(TASK_NS,task.id,{...task,deleted:true,completed:true,completedAt:at});
   }
   await require('./lulu-care-store.cjs').syncLuluNailsTask(actor,{taskId:id,title:snapshot.title,at:wasOpen?at:previous?.at||task.completedAt||at,completed:true},{...options,client});
-  return {ok:true,taskId:id,title:snapshot.title,completed:true,wasOpen,scoreDate:date,responsible:responsibility(snapshot)};
+  return {ok:true,taskId:id,title:snapshot.title,completed:true,wasOpen,scoreDate:date,responsible:responsibility(snapshot),noStars:snapshot.noStars===true};
  }finally{await client.remove(STATE_NS,lock)}
 }
 async function modify(action,body,actor,options={}){

@@ -21,6 +21,7 @@ function normalizeEntry(value) {
   return {
     taskId,
     responsible: cleanActor(source.responsible),
+    ...(source.noStars===true?{noStars:true}:{}),
     createdBy: cleanActor(source.createdBy),
     createdAt: String(source.createdAt || '').trim().slice(0, 80),
     source: String(source.source || 'rudi').trim().slice(0, 40) || 'rudi',
@@ -90,6 +91,7 @@ async function setSharedTaskMeta(taskId, input = {}, options = {}) {
     const entry = normalizeEntry({
       taskId: id,
       responsible: input.responsible,
+      noStars:input.noStars===undefined?state.entries[id]?.noStars===true:input.noStars===true,
       createdBy: input.createdBy,
       createdAt: input.createdAt || new Date(options.now || Date.now()).toISOString(),
       source: input.source || 'rudi',

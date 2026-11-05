@@ -18425,3 +18425,6 @@ html[data-theme=dark] .rudi-meditation-page.lulu-profile-page{background:radial-
 .products-spend-bar{flex-basis:96px}
 
 body[data-app-tab="products"] .products-history.panel{margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:18px;background:var(--surface-strong)}
+
+.ticktick-task-form .ticktick-task-option{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;line-height:1.4;color:var(--text)}
+.ticktick-task-form .ticktick-task-option>input{appearance:auto;-webkit-appearance:auto;flex:none;width:18px;height:18px;min-width:18px;margin:0;padding:0;accent-color:#4578e6}

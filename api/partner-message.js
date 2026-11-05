@@ -1567,7 +1567,7 @@ function tickTickTaskSnapshot(task, meta = null) {
     tags: Array.isArray(source.tags) ? source.tags.slice(0,50) : [],
     items: Array.isArray(source.items) ? source.items.slice(0,100) : [],
     responsible: responsibility.responsible,
-    createdBy: String(meta?.createdBy || '').trim(),
+    createdBy: String(meta?.createdBy || '').trim(),noStars:meta?.noStars===true,
   };
 }
 
@@ -1603,6 +1603,7 @@ async function handleTickTick(req, res, action, options = {}) {
             await sendTaskCompletedNotificationToPartner(who,result.title,options);
             await recordActivity({type:'task-complete',actor:who,text:who+' выполнил(а) задачу: '+result.title,icon:'✅',targetTab:'schedule'},options);
           }catch(error){console.warn('RUDI_SHARED_TASK_NOTIFY_WARN',String(error?.message||error))}
+          if(result.noStars===true)return;
           for(const recipient of (result.responsible?[result.responsible]:['Рустам','Диана'])){
             try{const award=await awardScore(recipient,10,{label:'Общая задача',detail:result.title,icon:'✅',
               dedupeKey:'score:task:'+result.taskId+':'+result.scoreDate+':'+recipient},options);
@@ -1848,6 +1849,7 @@ async function handleTickTick(req, res, action, options = {}) {
       if (!taskId) throw new Error('ticktick-task-create-unresolved');
       await setSharedTaskMeta(taskId, {
         responsible,
+        noStars:body.noStars===true,
         createdBy: actor,
         source: 'rudi',
       }, options);
@@ -1859,7 +1861,7 @@ async function handleTickTick(req, res, action, options = {}) {
           date,
           startTime:time || null,
           allDay:!time,
-          responsible,
+          responsible,noStars:body.noStars===true,
           assignee:responsible==='Рустам'?'RST':responsible==='Диана'?'Ди':'Не назначен',
           assigned:Boolean(responsible),
           canDelete:!responsible||responsible===actor,
@@ -1947,7 +1949,7 @@ async function handleTickTick(req, res, action, options = {}) {
       }
       if(!confirmed) throw new Error('ticktick-task-update-unconfirmed');
       await setSharedTaskMeta(taskId,{
-        responsible,
+        responsible,noStars:body.noStars===undefined?currentMeta?.noStars===true:body.noStars===true,
         createdBy:String(currentMeta?.createdBy || actor).trim(),
         source:'rudi',
       },options);
@@ -2049,7 +2051,7 @@ async function handleTickTick(req, res, action, options = {}) {
       if (!taskId) throw new Error('ticktick-task-create-unresolved');
       await setSharedTaskMeta(taskId, {
         responsible:restoredResponsible,
-        createdBy:String(source.createdBy || actor).trim(),
+        createdBy:String(source.createdBy || actor).trim(),noStars:source.noStars===true,
         source:'rudi',
       }, options);
       return res.status(200).json({ok:true,taskId});
@@ -2235,7 +2237,7 @@ async function handleTickTick(req, res, action, options = {}) {
             assignee: assignee.assignee,
             assigned: assignee.assigned,
             responsible: assignee.responsibility.responsible,
-            responsibilityKnown: assignee.responsibility.known,
+            responsibilityKnown: assignee.responsibility.known,noStars:meta?.noStars===true,
             canDelete: sharedTaskCanDelete(actor, source, meta),
             description: String(source.desc || source.content || '').trim().slice(0, 5000),
             location: typeof source.location === 'string' ? source.location.trim().slice(0, 180) : '',
@@ -2687,7 +2689,7 @@ async function handleTickTick(req, res, action, options = {}) {
       // Award on every completion request, not only the first one. awardScore is
       // idempotent by dedupeKey, so a retry can repair a reward write that failed
       // after TickTick had already accepted the completion.
-      const scoreActors = responsibleActor ? [responsibleActor] : ['Рустам', 'Диана'];
+      const scoreActors = taskMeta?.noStars===true ? [] : responsibleActor ? [responsibleActor] : ['Рустам', 'Диана'];
       const completedAt = String(task?.completedTime || '').trim();
       const scoreDate = completedAt ? moscowDateKey(completedAt) : moscowDateKey(options.now || Date.now());
       let scoreState = null;
@@ -2824,7 +2826,7 @@ async function handleTickTick(req, res, action, options = {}) {
               description:description.slice(0,5000),responsible:details.responsible||'',
               together:Boolean(details.together),personal:Boolean(details.personal),
               projectId:String(details.projectId||''),projectName:String(details.projectName||''),
-              canEdit:Boolean(details.canEdit),
+              canEdit:Boolean(details.canEdit),noStars:details.noStars===true,
               repeat:repeatFlag.includes('BYDAY=MO,TU,WE,TH,FR')?'weekdays':
                 (repeatFlag.match(/FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)/)?.[1]||'none').toLowerCase(),
               repeatCount:tickTickRepetitionsFromFlag(repeatFlag)
@@ -2840,7 +2842,7 @@ async function handleTickTick(req, res, action, options = {}) {
               :assignment.responsibility.responsible==='Диана'?'diana':'shared':'unknown';
           if(selectedScope!=='shared'&&ownerScope!==selectedScope&&!assignment.responsibility.common)continue;
           addTask(task,{responsible:assignment.responsibility.responsible,
-            together:assignment.responsibility.common,canEdit:sharedTaskCanDelete(actor,task,meta)});
+            together:assignment.responsibility.common,canEdit:sharedTaskCanDelete(actor,task,meta),noStars:meta?.noStars===true});
         }
         if(selectedScope==='rustam'&&actor==='Рустам'){
           const personalToken=rustamToken||await readPersonalToken('Рустам',options).catch(()=>null);
@@ -2893,7 +2895,7 @@ async function handleTickTick(req, res, action, options = {}) {
               : assignee.responsibility.responsible === 'Диана' ? 'diana' : 'shared')
             : 'unknown';
           event.together=assignee.responsibility.common===true;
-          event.canEdit=sharedTaskCanDelete(actor,source,meta);
+          event.canEdit=sharedTaskCanDelete(actor,source,meta);event.noStars=meta?.noStars===true;
           event.description=String(source.desc||source.content||'').trim().slice(0,5000);
           const repeatFlag=String(source.repeatFlag||'');
           event.repeatFlag=repeatFlag;
