@@ -1,17 +1,18 @@
 {
-  "current": "v4.45",
-  "versionBranch": "rudi-release-v445",
+  "current": "v4.46",
+  "versionBranch": "rudi-release-v446",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.44",
+  "basedOnProduction": "v4.45",
   "notes": [
-    "В личной заметке убраны карандаш, копирование и стрелка отмены.",
-    "Редактирование нажатием на текст и проверка текста сохранены."
+    "Глобальные дождь и снег используют выбранный город прогноза, включая режим Автоматически.",
+    "Эффекты обновляются сразу при смене города и защищены от запоздавших ответов."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Hide personal note edit, copy and undo icons while preserving text editing and proofreading."
+    "Use shared selected-city weather for global precipitation effects.",
+    "Refresh immediately on selection changes and ignore stale in-flight results."
   ]
 }

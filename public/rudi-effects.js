@@ -4,6 +4,7 @@
 const TZ='Europe/Moscow';
 const FALLBACK=[{name:'Рустам',month:3,day:3},{name:'Диана',month:6,day:30},{name:'Лулу',month:5,day:5}];
 let actor='',birthdays=FALLBACK,initialized=false,weatherEnabled=true,weather='',flight=null,shownModal=false;
+let weatherRevision=0;
 function moscow(now=new Date()){
  const p=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now).map(x=>[x.type,x.value]));
  return {year:+p.year,month:+p.month,day:+p.day,hour:+p.hour,minute:+p.minute,key:p.year+'-'+p.month+'-'+p.day};
@@ -122,19 +123,25 @@ function tick(now=new Date()){
  if(human)birthdayWindow(d,human.name);
 }
 async function refreshWeather(){
- if(!initialized||document.hidden||!weatherEnabled||flight||!window.RUDI_WEATHER?.getAutomatic)return;
- flight=Promise.resolve().then(()=>window.RUDI_WEATHER.getAutomatic()).then(data=>{
+ if(!initialized||document.hidden||!weatherEnabled||flight||!window.RUDI_WEATHER?.get)return;
+ const revision=weatherRevision;
+ flight=Promise.resolve().then(()=>window.RUDI_WEATHER.get()).then(data=>{
+  if(revision!==weatherRevision)return;
   const age=Date.now()-Number(data?.fetchedAt||0);
   weather=data?.location?.resolved&&age>=0&&age<35*60*1000?classify(data?.current?.weather_code):'';
- }).catch(()=>{weather=''}).finally(()=>{flight=null;tick()});
+ }).catch(()=>{if(revision===weatherRevision)weather=''}).finally(()=>{flight=null;tick();if(revision!==weatherRevision)void refreshWeather()});
  return flight;
 }
 function init({actor:name,birthdays:dates,weatherEnabled:enabledWeather}={}){
  if(!['Рустам','Диана'].includes(name))return;
+ weatherRevision++;weather='';
  actor=name;birthdays=Array.isArray(dates)&&dates.length?dates:FALLBACK;
  weatherEnabled=enabledWeather!==false;initialized=true;
  installSettings();tick();void refreshWeather();
 }
+window.addEventListener('rudi:weather-city-change',()=>{
+ weatherRevision++;weather='';tick();void refreshWeather();
+});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){for(const type of ['rain','snow','balloons','fireworks'])remove(type)}else{tick();void refreshWeather()}});
 window.addEventListener('pageshow',()=>{if(initialized){installSettings();tick();void refreshWeather()}});
 setInterval(()=>{if(initialized&&!document.hidden){installSettings();tick()}},30000);
