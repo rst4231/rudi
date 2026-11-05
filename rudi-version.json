@@ -1,18 +1,20 @@
 {
-  "current": "v4.37",
-  "versionBranch": "rudi-release-v437",
+  "current": "v4.38",
+  "versionBranch": "rudi-release-v438",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.36",
+  "basedOnProduction": "v4.37",
   "notes": [
-    "Уведомления о желаниях открывают нужную позицию на странице партнёра.",
-    "Отдельная страница Наш вишлист удалена; желания и управление ими сохранены."
+    "Прогноз погоды развёрнут на весь экран без внешней карточки и боковых полос.",
+    "Исправлена стрелка назад и контраст в тёмной теме.",
+    "Добавлен выбор Мурино, СПб, Москва и Автоматически с сохранением выбора и отдельными кэшами городов."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Route wish notifications to the exact partner profile wish, retaining legacy notification and URL support.",
-    "Remove the standalone shared wishlist page while preserving wishlist APIs and personal wishes."
+    "Fill the weather viewport with safe-area padding and an internal forecast scroller.",
+    "Use explicit themed SVG strokes for the back arrow.",
+    "Add persisted city selection with nearest-city geolocation and isolated short and long range caches."
   ]
 }

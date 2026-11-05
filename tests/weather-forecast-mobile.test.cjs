@@ -94,7 +94,7 @@ test('December switches to January and month request failures retain precise wea
  const f=interactiveFixture('2026-12-31T12:00:00Z',{monthly:async()=>{throw Error('unavailable')}});await f.api.open();clickView(f,'month');await tick();assert.equal(f.root().querySelectorAll('.weather-forecast-cell').length,1);f.root().querySelectorAll('.weather-forecast-month-buttons button')[1].click();assert.equal(f.root().querySelectorAll('.weather-forecast-cell').length,31);assert.match(f.root().querySelector('.weather-forecast-month-title').textContent,/январь 2027/);assert.match(f.root().textContent,/Долгосрочный прогноз.*недоступен/);f.dom.window.close();
 });
 test('a late weather response cannot navigate back from a different page',async()=>{
- let finish;const f=interactiveFixture(undefined,{get:()=>new Promise(resolve=>finish=resolve)});const opening=f.api.open();f.window.RUDI_NAVIGATE_TO_TAB('products');finish({daily:{time:[]}});await opening;assert.equal(f.document.body.dataset.appTab,'products');assert.equal(f.document.querySelector('.weather-forecast-backdrop'),null);f.dom.window.close();
+ let finish;const f=interactiveFixture(undefined,{get:()=>new Promise(resolve=>finish=resolve)});const opening=f.api.open();await tick();f.window.RUDI_NAVIGATE_TO_TAB('products');finish({daily:{time:[]}});await opening;assert.equal(f.document.body.dataset.appTab,'products');assert.equal(f.document.querySelector('.weather-forecast-backdrop'),null);f.dom.window.close();
 });
 test('calendar forecast still uses precise selected-date data and ignores detached older cards',async()=>{
  const f=interactiveFixture(),target=f.make('div');await f.api.renderCalendarDay(target,'2026-10-19');assert.match(target.querySelector('.calendar-day-weather-temperature').textContent,/4°.*8°/);await f.api.renderCalendarDay(target,'2026-11-25');assert.match(target.querySelector('p').textContent,/пока недоступен/);assert.equal(f.calls.months,0);f.dom.window.close();
@@ -111,4 +111,31 @@ test('calendar dayparts include prevailing weather, maximum hourly wind and prec
  assert.equal(JSON.stringify(p.morning),JSON.stringify({min:8,max:10,code:3,wind:5,probability:40}));
  assert.equal(JSON.stringify(p.day),JSON.stringify({min:12,max:12,code:0,wind:2,probability:0}));
  assert.equal(p.evening,null);
+});
+
+test('city choice persists and changes the forecast and current city label',async()=>{
+ const requested=[];const f=interactiveFixture(undefined,{get:async options=>{requested.push(options.city);return {current:{temperature_2m:5,weather_code:3},daily:{time:['2026-10-18']}}}});
+ try{
+  await f.api.open();const select=f.document.getElementById('weatherForecastCity');assert.deepEqual([...select.options].map(o=>o.value),['murino','spb','moscow','auto']);
+  select.value='moscow';select.dispatchEvent(new f.window.Event('change'));await tick();
+  assert.equal(requested.at(-1),'moscow');assert.match(f.root().querySelector('.weather-forecast-now').textContent,/Москве/);
+  f.api.close();await f.api.open();assert.equal(select.value,'moscow');assert.equal(requested.at(-1),'moscow');
+  assert.equal(f.root().parentElement,f.document.body);
+ }finally{f.dom.window.close()}
+});
+test('automatic city uses geolocation and shows a fallback notice when denied',async()=>{
+ const f=interactiveFixture();try{
+  await f.api.open();Object.defineProperty(f.window.navigator,'geolocation',{configurable:true,value:{getCurrentPosition:resolve=>resolve({coords:{latitude:60.05,longitude:30.45}})}});
+  const select=f.document.getElementById('weatherForecastCity');select.value='auto';select.dispatchEvent(new f.window.Event('change'));await tick();assert.match(f.root().querySelector('.weather-forecast-status').textContent,/Мурино/);
+  Object.defineProperty(f.window.navigator,'geolocation',{value:{getCurrentPosition:(_resolve,reject)=>reject(Error('denied'))}});
+  select.dispatchEvent(new f.window.Event('change'));await tick();assert.match(f.root().querySelector('.weather-forecast-status').textContent,/Геопозиция недоступна/);
+  assert.equal(f.api.nearestCity(55.75,37.62),'moscow');assert.equal(f.api.nearestCity(59.94,30.31),'spb');
+ }finally{f.dom.window.close()}
+});
+test('late city response cannot replace the currently selected city',async()=>{
+ let finish;const f=interactiveFixture(undefined,{get:options=>options.city==='moscow'?new Promise(resolve=>finish=resolve):Promise.resolve({daily:{time:['2026-10-18']}})});
+ try{
+  await f.api.open();const select=f.document.getElementById('weatherForecastCity');select.value='moscow';select.dispatchEvent(new f.window.Event('change'));await tick();
+  select.value='murino';select.dispatchEvent(new f.window.Event('change'));await tick();finish({daily:{time:['2026-10-18']}});await tick();assert.match(f.root().querySelector('.weather-forecast-status').textContent,/Мурино/);
+ }finally{f.dom.window.close()}
 });

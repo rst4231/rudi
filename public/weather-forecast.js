@@ -2,6 +2,18 @@
 (function(){
 'use strict';
 let modal=null,payload=null,view='day',selected='',month='',generation=0,active=false,activation=null,returnTab='home',monthlyPayload=null,monthlyLoading=false,monthlyError=false,monthlyAttempted=false;
+const cities={murino:{label:'Мурино',where:'Мурино',latitude:60.0479,longitude:30.452},spb:{label:'Санкт-Петербург',where:'Санкт-Петербурге',latitude:59.9386,longitude:30.3141},moscow:{label:'Москва',where:'Москве',latitude:55.7558,longitude:37.6173}};
+let city='spb',locationNote='';
+const cityKey=()=> 'rudi:forecast-city:'+(document.body.dataset.rudiActor==='Диана'?'diana':'rustam');
+function savedCity(){try{const value=localStorage.getItem(cityKey());return value==='auto'||Object.hasOwn(cities,value)?value:'spb'}catch(_){return 'spb'}}
+function nearestCity(latitude,longitude){return Object.keys(cities).sort((a,b)=>{const distance=key=>{const place=cities[key],r=Math.PI/180;return Math.sin((latitude-place.latitude)*r/2)**2+Math.cos(latitude*r)*Math.cos(place.latitude*r)*Math.sin((longitude-place.longitude)*r/2)**2};return distance(a)-distance(b)})[0]}
+async function resolveCity(choice){
+ if(choice!=='auto')return {city:choice,note:''};
+ try{
+  const position=await new Promise((resolve,reject)=>{if(!navigator.geolocation)return reject(Error('Unavailable'));navigator.geolocation.getCurrentPosition(resolve,reject,{timeout:6000,maximumAge:300000})});
+  return {city:nearestCity(position.coords.latitude,position.coords.longitude),note:''};
+ }catch(_){return {city:'spb',note:'Геопозиция недоступна. Показан Санкт-Петербург.'}}
+}
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 function currentHourTime(hours,date,now=Date.now()){
  const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hourCycle:'h23'}).formatToParts(new Date(now)).map(part=>[part.type,part.value]));
@@ -27,20 +39,26 @@ function close(){
 }
 function setupPage(){
  if(modal)return true;modal=document.getElementById?.('weatherForecastPage');if(!modal)return false;
+ document.body.append(modal);
  modal.querySelector('.weather-forecast-back').addEventListener('click',close);
+ modal.querySelector('#weatherForecastCity').addEventListener('change',event=>{
+  const choice=event.target.value;try{localStorage.setItem(cityKey(),choice)}catch(_){}
+  void loadForecast(choice);
+ });
  for(const button of modal.querySelectorAll('[data-forecast-view]'))button.addEventListener('click',()=>{view=button.dataset.forecastView;render()});
  return true;
 }
 function ensureMonthly(){
  if(monthlyLoading||monthlyAttempted||!active)return;
  monthlyLoading=true;monthlyAttempted=true;monthlyError=false;const revision=generation;
- Promise.resolve().then(()=>window.RUDI_WEATHER.getMonthly()).then(data=>{if(active&&generation===revision)monthlyPayload=data}).catch(()=>{if(active&&generation===revision)monthlyError=true}).finally(()=>{if(active&&generation===revision){monthlyLoading=false;if(view==='month')render()}});
+ Promise.resolve().then(()=>window.RUDI_WEATHER.getMonthly({city})).then(data=>{if(active&&generation===revision)monthlyPayload=data}).catch(()=>{if(active&&generation===revision)monthlyError=true}).finally(()=>{if(active&&generation===revision){monthlyLoading=false;if(view==='month')render()}});
 }
 function renderAppearance(){
  const code=payload?.current?.weather_code;
  const kind=!Number.isFinite(code)?'idle':code===0||code===1?'clear':code===2?'partly':code===3?'cloudy':[45,48].includes(code)?'fog':[51,53,55,56,57,61,63,65,66,67,80,81,82].includes(code)?'rain':[71,73,75,77,85,86].includes(code)?'snow':[95,96,99].includes(code)?'storm':'idle';
  modal.dataset.weather=kind;
  const now=modal.querySelector('.weather-forecast-now'),temperature=payload?.current?.temperature_2m;
+ now.querySelector('div>span').textContent='Сейчас в '+cities[city].where;
  now.hidden=kind==='idle'||!Number.isFinite(temperature);
  if(!now.hidden){
   now.querySelector('.weather-forecast-now-temperature').textContent=number(temperature,'°');
@@ -57,7 +75,7 @@ function render(){
  for(const button of modal.querySelectorAll('[data-forecast-view]')){const active=button.dataset.forecastView===view;button.setAttribute('aria-selected',String(active));button.classList.toggle('is-active',active)}
  if(!payload)return;
  const data=model(payload),days=data.days.filter(day=>day.date>=today()),hours=data.hours,first=days[0]?.date,last=days.at(-1)?.date;
- status.textContent=(payload.stale||navigator.onLine===false?'Сохранённый прогноз · ':'')+'Санкт-Петербург · '+(first&&last?label(first)+' — '+label(last):'Нет данных')+'. За этим горизонтом данных нет.';
+ status.textContent=(payload.stale||navigator.onLine===false?'Сохранённый прогноз · ':'')+(locationNote?locationNote+' ':'')+cities[city].label+' · '+(first&&last?label(first)+' — '+label(last):'Нет данных')+'. За этим горизонтом данных нет.';
  if(view==='day'){
   const select=node('select');select.setAttribute('aria-label','День почасового прогноза');
   for(const day of days){const option=node('option',label(day.date));option.value=day.date;option.selected=day.date===selected;select.append(option)}
@@ -80,7 +98,7 @@ function render(){
   content.append(list);return;
  }
  ensureMonthly();
- status.textContent='Санкт-Петербург · Текущий и следующий месяц';
+ status.textContent=(locationNote?locationNote+' ':'')+cities[city].label+' · Текущий и следующий месяц';
  const monthlyDays=new Map((monthlyPayload?.days||[]).map(day=>[day.date,{...day,preliminary:true}]));for(const day of days)monthlyDays.set(day.date,day);
  const current=today().slice(0,7),nextDate=new Date(current+'-01T12:00:00Z');nextDate.setUTCMonth(nextDate.getUTCMonth()+1);
  const chooser=node('div',undefined,'weather-forecast-month-buttons');chooser.setAttribute('role','group');chooser.setAttribute('aria-label','Месяц прогноза');
@@ -106,14 +124,20 @@ function render(){
  }
  content.append(grid);
 }
+async function loadForecast(choice){
+ const revision=++generation;payload=null;monthlyPayload=null;monthlyLoading=false;monthlyError=false;monthlyAttempted=false;
+ modal.querySelector('.weather-forecast-status').textContent=choice==='auto'?'Определяю город…':'Загружаю прогноз…';render();
+ try{
+  const resolved=await resolveCity(choice);if(!active||generation!==revision)return;city=resolved.city;locationNote=resolved.note;
+  const data=await window.RUDI_WEATHER.get({forecast:true,city});if(!active||generation!==revision)return;
+  payload=data;if(!data.daily?.time?.includes(selected))selected=data.daily?.time?.find(date=>date>=today())||selected;render();
+ }catch(_){if(active&&generation===revision)modal.querySelector('.weather-forecast-status').textContent=navigator.onLine===false?'Офлайн. Свежий прогноз недоступен.':'Не удалось загрузить прогноз. Выбери город ещё раз.'}
+}
 async function activate(){
  if(!setupPage())return;if(active)return activation;
- active=true;payload=null;selected=today();month=selected.slice(0,7);view='day';monthlyPayload=null;monthlyLoading=false;monthlyError=false;monthlyAttempted=false;
- const revision=++generation;modal.querySelector('.weather-forecast-status').textContent='Загружаю прогноз…';render();
- activation=(async()=>{
-  try{const data=await window.RUDI_WEATHER.get({forecast:true});if(!active||generation!==revision)return;payload=data;if(!data.daily?.time?.includes(selected))selected=data.daily?.time?.find(date=>date>=today())||selected;render()}
-  catch(_){if(active&&generation===revision)modal.querySelector('.weather-forecast-status').textContent=navigator.onLine===false?'Офлайн. Свежий прогноз недоступен.':'Не удалось загрузить прогноз. Открой страницу ещё раз.'}
- })();return activation;
+ active=true;selected=today();month=selected.slice(0,7);view='day';
+ const choice=savedCity();modal.querySelector('#weatherForecastCity').value=choice;
+ activation=loadForecast(choice);return activation;
 }
 async function open(){
  const source=document.body?.dataset.appTab||'home';if(source!=='weather')returnTab=source;
@@ -192,5 +216,5 @@ async function renderCalendarHours(target,date){
   }
  }catch(_){}
 }
-window.RUDI_WEATHER_FORECAST={model,open,close,currentHourTime,renderCalendarDay,periodTemperatures,periodForecast,renderCalendarPeriods,renderCalendarHours};
+window.RUDI_WEATHER_FORECAST={nearestCity,model,open,close,currentHourTime,renderCalendarDay,periodTemperatures,periodForecast,renderCalendarPeriods,renderCalendarHours};
 })();

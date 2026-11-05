@@ -5,7 +5,7 @@ function monthRange(now){
  const [year,month]=from.slice(0,7).split('-').map(Number);
  return {from,month:from.slice(0,7),through:new Date(Date.UTC(year,month+1,0)).toISOString().slice(0,10)};
 }
-function createMonthlyWeatherService({fetchImpl=globalThis.fetch,now=Date.now,timeoutMs=10000}={}){
+function createMonthlyWeatherService({fetchImpl=globalThis.fetch,now=Date.now,timeoutMs=10000,latitude=59.9386,longitude=30.3141}={}){
  let cached=null,flight=null,flightMonth='';
  return async function getMonthlyWeather(){
   const range=monthRange(now());
@@ -15,7 +15,7 @@ function createMonthlyWeatherService({fetchImpl=globalThis.fetch,now=Date.now,ti
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),timeoutMs);
    try{
     const url=new URL('https://seasonal-api.open-meteo.com/v1/seasonal');
-    for(const [key,value] of Object.entries({latitude:59.9386,longitude:30.3141,daily:'temperature_2m_min,temperature_2m_max',models:'ecmwf_seasonal_ensemble_mean_seamless',start_date:range.from,end_date:range.through,timezone:'Europe/Moscow'}))url.searchParams.set(key,String(value));
+    for(const [key,value] of Object.entries({latitude,longitude,daily:'temperature_2m_min,temperature_2m_max',models:'ecmwf_seasonal_ensemble_mean_seamless',start_date:range.from,end_date:range.through,timezone:'Europe/Moscow'}))url.searchParams.set(key,String(value));
     const response=await fetchImpl(url.toString(),{signal:controller.signal});if(!response.ok)throw Error('Monthly weather unavailable');
     const daily=(await response.json())?.daily||{},dates=new Map();
     for(const [i,date] of (Array.isArray(daily.time)?daily.time:[]).entries()){

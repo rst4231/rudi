@@ -120,3 +120,19 @@ test('16-day provider with a 14-day available horizon keeps exactly matching hou
  assert.equal(result.daily.time.length,14);assert.equal(result.hourly.time.length,336);
  assert.ok(result.hourly.temperature_2m.every(Number.isFinite));assert.equal(result.hourly.time.at(-1).slice(0,10),result.daily.time.at(-1));
 });
+
+test('city caches never mix forecasts and coalesce requests for the same city',async()=>{
+ const urls=[];const weather=client({fetchImpl:async url=>{urls.push(url);return {ok:true,json:async()=>({...sample,current:{...sample.current,temperature_2m:url.includes('moscow')?22:11},fetchedAt:Date.now()})}}});
+ const [moscow,murino,again]=await Promise.all([weather.get({city:'moscow'}),weather.get({city:'murino'}),weather.get({city:'moscow'})]);
+ assert.equal(moscow.current.temperature_2m,22);assert.equal(murino.current.temperature_2m,11);assert.equal(again.current.temperature_2m,22);assert.equal(urls.length,2);
+ await weather.get({city:'murino'});assert.equal(urls.length,2);
+});
+test('weather services request coordinates for each city in both forecast ranges',async()=>{
+ const {createWeatherService,createMonthlyWeatherService}=require('../api/weather.cjs');
+ for(const coordinates of [{latitude:60.0479,longitude:30.452},{latitude:55.7558,longitude:37.6173}]){
+  for(const factory of [createWeatherService,createMonthlyWeatherService]){
+   const service=factory({...coordinates,fetchImpl:async url=>{const params=new URL(url).searchParams;assert.equal(params.get('latitude'),String(coordinates.latitude));assert.equal(params.get('longitude'),String(coordinates.longitude));return {ok:true,json:async()=>sample}}});
+   if(factory===createWeatherService)await service();else await service().catch(error=>assert.match(error.message,/Invalid monthly/));
+  }
+ }
+});

@@ -27,7 +27,7 @@ function normalizeForecast(data){
       .every(key=>!Array.isArray(hourly[key])||Number.isFinite(hourly[key][index])));
   return {...data,daily:mapArrays(daily,validDays.map(item=>item.index)),hourly:mapArrays(hourly,hours.map(item=>item.index))};
 }
-function createWeatherService({fetchImpl = globalThis.fetch, now = Date.now, timeoutMs = 6000} = {}) {
+function createWeatherService({fetchImpl = globalThis.fetch, now = Date.now, timeoutMs = 6000, latitude = 59.9386, longitude = 30.3141} = {}) {
   let cached = null, flight = null;
   return async function getWeather() {
     if (cached && now() - cached.fetchedAt < FRESH) return cached;
@@ -36,7 +36,7 @@ function createWeatherService({fetchImpl = globalThis.fetch, now = Date.now, tim
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
-        const response = await fetchImpl(URL, {signal: controller.signal});
+        const response = await fetchImpl(URL.replace('latitude=59.9386&longitude=30.3141','latitude='+latitude+'&longitude='+longitude), {signal: controller.signal});
         if (!response.ok) throw new Error('Weather provider unavailable');
         const data = normalizeForecast(await response.json());
         if (!valid(data)) throw new Error('Invalid forecast');
@@ -51,12 +51,18 @@ function createWeatherService({fetchImpl = globalThis.fetch, now = Date.now, tim
   };
 }
 const getWeather = createWeatherService();
-const getMonthlyWeather=createMonthlyWeatherService();
+const CITIES={spb:{latitude:59.9386,longitude:30.3141},murino:{latitude:60.0479,longitude:30.452},moscow:{latitude:55.7558,longitude:37.6173}};
+const weatherServices={spb:getWeather},monthlyServices={};
+for(const [city,coordinates] of Object.entries(CITIES)){
+ if(city!=='spb')weatherServices[city]=createWeatherService(coordinates);
+ monthlyServices[city]=createMonthlyWeatherService(coordinates);
+}
 async function handleWeatherRequest(req, res) {
   if (req.method !== 'GET') { res.setHeader('Allow', 'GET'); return res.status(405).json({error: 'Method not allowed'}); }
   try {
-    const monthly=req.query?.range==='months';
-    const data = await (monthly?getMonthlyWeather():getWeather());
+    const monthly=req.query?.range==='months',city=req.query?.city||'spb';
+    if(!Object.hasOwn(CITIES,city))return res.status(400).json({error:'Unknown weather city'});
+    const data = await (monthly?monthlyServices[city]():weatherServices[city]());
     res.setHeader('Cache-Control', data.stale ? 'no-store' : monthly?'public, max-age=60, s-maxage=3600':'public, max-age=60, s-maxage=600');
     return res.status(200).json(data);
   } catch (_) {

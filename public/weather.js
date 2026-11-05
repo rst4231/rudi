@@ -1,6 +1,8 @@
 (() => {
   'use strict';
-  const KEY = 'rudi-weather-v2';
+  function createCityClient(city){
+  const suffix=city==='spb'?'':':'+city;
+  const KEY = 'rudi-weather-v2'+suffix;
   const FRESH = 15 * 60 * 1000;
   const MAX_AGE = 2 * 60 * 60 * 1000;
   let cached = null, flight = null;
@@ -27,7 +29,7 @@
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 8000);
       try {
-        const response = await fetch('/api/index?route=weather&forecast=v3', {signal: controller.signal});
+        const response = await fetch('/api/index?route=weather&forecast=v3'+(city==='spb'?'':'&city='+city), {signal: controller.signal});
         if (!response.ok) throw new Error('Weather unavailable');
         const value = await response.json();
         if (!valid(value) || (forecast&&!extended(value)) || Date.now() - value.fetchedAt > MAX_AGE) throw new Error('Invalid forecast');
@@ -41,7 +43,7 @@
     })();
     try { return await flight; } finally { flight = null; }
   }
-  const MONTH_KEY='rudi-weather-months-v1',MONTH_FRESH=6*3600000,MONTH_MAX_AGE=48*3600000;
+  const MONTH_KEY='rudi-weather-months-v1'+suffix,MONTH_FRESH=6*3600000,MONTH_MAX_AGE=48*3600000;
   let monthly=null,monthlyFlight=null;
   const currentMonth=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit'}).format(new Date());
   function validMonthly(value){
@@ -54,7 +56,7 @@
     monthlyFlight=(async()=>{
       const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
       try{
-        const response=await fetch('/api/index?route=weather&range=months',{signal:controller.signal});if(!response.ok)throw Error('Monthly weather unavailable');
+        const response=await fetch('/api/index?route=weather&range=months'+(city==='spb'?'':'&city='+city),{signal:controller.signal});if(!response.ok)throw Error('Monthly weather unavailable');
         const value=await response.json();if(!validMonthly(value))throw Error('Invalid monthly forecast');
         monthly={...value,stale:!!value.stale||Date.now()-value.fetchedAt>=MONTH_FRESH};
         try{localStorage.setItem(MONTH_KEY,JSON.stringify(monthly))}catch(_){}return monthly;
@@ -63,6 +65,10 @@
     })();
     try{return await monthlyFlight}finally{monthlyFlight=null}
   }
+  return {get,getMonthly};
+  }
+  const clients=new Map();
+  function client(city){const key=['murino','moscow'].includes(city)?city:'spb';if(!clients.has(key))clients.set(key,createCityClient(key));return clients.get(key)}
   function currentSummary(data){
     const c=data?.current||{},h=data?.hourly||{};
     if(!Number.isFinite(c.temperature_2m)||!Number.isFinite(c.weather_code))return null;
@@ -71,5 +77,5 @@
     const speed=Number.isFinite(c.wind_speed_10m)?c.wind_speed_10m:index>=0?h.wind_speed_10m?.[index]:null;
     return {temperature:c.temperature_2m,code:c.weather_code,probability:Number.isFinite(chance)&&chance>=0&&chance<=100?chance:null,wind:Number.isFinite(speed)&&speed>=0?Math.round(speed/3.6*10)/10:null};
   }
-  window.RUDI_WEATHER = {get,getMonthly,currentSummary};
+  window.RUDI_WEATHER = {get:(options={})=>client(options.city).get(options),getMonthly:(options={})=>client(options.city).getMonthly(),currentSummary};
 })();
