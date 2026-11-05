@@ -1,22 +1,20 @@
 {
-  "current": "v4.41",
-  "versionBranch": "rudi-release-v441",
+  "current": "v4.42",
+  "versionBranch": "rudi-release-v442",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.40",
+  "basedOnProduction": "v4.41",
   "notes": [
-    "Медитация партнёра перенесена к привычкам и показана компактно: 🧘 5 мин.",
-    "Погода в календаре использует выбранный город или автоматическое определение.",
-    "Карточки задач календаря адаптированы для тёмной темы с сохранением синих и зелёных обводок.",
-    "В разделе КПТ убраны подписи необязательно."
+    "Все погодные виджеты используют выбранный город или автоматическое определение.",
+    "Главная, дом и машина обновляют погоду при изменении выбора города.",
+    "Подпись города на главной берётся из загруженного прогноза."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Move partner meditation next to habits and display duration only.",
-    "Use the saved forecast location for calendar weather summaries and hourly labels.",
-    "Apply dark timeline card surfaces with readable text and checkboxes.",
-    "Remove optional field captions from CBT forms while preserving validation."
+    "Use a shared per-actor selected location for all weather widgets.",
+    "Refresh Home, smart home and car weather when the city selection changes.",
+    "Keep stale responses from overriding the current location selection."
   ]
 }

@@ -770,6 +770,7 @@
     });
   }
 
+  window.addEventListener('rudi:weather-city-change',()=>{if(document.body.classList.contains('auth-ok'))void loadWeather()});
   window.addEventListener('offline',updateOfflineControls);
   window.addEventListener('rudi:app-tab-change',setUpdated);
   window.addEventListener('online',()=>{

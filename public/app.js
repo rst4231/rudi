@@ -13958,6 +13958,7 @@
         if(visual) visual.dataset.weather=code===null||code===undefined?'idle':weatherVisualType(code);
       }
 
+      window.addEventListener('rudi:weather-city-change',()=>{if(currentActor&&currentConfig?.weather)void loadWeather(currentConfig.weather)});
       async function loadWeather(cfg){
         const elValue=document.getElementById('weatherValue');
         const elCaption=document.getElementById('weatherCaption');
@@ -13965,13 +13966,8 @@
         const elCity=document.getElementById('weatherCity');
         let data=null;
         try{
-          data=typeof window.RUDI_WEATHER?.get==='function'
-            ? await window.RUDI_WEATHER.get()
-            : await (async()=>{
-                const r=await fetch('/api/index?route=weather',{cache:'no-store'});
-                if(!r.ok) throw new Error('weather');
-                return r.json();
-              })();
+          if(typeof window.RUDI_WEATHER?.get!=='function')throw Error('Weather service unavailable');
+          data=await window.RUDI_WEATHER.get();
           homeSunTimes={
             dates:Array.isArray(data.daily?.time)?data.daily.time:[],
             sunrise:Array.isArray(data.daily?.sunrise)?data.daily.sunrise:[],
@@ -14040,7 +14036,8 @@
 
           setWeatherVisual(c.weather_code);
           elValue.textContent=Math.round(c.temperature_2m)+'°';
-          elCity.textContent=cfg.city==='Санкт-Петербург'?'СПб':(cfg.city||'');
+          const city=window.RUDI_WEATHER.locations?.[data.location?.city]?.label||cfg.city||'';
+          elCity.textContent=city==='Санкт-Петербург'?'СПб':city;
           elCaption.textContent=labels[c.weather_code]||'Погода';
           elRain.textContent=rainText;
         }catch(_){

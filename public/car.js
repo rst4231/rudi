@@ -1909,6 +1909,7 @@
     window.addEventListener('rudi:auth-ready',wait);
   }
 
+  window.addEventListener('rudi:weather-city-change',()=>{if(document.body.classList.contains('auth-ok'))void loadWeather()});
   window.RUDI_CAR={refresh:()=>loadCar()};
 
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start,{once:true});

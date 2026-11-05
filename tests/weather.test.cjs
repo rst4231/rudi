@@ -56,6 +56,7 @@ test('forecast timeout aborts the provider request',async()=>{
 
 function client({cached,fetchImpl,navigator}){
   const storage=new Map(cached?[['rudi-weather-v2',JSON.stringify(cached)]]:[]);
+  storage.set('rudi:forecast-city:rustam','spb');
   const context=vm.createContext({window:{},navigator,Date,AbortController,setTimeout,clearTimeout,
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},fetch:fetchImpl});
   vm.runInContext(fs.readFileSync('public/weather.js','utf8'),context);
@@ -159,4 +160,15 @@ test('unavailable location never substitutes Petersburg rain for automatic weath
  const weather=client({navigator:{geolocation:{getCurrentPosition(_resolve,reject){positions++;reject(Error('denied'))}}},fetchImpl:()=>{throw Error('must not request guessed city')}});
  const data=await weather.getAutomatic();assert.equal(data.location.resolved,false);assert.equal(data.current,undefined);assert.match(data.location.note,/недоступна/);
  await weather.getAutomatic();assert.equal(positions,1);
+});
+
+test('all default widget requests follow selected city while automatic effects stay independent',async()=>{
+ const urls=[];const weather=client({navigator:{geolocation:{getCurrentPosition:resolve=>resolve({coords:{latitude:13.75,longitude:100.50}})}},fetchImpl:async url=>{urls.push(url);return {ok:true,json:async()=>({...sample,fetchedAt:Date.now()})}}});
+ weather.setSelectedCity('cairo');const value=await weather.get();assert.equal(value.location.city,'cairo');assert.equal(value.location.automatic,false);assert.match(urls.at(-1),/city=cairo/);
+ const automatic=await weather.getAutomatic();assert.equal(automatic.location.city,'bangkok');assert.equal(weather.getSelectedCity(),'cairo');
+ weather.setSelectedCity('auto');const selected=await weather.get();assert.equal(selected.location.city,'bangkok');assert.equal(selected.location.automatic,true);
+});
+test('late default widget response cannot overwrite a newly selected city',async()=>{
+ let finish;const weather=client({fetchImpl:()=>new Promise(resolve=>finish=()=>resolve({ok:true,json:async()=>({...sample,fetchedAt:Date.now()})}))});
+ weather.setSelectedCity('bali');const pending=weather.get();weather.setSelectedCity('moscow');finish();await assert.rejects(pending,/selection changed/);
 });

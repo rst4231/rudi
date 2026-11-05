@@ -95,6 +95,21 @@ const locations={murino:{label:'Мурино',where:'Мурино',latitude:60.0
   }
   const clients=new Map();
   function client(city){const key=['murino','moscow','belgorod','bali','bangkok','antalya','cairo'].includes(city)?city:'spb';if(!clients.has(key))clients.set(key,createCityClient(key));return clients.get(key)}
+  const selectionKey=()=> 'rudi:forecast-city:'+(globalThis.document?.body?.dataset?.rudiActor==='Диана'?'diana':'rustam');
+  function getSelectedCity(){try{const value=localStorage.getItem(selectionKey());return value==='auto'||Object.hasOwn(locations,value)?value:'auto'}catch(_){return 'auto'}}
+  function setSelectedCity(city){
+    if(city!=='auto'&&!Object.hasOwn(locations,city))return;
+    try{localStorage.setItem(selectionKey(),city)}catch(_){}
+    window.dispatchEvent?.(new CustomEvent('rudi:weather-city-change',{detail:{city}}));
+  }
+  async function getSelected(options={},monthly=false){
+    if(options.city)return monthly?client(options.city).getMonthly():client(options.city).get(options);
+    const key=selectionKey(),choice=getSelectedCity();
+    const location=choice==='auto'?await getAutomaticLocation():{city:choice,resolved:true,note:''};
+    const data=await (monthly?client(location.city).getMonthly():client(location.city).get(options));
+    if(key!==selectionKey()||choice!==getSelectedCity())throw Error('Weather selection changed');
+    return {...data,location:{...location,automatic:choice==='auto'}};
+  }
   function currentSummary(data){
     const c=data?.current||{},h=data?.hourly||{};
     if(!Number.isFinite(c.temperature_2m)||!Number.isFinite(c.weather_code))return null;
@@ -103,5 +118,5 @@ const locations={murino:{label:'Мурино',where:'Мурино',latitude:60.0
     const speed=Number.isFinite(c.wind_speed_10m)?c.wind_speed_10m:index>=0?h.wind_speed_10m?.[index]:null;
     return {temperature:c.temperature_2m,code:c.weather_code,probability:Number.isFinite(chance)&&chance>=0&&chance<=100?chance:null,wind:Number.isFinite(speed)&&speed>=0?Math.round(speed/3.6*10)/10:null};
   }
-  window.RUDI_WEATHER = {locations,nearestCity,getAutomaticLocation,getAutomatic,get:(options={})=>client(options.city).get(options),getMonthly:(options={})=>client(options.city).getMonthly(),currentSummary};
+  window.RUDI_WEATHER = {locations,nearestCity,getAutomaticLocation,getAutomatic,getSelectedCity,setSelectedCity,get:getSelected,getMonthly:(options={})=>getSelected(options,true),currentSummary};
 })();
