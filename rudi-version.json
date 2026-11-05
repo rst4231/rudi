@@ -1,20 +1,17 @@
 {
-  "current": "v4.43",
-  "versionBranch": "rudi-release-v443",
+  "current": "v4.44",
+  "versionBranch": "rudi-release-v444",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.42",
+  "basedOnProduction": "v4.43",
   "notes": [
-    "Верхний блок по референсу: приветствие и дата слева, погода справа, Луна и ближайший восход или закат внизу.",
-    "В погодном блоке указан город загруженного прогноза.",
-    "Обновлён ночной пейзаж и предусмотрены узкие экраны."
+    "Компактная карточка: приветствие и дата объединены слева без пустого верхнего ряда.",
+    "Уменьшены отступы, кнопки и погодные плашки."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Arrange home hero around the supplied reference.",
-    "Show loaded forecast city in the dedicated weather block.",
-    "Preserve forecast navigation and unavailable-weather handling."
+    "Compact reference hero layout and remove unused space above the greeting."
   ]
 }

@@ -10448,7 +10448,10 @@
         }
 
         tools.append(notifications,settings);
-        top.append(greeting,tools,dateHeading,moonPhase,sunEvent);
+        const intro=document.createElement('div');
+        intro.className='home-hero-intro';
+        intro.append(greeting,dateHeading);
+        top.append(intro,tools,moonPhase,sunEvent);
 
         profile.replaceChildren(top);
 
