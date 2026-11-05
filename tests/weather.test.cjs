@@ -136,3 +136,13 @@ test('weather services request coordinates for each city in both forecast ranges
   }
  }
 });
+
+test('new cities reach their own weather endpoint and cached data',async()=>{
+ const requested=[];const cities=['belgorod','bali','bangkok','antalya','cairo'];
+ const weather=client({fetchImpl:async url=>{requested.push(url);return {ok:true,json:async()=>({...sample,fetchedAt:Date.now(),current:{...sample.current,temperature_2m:requested.length}})}}});
+ for(const [i,city] of cities.entries()){
+  const value=await weather.get({city});assert.equal(value.current.temperature_2m,i+1);assert.match(requested.at(-1),new RegExp('city='+city));
+ }
+ for(const [i,city] of cities.entries())assert.equal((await weather.get({city})).current.temperature_2m,i+1);
+ assert.equal(requested.length,cities.length);
+});

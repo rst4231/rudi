@@ -51,7 +51,7 @@ function createWeatherService({fetchImpl = globalThis.fetch, now = Date.now, tim
   };
 }
 const getWeather = createWeatherService();
-const CITIES={spb:{latitude:59.9386,longitude:30.3141},murino:{latitude:60.0479,longitude:30.452},moscow:{latitude:55.7558,longitude:37.6173}};
+const CITIES={spb:{latitude:59.9386,longitude:30.3141},murino:{latitude:60.0479,longitude:30.452},moscow:{latitude:55.7558,longitude:37.6173},belgorod:{latitude:50.5954,longitude:36.5873},bali:{latitude:-8.65,longitude:115.2167},bangkok:{latitude:13.7563,longitude:100.5018},antalya:{latitude:36.8969,longitude:30.7133},cairo:{latitude:30.0444,longitude:31.2357}};
 const weatherServices={spb:getWeather},monthlyServices={};
 for(const [city,coordinates] of Object.entries(CITIES)){
  if(city!=='spb')weatherServices[city]=createWeatherService(coordinates);

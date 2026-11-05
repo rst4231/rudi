@@ -2,10 +2,10 @@
 (function(){
 'use strict';
 let modal=null,payload=null,view='day',selected='',month='',generation=0,active=false,activation=null,returnTab='home',monthlyPayload=null,monthlyLoading=false,monthlyError=false,monthlyAttempted=false;
-const cities={murino:{label:'Мурино',where:'Мурино',latitude:60.0479,longitude:30.452},spb:{label:'Санкт-Петербург',where:'Санкт-Петербурге',latitude:59.9386,longitude:30.3141},moscow:{label:'Москва',where:'Москве',latitude:55.7558,longitude:37.6173}};
+const cities={murino:{label:'Мурино',where:'Мурино',latitude:60.0479,longitude:30.452},spb:{label:'Санкт-Петербург',where:'Санкт-Петербурге',latitude:59.9386,longitude:30.3141},moscow:{label:'Москва',where:'Москве',latitude:55.7558,longitude:37.6173},belgorod:{label:'Белгород',where:'Белгороде',latitude:50.5954,longitude:36.5873},bali:{label:'Бали',where:'Бали',latitude:-8.65,longitude:115.2167},bangkok:{label:'Бангкок',where:'Бангкоке',latitude:13.7563,longitude:100.5018},antalya:{label:'Анталья',where:'Анталье',latitude:36.8969,longitude:30.7133},cairo:{label:'Каир',where:'Каире',latitude:30.0444,longitude:31.2357}};
 let city='spb',locationNote='';
 const cityKey=()=> 'rudi:forecast-city:'+(document.body.dataset.rudiActor==='Диана'?'diana':'rustam');
-function savedCity(){try{const value=localStorage.getItem(cityKey());return value==='auto'||Object.hasOwn(cities,value)?value:'spb'}catch(_){return 'spb'}}
+function savedCity(){try{const value=localStorage.getItem(cityKey());return value==='auto'||Object.hasOwn(cities,value)?value:'auto'}catch(_){return 'auto'}}
 function nearestCity(latitude,longitude){return Object.keys(cities).sort((a,b)=>{const distance=key=>{const place=cities[key],r=Math.PI/180;return Math.sin((latitude-place.latitude)*r/2)**2+Math.cos(latitude*r)*Math.cos(place.latitude*r)*Math.sin((longitude-place.longitude)*r/2)**2};return distance(a)-distance(b)})[0]}
 async function resolveCity(choice){
  if(choice!=='auto')return {city:choice,note:''};
@@ -108,7 +108,7 @@ function render(){
  }
  controls.append(chooser);
  content.append(node('p',new Date(month+'-01T12:00:00Z').toLocaleDateString('ru-RU',{month:'long',year:'numeric',timeZone:'Europe/Moscow'}),'weather-forecast-month-title'));
- content.append(node('p',monthlyLoading?'Загружаю долгосрочный прогноз…':monthlyError?'Долгосрочный прогноз сейчас недоступен. Показываю доступные дни.':'≈ Предварительный долгосрочный прогноз: дальние температуры могут заметно измениться.','weather-forecast-hint'));
+ if(monthlyLoading||monthlyError)content.append(node('p',monthlyLoading?'Загружаю долгосрочный прогноз…':'Долгосрочный прогноз сейчас недоступен. Показываю доступные дни.','weather-forecast-hint'));
  if(monthlyPayload?.stale)content.append(node('p','Долгосрочные данные сохранены ранее.','weather-forecast-hint'));
  const grid=node('div',undefined,'weather-forecast-month');grid.setAttribute('aria-label','Прогноз на месяц');
  for(const weekday of ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'])grid.append(node('strong',weekday));

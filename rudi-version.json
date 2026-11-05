@@ -1,20 +1,20 @@
 {
-  "current": "v4.38",
-  "versionBranch": "rudi-release-v438",
+  "current": "v4.39",
+  "versionBranch": "rudi-release-v439",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.37",
+  "basedOnProduction": "v4.38",
   "notes": [
-    "Прогноз погоды развёрнут на весь экран без внешней карточки и боковых полос.",
-    "Исправлена стрелка назад и контраст в тёмной теме.",
-    "Добавлен выбор Мурино, СПб, Москва и Автоматически с сохранением выбора и отдельными кэшами городов."
+    "Автоматически выбран по умолчанию в прогнозе погоды. Сохранённый выбор города сохраняется.",
+    "В прогноз добавлены Белгород, Бали, Бангкок, Анталья и Каир; автоматический выбор учитывает новые города.",
+    "Удалён поясняющий текст под прогнозом на месяц и сокращён отступ до календаря."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Fill the weather viewport with safe-area padding and an internal forecast scroller.",
-    "Use explicit themed SVG strokes for the back arrow.",
-    "Add persisted city selection with nearest-city geolocation and isolated short and long range caches."
+    "Default the forecast city selector to automatic when no valid saved choice exists.",
+    "Add five more forecast locations to selectors, geolocation matching and isolated weather caches.",
+    "Remove the monthly explanatory paragraph without leaving an empty spacer."
   ]
 }

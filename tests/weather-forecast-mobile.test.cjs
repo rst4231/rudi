@@ -82,7 +82,7 @@ test('missing current conditions use a neutral page instead of claiming sunshine
 });
 test('month requests long-range once and keeps real short-range values over estimates',async()=>{
  const f=interactiveFixture();await f.api.open();clickView(f,'month');await tick();let cells=f.root().querySelectorAll('.weather-forecast-cell');assert.equal(cells.length,14);assert.equal(cells[0].querySelector('.weather-forecast-cell-temperature').textContent,'5°…10°');assert.equal(cells[0].classList.contains('is-preliminary'),false);
- f.root().querySelectorAll('.weather-forecast-month-buttons button')[1].click();await tick();cells=f.root().querySelectorAll('.weather-forecast-cell');assert.equal(cells.length,30);assert.match(cells[24].textContent,/≈.*-5°.*1°/);assert.equal(cells[24].querySelector('.weather-forecast-cell-icon'),null);assert.equal(f.calls.months,1);assert.match(f.root().textContent,/предварительный/i);f.dom.window.close();
+ f.root().querySelectorAll('.weather-forecast-month-buttons button')[1].click();await tick();cells=f.root().querySelectorAll('.weather-forecast-cell');assert.equal(cells.length,30);assert.match(cells[24].textContent,/≈.*-5°.*1°/);assert.equal(cells[24].querySelector('.weather-forecast-cell-icon'),null);assert.equal(f.calls.months,1);assert.doesNotMatch(f.root().textContent,/Предварительный долгосрочный прогноз/);assert.equal(f.root().querySelector('.weather-forecast-hint'),null);assert.equal(cells[24].classList.contains('is-preliminary'),true);f.dom.window.close();
 });
 test('smart-home weather opens the same page and back returns to its origin',async()=>{
  const f=interactiveFixture(undefined,{initialTab:'smart-home'}),trigger=f.document.querySelector('#smartHomePage .smart-home-climate-card.is-weather');assert.equal(trigger.tagName,'BUTTON');trigger.click();await tick();assert.equal(f.document.body.dataset.appTab,'weather');f.root().querySelector('.weather-forecast-back').click();assert.equal(f.back,'smart-home');f.dom.window.close();
@@ -116,7 +116,7 @@ test('calendar dayparts include prevailing weather, maximum hourly wind and prec
 test('city choice persists and changes the forecast and current city label',async()=>{
  const requested=[];const f=interactiveFixture(undefined,{get:async options=>{requested.push(options.city);return {current:{temperature_2m:5,weather_code:3},daily:{time:['2026-10-18']}}}});
  try{
-  await f.api.open();const select=f.document.getElementById('weatherForecastCity');assert.deepEqual([...select.options].map(o=>o.value),['murino','spb','moscow','auto']);
+  await f.api.open();const select=f.document.getElementById('weatherForecastCity');assert.deepEqual([...select.options].map(o=>o.value),['murino','spb','moscow','belgorod','bali','bangkok','antalya','cairo','auto']);
   select.value='moscow';select.dispatchEvent(new f.window.Event('change'));await tick();
   assert.equal(requested.at(-1),'moscow');assert.match(f.root().querySelector('.weather-forecast-now').textContent,/Москве/);
   f.api.close();await f.api.open();assert.equal(select.value,'moscow');assert.equal(requested.at(-1),'moscow');
@@ -137,5 +137,27 @@ test('late city response cannot replace the currently selected city',async()=>{
  try{
   await f.api.open();const select=f.document.getElementById('weatherForecastCity');select.value='moscow';select.dispatchEvent(new f.window.Event('change'));await tick();
   select.value='murino';select.dispatchEvent(new f.window.Event('change'));await tick();finish({daily:{time:['2026-10-18']}});await tick();assert.match(f.root().querySelector('.weather-forecast-status').textContent,/Мурино/);
+ }finally{f.dom.window.close()}
+});
+
+test('forecast defaults to automatic and keeps an explicit saved city',async()=>{
+ const f=interactiveFixture();try{
+  await f.api.open();const select=f.document.getElementById('weatherForecastCity');assert.equal(select.value,'auto');
+  select.value='murino';select.dispatchEvent(new f.window.Event('change'));await tick();
+  f.api.close();await f.api.open();assert.equal(select.value,'murino');
+ }finally{f.dom.window.close()}
+});
+
+test('all added locations are selected automatically and used for hourly and monthly requests',async()=>{
+ const places=[['belgorod',50.5954,36.5873,'Белгород'],['bali',-8.65,115.2167,'Бали'],['bangkok',13.7563,100.5018,'Бангкок'],['antalya',36.8969,30.7133,'Анталья'],['cairo',30.0444,31.2357,'Каир']];
+ const requested=[],monthly=[];
+ const f=interactiveFixture(undefined,{get:async options=>{requested.push(options.city);return {daily:{time:['2026-10-18']}}},monthly:async options=>{monthly.push(options.city);return {days:[]}}});
+ try{
+  await f.api.open();const select=f.document.getElementById('weatherForecastCity');
+  for(const [city,latitude,longitude,label] of places){
+   assert.equal(f.api.nearestCity(latitude,longitude),city);
+   select.value=city;select.dispatchEvent(new f.window.Event('change'));await tick();assert.equal(requested.at(-1),city);assert.match(f.root().querySelector('.weather-forecast-status').textContent,new RegExp(label));
+   clickView(f,'month');await tick();assert.equal(monthly.at(-1),city);
+  }
  }finally{f.dom.window.close()}
 });

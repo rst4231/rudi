@@ -68,7 +68,7 @@
   return {get,getMonthly};
   }
   const clients=new Map();
-  function client(city){const key=['murino','moscow'].includes(city)?city:'spb';if(!clients.has(key))clients.set(key,createCityClient(key));return clients.get(key)}
+  function client(city){const key=['murino','moscow','belgorod','bali','bangkok','antalya','cairo'].includes(city)?city:'spb';if(!clients.has(key))clients.set(key,createCityClient(key));return clients.get(key)}
   function currentSummary(data){
     const c=data?.current||{},h=data?.hourly||{};
     if(!Number.isFinite(c.temperature_2m)||!Number.isFinite(c.weather_code))return null;
