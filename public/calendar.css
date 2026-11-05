@@ -1883,3 +1883,10 @@ html body[data-app-tab="schedule"] .work-page #workCalendarSelected.calendar-wee
 .work-page .calendar-week-time-event.is-concurrent>small{font-size:8px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
 .work-page .calendar-week-time-event.is-dense.calendar-agenda-task{grid-template-columns:14px minmax(0,1fr)!important;column-gap:3px!important;padding:3px 2px!important;font-size:9px!important}
 .work-page .calendar-week-time-event.is-dense .calendar-agenda-task-checkbox{width:14px!important;height:14px!important;min-width:14px!important;font-size:9px!important}
+
+/* Dark timeline cards retain their personal/shared source outlines. */
+html[data-theme="dark"] .work-page :is(.calendar-week-time-event,.calendar-week-allday-item){background:#202b3d!important;color:#edf3ff!important}
+html[data-theme="dark"] .work-page :is(.calendar-week-time-event,.calendar-week-allday-item) small{color:#b7cdf4!important;opacity:1!important}
+html[data-theme="dark"] .work-page :is(.calendar-week-time-event,.calendar-week-allday-item)>span{color:#edf3ff!important}
+html[data-theme="dark"] .work-page .calendar-week-time-event .calendar-agenda-task-checkbox{border-color:#90acd6!important;color:#d7e6ff!important;background:transparent!important}
+html[data-theme="dark"] .work-page .calendar-week-time-event.is-completed .calendar-agenda-task-checkbox{background:#365784!important;color:#fff!important}

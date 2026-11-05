@@ -1,18 +1,22 @@
 {
-  "current": "v4.40",
-  "versionBranch": "rudi-release-v440",
+  "current": "v4.41",
+  "versionBranch": "rudi-release-v441",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.39",
+  "basedOnProduction": "v4.40",
   "notes": [
-    "Глобальные дождь и снег используют автоматически определённый город независимо от ручного выбора в прогнозе.",
-    "Общий кэш геолокации объединяет запросы страницы погоды и анимаций. При недоступной геопозиции глобальные осадки не выдумываются."
+    "Медитация партнёра перенесена к привычкам и показана компактно: 🧘 5 мин.",
+    "Погода в календаре использует выбранный город или автоматическое определение.",
+    "Карточки задач календаря адаптированы для тёмной темы с сохранением синих и зелёных обводок.",
+    "В разделе КПТ убраны подписи необязательно."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Use shared automatic location and per-city current weather for global precipitation effects.",
-    "Coalesce and bound geolocation requests; keep manual forecast selection independent."
+    "Move partner meditation next to habits and display duration only.",
+    "Use the saved forecast location for calendar weather summaries and hourly labels.",
+    "Apply dark timeline card surfaces with readable text and checkboxes.",
+    "Remove optional field captions from CBT forms while preserving validation."
   ]
 }

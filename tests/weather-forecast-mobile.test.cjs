@@ -43,7 +43,7 @@ test('weekly hour gaps show condition emoji and temperature without wind or rain
  }finally{f.dom.window.close()}
 });
 test('late hourly weather cannot fill a different selected date',async()=>{
- let resolve;const f=interactiveFixture(undefined,{get:()=>new Promise(done=>{resolve=done})});try{const host=f.make('div');host.dataset.calendarWeatherDate='2026-10-18';host.innerHTML='<span data-weather-hour="12" hidden></span>';const request=f.api.renderCalendarHours(host,'2026-10-18');host.dataset.calendarWeatherDate='2026-10-19';resolve({hourly:{time:['2026-10-18T12:00'],temperature_2m:[6]}});await request;assert.equal(host.firstChild.hidden,true);assert.equal(host.firstChild.textContent,'')}finally{f.dom.window.close()}
+ let resolve;const f=interactiveFixture(undefined,{get:()=>new Promise(done=>{resolve=done})});try{const host=f.make('div');host.dataset.calendarWeatherDate='2026-10-18';host.innerHTML='<span data-weather-hour="12" hidden></span>';const request=f.api.renderCalendarHours(host,'2026-10-18');await tick();host.dataset.calendarWeatherDate='2026-10-19';resolve({hourly:{time:['2026-10-18T12:00'],temperature_2m:[6]}});await request;assert.equal(host.firstChild.hidden,true);assert.equal(host.firstChild.textContent,'')}finally{f.dom.window.close()}
 });
 test('hourly precipitation decoration follows rain and snow codes and stays absent for clouds',async()=>{
  const f=interactiveFixture(undefined,{get:async()=>({hourly:{time:['2026-10-18T12:00','2026-10-18T13:00','2026-10-18T14:00'],temperature_2m:[5,-2,6],weather_code:[61,73,3],precipitation_probability:[90,95,0]}})});
@@ -159,5 +159,15 @@ test('all added locations are selected automatically and used for hourly and mon
    select.value=city;select.dispatchEvent(new f.window.Event('change'));await tick();assert.equal(requested.at(-1),city);assert.match(f.root().querySelector('.weather-forecast-status').textContent,new RegExp(label));
    clickView(f,'month');await tick();assert.equal(monthly.at(-1),city);
   }
+ }finally{f.dom.window.close()}
+});
+
+test('calendar hourly weather follows the saved city or automatic location',async()=>{
+ const requests=[];const f=interactiveFixture(undefined,{get:async options=>{requests.push(options.city);return {hourly:{time:['2026-10-18T12:00'],temperature_2m:[24],weather_code:[0]}}}});
+ try{
+  const host=f.make('div');host.dataset.calendarWeatherDate='2026-10-18';host.innerHTML='<span data-weather-hour="12" hidden></span>';
+  f.window.localStorage.setItem('rudi:forecast-city:rustam','bali');await f.api.renderCalendarHours(host,'2026-10-18');assert.equal(requests.at(-1),'bali');assert.match(host.textContent,/24°/);
+  f.window.localStorage.setItem('rudi:forecast-city:rustam','auto');Object.defineProperty(f.window.navigator,'geolocation',{value:{getCurrentPosition:resolve=>resolve({coords:{latitude:13.75,longitude:100.50}})}});
+  await f.api.renderCalendarHours(host,'2026-10-18');assert.equal(requests.at(-1),'bangkok');
  }finally{f.dom.window.close()}
 });

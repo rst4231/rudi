@@ -674,3 +674,10 @@ html .partner-profile-page:not(.lulu-profile-page)>.partner-profile-bar{backgrou
 
 .partner-finances .partner-finance-limit{font-size:12px;font-weight:650;color:var(--text)}
 .partner-finances .partner-finance-budget-head strong{font-size:12px}
+
+/* Meditation sits beside the habit count, without a separate card. */
+.partner-profile-page .partner-mood-meditation{display:inline-flex;align-items:center;flex:none;white-space:nowrap}
+.partner-profile-page .partner-mood-meditation:empty,.partner-profile-page .partner-hero-bubbles:empty{display:none!important}
+.partner-profile-page .partner-mood-meditation>.meditation-partner-summary{display:inline!important;width:auto!important;min-height:0!important;padding:0!important;margin:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;color:var(--hero-text)!important;-webkit-text-fill-color:var(--hero-text)!important;font-size:12px!important;font-weight:400!important;line-height:1.25!important;white-space:nowrap!important}
+
+.partner-profile-page .partner-mood-activity{display:inline-flex;align-items:center;gap:8px;flex:none;white-space:nowrap}

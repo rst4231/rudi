@@ -76,13 +76,13 @@
   for(const {node} of haloPaths){node.setAttribute('d','M50 3 A47 47 0 1 1 50 97 A47 47 0 1 1 50 3');node.setAttribute('pathLength',String(168+52*Math.PI))}
   const restoreHalo=()=>{for(const {node,d,length} of haloPaths){if(d===null)node.removeAttribute('d');else node.setAttribute('d',d);if(length===null)node.removeAttribute('pathLength');else node.setAttribute('pathLength',length)}};
 
-  for(const [node,kind] of [[meditation,'meditation']]){
-   const bubble=document.createElement('div');bubble.className='partner-hero-bubble is-'+kind;
-   bubbles.append(bubble);if(node)move(node,bubble);
-  }
   const habitChip=document.createElement('span');habitChip.className='partner-mood-habits';habitChip.hidden=true;
   const moodAnchor=hero.querySelector('.partner-mood-cbt')||hero.querySelector('#partnerMoodValue');
   if(moodAnchor){moodAnchor.after(habitChip);groups.push(habitChip);move(habits,habitChip)}
+  const meditationChip=document.createElement('span');meditationChip.className='partner-mood-meditation';
+  if(habitChip.isConnected)habitChip.after(meditationChip);else hero.querySelector('.profile-name-row')?.append(meditationChip);
+  groups.push(meditationChip);if(meditation)move(meditation,meditationChip);
+  if(habitChip.isConnected&&meditationChip.isConnected){const activity=document.createElement('span');activity.className='partner-mood-activity';habitChip.before(activity);activity.append(habitChip,meditationChip);groups.push(activity);}
   // Keep moved rows inside details: existing live renderers find them here.
   const compactHabits=()=>{
    if(!habits)return;
@@ -94,7 +94,7 @@
   const observer=new MutationObserver(()=>{
    compactHabits();
    const late=details.querySelector(':scope>#meditationPartnerSummary');
-   if(late)move(late,bubbles.querySelector('.is-meditation'));
+   if(late)move(late,meditationChip);
   });observer.observe(details,{childList:true});
   if(habits)observer.observe(habits,{childList:true,subtree:true,characterData:true});
   const today=document.createElement('section');today.className='partner-today';today.innerHTML='<h2>БАДы</h2>';

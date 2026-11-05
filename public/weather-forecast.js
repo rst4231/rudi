@@ -154,20 +154,26 @@ window.addEventListener?.('rudi:app-tab-change',routeChanged);
 document.addEventListener('click',event=>{const trigger=event.target.closest?.('[data-weather-forecast]');if(trigger){event.preventDefault();void open()}});
 function initialize(){setupPage();if(document.body?.dataset.appTab==='weather')void activate()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initialize,{once:true});else initialize();
+async function calendarForecast(){
+ const choice=savedCity(),key=cityKey(),location=await resolveCity(choice);
+ const data=await window.RUDI_WEATHER.get({forecast:true,city:location.city});
+ if(key!==cityKey()||choice!==savedCity())throw Error('Weather selection changed');
+ return {...data,cityLabel:cities[location.city].label};
+}
 async function renderCalendarDay(target,date){
  for(const existing of target.querySelectorAll('.calendar-day-weather'))existing.remove();
  const card=node('section',undefined,'calendar-day-weather');card.dataset.date=date;card.setAttribute('aria-label','Погода на '+label(date));
  card.append(node('strong','Прогноз на день'),node('p','Загружаю прогноз…'));target.append(card);
  if(date<today()){card.querySelector('p').textContent='Прогноз на прошедшие даты недоступен.';return}
  try{
-  const data=await window.RUDI_WEATHER.get(),day=model(data).days.find(item=>item.date===date);
+  const data=await calendarForecast(),day=model(data).days.find(item=>item.date===date);
   if(!card.isConnected)return;
   card.replaceChildren(node('strong','Прогноз на день'));
   if(!day||!Number.isFinite(day.min)||!Number.isFinite(day.max)){
    card.append(node('p','Прогноз на эту дату пока недоступен.'));return;
   }
   card.append(node('b',(Number.isFinite(day.code)?emoji(day.code)+' ':'')+number(day.min,'°')+'…'+number(day.max,'°'),'calendar-day-weather-temperature'));
-  const detail=['Санкт-Петербург'];
+  const detail=[data.cityLabel];
   if(Number.isFinite(day.probability))detail.push('Осадки '+number(day.probability,'%'));
   else if(Number.isFinite(day.rain))detail.push('Осадки '+number(day.rain,' мм'));
   if(Number.isFinite(day.wind))detail.push('Ветер до '+number(day.wind,' км/ч'));
@@ -192,12 +198,12 @@ function periodForecast(data,date){
 }
 async function renderCalendarPeriods(target,date){
  if(date<today())return;
- try{const data=await window.RUDI_WEATHER.get({forecast:true});if(!target.isConnected||target.dataset.calendarWeatherDate!==date)return;const periods=periodForecast(data,date);for(const el of target.querySelectorAll('[data-weather-period]')){const value=periods[el.dataset.weatherPeriod],parts=[];if(value){if(value.code!==null)parts.push(emoji(value.code));if(value.min!==null&&value.max!==null)parts.push(number(value.min)+'…'+number(value.max,'°'));if(value.wind!==null)parts.push('💨 до '+String(value.wind).replace('.',',')+' м/с');if(value.probability!==null)parts.push('☔ до '+number(value.probability,'%'))}el.textContent=parts.length?' ('+parts.join(' · ')+')':'';el.title=parts.length?(data.stale?'Сохранённый почасовой прогноз; ветер и вероятность — максимум за период':'Почасовой прогноз; ветер и вероятность — максимум за период'):''}}catch(_){}
+ try{const data=await calendarForecast();if(!target.isConnected||target.dataset.calendarWeatherDate!==date)return;const periods=periodForecast(data,date);for(const el of target.querySelectorAll('[data-weather-period]')){const value=periods[el.dataset.weatherPeriod],parts=[];if(value){if(value.code!==null)parts.push(emoji(value.code));if(value.min!==null&&value.max!==null)parts.push(number(value.min)+'…'+number(value.max,'°'));if(value.wind!==null)parts.push('💨 до '+String(value.wind).replace('.',',')+' м/с');if(value.probability!==null)parts.push('☔ до '+number(value.probability,'%'))}el.textContent=parts.length?' ('+parts.join(' · ')+')':'';el.title=parts.length?(data.stale?'Сохранённый почасовой прогноз; ветер и вероятность — максимум за период':'Почасовой прогноз; ветер и вероятность — максимум за период'):''}}catch(_){}
 }
 async function renderCalendarHours(target,date){
  if(date<today())return;
  try{
-  const data=await window.RUDI_WEATHER.get({forecast:true});
+  const data=await calendarForecast();
   if(!target.isConnected||target.dataset.calendarWeatherDate!==date)return;
   const hours=new Map(model(data).hours.filter(row=>row.date===date).map(row=>[row.time.slice(11,13),row]));
   for(const el of target.querySelectorAll('[data-weather-hour]')){
