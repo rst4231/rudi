@@ -258,6 +258,14 @@
         offlinePending: true
       };
       next.allDay = !next.startTime;
+      if(row.kind==='personal-move'&&[old.startTime,old.endTime,next.startTime].every(time=>/^([01]\d|2[0-3]):[0-5]\d$/.test(String(time||'')))){
+        const minutes=time=>Number(time.slice(0,2))*60+Number(time.slice(3));
+        const duration=minutes(old.endTime)-minutes(old.startTime);
+        if(duration>0){
+          const end=(minutes(next.startTime)+duration)%1440;
+          next.endTime=String(Math.floor(end/60)).padStart(2,'0')+':'+String(end%60).padStart(2,'0');
+        }
+      }
       if(next.personal){
         if(next.date.slice(0,7)===month)getDay(next.date).events.push(next);
       }else{

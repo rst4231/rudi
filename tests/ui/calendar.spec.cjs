@@ -665,7 +665,7 @@ test('personal TickTick fields stay single and reset native node state across 10
   await page.goto('/');
   await expect(page.locator('body')).toHaveClass(/auth-ok/);
   const row=page.locator('#rudiPersonalTaskModal .ticktick-task-date-time-row');
-  const date=row.locator('input[type="date"]'),time=row.locator('input[type="time"]');
+  const date=page.locator('#rudiPersonalTaskDate'),time=row.locator('#rudiPersonalTaskTime'),endTime=row.locator('#rudiPersonalTaskEndTime');
   const tasks=[
     {id:'first',date:'2026-10-13',startTime:'12:00'},
     {id:'second',date:'2026-10-14',startTime:'16:30'},
@@ -681,6 +681,8 @@ test('personal TickTick fields stay single and reset native node state across 10
     await expect(row).toBeVisible();
     await expect(date).toHaveCount(1);
     await expect(time).toHaveCount(1);
+    await expect(endTime).toHaveCount(1);
+    await expect(endTime).toHaveValue('');
     await expect(date).toBeVisible();
     await expect(time).toBeVisible();
     await expect(date).toHaveValue(task.date);

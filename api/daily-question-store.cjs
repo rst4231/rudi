@@ -1,5 +1,6 @@
 const { createStrictRuntimeCache } = require('./strict-runtime-cache.cjs');
 const { generateDailyQuestion } = require('./daily-question-ai.cjs');
+const { reserveDailyQuestion } = require('./daily-question-reserve.cjs');
 
 const NAMESPACE='rudi-daily-question-v1';
 const HISTORY_NAMESPACE='rudi-daily-question-history-v1';
@@ -148,12 +149,19 @@ async function ensureDailyQuestion(options={}){
 
     const historyCache=historyCacheOf(options);
     const history=normalizeHistory(await historyCache.get(HISTORY_KEY).catch(()=>null));
-    const generated=await (options.generateQuestion||generateDailyQuestion)(history,{
-      env:options.env||process.env,
-      fetch:options.fetch||global.fetch,
-      apiKey:options.apiKey,
-      timeoutMs:options.timeoutMs,
-    });
+    let generated;
+    try{
+      generated=await (options.generateQuestion||generateDailyQuestion)(history,{
+        env:options.env||process.env,
+        fetch:options.fetch||global.fetch,
+        apiKey:options.apiKey,
+        timeoutMs:options.timeoutMs,
+      });
+    }catch(error){
+      if(!/^(?:daily-question-ai-[a-z-]+|groq-api-key-missing)$/.test(String(error?.message)))throw error;
+      console.warn('RUDI_DAILY_QUESTION_RESERVE',{date,error:error.message,providerStatus:error?.providerStatus||null,providerCode:error?.providerCode||''});
+      generated=reserveDailyQuestion(history,date);
+    }
 
     const concurrent=normalizeRow(await cache.get(rowKey(date)).catch(()=>null),date);
     if(concurrent.question?.text) return concurrent;

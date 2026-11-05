@@ -2,14 +2,15 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 
-test('personal TickTick editor renders a single direct native date and time control',()=>{
+test('personal TickTick editor renders one native date plus separate native start and end controls',()=>{
   const js=fs.readFileSync('public/personal-task-editor.js','utf8');
   const css=fs.readFileSync('public/personal-task-editor.css','utf8');
   const markup=js.slice(js.indexOf("modal.innerHTML="),js.indexOf("document.body.appendChild(modal);"));
   assert.equal((markup.match(/id="rudiPersonalTaskDate"/g)||[]).length,1);
   assert.equal((markup.match(/id="rudiPersonalTaskTime"/g)||[]).length,1);
+  assert.equal((markup.match(/id="rudiPersonalTaskEndTime"/g)||[]).length,1);
   assert.match(markup,/type="date" aria-label="Дата дела"/);
-  assert.match(markup,/type="time" aria-label="Время дела"/);
+  assert.match(markup,/type="time" aria-label="Время начала"/);
   assert.doesNotMatch(markup,/data-personal-picker-open|rudi-personal-picker-button/);
   assert.match(js,/function refreshTemporalInputs\(\)/);
   assert.match(js,/input\.addEventListener\('change',syncTime\)/);

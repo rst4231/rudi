@@ -88,47 +88,53 @@ async function generateDailyQuestion(history=[],options={}){
     .map(row=>({question:cleanText(row?.question||row,220),theme:cleanText(row?.theme,60)}))
     .filter(row=>row.question);
   const recentThemes=new Set(prior.slice(0,4).map(row=>normalized(row.theme)).filter(Boolean));
-  for(let attempt=0;attempt<5;attempt++){
+  for(let attempt=0;attempt<3;attempt++){
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),Math.max(5000,Number(options.timeoutMs)||10000));
-    let response;
     try{
-      response=await fetchImpl('https://api.groq.com/openai/v1/chat/completions',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
-        signal:controller.signal,
-        body:JSON.stringify({
-          model:DEFAULT_MODEL,
-          messages:[{role:'user',content:prompt(prior,attempt>0)}],
-          reasoning_effort:'low',
-          include_reasoning:false,
-          temperature:0.95,
-          max_completion_tokens:220,
-          stream:false,
-          response_format:{type:'json_schema',json_schema:{name:'rudi_daily_question',strict:true,schema:schema()}},
-        }),
-      });
-    }catch(error){
-      if(error?.name==='AbortError') throw new Error('daily-question-ai-timeout');
-      throw new Error('daily-question-ai-unavailable');
-    }finally{clearTimeout(timer)}
-    if(response.status===429) throw new Error('daily-question-ai-quota');
-    if([500,502,503,504].includes(response.status)) throw new Error('daily-question-ai-busy');
-    if(!response.ok) throw new Error('daily-question-ai-provider');
-    try{
+      let response;
+      try{
+        response=await fetchImpl('https://api.groq.com/openai/v1/chat/completions',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey},
+          signal:controller.signal,
+          body:JSON.stringify({
+            model:DEFAULT_MODEL,
+            messages:[{role:'user',content:prompt(prior,attempt>0)}],
+            reasoning_effort:'low',
+            include_reasoning:false,
+            temperature:0.95,
+            max_completion_tokens:220,
+            stream:false,
+            response_format:{type:'json_schema',json_schema:{name:'rudi_daily_question',strict:true,schema:schema()}},
+          }),
+        });
+      }catch(error){
+        throw new Error(error?.name==='AbortError'?'daily-question-ai-timeout':'daily-question-ai-unavailable');
+      }
+      if(response.status===429)throw new Error('daily-question-ai-quota');
+      if([500,502,503,504].includes(response.status))throw new Error('daily-question-ai-busy');
+      if(!response.ok){
+        const detail=await response.json().catch(()=>null);
+        const error=new Error('daily-question-ai-provider');
+        error.providerStatus=Number(response.status)||null;
+        const code=String(detail?.error?.code||'');
+        error.providerCode=/^[a-zA-Z0-9_-]{1,80}$/.test(code)?code:'';
+        throw error;
+      }
       const payload=await response.json().catch(()=>null);
       const parsed=parseJsonText(responseText(payload));
       const question=cleanText(parsed?.question,220);
       const theme=cleanText(parsed?.theme,60);
-      if(question.length<12) throw new Error('daily-question-ai-too-short');
-      if(prior.some(row=>similarQuestion(question,row.question))) throw new Error('daily-question-ai-repeat');
-      if(recentThemes.size&&recentThemes.has(normalized(theme))) throw new Error('daily-question-ai-theme-repeat');
+      if(question.length<12)throw new Error('daily-question-ai-too-short');
+      if(prior.some(row=>similarQuestion(question,row.question)))throw new Error('daily-question-ai-repeat');
+      if(recentThemes.size&&recentThemes.has(normalized(theme)))throw new Error('daily-question-ai-theme-repeat');
       return {question,theme,model:DEFAULT_MODEL,provider:'groq'};
     }catch(error){
       lastError=error;
-      if(String(error?.message||error).startsWith('daily-question-ai-')&&attempt<4) continue;
-      throw error;
-    }
+      if(attempt===2)throw error;
+    }finally{clearTimeout(timer)}
+    await new Promise(resolve=>setTimeout(resolve,250*(attempt+1)));
   }
   throw lastError||new Error('daily-question-ai-no-unique-question');
 }

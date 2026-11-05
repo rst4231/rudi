@@ -18856,12 +18856,13 @@
           await renderDailyQuestionOffline(data,true);
           return data;
         }catch(error){
+          if(actor!==currentActor)return null;
           if(!cached){
-            if(loading){loading.hidden=false;loading.textContent='Нет сохранённого вопроса дня';}
+            if(loading){loading.hidden=false;loading.textContent='Не удалось загрузить вопрос дня. Попробуем при следующем обновлении.';}
             if(content)content.hidden=true;
           }else{
             const status=document.getElementById('dailyQuestionStatus');
-            if(status)status.textContent='Офлайн · показываем сохранённый вопрос';
+            if(status)status.textContent=offline?.isOffline?.()?'Офлайн · показываем сохранённый вопрос':'Не удалось обновить вопрос · показываем сохранённый';
           }
           return cached;
         }
