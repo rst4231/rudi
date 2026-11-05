@@ -1,3 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360">
-<defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#0c1d43"/><stop offset=".6" stop-color="#142a55"/><stop offset="1" stop-color="#23385c"/></linearGradient></defs>
-<rect width="1200" height="360" rx="34" fill="url(#s)"/><circle cx="795" cy="115" r="37" fill="#e9f2ff"/><circle cx="810" cy="101" r="37" fill="#17305d"/><g fill="#dce8ff" opacity=".20"><ellipse cx="745" cy="145" rx="88" ry="25"/><ellipse cx="840" cy="160" rx="70" ry="22"/></g><path d="M0 273 170 214 330 267 505 205 690 276 850 224 1020 270 1200 219V360H0Z" fill="#0d1c37"/><path d="M0 304c220-42 420 8 610-10s363-29 590 6v60H0Z" fill="#09152b"/><g fill="#ffd26d"><circle cx="1010" cy="275" r="2"/><circle cx="1040" cy="262" r="2"/><circle cx="1072" cy="284" r="2"/><circle cx="1103" cy="269" r="2"/><circle cx="1137" cy="288" r="2"/></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" fill="none">
+<defs>
+  <linearGradient id="sky" x2="0" y2="420" gradientUnits="userSpaceOnUse"><stop stop-color="#07172f"/><stop offset=".64" stop-color="#102c53"/><stop offset="1" stop-color="#07162b"/></linearGradient>
+  <radialGradient id="glow"><stop stop-color="#2874ce" stop-opacity=".8"/><stop offset="1" stop-color="#174a8c" stop-opacity="0"/></radialGradient>
+  <linearGradient id="back" x2="1200" y2="400" gradientUnits="userSpaceOnUse"><stop stop-color="#0c2545"/><stop offset=".5" stop-color="#102e59"/><stop offset="1" stop-color="#0a2547"/></linearGradient>
+  <linearGradient id="front" x2="0" y2="420" gradientUnits="userSpaceOnUse"><stop stop-color="#123457"/><stop offset="1" stop-color="#051326"/></linearGradient>
+  <radialGradient id="moon" cx=".15" cy=".85" r=".95"><stop stop-color="#d5e5fa"/><stop offset=".45" stop-color="#7d9abf"/><stop offset="1" stop-color="#1c3657"/></radialGradient>
+  <mask id="crescent"><circle cx="648" cy="68" r="34" fill="white"/><circle cx="663" cy="54" r="35" fill="black"/></mask>
+</defs>
+<path fill="url(#sky)" d="M0 0h1200v420H0z"/>
+<ellipse cx="545" cy="278" rx="525" ry="180" fill="url(#glow)"/>
+<g fill="#e1edff"><circle cx="566" cy="60" r="1" opacity=".55"/><circle cx="736" cy="30" r=".8" opacity=".6"/><circle cx="774" cy="44" r="1.1" opacity=".8"/><circle cx="700" cy="88" r=".7" opacity=".5"/><circle cx="811" cy="24" r=".7" opacity=".7"/><circle cx="627" cy="24" r=".7" opacity=".35"/></g>
+<circle cx="648" cy="68" r="34" fill="url(#moon)" mask="url(#crescent)"/>
+<path d="M0 281c98-80 155-27 242-21s148-38 216-59c135-43 192 88 325 73s267-56 417-49v195H0Z" fill="url(#back)"/>
+<path d="M0 316c93-53 166-17 245-26s177-77 268-47 121 61 224 66 158-45 246-31 144 28 217-16v158H0Z" fill="#081d39"/>
+<path d="M0 371c128-73 210-12 338-5s172-45 287-24 143 54 262 18 183-70 313-17v77H0Z" fill="url(#front)"/>
+<path d="M0 401c175-27 276 13 443 0s242-5 351 6 230-39 406-35v48H0Z" fill="#06172d" opacity=".65"/>
+</svg>

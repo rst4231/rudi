@@ -1,20 +1,20 @@
 {
-  "current": "v4.42",
-  "versionBranch": "rudi-release-v442",
+  "current": "v4.43",
+  "versionBranch": "rudi-release-v443",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.41",
+  "basedOnProduction": "v4.42",
   "notes": [
-    "Все погодные виджеты используют выбранный город или автоматическое определение.",
-    "Главная, дом и машина обновляют погоду при изменении выбора города.",
-    "Подпись города на главной берётся из загруженного прогноза."
+    "Верхний блок по референсу: приветствие и дата слева, погода справа, Луна и ближайший восход или закат внизу.",
+    "В погодном блоке указан город загруженного прогноза.",
+    "Обновлён ночной пейзаж и предусмотрены узкие экраны."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Use a shared per-actor selected location for all weather widgets.",
-    "Refresh Home, smart home and car weather when the city selection changes.",
-    "Keep stale responses from overriding the current location selection."
+    "Arrange home hero around the supplied reference.",
+    "Show loaded forecast city in the dedicated weather block.",
+    "Preserve forecast navigation and unavailable-weather handling."
   ]
 }

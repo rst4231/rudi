@@ -7445,8 +7445,8 @@
       }
 
       function homeWeatherInlineLabel(){
-        const temperature=Number(homeWeatherCurrent?.temperature);
-        const code=Number(homeWeatherCurrent?.code);
+        const temperature=homeWeatherCurrent?.temperature;
+        const code=homeWeatherCurrent?.code;
         if(!Number.isFinite(temperature)||!Number.isFinite(code)) return '';
         const rounded=Math.round(temperature);
         const signed=rounded>0?'+'+rounded:String(rounded);
@@ -7460,9 +7460,38 @@
         if(!node)return;
         node.textContent=label;
         const weather=homeWeatherInlineLabel();
+        const head=node.closest('.home-dashboard-head');
+        if(!head)return;
+        let button=head.querySelector('.home-dashboard-weather');
+        if(!button){
+          button=document.createElement('button');
+          button.type='button';
+          button.className='home-dashboard-weather home-weather-forecast-trigger';
+          button.dataset.weatherForecast='1';
+          button.title='Прогноз погоды';
+          head.append(button);
+        }
+        button.hidden=!weather;
+        button.replaceChildren();
+        head.classList.toggle('has-weather',!!weather);
         if(!weather)return;
-        node.append(document.createTextNode('\u00a0·\u00a0'));
-        const button=document.createElement('button');button.type='button';button.className='home-weather-forecast-trigger';button.dataset.weatherForecast='1';button.textContent=weather;button.setAttribute('aria-label','Открыть прогноз погоды: '+weather);button.title='Прогноз погоды';node.append(button);
+        const city=String(homeWeatherCurrent.city||'');
+        button.setAttribute('aria-label','Открыть прогноз погоды: '+(city?city+', ':'')+weather);
+        const add=(parent,className,text)=>{
+          const span=document.createElement('span');
+          span.className=className;
+          span.textContent=text;
+          parent.append(span);
+          return span;
+        };
+        if(city)add(button,'home-hero-weather-city',city);
+        const conditions=add(button,'home-hero-weather-conditions','');
+        const temperature=Math.round(homeWeatherCurrent.temperature);
+        add(conditions,'home-hero-weather-temperature',homeWeatherEmoji(homeWeatherCurrent.code)+'\u00a0'+(temperature>0?'+':'')+temperature+'°');
+        if(Number.isFinite(homeWeatherCurrent.probability))
+          add(conditions,'home-hero-weather-rain','☔\u00a0'+Math.round(homeWeatherCurrent.probability)+'%');
+        if(Number.isFinite(homeWeatherCurrent.wind))
+          add(button,'home-hero-weather-wind','💨\u00a0'+String(homeWeatherCurrent.wind).replace('.',',')+'\u00a0м/с');
       }
 
       function homeDashboardDateWeatherLabel(){
@@ -13979,6 +14008,7 @@
           homeWeatherCurrent=Number.isFinite(currentTemperature)&&Number.isFinite(currentWeatherCode)
             ?(window.RUDI_WEATHER?.currentSummary?.(data)||{temperature:currentTemperature,code:currentWeatherCode})
             :null;
+          if(homeWeatherCurrent)homeWeatherCurrent.city=window.RUDI_WEATHER.locations?.[data.location?.city]?.label||cfg?.city||'';
           const dashboardDate=document.getElementById('homeDashboardDate');
           if(dashboardDate) renderHomeDashboardDateWeather(dashboardDate);
           renderHomeSunEvent();

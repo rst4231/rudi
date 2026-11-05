@@ -33,7 +33,7 @@
   background-image:url("/home-scene-evening.svg?v=2.104")!important;
 }
 .home-dashboard-summary[data-daypart="night"]{
-  background-image:url("/home-scene-night.svg?v=2.104")!important;
+  background-image:url("/home-scene-night.svg?v=4.43")!important;
 }
 .home-dashboard-summary[data-daypart="night"]::before{
   background:linear-gradient(90deg,rgba(8,22,51,.76) 0%,rgba(8,22,51,.48) 56%,rgba(8,22,51,.16) 100%);
