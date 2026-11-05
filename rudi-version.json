@@ -1,18 +1,18 @@
 {
-  "current": "v4.32",
-  "versionBranch": "rudi-release-v432",
+  "current": "v4.33",
+  "versionBranch": "rudi-release-v433",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.31",
+  "basedOnProduction": "v4.32",
   "notes": [
-    "Отменено добавление времени окончания к личным задачам. Редактор возвращён к одному полю времени.",
-    "Исправление вопроса дня с двумя повторными запросами сохранено."
+    "Пересекающиеся карточки календаря распределяются по отдельным колонкам и не перекрывают друг друга.",
+    "Для одновременных задач уменьшены отступы, текст и чекбоксы; отдельные задачи остаются на всю ширину."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Revert personal calendar time-range UI, mutations and offline projection to the prior single-time behavior.",
-    "Retain daily-question retries, reserve recovery, existing-question preservation and correct failure messaging."
+    "Lay out connected groups of concurrent calendar events in equal-width columns, accounting for rendered minimum height and responsibility labels.",
+    "Compact concurrent task text and checkboxes while preserving edit, completion, drag and current-time scrolling behavior."
   ]
 }

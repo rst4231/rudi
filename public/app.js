@@ -16478,6 +16478,23 @@
         const workplace=calendarWorkplaceControl(dateKey);if(workplace)panel.append(workplace);
         const allDayItems=[];
         const timed=[];
+        function calendarWeekLayoutTimed(events){
+          const arranged=events.map(event=>{
+            const minimum=calendarScope==='shared'&&calendarSharedTaskOwnerLabel(event.task)?43:30;
+            const height=Math.max(minimum,(event.end-event.start)/60*CALENDAR_AGENDA_HOUR_HEIGHT-4);
+            return {...event,height,layoutEnd:event.start+(height+4)/CALENDAR_AGENDA_HOUR_HEIGHT*60};
+          }).sort((left,right)=>left.start-right.start||right.end-left.end);
+          let group=[],occupied=[],groupEnd=-Infinity;
+          const finish=()=>{for(const event of group)event.columns=occupied.length;group=[];occupied=[];groupEnd=-Infinity};
+          for(const event of arranged){
+            if(group.length&&event.start>=groupEnd)finish();
+            let lane=occupied.findIndex(end=>end<=event.start);
+            if(lane<0){lane=occupied.length;occupied.push(0)}
+            occupied[lane]=event.layoutEnd;event.lane=lane;group.push(event);
+            groupEnd=Math.max(groupEnd,event.layoutEnd);
+          }
+          finish();return arranged;
+        }
         const put=(kind,title,startTime,endTime,task=null,amount='')=>{
           const start=calendarAgendaMinutes(startTime);
           const finish=calendarAgendaMinutes(endTime);
@@ -16617,17 +16634,17 @@
           row.appendChild(weather);
           track.appendChild(row);
         }
-        timed.sort((left,right)=>left.start-right.start||right.end-left.end);
-        const occupied=[];
-        for(const event of timed){
-          let lane=occupied.findIndex(value=>value<=event.start);
-          if(lane<0){lane=occupied.length;occupied.push(0)}
-          occupied[lane]=event.end;
+        const arranged=calendarWeekLayoutTimed(timed);
+        for(const event of arranged){
           const block=document.createElement('div');
           block.className='calendar-week-time-event calendar-agenda-'+event.kind;
+          block.classList.toggle('is-concurrent',event.columns>1);
+          block.classList.toggle('is-dense',event.columns>2);
           block.style.top=(event.start/60*CALENDAR_AGENDA_HOUR_HEIGHT+2)+'px';
-          block.style.height=Math.max(30,(event.end-event.start)/60*CALENDAR_AGENDA_HOUR_HEIGHT-4)+'px';
-          block.style.setProperty('--calendar-agenda-lane-offset',String(Math.min(lane,4)*10)+'px');
+          block.style.height=event.height+'px';
+          block.style.setProperty('--calendar-agenda-column-start',String(event.lane/event.columns));
+          block.style.setProperty('--calendar-agenda-column-share',String(1/event.columns));
+          block.style.setProperty('--calendar-agenda-column-gap',event.columns>1?'4px':'0px');
           const when=document.createElement('small');
           when.textContent=String(Math.floor(event.start/60)).padStart(2,'0')+':'+String(event.start%60).padStart(2,'0');
           const title=document.createElement('span');
@@ -16660,7 +16677,7 @@
         viewport.appendChild(track);panel.appendChild(viewport);
         const startMinutes=dateKey===todayState().key
           ?Math.max(0,homeCurrentMinutes()-60)
-          :timed.length?Math.max(0,Math.min(5*60,timed[0].start-60)):5*60;
+          :arranged.length?Math.max(0,Math.min(5*60,arranged[0].start-60)):5*60;
         requestAnimationFrame(()=>{
           if(viewport.isConnected)viewport.scrollTop=startMinutes/60*CALENDAR_AGENDA_HOUR_HEIGHT;
         });

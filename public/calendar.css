@@ -945,7 +945,9 @@ body[data-calendar-scope="shared"] .work-page .calendar-connections-gear{color:#
 }
 .work-page .calendar-week-time-event{
   position:absolute!important;z-index:1!important;
-  left:calc(73px + var(--calendar-agenda-lane-offset,0px))!important;right:5px!important;
+  left:calc(var(--calendar-agenda-start,73px) + (100% - var(--calendar-agenda-start,73px) - 5px)*var(--calendar-agenda-column-start,0))!important;
+  right:auto!important;
+  width:calc((100% - var(--calendar-agenda-start,73px) - 5px)*var(--calendar-agenda-column-share,1) - var(--calendar-agenda-column-gap,0px))!important;
   box-sizing:border-box!important;min-height:30px!important;
   display:flex!important;flex-direction:column!important;gap:2px!important;
   overflow:hidden!important;border-radius:8px!important;padding:5px 7px!important;
@@ -969,7 +971,7 @@ body[data-calendar-scope="shared"] .work-page .calendar-connections-gear{color:#
   .work-page .calendar-week-allday{grid-template-columns:47px minmax(0,1fr)!important;gap:8px!important}
   .work-page .calendar-week-hour{margin-left:51px!important}
   .work-page .calendar-week-hour time{width:40px!important;right:calc(100% + 7px)!important}
-  .work-page .calendar-week-time-event{left:calc(58px + var(--calendar-agenda-lane-offset,0px))!important}
+  .work-page .calendar-week-time-track{--calendar-agenda-start:58px}
   .work-page .calendar-week-now-line{left:49px!important}
 }
 
@@ -1869,3 +1871,12 @@ html body[data-app-tab="schedule"] .work-page #workCalendarSelected.calendar-wee
 .calendar-search-results{display:grid;gap:8px;margin-top:14px}.calendar-search-results button{display:grid;gap:6px;text-align:left;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:inherit;padding:12px;font:inherit}.calendar-search-results small{color:var(--muted);font-size:11px}
 .work-page :is(.calendar-week-time-event,.calendar-week-allday-item)[data-calendar-task-source="shared"]{border:1px solid #23966a!important;border-left-width:3px!important}
 .work-page :is(.calendar-week-time-event,.calendar-week-allday-item)[data-calendar-task-source="personal"]{border:1px solid #4578e6!important;border-left-width:3px!important}
+
+/* Concurrent appointments share the event area instead of stacking over each other. */
+.work-page .calendar-week-time-event.is-concurrent{min-width:0!important;font-size:10px!important;padding:3px 4px!important;border-radius:6px!important}
+.work-page .calendar-week-time-event.is-concurrent.calendar-agenda-task{grid-template-columns:18px minmax(0,1fr)!important;column-gap:4px!important}
+.work-page .calendar-week-time-event.is-concurrent .calendar-agenda-task-checkbox{width:18px!important;height:18px!important;min-width:18px!important;font-size:11px!important}
+.work-page .calendar-week-time-event.is-concurrent>span{display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden!important;overflow-wrap:anywhere!important;line-height:1.15!important}
+.work-page .calendar-week-time-event.is-concurrent>small{font-size:8px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.work-page .calendar-week-time-event.is-dense.calendar-agenda-task{grid-template-columns:14px minmax(0,1fr)!important;column-gap:3px!important;padding:3px 2px!important;font-size:9px!important}
+.work-page .calendar-week-time-event.is-dense .calendar-agenda-task-checkbox{width:14px!important;height:14px!important;min-width:14px!important;font-size:9px!important}
