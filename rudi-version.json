@@ -1,18 +1,18 @@
 {
-  "current": "v4.33",
-  "versionBranch": "rudi-release-v433",
+  "current": "v4.34",
+  "versionBranch": "rudi-release-v434",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.32",
+  "basedOnProduction": "v4.33",
   "notes": [
-    "Пересекающиеся карточки календаря распределяются по отдельным колонкам и не перекрывают друг друга.",
-    "Для одновременных задач уменьшены отступы, текст и чекбоксы; отдельные задачи остаются на всю ширину."
+    "Карточки БАДов в почасовом календаре открывают тот же редактор, что и в месячном режиме.",
+    "Нажатие чекбокса по-прежнему отмечает приём; нажатие карточки и Enter/Пробел открывают редактор."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Lay out connected groups of concurrent calendar events in equal-width columns, accounting for rendered minimum height and responsibility labels.",
-    "Compact concurrent task text and checkboxes while preserving edit, completion, drag and current-time scrolling behavior."
+    "Open the existing supplement editor by supplement ID from timed and all-day weekly agenda cards.",
+    "Keep intake checkbox actions independent and support keyboard activation without enabling task drag for supplements."
   ]
 }

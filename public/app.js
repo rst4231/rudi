@@ -16535,7 +16535,21 @@
             completeCalendarTickTickTask(task,row,checkbox,writable);
           });
           row.prepend(checkbox);
-          if(task.supplementId)return;
+          if(task.supplementId){
+            row.classList.add('calendar-external-task');
+            row.style.cursor='pointer';row.tabIndex=0;
+            row.setAttribute('role','button');
+            row.setAttribute('aria-label','Редактировать БАД: '+String(task.title||'БАД'));
+            row.addEventListener('click',event=>{
+              if(event.target===checkbox||checkbox.contains(event.target))return;
+              window.RudiSupplementEditor?.open(task.supplementId);
+            });
+            row.addEventListener('keydown',event=>{
+              if(event.target!==row||(event.key!=='Enter'&&event.key!==' '))return;
+              event.preventDefault();window.RudiSupplementEditor?.open(task.supplementId);
+            });
+            return;
+          }
           if(!isPersonal&&task.id&&!task.completed&&!task.externalCalendar&&sharedWritable===true&&task.canEdit===true){
             row.classList.add('calendar-external-task');
             row.style.cursor='pointer';
