@@ -2152,7 +2152,7 @@
         setTimeout(()=>section.classList.remove(className),560);
       }
 
-      const APP_TABS=['home','feed','schedule','wishlist','photos','products','fasting','habits','finances','supplements','score','settings','smart-saves','car','smart-home','weather'];
+      const APP_TABS=['home','feed','schedule','photos','products','fasting','habits','finances','supplements','score','settings','smart-saves','car','smart-home','weather'];
       const PRIMARY_NAV_TABS=new Set(['home','feed','schedule','products','photos']);
       const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','smart-home','wishlist','smart-saves','weather']);
       const STARTUP_TABS=['home','finances','schedule','weather'];
@@ -2188,7 +2188,7 @@
         try{
           const params=new URLSearchParams(window.location.search);
           const rawTab=String(params.get('tab')||'home').trim();
-          const tab=rawTab==='saves'?'products':rawTab;
+          const tab=rawTab==='wishlist'?'home':rawTab==='saves'?'products':rawTab;
           if(rawTab!=='home'&&!APP_TABS.includes(tab)){
             const clean=new URL(window.location.href);
             clean.searchParams.delete('tab');
@@ -2198,7 +2198,7 @@
           }
           return {
             tab:APP_TABS.includes(tab)?tab:'home',
-            item:String(params.get('item')||'').trim()
+            item:rawTab==='wishlist'?'partner-wish:'+String(params.get('item')||'').trim():String(params.get('item')||'').trim()
           };
         }catch(_){return {tab:'home',item:''}}
       }
@@ -2246,9 +2246,20 @@
         }catch(_){}
       }
 
+      async function openPartnerWishTarget({id='',text=''}={}){
+        const viewer=currentActor;
+        const partner=viewer==='Диана'?'Рустам':'Диана';
+        await ensureHomeBootstrap().catch(()=>{});
+        for(let attempt=0;attempt<12;attempt++){
+          if(currentActor!==viewer||currentAppTab!=='home')return;
+          if(await window.RudiPartnerProfile?.openWish(partner,{id,text}))return;
+          await new Promise(resolve=>setTimeout(resolve,140));
+        }
+      }
       function focusDeepLinkedItem(tab,item){
         const id=String(item||'').trim();
         if(!id) return;
+        if(tab==='home'&&id.startsWith('partner-wish:')){void openPartnerWishTarget({id:id.slice(13)});return}
 
         const homeSelectors={
           partner:'[data-home-tile="partner"]',
@@ -6494,6 +6505,7 @@
       }
 
       function navigateToAppTab(tab,{scroll=true,item='',replace=false}={}){
+        if(tab==='wishlist'){tab='home';item='partner-wish:'+item;}
         appTabScroll[currentAppTab]=window.scrollY||0;
         persistAppTabScroll();
         document.activeElement?.blur?.();
@@ -9465,6 +9477,7 @@
         const type=String(item?.type||'');
         if(type==='reward-unlock') return '';
         const raw=String(item?.targetTab||'').trim();
+        if(type==='wishlist'||raw==='wishlist')return 'home';
         if(raw) return raw==='saves'?'dates':raw;
         if(type==='partner-message'||type==='like') return 'home';
         if(type==='photo') return 'photos';
@@ -9490,6 +9503,11 @@
         const activityTab=activityTargetTab(item);if(!activityTab) return;
         const targetItem=activityTargetItem(item);
         setActivityNotificationsOpen(false);
+        if(item?.type==='wishlist'||item?.targetTab==='wishlist'){
+          navigateToAppTab('home',{scroll:false});
+          void openPartnerWishTarget({id:targetItem.replace(/^partner-wish:/,''),text:String(item?.text||'').replace(/^.*?добавил(?:а)? желание:\s*/u,'')});
+          return;
+        }
         navigateToAppTab(activityTab,{scroll:true,item:targetItem});
         if(activityTab==='products'){
           loadProducts({silent:true});
@@ -9922,7 +9940,6 @@
         if(action==='wishlist'){
           navigateToAppTab('wishlist',{scroll:true});
           markHomeCountSeen('wishlist',homeDashboardState.wishlistCount);
-          setTimeout(()=>document.getElementById('wishlistInput')?.focus(),120);
           return;
         }
         if(action==='photos'){
@@ -18421,6 +18438,7 @@
         const rustam=document.getElementById('wishlistRustam');
         const diana=document.getElementById('wishlistDiana');
         const status=document.getElementById('wishlistStatus');
+        if(!rustam||!diana)return;
         rustam.replaceChildren();diana.replaceChildren();
         for(const [owner,container] of [['Рустам',rustam],['Диана',diana]]){
           const rows=items.filter(item=>item.owner===owner);
@@ -18458,6 +18476,7 @@
         const urlToggle=document.getElementById('wishlistUrlToggle');
         const add=document.getElementById('wishlistAdd');
         const section=document.querySelector('.wishlist-section');
+        if(!form||!input||!urlInput||!add)return;
         let focusTimer=0;
 
         const setUrlVisible=(visible,{focus=false}={})=>{

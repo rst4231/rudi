@@ -1,20 +1,18 @@
 {
-  "current": "v4.36",
-  "versionBranch": "rudi-release-v436",
+  "current": "v4.37",
+  "versionBranch": "rudi-release-v437",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.35",
+  "basedOnProduction": "v4.36",
   "notes": [
-    "В форме совместной задачи добавлена галочка Не начислять звёзды за эту задачу.",
-    "Настройка хранится у задачи, сохраняется при редактировании и повторениях и передаётся при офлайн-синхронизации.",
-    "Для задач без награды скрыта подпись +1 звезда; выполнение и уведомления работают как прежде."
+    "Уведомления о желаниях открывают нужную позицию на странице партнёра.",
+    "Отдельная страница Наш вишлист удалена; желания и управление ими сохранены."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Add a persisted no-stars option to shared task creation and editing, defaulting to normal reward behavior.",
-    "Respect the authoritative saved flag when awarding completion stars, including recurring snapshots and legacy TickTick metadata.",
-    "Preserve the setting in offline create/update projections and hide the reward caption when rewards are disabled."
+    "Route wish notifications to the exact partner profile wish, retaining legacy notification and URL support.",
+    "Remove the standalone shared wishlist page while preserving wishlist APIs and personal wishes."
   ]
 }

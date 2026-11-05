@@ -2,6 +2,7 @@
 (()=>{'use strict';
  let active=null;
  const bindings=new WeakMap();
+ const actorBindings=new Map();
  function selectPartnerPlans(actor,data={},now=new Date()){
   const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(now).map(p=>[p.type,p.value]));
   const today=p.year+'-'+p.month+'-'+p.day,clock=Number(p.hour)*60+Number(p.minute),valid=d=>/^\d{4}-\d{2}-\d{2}$/.test(String(d||''))&&!Number.isNaN(Date.parse(d+'T12:00:00Z'));
@@ -197,7 +198,7 @@
     if(!items.length){list.textContent='Пока нет желаний';return}
     for(const item of items){
      let url='';try{const parsed=new URL(String(item.url||''),location.origin);if(item.url&&['https:','http:'].includes(parsed.protocol))url=parsed.href}catch(_){}
-     const row=document.createElement('div');row.className='partner-wish-row'+(url?' partner-wish-link':'')+(item.done?' is-done':'');
+     const row=document.createElement('div');row.dataset.rudiItemId=String(item.id||'');row.className='partner-wish-row'+(url?' partner-wish-link':'')+(item.done?' is-done':'');
      const toggle=document.createElement('button');toggle.type='button';toggle.className='partner-wish-toggle';toggle.setAttribute('role','checkbox');toggle.setAttribute('aria-checked',String(!!item.done));toggle.setAttribute('aria-label',item.done?'Вернуть желание':'Отметить выполненным');toggle.textContent=item.done?'✓':'';
      toggle.onclick=async()=>{if(toggle.disabled)return;toggle.disabled=true;try{await window.RudiWishlist.toggle(item.id);await refresh()}catch(_){toggle.disabled=false;toggle.title='Не удалось сохранить. Нажми ещё раз.'}};row.append(toggle);
      const text=document.createElement('span');text.className='partner-wish-text';text.textContent=String(item.text||'Желание');row.append(text);
@@ -211,7 +212,7 @@
     const retry=document.createElement('button');retry.type='button';retry.className='partner-wishes-retry';retry.textContent='Повторить';retry.onclick=refresh;list.append(retry);
    }
   }
-  void refresh();
+  return refresh();
  }
 
  function close(fromHistory=false){
@@ -276,7 +277,7 @@
    if(energy)energy.hidden=false;
    page.querySelector('.partner-profile-layout').append(...slots.map(slot=>slot.node));
    document.body.append(page);
-   addWishes(page,actor,loadWishes,openWish);
+   active.wishesReady=addWishes(page,actor,loadWishes,openWish);
    active.updateBirthday=addBirthday(page,actor);
    active.birthdayTimer=setInterval(active.updateBirthday,60000);
    addCbtStatus(page,actor,loadCbtStatus);
@@ -313,6 +314,7 @@
    open(tile.querySelector('#partnerHeaderName'));
   });
   bindings.set(tile,{actor,open});
+  actorBindings.set(actor,{tile,open});
  }
  window.addEventListener('popstate',()=>{
   if(!active)return;
@@ -330,5 +332,25 @@
  document.addEventListener('visibilitychange',()=>{if(!document.hidden)active?.updateBirthday?.()});
  document.addEventListener('keydown',event=>{if(active&&!active.page.hidden&&event.key==='Escape')close()});
  new MutationObserver(()=>{if(active)close(true)}).observe(document.body,{attributes:true,attributeFilter:['data-rudi-actor']});
- window.RudiPartnerProfile={bind,close,refreshFinance:data=>{if(active)renderFinances(active.page,data,active.actor)},refresh:()=>active?.updateBalance()};
+ async function openWish(actor,{id='',text=''}={}){
+  const binding=actorBindings.get(actor);
+  if(!binding?.tile.isConnected)return false;
+  if(active&&active.actor!==actor)close(true);
+  if(!active)binding.open(binding.tile.querySelector('#partnerHeaderName'));
+  const saved=active;if(!saved)return false;
+  saved.page.hidden=false;document.body.classList.add('partner-profile-open');
+  await saved.wishesReady;
+  if(active!==saved||!saved.page.isConnected)return false;
+  const rows=[...saved.page.querySelectorAll('.partner-wish-row')];
+  let target=id?rows.find(row=>row.dataset.rudiItemId===String(id)):null;
+  if(!id&&text){
+   const matches=rows.filter(row=>row.querySelector('.partner-wish-text')?.textContent.trim()===text.trim());
+   if(matches.length===1)target=matches[0];
+  }
+  target=target||saved.page.querySelector('.partner-profile-wishes');
+  target?.scrollIntoView?.({behavior:'smooth',block:'center'});
+  if(target){target.classList.add('rudi-deep-link-target');setTimeout(()=>target.classList.remove('rudi-deep-link-target'),2200)}
+  return true;
+ }
+ window.RudiPartnerProfile={bind,close,openWish,refreshFinance:data=>{if(active)renderFinances(active.page,data,active.actor)},refresh:()=>active?.updateBalance()};
 })();

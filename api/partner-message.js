@@ -530,7 +530,7 @@ async function sendWishlistNotificationToPartner(owner, text, options = {}) {
       title: '🎁 Новое в вишлисте',
       body: owner + ' ' + action + (item ? ': ' + item : ' новое желание.'),
       tag: 'wishlist',
-      url: '/?tab=wishlist',
+      url: '/?item=' + encodeURIComponent('partner-wish:' + String(options.wishId || '')),
     }, options);
     return { ...result, recipient };
   } catch (error) {
@@ -4930,7 +4930,8 @@ async function handleRudiAction(req, res, action, options = {}) {
           actor: owner,
           text: owner + ' ' + activityVerb(owner, 'добавил', 'добавила') + ' желание: ' + String(result.item?.text || '').trim(),
           icon: '🎁',
-          targetTab: 'wishlist',
+          targetTab: 'home',
+          targetItem: 'partner-wish:' + String(result.item?.id || ''),
         }, options);
         const backupToken=await refreshBackupToken(previousSnapshot,options);
         return res.status(200).json({ ok: true, owner, ...result.state, backupToken });

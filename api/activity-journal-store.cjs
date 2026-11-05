@@ -45,6 +45,7 @@ function normalizeItem(input) {
     text,
     icon: cleanText(input.icon, 8) || '•',
     targetTab: cleanTab(input.targetTab),
+    ...(input.targetItem ? { targetItem: cleanText(input.targetItem, 160) } : {}),
     createdAt: createdAt.toISOString(),
     dedupeKey: cleanText(input.dedupeKey, 140),
   };
