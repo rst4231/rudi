@@ -1,17 +1,17 @@
 {
-  "current": "v4.44",
-  "versionBranch": "rudi-release-v444",
+  "current": "v4.45",
+  "versionBranch": "rudi-release-v445",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.43",
+  "basedOnProduction": "v4.44",
   "notes": [
-    "Компактная карточка: приветствие и дата объединены слева без пустого верхнего ряда.",
-    "Уменьшены отступы, кнопки и погодные плашки."
+    "В личной заметке убраны карандаш, копирование и стрелка отмены.",
+    "Редактирование нажатием на текст и проверка текста сохранены."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Compact reference hero layout and remove unused space above the greeting."
+    "Hide personal note edit, copy and undo icons while preserving text editing and proofreading."
   ]
 }

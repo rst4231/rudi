@@ -101,3 +101,7 @@ html[data-theme="dark"] :is(#homeNoteTile,#partnerNoteTile) .home-note-title{bac
 :is(#homeNoteTile,#partnerNoteTile) :is(.home-note-tools,.home-note-secondary,.home-note-actions) button,:is(#homeNoteResolve,#partnerNoteResolve){display:inline-grid;place-items:center;width:38px;height:38px;min-height:38px;padding:8px;flex:none;box-sizing:border-box}
 :is(#homeNoteTile,#partnerNoteTile) :is(.home-note-tools,.home-note-secondary,.home-note-actions) button svg,:is(#homeNoteResolve,#partnerNoteResolve) svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 :is(#homeNotePin,#partnerNotePin)[aria-pressed="true"]{background:rgba(150,111,33,.25)}
+
+/* Personal note keeps direct text editing and proofreading without extra icons. */
+#homeNoteTile :is(#homeNoteEdit,#homeNoteCopy,#homeNoteUndo){display:none!important}
+#homeNoteTile .home-note-secondary{display:none!important}
