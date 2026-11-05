@@ -1890,3 +1890,8 @@ html[data-theme="dark"] .work-page :is(.calendar-week-time-event,.calendar-week-
 html[data-theme="dark"] .work-page :is(.calendar-week-time-event,.calendar-week-allday-item)>span{color:#edf3ff!important}
 html[data-theme="dark"] .work-page .calendar-week-time-event .calendar-agenda-task-checkbox{border-color:#90acd6!important;color:#d7e6ff!important;background:transparent!important}
 html[data-theme="dark"] .work-page .calendar-week-time-event.is-completed .calendar-agenda-task-checkbox{background:#365784!important;color:#fff!important}
+
+/* Weekly timeline ends after its hour grid; extra summaries belong to month view. */
+html.rudi-calendar-week-no-pull body[data-app-tab="schedule"] #workCalendarCard ~ *,
+html.rudi-calendar-week-no-pull body[data-app-tab="schedule"] #workCalendarCard :is(.calendar-selected-details,#calendarPersonalDayRecap),
+html.rudi-calendar-week-no-pull body[data-app-tab="schedule"] .shell > .footer{display:none!important}

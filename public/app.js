@@ -17068,7 +17068,7 @@
             }
 
             let habitGroup=null;
-            if(calendarScope==='personal'&&day.date===todayState().key){
+            if(calendarDisplayMode!=='week'&&calendarScope==='personal'&&day.date===todayState().key){
               habitGroup=document.createElement('div');
               habitGroup.className='calendar-selected-group calendar-selected-habits';
               details.appendChild(habitGroup);
@@ -17136,7 +17136,7 @@
               const agenda=calendarWeekAgenda(day.date,tasks,events,holidays,obligations,payload?.ticktickWritable!==false);
               selected.appendChild(agenda);
             }
-            if(details.childElementCount) selected.appendChild(details);
+            if(calendarDisplayMode!=='week'&&details.childElementCount) selected.appendChild(details);
             selected.classList.toggle('calendar-week-view',calendarDisplayMode==='week');
             selected.classList.toggle('is-off',!day.working);
             if(calendarDisplayMode!=='week')void window.RUDI_WEATHER_FORECAST?.renderCalendarPeriods(selected,day.date);

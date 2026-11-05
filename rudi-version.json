@@ -1,18 +1,18 @@
 {
-  "current": "v4.46",
-  "versionBranch": "rudi-release-v446",
+  "current": "v4.47",
+  "versionBranch": "rudi-release-v447",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.45",
+  "basedOnProduction": "v4.46",
   "notes": [
-    "Глобальные дождь и снег используют выбранный город прогноза, включая режим Автоматически.",
-    "Эффекты обновляются сразу при смене города и защищены от запоздавших ответов."
+    "В почасовом режиме календарь заканчивается сеткой времени.",
+    "Скрыты привычки под сеткой, нижние сводки, ближайшее событие, прогресс года и футер только в этом режиме."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Use shared selected-city weather for global precipitation effects.",
-    "Refresh immediately on selection changes and ignore stale in-flight results."
+    "Keep weekly timeline free of trailing habit groups and page summaries.",
+    "Preserve month-view summaries and other tabs."
   ]
 }
