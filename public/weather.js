@@ -67,6 +67,32 @@
   }
   return {get,getMonthly};
   }
+const locations={murino:{label:'Мурино',where:'Мурино',latitude:60.0479,longitude:30.452},spb:{label:'Санкт-Петербург',where:'Санкт-Петербурге',latitude:59.9386,longitude:30.3141},moscow:{label:'Москва',where:'Москве',latitude:55.7558,longitude:37.6173},belgorod:{label:'Белгород',where:'Белгороде',latitude:50.5954,longitude:36.5873},bali:{label:'Бали',where:'Бали',latitude:-8.65,longitude:115.2167},bangkok:{label:'Бангкок',where:'Бангкоке',latitude:13.7563,longitude:100.5018},antalya:{label:'Анталья',where:'Анталье',latitude:36.8969,longitude:30.7133},cairo:{label:'Каир',where:'Каире',latitude:30.0444,longitude:31.2357}};
+  let automatic=null,locationFlight=null;
+  function nearestCity(latitude,longitude){return Object.keys(locations).sort((a,b)=>{const distance=key=>{const place=locations[key],r=Math.PI/180;return Math.sin((latitude-place.latitude)*r/2)**2+Math.cos(latitude*r)*Math.cos(place.latitude*r)*Math.sin((longitude-place.longitude)*r/2)**2};return distance(a)-distance(b)})[0]}
+  async function getAutomaticLocation(){
+    if(automatic&&Date.now()-automatic.at<(automatic.value.resolved?300000:60000))return automatic.value;
+    if(locationFlight)return locationFlight;
+    locationFlight=(async()=>{
+      let value;
+      try{
+        const position=await new Promise((resolve,reject)=>{
+          if(!globalThis.navigator?.geolocation)return reject(Error('Location unavailable'));
+          navigator.geolocation.getCurrentPosition(resolve,reject,{timeout:6000,maximumAge:300000});
+        });
+        const {latitude,longitude}=position.coords;
+        if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180)throw Error('Invalid location');
+        value={city:nearestCity(latitude,longitude),resolved:true,note:''};
+      }catch(_){value={city:'spb',resolved:false,note:'Геопозиция недоступна. Показан Санкт-Петербург.'}}
+      automatic={at:Date.now(),value};return value;
+    })();
+    try{return await locationFlight}finally{locationFlight=null}
+  }
+  async function getAutomatic(options={}){
+    const location=await getAutomaticLocation();
+    if(!location.resolved)return {location};
+    return {...await client(location.city).get(options),location};
+  }
   const clients=new Map();
   function client(city){const key=['murino','moscow','belgorod','bali','bangkok','antalya','cairo'].includes(city)?city:'spb';if(!clients.has(key))clients.set(key,createCityClient(key));return clients.get(key)}
   function currentSummary(data){
@@ -77,5 +103,5 @@
     const speed=Number.isFinite(c.wind_speed_10m)?c.wind_speed_10m:index>=0?h.wind_speed_10m?.[index]:null;
     return {temperature:c.temperature_2m,code:c.weather_code,probability:Number.isFinite(chance)&&chance>=0&&chance<=100?chance:null,wind:Number.isFinite(speed)&&speed>=0?Math.round(speed/3.6*10)/10:null};
   }
-  window.RUDI_WEATHER = {get:(options={})=>client(options.city).get(options),getMonthly:(options={})=>client(options.city).getMonthly(),currentSummary};
+  window.RUDI_WEATHER = {locations,nearestCity,getAutomaticLocation,getAutomatic,get:(options={})=>client(options.city).get(options),getMonthly:(options={})=>client(options.city).getMonthly(),currentSummary};
 })();

@@ -122,10 +122,10 @@ function tick(now=new Date()){
  if(human)birthdayWindow(d,human.name);
 }
 async function refreshWeather(){
- if(!initialized||document.hidden||!weatherEnabled||flight||!window.RUDI_WEATHER?.get)return;
- flight=Promise.resolve().then(()=>window.RUDI_WEATHER.get()).then(data=>{
+ if(!initialized||document.hidden||!weatherEnabled||flight||!window.RUDI_WEATHER?.getAutomatic)return;
+ flight=Promise.resolve().then(()=>window.RUDI_WEATHER.getAutomatic()).then(data=>{
   const age=Date.now()-Number(data?.fetchedAt||0);
-  weather=age>=0&&age<35*60*1000?classify(data?.current?.weather_code):'';
+  weather=data?.location?.resolved&&age>=0&&age<35*60*1000?classify(data?.current?.weather_code):'';
  }).catch(()=>{weather=''}).finally(()=>{flight=null;tick()});
  return flight;
 }

@@ -1,20 +1,18 @@
 {
-  "current": "v4.39",
-  "versionBranch": "rudi-release-v439",
+  "current": "v4.40",
+  "versionBranch": "rudi-release-v440",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.38",
+  "basedOnProduction": "v4.39",
   "notes": [
-    "Автоматически выбран по умолчанию в прогнозе погоды. Сохранённый выбор города сохраняется.",
-    "В прогноз добавлены Белгород, Бали, Бангкок, Анталья и Каир; автоматический выбор учитывает новые города.",
-    "Удалён поясняющий текст под прогнозом на месяц и сокращён отступ до календаря."
+    "Глобальные дождь и снег используют автоматически определённый город независимо от ручного выбора в прогнозе.",
+    "Общий кэш геолокации объединяет запросы страницы погоды и анимаций. При недоступной геопозиции глобальные осадки не выдумываются."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Default the forecast city selector to automatic when no valid saved choice exists.",
-    "Add five more forecast locations to selectors, geolocation matching and isolated weather caches.",
-    "Remove the monthly explanatory paragraph without leaving an empty spacer."
+    "Use shared automatic location and per-city current weather for global precipitation effects.",
+    "Coalesce and bound geolocation requests; keep manual forecast selection independent."
   ]
 }

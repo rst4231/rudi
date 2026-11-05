@@ -54,9 +54,9 @@ test('forecast timeout aborts the provider request',async()=>{
   assert.equal(aborted,true);
 });
 
-function client({cached,fetchImpl}){
+function client({cached,fetchImpl,navigator}){
   const storage=new Map(cached?[['rudi-weather-v2',JSON.stringify(cached)]]:[]);
-  const context=vm.createContext({window:{},Date,AbortController,setTimeout,clearTimeout,
+  const context=vm.createContext({window:{},navigator,Date,AbortController,setTimeout,clearTimeout,
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},fetch:fetchImpl});
   vm.runInContext(fs.readFileSync('public/weather.js','utf8'),context);
   return context.window.RUDI_WEATHER;
@@ -145,4 +145,18 @@ test('new cities reach their own weather endpoint and cached data',async()=>{
  }
  for(const [i,city] of cities.entries())assert.equal((await weather.get({city})).current.temperature_2m,i+1);
  assert.equal(requested.length,cities.length);
+});
+
+test('automatic weather coalesces geolocation and stays independent of manual cities',async()=>{
+ let positions=0;const urls=[];
+ const weather=client({navigator:{geolocation:{getCurrentPosition(resolve){positions++;resolve({coords:{latitude:13.75,longitude:100.50}})}}},fetchImpl:async url=>{urls.push(url);return {ok:true,json:async()=>({...sample,fetchedAt:Date.now()})}}});
+ const [a,b,location]=await Promise.all([weather.getAutomatic(),weather.getAutomatic(),weather.getAutomaticLocation()]);
+ assert.equal(a.location.city,'bangkok');assert.equal(b.location.resolved,true);assert.equal(location.city,'bangkok');assert.equal(positions,1);assert.equal(urls.length,1);assert.match(urls[0],/city=bangkok/);
+ await weather.get({city:'moscow'});await weather.getAutomatic();assert.equal(urls.length,2);assert.equal(positions,1);assert.equal((await weather.getAutomaticLocation()).city,'bangkok');
+});
+test('unavailable location never substitutes Petersburg rain for automatic weather',async()=>{
+ let positions=0;
+ const weather=client({navigator:{geolocation:{getCurrentPosition(_resolve,reject){positions++;reject(Error('denied'))}}},fetchImpl:()=>{throw Error('must not request guessed city')}});
+ const data=await weather.getAutomatic();assert.equal(data.location.resolved,false);assert.equal(data.current,undefined);assert.match(data.location.note,/недоступна/);
+ await weather.getAutomatic();assert.equal(positions,1);
 });

@@ -2,13 +2,14 @@
 (function(){
 'use strict';
 let modal=null,payload=null,view='day',selected='',month='',generation=0,active=false,activation=null,returnTab='home',monthlyPayload=null,monthlyLoading=false,monthlyError=false,monthlyAttempted=false;
-const cities={murino:{label:'Мурино',where:'Мурино',latitude:60.0479,longitude:30.452},spb:{label:'Санкт-Петербург',where:'Санкт-Петербурге',latitude:59.9386,longitude:30.3141},moscow:{label:'Москва',where:'Москве',latitude:55.7558,longitude:37.6173},belgorod:{label:'Белгород',where:'Белгороде',latitude:50.5954,longitude:36.5873},bali:{label:'Бали',where:'Бали',latitude:-8.65,longitude:115.2167},bangkok:{label:'Бангкок',where:'Бангкоке',latitude:13.7563,longitude:100.5018},antalya:{label:'Анталья',where:'Анталье',latitude:36.8969,longitude:30.7133},cairo:{label:'Каир',where:'Каире',latitude:30.0444,longitude:31.2357}};
+const cities=window.RUDI_WEATHER?.locations||{murino:{label:'Мурино',where:'Мурино',latitude:60.0479,longitude:30.452},spb:{label:'Санкт-Петербург',where:'Санкт-Петербурге',latitude:59.9386,longitude:30.3141},moscow:{label:'Москва',where:'Москве',latitude:55.7558,longitude:37.6173},belgorod:{label:'Белгород',where:'Белгороде',latitude:50.5954,longitude:36.5873},bali:{label:'Бали',where:'Бали',latitude:-8.65,longitude:115.2167},bangkok:{label:'Бангкок',where:'Бангкоке',latitude:13.7563,longitude:100.5018},antalya:{label:'Анталья',where:'Анталье',latitude:36.8969,longitude:30.7133},cairo:{label:'Каир',where:'Каире',latitude:30.0444,longitude:31.2357}};
 let city='spb',locationNote='';
 const cityKey=()=> 'rudi:forecast-city:'+(document.body.dataset.rudiActor==='Диана'?'diana':'rustam');
 function savedCity(){try{const value=localStorage.getItem(cityKey());return value==='auto'||Object.hasOwn(cities,value)?value:'auto'}catch(_){return 'auto'}}
 function nearestCity(latitude,longitude){return Object.keys(cities).sort((a,b)=>{const distance=key=>{const place=cities[key],r=Math.PI/180;return Math.sin((latitude-place.latitude)*r/2)**2+Math.cos(latitude*r)*Math.cos(place.latitude*r)*Math.sin((longitude-place.longitude)*r/2)**2};return distance(a)-distance(b)})[0]}
 async function resolveCity(choice){
  if(choice!=='auto')return {city:choice,note:''};
+ if(window.RUDI_WEATHER?.getAutomaticLocation)return window.RUDI_WEATHER.getAutomaticLocation();
  try{
   const position=await new Promise((resolve,reject)=>{if(!navigator.geolocation)return reject(Error('Unavailable'));navigator.geolocation.getCurrentPosition(resolve,reject,{timeout:6000,maximumAge:300000})});
   return {city:nearestCity(position.coords.latitude,position.coords.longitude),note:''};
