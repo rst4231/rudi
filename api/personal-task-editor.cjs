@@ -69,21 +69,9 @@ function editable(input,task){
   const repeatFlag=personalRepeatFlag(input,task.repeatFlag,date);
   if(!date&&repeatFlag.trim())throw Error('ticktick-personal-repeat-date-required');
   const datetime=dateTime(date,time);
-  const endTime=date?String(input.endTime||'').trim():'';
-  if(endTime){
-    dateTime(date,endTime);
-    if(!time||endTime<=time)throw Error('ticktick-personal-time-range-invalid');
-  }
-  let dueDate=endTime?dateTime(date,endTime):datetime;
-  // Older clients and date shortcuts do not send an end field. Keep duration.
-  if(input.endTime===undefined&&datetime&&time){
-    const duration=Date.parse(task.dueDate)-Date.parse(task.startDate);
-    if(Number.isFinite(duration)&&duration>0)
-      dueDate=new Date(Date.parse(datetime)+duration).toISOString().replace(/\.\d{3}Z$/,'+0000');
-  }
   const changes={
     title,desc:String(input.description??task.desc??'').slice(0,5000),
-    isAllDay:!time,startDate:datetime,dueDate,
+    isAllDay:!time,startDate:datetime,dueDate:datetime,
     timeZone:'Europe/Moscow',repeatFlag
   };
   return changes;

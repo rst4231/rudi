@@ -485,17 +485,3 @@ test('unlimited weekday creation stays visible offline beyond two occurrences an
  const dates=view.ticktickDays.filter(day=>day.events.length).map(day=>day.date);
  assert.equal(dates.length,21);assert.equal(dates[0],'2026-11-02');assert.equal(dates.at(-1),'2026-11-30');
 });
-test('personal start/end edits survive offline storage and sync both times to the personal API',async()=>{
- const h=harness(),task={id:'range',projectId:'own',personal:true,title:'Работа',date:'2026-11-05',startTime:'12:00',endTime:'13:00'};
- await h.api.capture('Рустам','personal','2026-11',{ticktickDays:[{date:task.date,events:[task]}]});
- await h.api.enqueue('Рустам','personal-update',{operation:'save',taskId:task.id,projectId:'own',targetProjectId:'own',task,title:task.title,date:task.date,time:'14:00',endTime:'15:30'});
- const view=await h.api.materialize('Рустам','2026-11',await h.api.cached('Рустам','personal','2026-11'),'personal');
- assert.equal(view.ticktickDays[0].events[0].startTime,'14:00');assert.equal(view.ticktickDays[0].events[0].endTime,'15:30');
- h.setOnline(true);assert.equal((await h.api.flush('Рустам',()=>({}))).pending,0);assert.equal(h.calls[0].body.endTime,'15:30');assert.match(h.calls[0].url,/personal-task-edit/);
-});
-test('moving a personal range offline keeps its duration in the visible calendar',async()=>{
- const h=harness(),task={id:'range',projectId:'own',personal:true,title:'Работа',date:'2026-11-05',startTime:'12:00',endTime:'13:30'};
- await h.api.capture('Рустам','personal','2026-11',{ticktickDays:[{date:task.date,events:[task]}]});
- await h.api.enqueue('Рустам','personal-move',{taskId:task.id,projectId:'own',task,date:task.date,time:'15:00'});
- const view=await h.api.materialize('Рустам','2026-11',await h.api.cached('Рустам','personal','2026-11'),'personal');assert.equal(view.ticktickDays[0].events[0].endTime,'16:30');
-});

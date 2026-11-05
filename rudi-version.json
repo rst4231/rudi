@@ -1,26 +1,18 @@
 {
-  "current": "v4.31",
-  "versionBranch": "rudi-release-v431",
+  "current": "v4.32",
+  "versionBranch": "rudi-release-v432",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.30",
+  "basedOnProduction": "v4.31",
   "notes": [
-    "При сбое выполняются ещё две попытки генерации, всего не более трёх запросов, и только затем используется резерв.",
-    "При отказе генератора вопрос дня выбирается из проверенного резерва без повторов и сохраняется общим на текущую дату.",
-    "Сегодняшний уже созданный вопрос и предыдущие ответы не заменяются.",
-    "Ошибка обновления вопроса больше не выдаётся за отсутствие интернета; в логах сохраняются безопасные статус и код отказа провайдера.",
-    "Личные задачи Рустама поддерживают отдельные время начала и окончания с проверкой интервала.",
-    "Интервал сохраняется в TickTick, офлайн-очереди и при переносе карточки."
+    "Отменено добавление времени окончания к личным задачам. Редактор возвращён к одному полю времени.",
+    "Исправление вопроса дня с двумя повторными запросами сохранено."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Limit generation to three total provider requests with short backoff before selecting a unique reserve question.",
-    "Persist an unused reserve question if the AI generator fails, retaining shared-day identity, history and past answers.",
-    "Keep an existing question for today and safely record provider HTTP status and error code.",
-    "Distinguish daily-question update failures from offline state and guard against account switches.",
-    "Add optional end time to Rustam personal task creation and editing, validating it after start time.",
-    "Persist intervals in TickTick and offline projections; preserve task duration during calendar drags and legacy date-only updates."
+    "Revert personal calendar time-range UI, mutations and offline projection to the prior single-time behavior.",
+    "Retain daily-question retries, reserve recovery, existing-question preservation and correct failure messaging."
   ]
 }

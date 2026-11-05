@@ -26,14 +26,3 @@ The provider request itself has not been retested with production credentials. T
 `tests/content-offline.test.cjs` also fails its unchanged static test `shell, UI and API are connected without storing auth in snapshots` because it expects the former home-note enqueue call. The implementation it checks is unchanged.
 
 These failures were not changed or suppressed in the repository. Targeted checks are reported separately from the full suite.
-
-## Personal calendar time ranges (same release)
-
-Added separate native start/end inputs for Rustam tasks and server validation. Regression checks cover create/update, invalid ranges, clearing an end time, preserving duration when legacy clients omit it, switching tasks, offline persistence/replay, and offline drag duration.
-
-Additional existing verification limits observed:
-
-- `personal-ticktick-recurrence.test.cjs`: `mobile recurring controls shown for personal TickTick and hide for never` expects a hardcoded obsolete asset version `4.285-recurrence1`.
-- `calendar-time-save-latency.test.cjs` cannot load because this workspace lacks the test dependency `fake-indexeddb`. The regular calendar-offline suite uses its independent IndexedDB fixture and passes, including interval persistence and replay.
-
-No real browser binary is available in this workspace. Editor behavior was exercised in JSDOM; native iOS picker rendering was not visually retested.
