@@ -7148,15 +7148,8 @@
       }
 
       function rustamWorkStatusText(now=new Date()){
-        if(!rustamWorkState(now)){
-          const weekday=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,weekday:'short'}).format(now);
-          return ['Sat','Sun'].includes(weekday)?'Выходной':'Отдыхаю';
-        }
-        const date=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
-        const local=currentActor==='Рустам'?readWorkplaces()[date]:null;
-        const saved=homeDashboardState.rustamWorkplace;
-        const place=local?.pending?local.place:saved?.date===date?saved.place:local?.place;
-        return place==='coworking'?'Работаю в коворкинге':place==='home'?'Работаю дома':'Работаю';
+        const weekday=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,weekday:'short'}).format(now);
+        return ['Sat','Sun'].includes(weekday)?'Выходной':'Рабочий день';
       }
 
       function rustamRhythmStatus(now=new Date()){
@@ -7313,7 +7306,7 @@
       }
 
       function syncStaticProfileWorkStatus(now=new Date()){
-        const rustamWorking=rustamWorkState(now);
+        const rustamWorking=rustamWorkStatusText(now)==='Рабочий день';
         setProfileWorkStatus(
           'Рустам',
           rustamWorkStatusText(now),
@@ -7324,7 +7317,7 @@
         const diana=profileStatusElement('Диана');
         if(!diana) return;
         if(diana.dataset.calendarReady&&homeDashboardState.workDay){
-          const workingNow=dianaWorkingNow(homeDashboardState.workDay);
+          const workingNow=homeDashboardState.workDay.working===true;
           setProfileWorkStatus(
             'Диана',
             dianaWorkStatusText(homeDashboardState.workDay),
@@ -7333,7 +7326,7 @@
           return;
         }
         if(!diana.dataset.calendarReady){
-          setProfileWorkStatus('Диана','Проверяю график…','neutral');
+          setProfileWorkStatus('Диана','','neutral');
         }
       }
 
@@ -16069,11 +16062,7 @@
       }
 
       function dianaWorkStatusText(row){
-        if(row?.working===false)return 'Выходной';
-        const workingNow=dianaWorkingNow(row);
-        if(!workingNow) return 'Отдыхаю';
-        const activeShift=dianaActiveShiftLabel(row);
-        return 'Работаю'+(activeShift?' · '+activeShift:'');
+        return row?.working===true?'Рабочий день':row?.working===false?'Выходной':'';
       }
 
       function dianaActiveShiftLabel(row,nowMinutes=homeCurrentMinutes()){
@@ -16112,7 +16101,7 @@
           renderHomeDashboard();
           if(status){
             status.dataset.calendarReady='1';
-            setProfileWorkStatus('Диана','Отдыхаю','off');
+            setProfileWorkStatus('Диана','','off');
           }
           return;
         }
@@ -16126,7 +16115,7 @@
         if(status){
           status.dataset.calendarReady='1';
           const statusText=dianaWorkStatusText(workRow);
-          setProfileWorkStatus('Диана',statusText,workingNow?'working':'off');
+          setProfileWorkStatus('Диана',statusText,working?'working':'off');
           status.title='';
         }
       }

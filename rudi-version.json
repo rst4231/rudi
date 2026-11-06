@@ -1,18 +1,18 @@
 {
-  "current": "v4.49",
-  "versionBranch": "rudi-release-v449",
+  "current": "v4.50",
+  "versionBranch": "rudi-release-v450",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-06",
-  "basedOnProduction": "v4.48",
+  "basedOnProduction": "v4.49",
   "notes": [
-    "В медитации оставлены только Тихая музыка и Без фона.",
-    "Удалённые сохранённые звуковые фоны заменяются тихой музыкой."
+    "На главной у Рустама и Дианы только Рабочий день или Выходной по графику.",
+    "Пустой статус скрывается без отступа."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Limit meditation backgrounds to quiet music and silence.",
-    "Migrate removed saved background choices per actor."
+    "Use calendar-day labels on both home profile cards.",
+    "Collapse missing status spacing on home and partner pages."
   ]
 }

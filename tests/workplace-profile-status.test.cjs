@@ -9,37 +9,38 @@ function statusHarness({actor='Рустам',place='',date='2026-11-03',local={}
  return context;
 }
 for(const actor of ['Рустам','Диана'])test('working profile status uses calendar workplace on both accounts: '+actor,()=>{
- for(const [place,expected] of [['coworking','Работаю в коворкинге'],['home','Работаю дома'],['','Работаю'],['bad-value','Работаю']]){
+ for(const [place,expected] of [['coworking','Рабочий день'],['home','Рабочий день'],['','Рабочий день'],['bad-value','Рабочий день']]){
   const h=statusHarness({actor,place});assert.equal(typeof h.label,'function');
   assert.equal(h.label(new Date('2026-11-03T09:00:00Z')),expected);
-  assert.equal(h.label(new Date('2026-11-03T15:00:00Z')),'Отдыхаю');
+  assert.equal(h.label(new Date('2026-11-03T15:00:00Z')),'Рабочий день');
   assert.equal(h.label(new Date('2026-11-07T09:00:00Z')),'Выходной');
  }
 });
 test('day off follows Moscow midnight while weekday time off remains rest',()=>{
  const h=statusHarness();
  for(const [date,expected] of [
-  ['2026-11-06T20:59:00Z','Отдыхаю'],['2026-11-06T21:01:00Z','Выходной'],
-  ['2026-11-08T20:59:00Z','Выходной'],['2026-11-08T21:01:00Z','Отдыхаю']
+  ['2026-11-06T20:59:00Z','Рабочий день'],['2026-11-06T21:01:00Z','Выходной'],
+  ['2026-11-08T20:59:00Z','Выходной'],['2026-11-08T21:01:00Z','Рабочий день']
  ])assert.equal(h.label(new Date(date)),expected);
 });
-test('Diana calendar day off differs from time before and after a working shift',()=>{
+test('Diana status follows the calendar day before during and after the shift',()=>{
  const context={clock:8*60,homeCurrentMinutes:()=>context.clock};
  const start=app.indexOf('function dianaWorkingNow('),end=app.indexOf('function renderPartnerWorkStatus(',start);
  vm.runInNewContext(app.slice(start,end)+';this.label=dianaWorkStatusText',context);
+ assert.equal(context.label(null),'');
  const off={working:false,events:[]},work={working:true,events:[{startTime:'09:00',endTime:'18:00'}]};
- assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'Отдыхаю');
- context.clock=12*60;assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'Работаю · 09:00–18:00');
- context.clock=20*60;assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'Отдыхаю');
+ assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'Рабочий день');
+ context.clock=12*60;assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'Рабочий день');
+ context.clock=20*60;assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'Рабочий день');
 });
 test('own pending calendar change wins; another date or account local data cannot leak',()=>{
  const now=new Date('2026-11-03T09:00:00Z');
  const h=statusHarness({place:'coworking',local:{'2026-11-03':{place:'home',pending:true}}});
- assert.equal(typeof h.label,'function');assert.equal(h.label(now),'Работаю дома');
- h.readWorkplaces=()=>({'2026-11-03':{place:'',pending:true}});assert.equal(h.label(now),'Работаю');
+ assert.equal(typeof h.label,'function');assert.equal(h.label(now),'Рабочий день');
+ h.readWorkplaces=()=>({'2026-11-03':{place:'',pending:true}});assert.equal(h.label(now),'Рабочий день');
  const partner=statusHarness({actor:'Диана',place:'home',local:{'2026-11-03':{place:'coworking',pending:true}}});
- assert.equal(partner.label(now),'Работаю дома');
- const stale=statusHarness({actor:'Диана',place:'coworking',date:'2026-11-02'});assert.equal(stale.label(now),'Работаю');
+ assert.equal(partner.label(now),'Рабочий день');
+ const stale=statusHarness({actor:'Диана',place:'coworking',date:'2026-11-02'});assert.equal(stale.label(now),'Рабочий день');
 });
 test('existing home bootstrap carries current Moscow workplace for either viewer',async()=>{
  const source=fs.readFileSync('api/partner-message.js','utf8'),start=source.indexOf('async function buildHomeBootstrap('),end=source.indexOf('\nfunction activityVerb(',start);
@@ -62,6 +63,6 @@ test('home status renderer applies the workplace label and retains work/off clas
  Object.assign(h,{setProfileWorkStatus:(...args)=>rendered.push(args),syncRustamRhythmStatus(){},syncDianaRhythmStatus(){},profileStatusElement:()=>null});
  const start=app.indexOf('function syncStaticProfileWorkStatus('),end=app.indexOf("let completionPolicyDay=",start);
  vm.runInNewContext(app.slice(start,end)+';this.sync=syncStaticProfileWorkStatus',h);
- h.sync(new Date('2026-11-03T09:00:00Z'));assert.deepEqual(rendered[0],['Рустам','Работаю в коворкинге','working']);
- h.sync(new Date('2026-11-03T15:00:00Z'));assert.deepEqual(rendered[1],['Рустам','Отдыхаю','off']);
+ h.sync(new Date('2026-11-03T09:00:00Z'));assert.deepEqual(rendered[0],['Рустам','Рабочий день','working']);
+ h.sync(new Date('2026-11-03T15:00:00Z'));assert.deepEqual(rendered[1],['Рустам','Рабочий день','working']);
 });

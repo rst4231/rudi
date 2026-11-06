@@ -684,3 +684,6 @@ html .partner-profile-page:not(.lulu-profile-page)>.partner-profile-bar{backgrou
 
 .meditation-partner-summary[hidden]{display:none!important}
 .partner-profile-page .partner-mood-meditation:not(:has(.meditation-partner-summary[data-meditated-today="true"])){display:none!important}
+
+/* Empty work statuses must not occupy a row or retain their own spacing. */
+body .profile-person-card .profile-work-status:is([hidden],:empty){display:none!important;margin:0!important;padding:0!important;min-height:0!important}
