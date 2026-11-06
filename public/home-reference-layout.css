@@ -1465,7 +1465,7 @@ body[data-app-tab="home"] .home-dashboard-summary{
 }
 body[data-app-tab="home"] .home-dashboard-summary .home-dashboard-head{
   grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)!important;
-  grid-template-areas:"intro controls" "intro weather" "astro astro"!important;
+  grid-template-areas:"intro controls" "intro weather"!important;
   grid-template-rows:auto auto auto;
   align-items:center!important;
   column-gap:10px!important;
@@ -1559,7 +1559,7 @@ body[data-app-tab="home"] .rudi-home-astronomy :is(.home-dashboard-moon,.home-da
   line-height:1.4!important;
 }
 body[data-app-tab="home"] .home-dashboard-head:not(.has-weather){
-  grid-template-areas:"intro controls" "astro astro"!important;
+  grid-template-areas:"intro controls"!important;
   grid-template-rows:auto auto auto;
 }
 body[data-app-tab="home"] .home-dashboard-head .home-dashboard-weather:focus-visible{
@@ -1587,3 +1587,13 @@ body[data-app-tab="home"] .home-dashboard-tools :is(.home-settings-button,.home-
   width:30px!important;height:30px!important;min-width:30px!important;min-height:30px!important;border-radius:10px!important;
 }
 body[data-app-tab="home"] .home-dashboard-tools :is(.home-settings-button,.home-activity-notifications-button) svg{width:17px;height:17px}
+
+/* Astronomy sits directly below the date in the greeting column. */
+body[data-app-tab="home"] .home-hero-intro .rudi-home-astronomy{
+  grid-area:auto;display:flex;flex-direction:column;align-items:flex-start;
+  margin:0;padding:0 0 0 11px;border:0;gap:2px;
+  font-size:clamp(10px,2.6vw,13px);line-height:1.35;
+}
+body[data-app-tab="home"] .home-hero-intro .rudi-home-astronomy .home-dashboard-sun::before{content:none!important}
+body[data-app-tab="home"] .home-dashboard-summary .home-dashboard-head{grid-template-rows:auto auto}
+body[data-app-tab="home"] .home-dashboard-head:not(.has-weather){grid-template-rows:auto}

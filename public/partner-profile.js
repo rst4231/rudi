@@ -38,7 +38,7 @@
   }).catch(()=>{if(card.isConnected){off.textContent='Не удалось обновить график';event.textContent='Не удалось обновить календарь'}});
   return card;
  }
- function addTaskCounts(page,actor,loadTaskCounts){
+ function addTaskCounts(page,actor,loadTaskCounts,loadPlans){
   const card=document.createElement('section');card.className='partner-task-counts';
   const dayRow=(key,label)=>'<tr data-task-day="'+key+'"><th scope="row">'+label+'<small class="partner-task-workplace" hidden></small><small class="partner-task-day-error" hidden>Недоступно</small></th><td data-period="morning">…</td><td data-period="day">…</td><td data-period="evening">…</td><td class="partner-task-total">…</td></tr>';
   card.innerHTML='<h2>Дела</h2><p class="partner-task-caption" aria-live="polite">Обновляю календарь…</p><table class="partner-task-table" aria-label="Количество дел партнёра на сегодня и завтра"><colgroup><col class="partner-task-date-col"><col><col><col><col></colgroup><thead><tr><th scope="col" aria-label="Дата"></th><th scope="col">Утром</th><th scope="col">Днём</th><th scope="col">Вечером</th><th scope="col">Всего</th></tr></thead><tbody>'+dayRow('today','Сегодня')+dayRow('tomorrow','Завтра')+'</tbody></table>';
@@ -59,6 +59,18 @@
    if(!card.isConnected)return;
    if(!data?.ok||data.partner!==actor){unavailable();return}
    const todayOk=renderDay('today',data),tomorrowOk=renderDay('tomorrow',data.tomorrow);
+   if(actor==='Диана')Promise.resolve().then(()=>loadPlans?.()).then(plans=>{
+    if(!card.isConnected)return;
+    for(const [key,value] of [['today',data],['tomorrow',data.tomorrow]]){
+     if(!value?.date)return;
+     const place=card.querySelector('[data-task-day="'+key+'"] .partner-task-workplace');
+     const work=plans?.work,day=work?.configured?(work.days||[]).find(day=>day.date===value.date):null;
+     const ranges=(day?.events||[]).filter(event=>!event.allDay&&/^\d{2}:\d{2}$/.test(event.startTime||'')&&/^\d{2}:\d{2}$/.test(event.endTime||'')).map(event=>event.startTime+'–'+event.endTime);
+     place.textContent=day?.working===false?'Выходной':day?.working===true?(ranges.join(', ')||'Рабочий день'):'График недоступен';
+     place.hidden=false;
+    }
+   }).catch(()=>{});
+
    card.querySelector('.partner-task-caption').textContent=todayOk&&tomorrowOk?'Осталось выполнить':todayOk||tomorrowOk?'Часть календаря недоступна':'Не удалось обновить дела';
   }).catch(unavailable);
   return card;
@@ -282,13 +294,15 @@
    active.birthdayTimer=setInterval(active.updateBirthday,60000);
    addCbtStatus(page,actor,loadCbtStatus);
    Object.assign(active,composePage(page,energy,advice,details));
-   active.groups.push(addTaskCounts(page,actor,loadTaskCounts));
+   const plansPromise=Promise.resolve().then(()=>loadPlans?.());
+   const sharedPlans=()=>plansPromise;
+   active.groups.push(addTaskCounts(page,actor,loadTaskCounts,sharedPlans));
    active.unmountPresence=window.RudiPresence?.mountProfile(page.querySelector('.partner-hero .person'),actor);
    const today=page.querySelector('.partner-today'),note=window.RudiHomeNote?.mountPartner?.();
    if(today&&note)(page.querySelector('.partner-finances')||today).after(note);
    Promise.resolve().then(()=>loadFinances?.()).then(data=>{if(page.isConnected)renderFinances(page,data,actor)}).catch(()=>{if(page.isConnected)renderFinances(page,null,actor)});
    void addPartnerDetails(page,actor);
-   active.groups.push(addPlans(page,actor,loadPlans));
+   active.groups.push(addPlans(page,actor,sharedPlans));
    document.body.classList.add('partner-profile-open');
    window.RudiViewport?.sync();
    history.pushState({...history.state,rudiPartnerProfile:actor},'','#partner-'+(actor==='Диана'?'diana':'rustam'));

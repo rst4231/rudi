@@ -245,7 +245,9 @@
    const moon=$('homeDashboardMoon'),sun=$('homeDashboardSun');
    if(head&&moon&&sun){
      let line=$('rudiHomeAstronomy');
-     if(!line){line=document.createElement('div');line.id='rudiHomeAstronomy';line.className='rudi-home-astronomy';head.appendChild(line);}
+     if(!line){line=document.createElement('div');line.id='rudiHomeAstronomy';line.className='rudi-home-astronomy';}
+     const intro=head.querySelector('.home-hero-intro')||head;
+     if(line.parentElement!==intro)intro.appendChild(line);
      if(moon.parentElement!==line)line.append(moon);
      if(sun.parentElement!==line)line.append(sun);
    }

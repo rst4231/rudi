@@ -12,3 +12,9 @@ test('partner profile moves meditation beside habits and restores it on close',a
   w.RudiPartnerProfile.close(true);assert.ok(w.document.querySelector('#tile .profile-person-details>#meditationPartnerSummary'));
  }finally{w.close()}
 });
+
+test('partner meditation summary hides on zero progress and reappears after meditation',()=>{
+ const dom=new JSDOM('<div id="homeDianaDetails"></div>'),source=fs.readFileSync('public/meditation.js','utf8');
+ const ctx={actor:'Рустам',partner:{actor:'Диана',todaySessions:0,todayMinutes:0},document:dom.window.document,$:id=>dom.window.document.getElementById(id),formatDailyTime:m=>m+' мин',updateNudges(){}};
+ try{vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('function updatePartner(){'),source.indexOf('async function refreshPartner(){')),ctx);ctx.updatePartner();const card=ctx.document.getElementById('meditationPartnerSummary');assert.equal(card.hidden,true);assert.equal(card.dataset.meditatedToday,'false');ctx.partner.todaySessions=1;ctx.partner.todayMinutes=5;ctx.updatePartner();assert.equal(card.hidden,false);assert.equal(card.textContent,'🧘 5 мин');ctx.partner.todaySessions=0;ctx.partner.todayMinutes=0;ctx.updatePartner();assert.equal(card.hidden,true);}finally{dom.window.close()}
+});

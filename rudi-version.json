@@ -1,18 +1,20 @@
 {
-  "current": "v4.47",
-  "versionBranch": "rudi-release-v447",
+  "current": "v4.48",
+  "versionBranch": "rudi-release-v448",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-11-05",
-  "basedOnProduction": "v4.46",
+  "createdAt": "2026-11-06",
+  "basedOnProduction": "v4.47",
   "notes": [
-    "В почасовом режиме календарь заканчивается сеткой времени.",
-    "Скрыты привычки под сеткой, нижние сводки, ближайшее событие, прогресс года и футер только в этом режиме."
+    "Луна и восход/закат перенесены под дату.",
+    "Нулевая медитация скрыта в карточке партнёра.",
+    "В таблице дел Дианы под Сегодня и Завтра показаны часы смены или Выходной."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Keep weekly timeline free of trailing habit groups and page summaries.",
-    "Preserve month-view summaries and other tabs."
+    "Place astronomy below date.",
+    "Hide empty partner meditation summary.",
+    "Show Diana shifts in today and tomorrow rows using shared plans request."
   ]
 }

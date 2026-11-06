@@ -49,3 +49,12 @@ test('business table palette switches with theme and retains readable text contr
   assert.notDeepEqual(palettes[0],palettes[1]);
  }finally{dom.window.close()}
 });
+
+test('Diana task rows show actual work hours and day off from the shared plans payload',async()=>{
+ const dom=new JSDOM('<body><main><section class="partner-today"></section></main></body>',{runScripts:'outside-only'}),w=dom.window;
+ try{const source=fs.readFileSync('public/partner-profile.js','utf8');w.eval(source.slice(source.indexOf(' function addTaskCounts('),source.indexOf(' function composePage(')));
+ const day=date=>({date,available:true,total:0,counts:{morning:0,day:0,evening:0}});
+ w.addTaskCounts(w.document.querySelector('main'),'Диана',async()=>({ok:true,partner:'Диана',...day('2026-11-06'),tomorrow:day('2026-11-07')}),async()=>({work:{configured:true,days:[{date:'2026-11-06',working:true,events:[{startTime:'10:00',endTime:'21:00'}]},{date:'2026-11-07',working:false,events:[]}]}}));
+ await tick();await tick();assert.deepEqual([...w.document.querySelectorAll('.partner-task-workplace')].map(el=>el.textContent),['10:00–21:00','Выходной']);assert.ok([...w.document.querySelectorAll('.partner-task-workplace')].every(el=>!el.hidden));
+ }finally{w.close()}
+});
