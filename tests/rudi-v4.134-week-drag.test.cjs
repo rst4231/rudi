@@ -54,7 +54,8 @@ test('private endpoint denies Diana and shared project',async()=>{
   assert.equal(x.calls.length,0);
 });
 test('week gesture supports own and joint shared tasks without restricting to today',()=>{
-  const handler=app.slice(app.indexOf('function calendarAttachTaskTimeDrag('),app.indexOf('function calendarWeekAgenda('));
+  const start=app.indexOf('function calendarAttachTaskTimeDrag(');
+  const handler=app.slice(start,app.indexOf('\n      function ',start+1));
   assert.match(handler,/task\.canEdit!==true/);
   assert.match(handler,/sharedWritable!==true/);
   assert.match(handler,/requestCalendarTickTickTaskMove\(task,dateKey/);

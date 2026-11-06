@@ -16370,22 +16370,12 @@
           if(g.dragging||g.scrolling)suppressClickUntil=Date.now()+800;
           block.classList.remove('is-dragging');
           if(cancelled||!g.dragging||!g.changed){restorePreview();return}
-          const savedPageX=window.scrollX,savedPageY=window.scrollY;
-          const savedTimeScroll=viewport.scrollTop;
           busy=true;block.classList.add('is-saving');
           try{
             const payload=await requestCalendarTickTickTaskMove(task,dateKey,timeLabel(g.nextMinutes));
             if(!payload?.ok)throw new Error(payload?.error||'ticktick-personal-move-failed');
             try{tg?.HapticFeedback?.notificationOccurred?.('success')}catch(_){}
             await refreshAfterTickTickTaskChange({preserveExpanded:false});
-            // Rendering recreates the time viewport and otherwise jumps to its
-            // default scroll position and can also reset the page scroll.
-            requestAnimationFrame(()=>requestAnimationFrame(()=>{
-              const selector='.calendar-week-agenda[data-calendar-date="'+dateKey+'"] .calendar-week-time-viewport';
-              const replacement=document.querySelector(selector);
-              if(replacement)replacement.scrollTop=savedTimeScroll;
-              window.scrollTo(savedPageX,savedPageY);
-            }));
           }catch(error){
             restorePreview();
             const status=document.getElementById('workCalendarStatus');
@@ -16516,10 +16506,12 @@
       }
       window.addEventListener('online',()=>{if(currentActor==='Рустам')void flushWorkplaces()});
 
-      function calendarWeekAgenda(dateKey,tasks,workEvents,holidays,obligations,sharedWritable=true){
+      function calendarWeekAgenda(dateKey,tasks,workEvents,holidays,obligations,sharedWritable=true,timelineScroll=null){
         const panel=document.createElement('div');
         panel.className='calendar-week-agenda';
         panel.dataset.calendarDate=dateKey;
+        panel.dataset.calendarScope=calendarScope;
+        panel.dataset.calendarActor=currentActor;
         panel.setAttribute('aria-label','Расписание на '+dateKey);
         const workplace=calendarWorkplaceControl(dateKey);if(workplace)panel.append(workplace);
         const allDayItems=[];
@@ -16739,12 +16731,35 @@
           ?Math.max(0,homeCurrentMinutes()-60)
           :arranged.length?Math.max(0,Math.min(5*60,arranged[0].start-60)):5*60;
         requestAnimationFrame(()=>{
-          if(viewport.isConnected)viewport.scrollTop=startMinutes/60*CALENDAR_AGENDA_HOUR_HEIGHT;
+          if(viewport.isConnected)viewport.scrollTop=Number.isFinite(timelineScroll)?timelineScroll:startMinutes/60*CALENDAR_AGENDA_HOUR_HEIGHT;
         });
         return panel;
       }
 
-      function renderWorkCalendar(payload,{force=false}={}){
+      function renderWorkCalendar(payload,options={}){
+        const selected=document.getElementById('workCalendarSelected');
+        const agenda=selected?.querySelector('.calendar-week-agenda');
+        const viewport=agenda?.querySelector('.calendar-week-time-viewport');
+        const date=currentSelectedWorkDate||calendarDateCursor||todayState().key;
+        const keep=document.body.dataset.appTab==='schedule'&&calendarDisplayMode==='week'&&viewport&&agenda.dataset.calendarDate===date&&
+          agenda.dataset.calendarScope===calendarScope&&agenda.dataset.calendarActor===currentActor;
+        if(!keep)return renderWorkCalendarContent(payload,options);
+        const timelineScroll=viewport.scrollTop,pageX=window.scrollX,pageY=window.scrollY;
+        const minHeight=selected.style.minHeight;
+        selected.style.minHeight=selected.getBoundingClientRect().height+'px';
+        try{return renderWorkCalendarContent(payload,{...options,timelineScroll})}
+        finally{
+          selected.style.minHeight=minHeight;
+          const replacement=selected.querySelector('.calendar-week-agenda');
+          if(replacement?.dataset.calendarDate===date){
+            const next=replacement.querySelector('.calendar-week-time-viewport');
+            if(next)next.scrollTop=timelineScroll;
+            window.scrollTo(pageX,pageY);
+          }
+        }
+      }
+
+      function renderWorkCalendarContent(payload,{force=false,timelineScroll=null}={}){
         if(calendarScope==='personal')calendarPersonalTickTickConnected=currentActor==='Рустам'&&payload?.personalTickTickConnected===true;
         calendarUpdateCreateButtons();
         const signature=workCalendarRenderSignature(payload);
@@ -16764,7 +16779,7 @@
         const status=document.getElementById('workCalendarStatus');
         const label=document.getElementById('workWeekLabel');
         container.replaceChildren();
-        selected.hidden=true;
+        if(!Number.isFinite(timelineScroll))selected.hidden=true;
         selected.replaceChildren();
 
         const allDays=Array.isArray(payload?.days)?payload.days:[];
@@ -17130,7 +17145,7 @@
             if(calendarScope!=='personal')selected.append(icon,copy);
             selected.dataset.calendarWeatherDate=day.date;
             if(calendarDisplayMode==='week'){
-              const agenda=calendarWeekAgenda(day.date,tasks,events,holidays,obligations,payload?.ticktickWritable!==false);
+              const agenda=calendarWeekAgenda(day.date,tasks,events,holidays,obligations,payload?.ticktickWritable!==false,!withHaptic&&day.date===(currentSelectedWorkDate||focus)?timelineScroll:null);
               selected.appendChild(agenda);
             }
             if(calendarDisplayMode!=='week'&&details.childElementCount) selected.appendChild(details);

@@ -1,9 +1,9 @@
 'use strict';
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),{JSDOM}=require('jsdom');
 const app=fs.readFileSync('public/app.js','utf8'),start=app.indexOf('      function calendarWeekAgenda('),end=app.indexOf('\n      function ',start+1),source=app.slice(start,end);
-function render(date,minutes){
+function render(date,minutes,timelineScroll=null){
  const dom=new JSDOM('<body></body>'),frames=[];
- const agenda=new Function('document','requestAnimationFrame','calendarWorkplaceControl','calendarScope','currentActor','todayState','homeCurrentMinutes','CALENDAR_AGENDA_HOUR_HEIGHT',source+';return calendarWeekAgenda;')(dom.window.document,fn=>frames.push(fn),()=>null,'personal','Рустам',()=>({key:'2026-11-04'}),()=>minutes,64)(date,[],[],[],[]);
+ const agenda=new Function('document','requestAnimationFrame','calendarWorkplaceControl','calendarScope','currentActor','todayState','homeCurrentMinutes','CALENDAR_AGENDA_HOUR_HEIGHT',source+';return calendarWeekAgenda;')(dom.window.document,fn=>frames.push(fn),()=>null,'personal','Рустам',()=>({key:'2026-11-04'}),()=>minutes,64)(date,[],[],[],[],true,timelineScroll);
  dom.window.document.body.appendChild(agenda);for(const fn of frames)fn();return{dom,agenda,viewport:agenda.querySelector('.calendar-week-time-viewport')};
 }
 test('opening today scrolls to the red current-time line even late in the evening',()=>{
@@ -13,4 +13,8 @@ test('opening today scrolls to the red current-time line even late in the evenin
 });
 test('opening a different date keeps its normal start and has no current-time line',()=>{
  const f=render('2026-11-05',22*60+47);try{assert.equal(f.agenda.querySelector('.calendar-week-now-line'),null);assert.equal(f.viewport.scrollTop,320)}finally{f.dom.window.close()}
+});
+
+test('redraw keeps saved timeline offset instead of default current-time positioning',()=>{
+ const f=render('2026-11-04',14*60,620);try{assert.equal(f.viewport.scrollTop,620)}finally{f.dom.window.close()}
 });
