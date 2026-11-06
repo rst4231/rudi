@@ -58,3 +58,11 @@ test('Diana task rows show actual work hours and day off from the shared plans p
  await tick();await tick();assert.deepEqual([...w.document.querySelectorAll('.partner-task-workplace')].map(el=>el.textContent),['10:00–21:00','Выходной']);assert.ok([...w.document.querySelectorAll('.partner-task-workplace')].every(el=>!el.hidden));
  }finally{w.close()}
 });
+
+test('open profile removes expired Apple and shift contributions without another request',async()=>{
+ const dom=new JSDOM('<body><main><section class="partner-today"></section></main></body>',{runScripts:'outside-only'}),w=dom.window;let time=1000,refresh,requests=0;
+ try{w.Date.now=()=>time;w.setInterval=fn=>{refresh=fn;return 1};const source=fs.readFileSync('public/partner-profile.js','utf8');w.eval("let active={page:document.querySelector('main')};"+source.slice(source.indexOf(' function addTaskCounts('),source.indexOf(' function composePage(')));
+ w.addTaskCounts(w.document.querySelector('main'),'Диана',async()=>{requests++;return {ok:true,partner:'Диана',available:true,total:1,counts:{morning:0,day:1,evening:1},expirations:[{endAt:2000,total:1,counts:{morning:0,day:1,evening:1}}],tomorrow:{available:true,total:0,counts:{morning:0,day:0,evening:0}}}});
+ await tick();assert.equal(w.document.querySelector('.partner-task-total').textContent,'1');time=2000;refresh();assert.equal(w.document.querySelector('.partner-task-total').textContent,'0');assert.equal(w.document.querySelector('[data-period="day"]').textContent,'0');assert.equal(w.document.querySelector('[data-period="evening"]').textContent,'0');assert.equal(requests,1);
+ }finally{w.close()}
+});

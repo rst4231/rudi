@@ -1,12 +1,13 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
 const {createRequire}=require('node:module');
-function fixture({personal=[],shared=[],failure=false,failureMonth='',realDianaCalendar=false,realWorkplace=false}={}){
+function fixture({work=[],personal=[],shared=[],failure=false,failureMonth='',realDianaCalendar=false,realWorkplace=false}={}){
  const filename=path.resolve('api/partner-task-counts.cjs');
  if(!fs.existsSync(filename))return {};
  const real=createRequire(filename),client=real('./ticktick-client.cjs'),module={exports:{}};
  const calls={shared:[],personal:[],ticktick:0};
  const deps={
+  './work-calendar.cjs':{getWorkWeek:async()=>({configured:work.length>0,days:work})},
   './calendar-workplace.cjs':realWorkplace?real('./calendar-workplace.cjs'):{readWorkplaceForSummary:async()=>''},
   './shared-native-tasks.cjs':{occurrences:async month=>{calls.shared.push(month);if(month===failureMonth)throw Error('calendar-unavailable');return shared.filter(event=>event.date?.startsWith(month))}},
   './diana-personal-tasks.cjs':{personalTasks:async input=>{calls.personal.push(input.month);if(failure)throw Error('private');return {ok:true,tasks:personal.filter(event=>event.date?.startsWith(input.month))}}},
@@ -117,7 +118,21 @@ test('Diana Apple calendar flows through real subscription into both days withou
   'END:VCALENDAR'].join('\r\n');
  const f=fixture({realDianaCalendar:true});
  const result=await f.partnerTaskCounts('Рустам',{client,now:Date.parse('2026-11-03T12:00:00Z'),fetchImpl:async()=>({ok:true,status:200,headers:{get:()=>null},text:async()=>feed})});
- assert.equal(result.available,true);assert.deepEqual(result.counts,{morning:1,day:0,evening:1});assert.equal(result.total,2);
- assert.deepEqual(result.tomorrow,{date:'2026-11-04',available:true,counts:{morning:0,day:1,evening:1},total:3});
+ assert.equal(result.available,true);assert.deepEqual(result.counts,{morning:0,day:0,evening:1});assert.equal(result.total,1);
+ assert.equal(result.tomorrow.total,3);assert.deepEqual(result.tomorrow.counts,{morning:0,day:1,evening:1});
  assert.doesNotMatch(JSON.stringify(result),/Личное|private-|published|SUMMARY|Повторение/);
+});
+
+test('work shift overlaps day and evening once in total and expires at its end',async()=>{
+ const f=fixture({work:[{date:'2026-11-06',working:true,events:[{title:'Работа',startTime:'12:00',endTime:'20:00'}]}]});
+ const before=await f.partnerTaskCounts('Рустам',{now:'2026-11-06T08:00:00Z'});assert.deepEqual(before.counts,{morning:0,day:1,evening:1});assert.equal(before.total,1);assert.equal(before.expirations.length,1);
+ const ended=await f.partnerTaskCounts('Рустам',{now:'2026-11-06T17:00:00Z'});assert.equal(ended.total,0);assert.deepEqual(ended.counts,{morning:0,day:0,evening:0});
+});
+test('Apple events expire at end while all-day events and local unfinished tasks remain',async()=>{
+ const f=fixture({personal:[{id:'apple',date:'2026-11-06',externalCalendar:true,startTime:'12:00',endTime:'14:00'},{id:'all',date:'2026-11-06',externalCalendar:true,allDay:true},{id:'local',date:'2026-11-06',startTime:'12:00',endTime:'14:00'}]});
+ assert.equal((await f.partnerTaskCounts('Рустам',{now:'2026-11-06T10:59:00Z'})).total,3);
+ const ended=await f.partnerTaskCounts('Рустам',{now:'2026-11-06T11:00:00Z'});assert.equal(ended.total,2);assert.equal(ended.counts.day,1);
+});
+test('same work shift imported through Apple is not counted twice',async()=>{
+ const f=fixture({work:[{date:'2026-11-06',working:true,events:[{title:'Работа',startTime:'12:00',endTime:'20:00'}]}],personal:[{id:'apple-work',externalCalendar:true,title:'Работа',date:'2026-11-06',startTime:'12:00',endTime:'20:00'}]});const result=await f.partnerTaskCounts('Рустам',{now:'2026-11-06T10:00:00Z'});assert.equal(result.total,1);assert.equal(result.counts.evening,1);
 });

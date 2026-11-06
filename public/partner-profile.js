@@ -48,6 +48,15 @@
    const place=row.querySelector('.partner-task-workplace');
    place.textContent=actor==='Рустам'?({home:'Дома',coworking:'Коворкинг'}[data?.workplace]||''):'';
    place.hidden=!place.textContent;
+   return renderCounts(row,data);
+  };
+  const renderCounts=(row,data)=>{
+   const value=data?{...data,counts:{...data.counts}}:null;
+   if(value?.available)for(const expired of value.expirations||[])if(Date.now()>=expired.endAt){
+    value.total-=expired.total;
+    for(const period of ['morning','day','evening'])value.counts[period]-=expired.counts[period];
+   }
+   data=value;
    const valid=data?.available&&Number.isInteger(data.total)&&data.total>=0&&['morning','day','evening'].every(period=>Number.isInteger(data.counts?.[period])&&data.counts[period]>=0);
    row.querySelector('.partner-task-total').textContent=valid?String(data.total):'—';
    row.querySelector('.partner-task-day-error').hidden=valid;
@@ -59,6 +68,15 @@
    if(!card.isConnected)return;
    if(!data?.ok||data.partner!==actor){unavailable();return}
    const todayOk=renderDay('today',data),tomorrowOk=renderDay('tomorrow',data.tomorrow);
+   if(typeof active!=='undefined'&&active?.page===page){
+    clearInterval(active.taskCountsTimer);
+    active.taskCountsTimer=setInterval(()=>{
+     if(!page.isConnected)return;
+     renderCounts(card.querySelector('[data-task-day="today"]'),data);
+     renderCounts(card.querySelector('[data-task-day="tomorrow"]'),data.tomorrow);
+    },30000);
+   }
+
    if(actor==='Диана')Promise.resolve().then(()=>loadPlans?.()).then(plans=>{
     if(!card.isConnected)return;
     for(const [key,value] of [['today',data],['tomorrow',data.tomorrow]]){
@@ -241,6 +259,7 @@
   window.RudiHomeNote?.detachPartner?.();
   for(const group of saved.groups||[])group.remove();
   clearInterval(saved.birthdayTimer);
+  clearInterval(saved.taskCountsTimer);
   for(const {node,marker,style} of saved.slots){marker.replaceWith(node);if(style===null)node.removeAttribute('style');else node.setAttribute('style',style)}
   for(const {node,style} of saved.paints){if(style===null)node.removeAttribute('style');else node.setAttribute('style',style)}
   saved.tile.hidden=saved.hidden;

@@ -1,18 +1,20 @@
 {
-  "current": "v4.53",
-  "versionBranch": "rudi-release-v453",
+  "current": "v4.54",
+  "versionBranch": "rudi-release-v454",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-06",
-  "basedOnProduction": "v4.52",
+  "basedOnProduction": "v4.53",
   "notes": [
-    "Возвращён карандаш редактирования личной заметки.",
-    "Заголовок личной заметки показывает её название, если оно заполнено."
+    "Смена Дианы учитывается в пересекаемых периодах и один раз в общем итоге.",
+    "Завершившиеся смены и события Apple автоматически исключаются из счётчиков.",
+    "Счётчики открытой страницы обновляются без дополнительных запросов."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Restore the personal note edit pencil.",
-    "Use the saved personal note title in its heading with the default fallback."
+    "Include work shifts across time periods with deduplication.",
+    "Expire Apple calendar events and shifts at their end time.",
+    "Update open profile counts locally at expiration."
   ]
 }
