@@ -103,5 +103,7 @@ html[data-theme="dark"] :is(#homeNoteTile,#partnerNoteTile) .home-note-title{bac
 :is(#homeNotePin,#partnerNotePin)[aria-pressed="true"]{background:rgba(150,111,33,.25)}
 
 /* Personal note keeps direct text editing and proofreading without extra icons. */
-#homeNoteTile :is(#homeNoteEdit,#homeNoteCopy,#homeNoteUndo){display:none!important}
+#homeNoteTile :is(#homeNoteCopy,#homeNoteUndo){display:none!important}
 #homeNoteTile .home-note-secondary{display:none!important}
+
+#homeNoteTile .home-note-toggle > span:last-child{min-width:0;overflow-wrap:anywhere}

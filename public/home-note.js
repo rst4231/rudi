@@ -96,6 +96,12 @@ async function request(operation,extra={}){
  return result;
 }
 function render(){
+ if(!partner){
+  const label=heading.querySelector?.(':scope > span:last-child');
+  const title=String(current().title||'').trim()||'Личная заметка';
+  if(label)label.textContent=title;
+  root.setAttribute('aria-label',title);
+ }
  const filled=Boolean(text.trim());
  root.classList.toggle('is-filled',filled);
  root.classList.toggle('is-expanded',expanded);

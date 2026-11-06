@@ -1,17 +1,18 @@
 {
-  "current": "v4.52",
-  "versionBranch": "rudi-release-v452",
+  "current": "v4.53",
+  "versionBranch": "rudi-release-v453",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-06",
-  "basedOnProduction": "v4.51",
+  "basedOnProduction": "v4.52",
   "notes": [
-    "Время смены Дианы видно только в интервале смены: начало включительно, окончание не включается.",
-    "До и после смены строка скрыта без пустого отступа."
+    "Возвращён карандаш редактирования личной заметки.",
+    "Заголовок личной заметки показывает её название, если оно заполнено."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Show Diana shift label only while the shift is active."
+    "Restore the personal note edit pencil.",
+    "Use the saved personal note title in its heading with the default fallback."
   ]
 }
