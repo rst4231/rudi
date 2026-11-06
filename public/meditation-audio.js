@@ -15,9 +15,9 @@ const PRACTICES=[
  {id:'breath',name:'Дыхание 4/6',time:5,icon:'🫁',desc:'Плавный вдох и удлинённый выдох',lines:['Если тебе комфортно, попробуй вдох примерно на четыре счёта, а выдох на шесть. Без усилия.','Следуй за движением круга. Если ритм неудобен, дыши естественно.','Отметь, как воздух входит и выходит. Не нужно задерживать дыхание.','Позволь плечам расслабиться. Продолжай в мягком темпе.','Постепенно вернись к своему естественному дыханию.']}
 ];
 const MOODS=[['stress','Напряжение','stress'],['tired','Усталость','body'],['sleep','Не спится','sleep'],['focus','Нужен фокус','focus'],['calm','Для себя','mindful']];
-const SOUNDS=[['rain','Дождь'],['ocean','Океан'],['forest','Лес'],['fire','Камин'],['brown','Глубокий шум'],['bowls','Поющие чаши'],['music','Тихая музыка'],['none','Без фона']];
+const SOUNDS=[['music','Тихая музыка'],['none','Без фона']];
 const $=id=>document.getElementById(id);
-let el=null,actor='',practice='stress',mood='stress',sound='rain',voice='female',volume=35,program=7;
+let el=null,actor='',practice='stress',mood='stress',sound='music',voice='female',volume=35,program=7;
 let audioCtx=null,master=null,cleanups=[],speakingFor=null,spoken=new Set(),speechAllowed=false,activeId='',primedIntro=false;
 const optionHtml=(items,current)=>items.map(item=>'<option value="'+item[0]+'"'+(item[0]===current?' selected':'')+'>'+item[1]+'</option>').join('');
 const chosen=()=>PRACTICES.find(item=>item.id===practice)||PRACTICES[2];
@@ -31,7 +31,9 @@ function onActor(name){
  if(actor&&actor!==name){stopAudio();activeId='';}
  actor=name;
  practice=PRACTICES.some(x=>x.id===read('practice','stress'))?read('practice','stress'):'stress';
- sound=SOUNDS.some(x=>x[0]===read('sound','rain'))?read('sound','rain'):'rain';
+ const savedSound=read('sound','music');
+ sound=SOUNDS.some(x=>x[0]===savedSound)?savedSound:'music';
+ if(savedSound!==sound)save('sound',sound);
  voice=['female','male','neutral','none'].includes(read('voice','female'))?read('voice','female'):'female';
  mood=MOODS.some(x=>x[0]===read('mood','stress'))?read('mood','stress'):'stress';
  volume=Math.max(0,Math.min(100,Number(read('volume','35'))||0));

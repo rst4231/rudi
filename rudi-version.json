@@ -1,20 +1,18 @@
 {
-  "current": "v4.48",
-  "versionBranch": "rudi-release-v448",
+  "current": "v4.49",
+  "versionBranch": "rudi-release-v449",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-06",
-  "basedOnProduction": "v4.47",
+  "basedOnProduction": "v4.48",
   "notes": [
-    "Луна и восход/закат перенесены под дату.",
-    "Нулевая медитация скрыта в карточке партнёра.",
-    "В таблице дел Дианы под Сегодня и Завтра показаны часы смены или Выходной."
+    "В медитации оставлены только Тихая музыка и Без фона.",
+    "Удалённые сохранённые звуковые фоны заменяются тихой музыкой."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Place astronomy below date.",
-    "Hide empty partner meditation summary.",
-    "Show Diana shifts in today and tomorrow rows using shared plans request."
+    "Limit meditation backgrounds to quiet music and silence.",
+    "Migrate removed saved background choices per actor."
   ]
 }

@@ -13,10 +13,10 @@ test('meditation player scripts parse and are loaded from the application shell'
  assert.match(build,/meditation-audio\.js/);
  assert.match(build,/meditation-audio\.css/);
 });
-test('guided meditation offers twelve practices and at least seven distinct local sound types',()=>{
+test('guided meditation offers twelve practices and two background choices',()=>{
  for(const id of ['morning','sleep','stress','focus','mindful','confidence','reset','body','walk','emotions','vision','breath'])
   assert.ok(file.includes("id:'"+id+"'"),'missing practice: '+id);
- for(const id of ['rain','ocean','forest','fire','brown','bowls','music','none'])
+ for(const id of ['music','none'])
   assert.ok(file.includes("['"+id+"'"),'missing sound: '+id);
  assert.match(file,/SpeechSynthesisUtterance/);
  assert.match(file,/window\.AudioContext/);
@@ -50,4 +50,9 @@ test('voice starts on direct user gesture before asynchronous server confirmatio
  player.onStarted('id-1');
  assert.equal(calls.length,1,'do not restart the same phrase after server start');
  player.onFinish();
+});
+
+test('background selector keeps only music and silence and migrates removed preferences per actor',()=>{
+ const {JSDOM}=require('jsdom'),dom=new JSDOM('<section id="page"><div id="meditationQuote"></div></section>',{url:'https://rudi.test/',runScripts:'outside-only'}),w=dom.window;
+ try{w.localStorage.setItem('rudi:meditation:Рустам:guided:sound','rain');w.localStorage.setItem('rudi:meditation:Диана:guided:sound','none');w.eval(file);const audio=w.RudiMeditationAudio;audio.onActor('Рустам');audio.mount(w.document.getElementById('page'));const select=w.document.getElementById('meditationAmbient');assert.deepEqual([...select.options].map(o=>[o.value,o.textContent]),[['music','Тихая музыка'],['none','Без фона']]);assert.equal(select.value,'music');assert.equal(w.localStorage.getItem('rudi:meditation:Рустам:guided:sound'),'music');audio.onActor('Диана');assert.equal(select.value,'none');audio.onActor('Рустам');assert.equal(select.value,'music');}finally{w.close()}
 });
