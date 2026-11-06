@@ -9,9 +9,9 @@ const fragment=js.slice(start,end);
 test('Diana work status only shows actual shift hours',()=>{
  const context={};
  vm.runInNewContext(fragment+'\nthis.format=dianaStatusWithoutVerb;',context);
- assert.equal(context.format('Работаю · 09:00–18:00'),'Рабочий день');
- assert.equal(context.format('Работаю · 10:15–21:30'),'Рабочий день');
- assert.equal(context.format('Работаю'),'Рабочий день');
+ assert.equal(context.format('Работаю · 09:00–18:00'),'09:00–18:00');
+ assert.equal(context.format('Работаю · 10:15–21:30'),'10:15–21:30');
+ assert.equal(context.format('Работаю'),'');
  assert.equal(context.format('Отдыхаю'),'');
  assert.equal(context.format('Выходной'),'Выходной');
  assert.equal(context.format('Проверяю график…'),'');
@@ -23,13 +23,13 @@ test('scheduled status updates stay synchronized, without extra observers',()=>{
  const context={document:{getElementById:id=>id==='homeDianaTile'?diana:null},MutationObserver:Observer};
  vm.runInNewContext('const $=id=>document.getElementById(id);\n'+fragment+'\nthis.bind=bindDianaShiftHours;',context);
  context.bind();context.bind();
- assert.equal(node.textContent,'Рабочий день');assert.equal(listeners.length,1);
+ assert.equal(node.textContent,'08:00–17:00');assert.equal(listeners.length,1);
  node.textContent='Работаю · 12:00–22:00';listeners[0].cb();
- assert.equal(node.textContent,'Рабочий день');
+ assert.equal(node.textContent,'12:00–22:00');
  node.textContent='Отдыхаю';listeners[0].cb();
  assert.equal(node.textContent,'');
  node.textContent='Работаю';listeners[0].cb();
- assert.equal(node.textContent,'Рабочий день');assert.equal(node.hidden,false);
+ assert.equal(node.textContent,'');assert.equal(node.hidden,true);
 });
 test('only Diana node is targeted; Rustam and existing Home behaviors untouched',()=>{
  assert.match(fragment,/\$\('homeDianaTile'\)\?\.querySelector\('\.profile-work-status'\)/);

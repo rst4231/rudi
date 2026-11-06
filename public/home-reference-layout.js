@@ -215,8 +215,10 @@
  // Keep its real hours; remove only the duplicated "Работаю" prefix.
  function dianaStatusWithoutVerb(value){
    const text=String(value||'').trim();
-   if(text==='Выходной')return text;
-   return text==='Рабочий день'||/^Работаю(?:\s|[·•:]|$)/u.test(text)?'Рабочий день':'';
+   if(['Отдыхаю','Проверяю график…','Рабочий день'].includes(text))return '';
+   return /^Работаю(?:\s|[·•:]|$)/u.test(text)
+     ?text.slice('Работаю'.length).replace(/^[\s·•:—–-]+/u,'').trim()
+     :text;
  }
  function bindDianaShiftHours(){
    const node=$('homeDianaTile')?.querySelector('.profile-work-status');

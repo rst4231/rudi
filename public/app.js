@@ -7148,8 +7148,15 @@
       }
 
       function rustamWorkStatusText(now=new Date()){
-        const weekday=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,weekday:'short'}).format(now);
-        return ['Sat','Sun'].includes(weekday)?'Выходной':'Рабочий день';
+        if(!rustamWorkState(now)){
+          const weekday=new Intl.DateTimeFormat('en-GB',{timeZone:TZ,weekday:'short'}).format(now);
+          return ['Sat','Sun'].includes(weekday)?'Выходной':'';
+        }
+        const date=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(now);
+        const local=currentActor==='Рустам'?readWorkplaces()[date]:null;
+        const saved=homeDashboardState.rustamWorkplace;
+        const place=local?.pending?local.place:saved?.date===date?saved.place:local?.place;
+        return place==='coworking'?'Работаю в коворкинге':place==='home'?'Работаю дома':'Работаю';
       }
 
       function rustamRhythmStatus(now=new Date()){
@@ -7306,7 +7313,7 @@
       }
 
       function syncStaticProfileWorkStatus(now=new Date()){
-        const rustamWorking=rustamWorkStatusText(now)==='Рабочий день';
+        const rustamWorking=rustamWorkState(now);
         setProfileWorkStatus(
           'Рустам',
           rustamWorkStatusText(now),
@@ -16062,7 +16069,16 @@
       }
 
       function dianaWorkStatusText(row){
-        return row?.working===true?'Рабочий день':row?.working===false?'Выходной':'';
+        if(row?.working===false)return 'Выходной';
+        if(row?.working!==true)return '';
+        const normalize=value=>{
+          const match=String(value||'').match(/^(\d{1,2}):(\d{2})$/);
+          return match&&Number(match[1])<24&&Number(match[2])<60?match[1].padStart(2,'0')+':'+match[2]:'';
+        };
+        return (Array.isArray(row.events)?row.events:[]).filter(event=>!event.allDay).map(event=>{
+          const start=normalize(event.startTime),end=normalize(event.endTime);
+          return start&&end&&start!==end?start+'–'+end:'';
+        }).filter(Boolean).join(', ');
       }
 
       function dianaActiveShiftLabel(row,nowMinutes=homeCurrentMinutes()){

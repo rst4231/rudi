@@ -1,18 +1,19 @@
 {
-  "current": "v4.50",
-  "versionBranch": "rudi-release-v450",
+  "current": "v4.51",
+  "versionBranch": "rudi-release-v451",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-06",
-  "basedOnProduction": "v4.49",
+  "basedOnProduction": "v4.50",
   "notes": [
-    "На главной у Рустама и Дианы только Рабочий день или Выходной по графику.",
-    "Пустой статус скрывается без отступа."
+    "Возвращены статусы Рустама с местом работы в рабочие часы, вне рабочих часов строка отдыха скрыта.",
+    "У Дианы отображаются часы смены в рабочий день и Выходной в выходной.",
+    "Пустая строка статуса не занимает место."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Use calendar-day labels on both home profile cards.",
-    "Collapse missing status spacing on home and partner pages."
+    "Restore Rustam workplace status during work hours.",
+    "Show Diana scheduled shift hours, hide only rest and missing status."
   ]
 }
