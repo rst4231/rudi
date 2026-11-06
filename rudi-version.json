@@ -1,19 +1,17 @@
 {
-  "current": "v4.51",
-  "versionBranch": "rudi-release-v451",
+  "current": "v4.52",
+  "versionBranch": "rudi-release-v452",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-06",
-  "basedOnProduction": "v4.50",
+  "basedOnProduction": "v4.51",
   "notes": [
-    "Возвращены статусы Рустама с местом работы в рабочие часы, вне рабочих часов строка отдыха скрыта.",
-    "У Дианы отображаются часы смены в рабочий день и Выходной в выходной.",
-    "Пустая строка статуса не занимает место."
+    "Время смены Дианы видно только в интервале смены: начало включительно, окончание не включается.",
+    "До и после смены строка скрыта без пустого отступа."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Restore Rustam workplace status during work hours.",
-    "Show Diana scheduled shift hours, hide only rest and missing status."
+    "Show Diana shift label only while the shift is active."
   ]
 }

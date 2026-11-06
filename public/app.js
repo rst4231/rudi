@@ -7324,7 +7324,7 @@
         const diana=profileStatusElement('Диана');
         if(!diana) return;
         if(diana.dataset.calendarReady&&homeDashboardState.workDay){
-          const workingNow=homeDashboardState.workDay.working===true;
+          const workingNow=dianaWorkingNow(homeDashboardState.workDay);
           setProfileWorkStatus(
             'Диана',
             dianaWorkStatusText(homeDashboardState.workDay),
@@ -16070,15 +16070,7 @@
 
       function dianaWorkStatusText(row){
         if(row?.working===false)return 'Выходной';
-        if(row?.working!==true)return '';
-        const normalize=value=>{
-          const match=String(value||'').match(/^(\d{1,2}):(\d{2})$/);
-          return match&&Number(match[1])<24&&Number(match[2])<60?match[1].padStart(2,'0')+':'+match[2]:'';
-        };
-        return (Array.isArray(row.events)?row.events:[]).filter(event=>!event.allDay).map(event=>{
-          const start=normalize(event.startTime),end=normalize(event.endTime);
-          return start&&end&&start!==end?start+'–'+end:'';
-        }).filter(Boolean).join(', ');
+        return dianaActiveShiftLabel(row);
       }
 
       function dianaActiveShiftLabel(row,nowMinutes=homeCurrentMinutes()){
@@ -16131,7 +16123,7 @@
         if(status){
           status.dataset.calendarReady='1';
           const statusText=dianaWorkStatusText(workRow);
-          setProfileWorkStatus('Диана',statusText,working?'working':'off');
+          setProfileWorkStatus('Диана',statusText,workingNow?'working':'off');
           status.title='';
         }
       }

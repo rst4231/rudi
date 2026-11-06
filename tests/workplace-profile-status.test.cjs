@@ -23,14 +23,17 @@ test('day off follows Moscow midnight while weekday time off remains rest',()=>{
   ['2026-11-08T20:59:00Z','Выходной'],['2026-11-08T21:01:00Z','']
  ])assert.equal(h.label(new Date(date)),expected);
 });
-test('Diana calendar day off differs from time before and after a working shift',()=>{
- const context={clock:8*60,homeCurrentMinutes:()=>context.clock};
+test('Diana shift is visible only from its start inclusive until its end exclusive',()=>{
+ const context={clock:0,homeCurrentMinutes:()=>context.clock};
  const start=app.indexOf('function dianaWorkingNow('),end=app.indexOf('function renderPartnerWorkStatus(',start);
  vm.runInNewContext(app.slice(start,end)+';this.label=dianaWorkStatusText',context);
- const off={working:false,events:[]},work={working:true,events:[{startTime:'09:00',endTime:'18:00'}]};
- assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'09:00–18:00');
- context.clock=12*60;assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'09:00–18:00');
- context.clock=20*60;assert.equal(context.label(off),'Выходной');assert.equal(context.label(work),'09:00–18:00');
+ const work={working:true,events:[{startTime:'12:00',endTime:'20:00'}]};
+ for(const [clock,expected] of [[719,''],[720,'12:00–20:00'],[1199,'12:00–20:00'],[1200,'']]){
+  context.clock=clock;assert.equal(context.label(work),expected);assert.equal(context.label({working:false}),'Выходной');
+ }
+ context.clock=23*60;assert.equal(context.label({working:true,events:[{startTime:'22:00',endTime:'06:00'}]}),'22:00–06:00');
+ context.clock=6*60;assert.equal(context.label({working:true,events:[{startTime:'22:00',endTime:'06:00'}]}),'');
+ assert.equal(context.label(null),'');
 });
 test('own pending calendar change wins; another date or account local data cannot leak',()=>{
  const now=new Date('2026-11-03T09:00:00Z');
