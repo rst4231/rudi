@@ -1,16 +1,16 @@
 {
-  "current": "v4.59",
-  "versionBranch": "rudi-release-v459",
+  "current": "v4.60",
+  "versionBranch": "rudi-icons-v460",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
-  "deploymentRequestedAt": null,
+  "deploymentRequestedAt": "2026-11-07T15:09:42.464Z",
   "createdAt": "2026-11-07",
-  "basedOnProduction": "v4.58",
+  "basedOnProduction": "v4.59",
   "notes": [
-    "Оформление категорий расходов по референсам светлой и тёмной темы: контурные иконки, нейтральные круги, дуги лимитов."
+    "Исправлено изменение иконок категорий: сохранённый выбор имеет приоритет над названием, поддержаны все 26 вариантов меню."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Style expense categories with outline icons and neutral budget rings for light and dark themes."
+    "Fix category icon selection priority and add outlines for all 26 picker choices."
   ]
 }

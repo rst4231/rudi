@@ -5055,20 +5055,39 @@
       }
 
       function financeCategoryOutlineIcon(category){
-        const key=String(category.name||'')+' '+String(category.icon||'');
+        const icon=String(category.icon||'').replace(/\uFE0F/g,'').trim();
         const icons=[
-          [/жиль|квартир|аренд|дом|🏠|🏡/i,'<path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/>'],
-          [/продукт|магазин|🛒/i,'<path d="M2 3h3l3 13h11l3-10H6M10 9v4m4-4v4m4-4v4"/><circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/>'],
-          [/транспорт|машин|авто|🚗|🚙/i,'<path d="m4 9 2-5h12l2 5M3 10h18v8H3zm2 8v3m14-3v3M6 13h2m8 0h2"/>'],
-          [/здоров|врач|💊|❤️/i,'<path d="M20 4c-3-2-6 0-8 2-2-2-5-4-8-2-5 4 0 10 8 17 8-7 13-13 8-17Z"/><path d="M5 12h4l2-4 3 8 2-4h3"/>'],
-          [/еда|кафе|ресторан|🍔|🍽|🍕/i,'<path d="M4 3v6c0 3 6 3 6 0V3M7 3v18M20 3c-4 2-5 7-4 10h4m0-10v18"/>'],
-          [/досуг|кино|развлеч|🎬|🎉/i,'<path d="M3 8h18v13H3zM3 8l-1-4 18-3 1 4ZM6 4l3 3m3-4 3 3m3-4 3 3M7 12h10m-10 4h6"/>'],
-          [/покуп|одежд|🛍|💳/i,'<rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 9h20M6 15h5"/>'],
-          [/бизнес|работ|💻/i,'<path d="M5 3h14v14H5zM3 21h18l-2-4H5z"/>'],
-          [/услуг|⚙/i,'<path d="m10 2 4 0 1 3 3 1 3 3-2 3 1 3-3 3-3-1-3 2-3-3 1-3-2-3 3-3 3 1Z"/><circle cx="12" cy="12" r="3"/>'],
-          [/вне плана|🔧/i,'<path d="m14 5 5 5M3 21l9-9M14 3a6 6 0 0 0-7 7l7 7a6 6 0 0 0 7-7l-4 4-7-7Z"/>']
+          [/🏠|🏡/,/жиль|квартир|аренд|дом/i,'<path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/>'],
+          [/🛒/,/продукт|магазин/i,'<path d="M2 3h3l3 13h11l3-10H6M10 9v4m4-4v4m4-4v4"/><circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/>'],
+          [/🚗|🚙/,/транспорт|машин|авто/i,'<path d="m4 9 2-5h12l2 5M3 10h18v8H3zm2 8v3m14-3v3M6 13h2m8 0h2"/>'],
+          [/💊|❤/,/здоров|врач/i,'<path d="M20 4c-3-2-6 0-8 2-2-2-5-4-8-2-5 4 0 10 8 17 8-7 13-13 8-17Z"/><path d="M5 12h4l2-4 3 8 2-4h3"/>'],
+          [/🍔|🍽|🍕/,/еда|кафе|ресторан/i,'<path d="M4 3v6c0 3 6 3 6 0V3M7 3v18M20 3c-4 2-5 7-4 10h4m0-10v18"/>'],
+          [/🎬|🎉/,/досуг|кино|развлеч/i,'<path d="M3 8h18v13H3zM3 8l-1-4 18-3 1 4ZM6 4l3 3m3-4 3 3m3-4 3 3M7 12h10m-10 4h6"/>'],
+          [/🛍|💳/,/покуп|одежд/i,'<rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 9h20M6 15h5"/>'],
+          [/💻/,/бизнес|работ/i,'<path d="M5 3h14v14H5zM3 21h18l-2-4H5z"/>'],
+          [/⚙/,/услуг/i,'<path d="m10 2 4 0 1 3 3 1 3 3-2 3 1 3-3 3-3-1-3 2-3-3 1-3-2-3 3-3 3 1Z"/><circle cx="12" cy="12" r="3"/>'],
+          [/🛠|🔧/,/вне плана/i,'<path d="m14 5 5 5M3 21l9-9M14 3a6 6 0 0 0-7 7l7 7a6 6 0 0 0 7-7l-4 4-7-7Z"/>'],
+          [/☕/,/кофе/i,'<path d="M3 8h13v7a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5Zm13 1h2a3 3 0 0 1 0 6h-2M5 3v2m4-2v2m4-2v2M2 22h16"/>'],
+          [/🚕/,/такси/i,'<path d="M9 5V2h6v3M4 10l2-5h12l2 5M3 10h18v9H3zm2 9v3m14-3v3M6 14h2m8 0h2m-7-1h2m-3 3h2m2 0h2"/>'],
+          [/🐶/,/питом|собак/i,'<path d="m8 5-4-2-2 9 4 1m10-8 4-2 2 9-4 1M8 5h8l2 8v3a6 6 0 0 1-12 0v-3Zm1 6h.01M15 11h.01M10 15l2 2 2-2m-2 2v3"/>'],
+          [/👕/,/гардероб/i,'<path d="m8 3-6 4 3 5 3-2v11h8V10l3 2 3-5-6-4a4 4 0 0 1-8 0Z"/>'],
+          [/🎁/,/подар/i,'<path d="M3 8h18v5H3zm2 5v8h14v-8M12 8v13m0-13H8a3 3 0 1 1 3-3Zm0 0h4a3 3 0 1 0-3-3Z"/>'],
+          [/✈/,/путешеств|отпуск/i,'<path d="m22 2-7 20-4-9-9-4Zm0 0L11 13"/>'],
+          [/📱/,/телефон|связь/i,'<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M10 5h4m-3 14h2"/>'],
+          [/🧾/,/чек/i,'<path d="M5 2l2 2 2-2 3 2 3-2 2 2 2-2v20l-2-2-2 2-3-2-3 2-2-2-2 2ZM8 8h8m-8 4h8m-8 4h5"/>'],
+          [/⭐/,/избран/i,'<path d="m12 2 3.1 6.3 6.9 1-5 4.9 1.2 6.8-6.2-3.2L5.8 21 7 14.2 2 9.3l6.9-1Z"/>'],
+          [/🎮/,/игр/i,'<path d="M7 7h10a4 4 0 0 1 4 3l1 7a3 3 0 0 1-5 2l-3-3h-4l-3 3a3 3 0 0 1-5-2l1-7a4 4 0 0 1 4-3ZM6 12h4m-2-2v4m8-3h.01M18 13h.01"/>'],
+          [/🎓/,/образован|учеб/i,'<path d="m2 9 10-6 10 6-10 6ZM6 12v6c4 3 8 3 12 0v-6m4-3v9"/>'],
+          [/💇/,/красот|парикмах/i,'<circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="m8 15 11-13M16 15 5 2"/>'],
+          [/🏋/,/спорт|фитнес/i,'<path d="M7 12h10M4 7h3v10H4zm13 0h3v10h-3M1 9h3v6H1zm19 0h3v6h-3"/>'],
+          [/🏥/,/больниц/i,'<path d="M4 21V6h16v15M2 21h20M10 6V3h4v3m-2 3v6m-3-3h6m-5 9v-3h4v3"/>'],
+          [/🎵/,/музык/i,'<path d="M9 18V5l11-3v13M9 9l11-3"/><ellipse cx="6" cy="18" rx="3" ry="3"/><ellipse cx="17" cy="15" rx="3" ry="3"/>'],
+          [/📚/,/книг/i,'<path d="M3 3h5v18H3zm5 0h5v18H8zm7 1 5-1 3 17-5 1ZM3 7h5m0 10h5m3-9 5-1"/>'],
+          [/🌿/,/растен|сад/i,'<path d="M12 22V8m0 7C5 15 3 11 3 7c6 0 9 3 9 8Zm0-4c0-6 3-9 9-9 0 6-3 9-9 9Zm0 9c0-5 3-8 8-8 0 5-3 8-8 8Z"/>'],
+          [/🏦/,/банк/i,'<path d="m2 8 10-6 10 6ZM3 21h18M5 11v7m5-7v7m4-7v7m5-7v7M2 18h20"/>']
         ];
-        const paths=icons.find(([match])=>match.test(key))?.[1]||'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 7h8M8 11h8m-8 4h6"/>';
+        // Saved choice wins; names are only a fallback for categories without an icon.
+        const paths=icons.find(([match])=>match.test(icon))?.[2]||(!icon?icons.find(([,match])=>match.test(String(category.name||'')))?.[2]:'')||'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 7h8M8 11h8m-8 4h6"/>';
         return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths+'</svg>';
       }
 
