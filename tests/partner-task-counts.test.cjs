@@ -35,7 +35,7 @@ test('only partner open tasks for Moscow today are counted, without private fiel
  ]});
  assert.equal(typeof f.partnerTaskCounts,'function');
  const result=await f.partnerTaskCounts('Рустам',{now:'2026-11-03T21:01:00Z'});
- assert.deepEqual(result,{ok:true,partner:'Диана',date:'2026-11-04',available:true,counts:{morning:2,day:1,evening:1},total:5,tomorrow:{date:'2026-11-05',available:true,counts:{morning:0,day:0,evening:0},total:0}});
+ assert.deepEqual(result,{ok:true,partner:'Диана',date:'2026-11-04',available:true,counts:{morning:2,day:1,evening:1},total:6,tomorrow:{date:'2026-11-05',available:true,counts:{morning:0,day:0,evening:0},total:0}});
  assert.doesNotMatch(JSON.stringify(result),/Секрет|responsible|title|mine/);
 });
 test('Diana sees Rustam saved workplace for each day, including a changed selection',async()=>{
@@ -87,7 +87,7 @@ test('tomorrow counts are separate across Moscow month and year boundary',async(
  ]});
  const result=await f.partnerTaskCounts('Рустам',{now:'2026-12-30T21:05:00Z'});
  assert.equal(result.date,'2026-12-31');assert.equal(result.total,1);
- assert.deepEqual(result.tomorrow,{date:'2027-01-01',available:true,counts:{morning:0,day:1,evening:1},total:3});
+ assert.deepEqual(result.tomorrow,{date:'2027-01-01',available:true,counts:{morning:0,day:1,evening:1},total:4});
  assert.deepEqual(f.calls.personal,['2026-12','2027-01']);
 });
 test('Rustam daily recurrence is included in tomorrow at the next month boundary',async()=>{
@@ -135,4 +135,17 @@ test('Apple events expire at end while all-day events and local unfinished tasks
 });
 test('same work shift imported through Apple is not counted twice',async()=>{
  const f=fixture({work:[{date:'2026-11-06',working:true,events:[{title:'Работа',startTime:'12:00',endTime:'20:00'}]}],personal:[{id:'apple-work',externalCalendar:true,title:'Работа',date:'2026-11-06',startTime:'12:00',endTime:'20:00'}]});const result=await f.partnerTaskCounts('Рустам',{now:'2026-11-06T10:00:00Z'});assert.equal(result.total,1);assert.equal(result.counts.evening,1);
+});
+
+for(const actor of ['Рустам','Диана'])test('Together tasks count for partner of '+actor+' in day/evening today and tomorrow',async()=>{
+ const f=fixture({shared:[
+  {id:'day',date:'2026-11-07',startTime:'13:15',responsible:''},
+  {id:'evening',date:'2026-11-07',startTime:'19:00',responsible:''},
+  {id:'tomorrow',date:'2026-11-08',startTime:'19:00',responsible:''},
+  {id:'other',date:'2026-11-07',startTime:'19:00',responsible:actor},
+  {id:'done',date:'2026-11-07',startTime:'19:00',responsible:'',completed:true}
+ ]});
+ const result=await f.partnerTaskCounts(actor,{now:'2026-11-07T09:35:00Z'});
+ assert.deepEqual(result.counts,{morning:0,day:1,evening:1});assert.equal(result.total,2);
+ assert.deepEqual(result.tomorrow.counts,{morning:0,day:0,evening:1});assert.equal(result.tomorrow.total,1);
 });

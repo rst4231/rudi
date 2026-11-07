@@ -36,7 +36,7 @@ function countDay(date,partner,results,now=Date.now()){
   const seen=new Set();
   for(const event of result.value||[]){
    if(event.date!==date||event.completed||event.deleted||Number(event.status||0)!==0)continue;
-   if(index===1&&event.responsible!==partner)continue;
+   if(index===1&&event.responsible&&event.responsible!==partner)continue;
    if(index===0&&event.responsible&&event.responsible!==partner)continue;
    const key=String(event.id||event.seriesId||'')+'@'+date;
    if(seen.has(key))continue;seen.add(key);

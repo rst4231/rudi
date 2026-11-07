@@ -1,18 +1,16 @@
 {
-  "current": "v4.55",
-  "versionBranch": "rudi-release-v455",
+  "current": "v4.56",
+  "versionBranch": "rudi-release-v456",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
-  "createdAt": "2026-11-06",
-  "basedOnProduction": "v4.54",
+  "createdAt": "2026-11-07",
+  "basedOnProduction": "v4.55",
   "notes": [
-    "Прокрутка почасового календаря сохраняется непосредственно при перерисовке после переноса задачи.",
-    "Убрано отложенное возвращение к задаче после промежуточного скачка."
+    "Совместные задачи учитываются в счётчиках обоих партнёров сегодня и завтра."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Preserve same-day timeline and page scroll at the redraw boundary.",
-    "Keep calendar height stable and remove delayed drag-scroll restoration."
+    "Include Together tasks in both partner profile task counters."
   ]
 }
