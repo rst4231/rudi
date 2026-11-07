@@ -5054,6 +5054,24 @@
         });
       }
 
+      function financeCategoryOutlineIcon(category){
+        const key=String(category.name||'')+' '+String(category.icon||'');
+        const icons=[
+          [/жиль|квартир|аренд|дом|🏠|🏡/i,'<path d="m3 10 9-7 9 7M5 9v12h5v-7h4v7h5V9"/>'],
+          [/продукт|магазин|🛒/i,'<path d="M2 3h3l3 13h11l3-10H6M10 9v4m4-4v4m4-4v4"/><circle cx="9" cy="20" r="1"/><circle cx="19" cy="20" r="1"/>'],
+          [/транспорт|машин|авто|🚗|🚙/i,'<path d="m4 9 2-5h12l2 5M3 10h18v8H3zm2 8v3m14-3v3M6 13h2m8 0h2"/>'],
+          [/здоров|врач|💊|❤️/i,'<path d="M20 4c-3-2-6 0-8 2-2-2-5-4-8-2-5 4 0 10 8 17 8-7 13-13 8-17Z"/><path d="M5 12h4l2-4 3 8 2-4h3"/>'],
+          [/еда|кафе|ресторан|🍔|🍽|🍕/i,'<path d="M4 3v6c0 3 6 3 6 0V3M7 3v18M20 3c-4 2-5 7-4 10h4m0-10v18"/>'],
+          [/досуг|кино|развлеч|🎬|🎉/i,'<path d="M3 8h18v13H3zM3 8l-1-4 18-3 1 4ZM6 4l3 3m3-4 3 3m3-4 3 3M7 12h10m-10 4h6"/>'],
+          [/покуп|одежд|🛍|💳/i,'<rect x="2" y="4" width="20" height="16" rx="3"/><path d="M2 9h20M6 15h5"/>'],
+          [/бизнес|работ|💻/i,'<path d="M5 3h14v14H5zM3 21h18l-2-4H5z"/>'],
+          [/услуг|⚙/i,'<path d="m10 2 4 0 1 3 3 1 3 3-2 3 1 3-3 3-3-1-3 2-3-3 1-3-2-3 3-3 3 1Z"/><circle cx="12" cy="12" r="3"/>'],
+          [/вне плана|🔧/i,'<path d="m14 5 5 5M3 21l9-9M14 3a6 6 0 0 0-7 7l7 7a6 6 0 0 0 7-7l-4 4-7-7Z"/>']
+        ];
+        const paths=icons.find(([match])=>match.test(key))?.[1]||'<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 7h8M8 11h8m-8 4h6"/>';
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+paths+'</svg>';
+      }
+
       function renderFinanceCategories(month){
         const list=document.getElementById('financeCategoryList'),empty=document.getElementById('financeCategoryEmpty'),count=document.getElementById('financeCategoryCount'),totalHost=document.getElementById('financeExpenseMonthTotal');
         if(!list)return;
@@ -5076,7 +5094,7 @@
           const remove=document.createElement('button');remove.type='button';remove.className='finance-category-delete-badge';remove.textContent='×';remove.setAttribute('aria-label','Удалить '+String(category.name||'категорию'));
           remove.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();openFinanceCategoryDeleteChooser(category.id)});
           const label=document.createElement('span');label.className='finance-coin-label';label.textContent=category.name||'Категория';
-          const coin=document.createElement('span');coin.className='finance-coin finance-category-coin';coin.textContent=category.icon||'💳';
+          const coin=document.createElement('span');coin.className='finance-coin finance-category-coin';coin.innerHTML=financeCategoryOutlineIcon(category);
           const limitValue=financeCategoryLimitForMonth(category,month);
           const limitRub=financeAmountToRub(limitValue,category.currency||'RUB');
           const amount=document.createElement('span');amount.className='finance-coin-amount';amount.textContent=financeBalanceHidden?'••••':financeOverviewMoney(spent);

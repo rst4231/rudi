@@ -18428,3 +18428,26 @@ body[data-app-tab="products"] .products-history.panel{margin-top:12px;padding:14
 
 .ticktick-task-form .ticktick-task-option{display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;line-height:1.4;color:var(--text)}
 .ticktick-task-form .ticktick-task-option>input{appearance:auto;-webkit-appearance:auto;flex:none;width:18px;height:18px;min-width:18px;margin:0;padding:0;accent-color:#4578e6}
+
+/* Category references: neutral circles with budget arcs in both themes. */
+#financeCategoryList{gap:24px 6px!important;padding:12px 9px 22px}
+#financeCategoryList .finance-coin-item{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
+#financeCategoryList .finance-coin{order:0;width:clamp(44px,12vw,62px);height:clamp(44px,12vw,62px);flex:none;color:#f2f5f4;background:transparent!important;border:2px solid #ffffff19;box-shadow:none!important;position:relative}
+#financeCategoryList .finance-coin svg{width:55%;height:55%;pointer-events:none}
+#financeCategoryList .finance-coin-label{order:1;min-height:25px;align-items:center;color:var(--text);font-size:clamp(9px,2.5vw,12px);line-height:1.15;font-weight:650;overflow:visible;overflow-wrap:anywhere}
+#financeCategoryList .finance-coin-amount{order:2;color:#85dd94;font-size:clamp(10px,2.7vw,13px)!important;font-weight:750;line-height:1.2}
+#financeCategoryList .finance-coin-limit{order:3;color:var(--muted);font-size:clamp(9px,2.4vw,12px)!important;font-weight:550!important;line-height:1.2;max-width:100%;white-space:nowrap}
+#financeCategoryList .finance-category-trend{order:4;color:#ef6469;font-size:10px}
+#financeCategoryList .finance-coin.has-budget{--finance-budget-ring:#65dc84}
+#financeCategoryList .finance-coin.is-budget-mid{--finance-budget-ring:#65dc84}
+#financeCategoryList .finance-coin.is-budget-full{--finance-budget-ring:#ef5b62}
+#financeCategoryList .finance-coin.has-budget::before{inset:-3px;background:conic-gradient(var(--finance-budget-ring) var(--finance-budget-progress,0%),transparent 0);transform:rotate(-45deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px));mask:radial-gradient(farthest-side,transparent calc(100% - 3px),#000 calc(100% - 2px))}
+#financeCategoryList .finance-coin-amount.is-budget-low,#financeCategoryList .finance-coin-amount.is-budget-mid{color:#85dd94!important}
+#financeCategoryList .finance-coin-amount.is-budget-full,#financeCategoryList .finance-coin-amount.is-over-limit{color:#ef6469!important}
+#financeCategoryList .finance-add-category-coin{border:2px dashed #ffffff50;border-radius:18px;background:transparent!important;color:var(--text);font-size:30px}
+#financeCategoryList .finance-add-category-item .finance-coin-amount{color:var(--muted)}
+html[data-theme="light"] #financeCategoryList .finance-coin{color:#30383b;border-color:#fff;background:linear-gradient(145deg,#fff8,#e9edf388)!important;box-shadow:4px 5px 10px #242d4a20,-3px -3px 8px #fff!important}
+html[data-theme="light"] #financeCategoryList .finance-coin-label{order:-1}
+html[data-theme="light"] #financeCategoryList .finance-coin-amount{color:#26773a!important}
+html[data-theme="light"] #financeCategoryList .finance-coin-amount.is-budget-full,html[data-theme="light"] #financeCategoryList .finance-coin-amount.is-over-limit{color:#d54149!important}
+html[data-theme="light"] #financeCategoryList .finance-add-category-coin{background:transparent!important;border:2px dashed #a1a8b2;box-shadow:none!important}

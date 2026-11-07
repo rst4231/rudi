@@ -1,16 +1,16 @@
 {
-  "current": "v4.58",
-  "versionBranch": "rudi-release-v458",
+  "current": "v4.59",
+  "versionBranch": "rudi-release-v459",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-07",
-  "basedOnProduction": "v4.57",
+  "basedOnProduction": "v4.58",
   "notes": [
-    "Полоска курсов показывает USD/EUR в кошельках и BTC/ETH в криптовкладке."
+    "Оформление категорий расходов по референсам светлой и тёмной темы: контурные иконки, нейтральные круги, дуги лимитов."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Filter market ticker by finance tab without new network requests."
+    "Style expense categories with outline icons and neutral budget rings for light and dark themes."
   ]
 }
