@@ -1932,6 +1932,8 @@
 
       const MARKET_TICKER_LOCAL_CACHE_KEY='rudi:market-ticker-cache:v2';
       let marketTickerLoadPromise=null;
+      let marketTickerLastPayload=null;
+      document.addEventListener('rudi-finance-tab-changed',()=>renderMarketTicker(marketTickerLastPayload||readMarketTickerLocalCache(),{visualOnly:true}));
 
       function readMarketTickerLocalCache(){
         try{
@@ -2001,12 +2003,15 @@
         return group;
       }
 
-      function renderMarketTicker(payload){
+      function renderMarketTicker(payload,{visualOnly=false}={}){
+        marketTickerLastPayload=payload;
+        if(!visualOnly){
         renderFinanceWalletTotal(payload);
         renderFinanceObligationCoverage();
         document.dispatchEvent(new CustomEvent('rudi-finance-rates-changed'));
         renderFinanceCapitalHistory();
         if(currentAppTab==='finances'&&activeFinanceTab==='personal')recordFinanceCapitalSnapshot().catch(()=>{});
+        }
         const track=document.getElementById('marketTickerTrack');
         const a11y=document.getElementById('marketTickerA11y');
         const tile=document.getElementById('marketTickerTile');
@@ -2015,14 +2020,17 @@
           ?payload.items.filter(item=>Number.isFinite(Number(item?.value))&&Number(item.value)>0)
           :[];
         const byId=new Map(actual.map(item=>[String(item.id||''),item]));
-        const items=[
+        let items=[
           byId.get('usd-rub')||{id:'usd-rub',label:'USD/RUB',value:null,change24h:null,unavailable:true},
           byId.get('eur-rub')||{id:'eur-rub',label:'EUR/RUB',value:null,change24h:null,unavailable:true},
           byId.get('btcusdt')||{id:'btcusdt',label:'BTC',value:null,change24h:null,unavailable:true},
           byId.get('ethusdt')||{id:'ethusdt',label:'ETH',value:null,change24h:null,unavailable:true},
           byId.get('usdtusd')||{id:'usdtusd',label:'USDT',value:null,change24h:null,unavailable:true}
         ];
-        if(!actual.length){
+        const tone=document.body.dataset.financeTone||activeFinanceTab;
+        if(tone==='personal')items=items.filter(item=>['usd-rub','eur-rub'].includes(item.id));
+        if(tone==='crypto')items=items.filter(item=>['btcusdt','ethusdt'].includes(item.id));
+        if(!items.some(item=>!item.unavailable)){
           track.classList.remove('is-ready');
           const group=document.createElement('div');
           group.className='market-ticker-group';
@@ -5770,6 +5778,7 @@
         const allowed=['shared','personal','debts','literacy'];activeFinanceTab=allowed.includes(tab)?tab:'personal';
         const page=document.getElementById('financePage');if(page)page.dataset.financeTone=activeFinanceTab;
         document.body.dataset.financeTone=activeFinanceTab;
+        document.dispatchEvent(new CustomEvent('rudi-finance-tab-changed'));
         document.querySelectorAll('[data-finance-tab]').forEach(button=>{const active=button.dataset.financeTab===activeFinanceTab;button.classList.toggle('is-active',active);button.setAttribute('aria-selected',active?'true':'false')});
         document.querySelectorAll('[data-finance-panel]').forEach(panel=>panel.hidden=panel.dataset.financePanel!==activeFinanceTab);
         const activePanel=document.querySelector('[data-finance-panel="'+activeFinanceTab+'"]');

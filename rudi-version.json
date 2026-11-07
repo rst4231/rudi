@@ -1,16 +1,16 @@
 {
-  "current": "v4.57",
-  "versionBranch": "rudi-release-v457",
+  "current": "v4.58",
+  "versionBranch": "rudi-release-v458",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-07",
-  "basedOnProduction": "v4.56",
+  "basedOnProduction": "v4.57",
   "notes": [
-    "Дата рождения и покупки машины, срок владения, исправление подписей календарных полей."
+    "Полоска курсов показывает USD/EUR в кошельках и BTC/ETH в криптовкладке."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Fix car date display and add purchase date and ownership duration."
+    "Filter market ticker by finance tab without new network requests."
   ]
 }

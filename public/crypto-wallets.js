@@ -746,6 +746,7 @@
       document.querySelectorAll('[data-finance-panel]').forEach(panel=>{panel.hidden=panel.dataset.financePanel!=='crypto';});
       const page=$('financePage');if(page)page.dataset.financeTone='crypto';
       document.body.dataset.financeTone='crypto';
+      document.dispatchEvent(new CustomEvent('rudi-finance-tab-changed'));
       void load().then(()=>refresh(false)).catch(err=>setStatus('financeCryptoStatus',errorLabel(err)));
       try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
     },true);
