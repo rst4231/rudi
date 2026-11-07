@@ -935,8 +935,8 @@
     });
   }
 
-  const CAR_PURCHASE_DATE='2023-09-07';
-  const CAR_PROFILE_DEFAULT={model:'Changan UNI‑V',registration:'А 034 ЕА105',releaseDate:CAR_PURCHASE_DATE,osagoUntil:'',osagoCompany:''};
+  const CAR_PURCHASE_DATE='2023-09-08';
+  const CAR_PROFILE_DEFAULT={model:'Changan UNI‑V',registration:'А 034 ЕА105',releaseDate:CAR_PURCHASE_DATE,purchaseDate:'',osagoUntil:'',osagoCompany:''};
   const CAR_PROFILE_KEY='rudi:car-profile:v1:Рустам';
   let carProfileDraft=null,carProfileRevision=0,carProfileSaving=false,carProfilePending=false,carProfileTimer=0;
   function carProfile(){return {...CAR_PROFILE_DEFAULT,...state.car?.state?.profile,...carProfileDraft}}
@@ -954,7 +954,7 @@
     return many;
   }
 
-  function carAgeLabel(now=new Date()){
+  function carAgeLabel(now=new Date(),date=carProfile().releaseDate){
     const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{
       timeZone:'Europe/Moscow',
       year:'numeric',
@@ -964,7 +964,7 @@
     const currentYear=Number(parts.year);
     const currentMonth=Number(parts.month);
     const currentDay=Number(parts.day);
-    const [purchaseYear,purchaseMonth,purchaseDay]=carProfile().releaseDate.split('-').map(Number);
+    const [purchaseYear,purchaseMonth,purchaseDay]=date.split('-').map(Number);
 
     let totalMonths=(currentYear-purchaseYear)*12+(currentMonth-purchaseMonth);
     if(currentDay<purchaseDay) totalMonths-=1;
@@ -980,14 +980,19 @@
 
   function renderCarAge(){
     const profile=carProfile(),label=carAgeLabel();
-    for(const id of ['carHomeAge','carPageAge']){const node=document.getElementById(id);if(node)node.textContent=label;}
+    for(const id of ['carHomeAge','carPageAge']){const node=document.getElementById(id);if(node)node.textContent='🎂 '+label;}
+    for(const id of ['carHomeAge','carPageAge']){
+      const age=document.getElementById(id);if(!age)continue;
+      let owned=age.nextElementSibling;if(!owned?.classList.contains('car-ownership')){owned=document.createElement('div');owned.className='car-age car-ownership';age.after(owned)}
+      owned.hidden=!profile.purchaseDate;owned.textContent=profile.purchaseDate?'🔑 Владею '+carAgeLabel(new Date(),profile.purchaseDate):'';
+    }
     for(const id of ['carHomeTitle','carTitle']){
       const node=document.getElementById(id);if(!node)continue;
       let name=node.querySelector('.car-profile-model-name');
       if(!name){name=document.createElement('span');name.className='car-profile-model-name';for(const text of [...node.childNodes])if(text.nodeType===3)text.remove();node.prepend(name);}
       name.textContent=profile.model;
     }
-    document.querySelectorAll('.car-status-model').forEach(node=>node.textContent=profile.releaseDate.slice(0,4));
+    document.querySelectorAll('.car-status-model').forEach(node=>{node.textContent='';node.hidden=true});
     document.querySelectorAll('.car-status-registration').forEach(node=>node.textContent=profile.registration);
     const days=profile.osagoUntil?daysFromToday(profile.osagoUntil):null;
     const insuranceTile=document.getElementById('carStatusInsurance');if(insuranceTile){insuranceTile.textContent=profile.osagoUntil?profile.osagoUntil.split('-').reverse().join('.'):'Не указано';const label=insuranceTile.previousElementSibling;if(label)label.textContent=profile.osagoUntil?'ОСАГО до':'ОСАГО';}
@@ -1002,8 +1007,8 @@
 
   function editCarProfile(){
     const form=document.getElementById('carSettingsForm');clearTimeout(carProfileTimer);
-    if(!form?.checkValidity()){carSettingsStatus('Заполни модель, номер и корректную дату выпуска');return;}
-    const profile={model:form.elements.model.value.trim(),registration:form.elements.registration.value.trim().toLocaleUpperCase('ru-RU'),releaseDate:form.elements.releaseDate.value,osagoUntil:form.elements.osagoUntil.value,osagoCompany:form.elements.osagoCompany.value.trim()};
+    if(!form?.checkValidity()){carSettingsStatus('Заполни модель, номер и корректную дату рождения');return;}
+    const profile={model:form.elements.model.value.trim(),registration:form.elements.registration.value.trim().toLocaleUpperCase('ru-RU'),releaseDate:form.elements.releaseDate.value,purchaseDate:form.elements.purchaseDate.value,osagoUntil:form.elements.osagoUntil.value,osagoCompany:form.elements.osagoCompany.value.trim()};
     if(!profile.model||!profile.registration||!/^[A-ZА-ЯЁ0-9 -]+$/u.test(profile.registration)){carSettingsStatus('Проверь модель и госномер');return;}
     carProfileDraft=profile;carProfileRevision++;carProfilePending=true;
     const durable=cacheCarProfile(profile,true);renderCarAge();
@@ -1023,7 +1028,7 @@
       if(revision===carProfileRevision){carProfileDraft=null;carProfilePending=false;cacheCarProfile(data.state.profile,false);carSettingsStatus('Сохранено');}
       renderCarAge();
     }catch(error){
-      if(String(error?.message)==='car-profile-invalid'){carSettingsStatus('Проверь дату выпуска и госномер');}
+      if(String(error?.message)==='car-profile-invalid'){carSettingsStatus('Проверь дату рождения и госномер');}
       else carSettingsStatus(cacheCarProfile(carProfile(),true)?'Сохранено на устройстве. Отправлю при подключении':'Не удалось сохранить. Попробуй ещё раз');
     }finally{
       clearTimeout(timeout);carProfileSaving=false;
@@ -1034,8 +1039,8 @@
   function setupCarSettings(){
     const dialog=document.getElementById('carSettingsDialog'),form=document.getElementById('carSettingsForm');if(!dialog||!form)return;
     document.getElementById('carSettingsOpen')?.addEventListener('click',()=>{
-      const profile=carProfile();for(const name of ['model','registration','releaseDate','osagoUntil','osagoCompany'])form.elements[name].value=profile[name]||'';
-      form.elements.releaseDate.max=clientMoscowDateKey();
+      const profile=carProfile();for(const name of ['model','registration','releaseDate','purchaseDate','osagoUntil','osagoCompany']){form.elements[name].value=profile[name]||'';window.syncRudiTemporalControl?.(form.elements[name]);}
+      form.elements.releaseDate.max=clientMoscowDateKey();form.elements.purchaseDate.max=clientMoscowDateKey();
       carSettingsStatus(carProfilePending?'Сохранено на устройстве. Ожидает отправки':'Изменения сохраняются автоматически');
       dialog.showModal();document.body.classList.add('car-settings-open');
     });

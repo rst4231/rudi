@@ -1,16 +1,16 @@
 {
-  "current": "v4.56",
-  "versionBranch": "rudi-release-v456",
+  "current": "v4.57",
+  "versionBranch": "rudi-release-v457",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "deploymentRequestedAt": null,
   "createdAt": "2026-11-07",
-  "basedOnProduction": "v4.55",
+  "basedOnProduction": "v4.56",
   "notes": [
-    "Совместные задачи учитываются в счётчиках обоих партнёров сегодня и завтра."
+    "Дата рождения и покупки машины, срок владения, исправление подписей календарных полей."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Include Together tasks in both partner profile task counters."
+    "Fix car date display and add purchase date and ownership duration."
   ]
 }
