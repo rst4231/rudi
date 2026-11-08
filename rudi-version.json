@@ -1,16 +1,16 @@
 {
-  "current": "v4.60",
-  "versionBranch": "rudi-icons-v460",
+  "current": "v4.61",
+  "versionBranch": "rudi-supplement-calendar-counts-20261108",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
-  "deploymentRequestedAt": "2026-11-07T15:09:42.464Z",
-  "createdAt": "2026-11-07",
-  "basedOnProduction": "v4.59",
+  "deploymentRequestedAt": "2026-11-08T13:06:24.137Z",
+  "createdAt": "2026-11-08",
+  "basedOnProduction": "v4.60",
   "notes": [
-    "Исправлено изменение иконок категорий: сохранённый выбор имеет приоритет над названием, поддержаны все 26 вариантов меню."
+    "Неотмеченные БАДы за прошлые дни исключены из счётчика невыполненных дел календаря. История приёмов и пропусков сохранена."
   ],
-  "versionPolicy": "Один пакет изменений = один production deploy. Сначала тесты и проверка, затем разрешение пользователя.",
   "changes": [
-    "Fix category icon selection priority and add outlines for all 26 picker choices."
-  ]
+    "Exclude supplement projections from calendar overdue task counts."
+  ],
+  "versionPolicy": "Один пакет изменений = один production deploy."
 }
