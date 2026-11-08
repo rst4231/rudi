@@ -16241,7 +16241,7 @@
       }
       function calendarOverdueTaskCount(date,tasks,today){
         if(!date||date>=today)return 0;
-        return (Array.isArray(tasks)?tasks:[]).filter(task=>task&&!task.completed&&!task.skipped&&!task.externalCalendar).length;
+        return (Array.isArray(tasks)?tasks:[]).filter(task=>task&&!task.completed&&!task.skipped&&!task.externalCalendar&&!task.supplementId&&task.kind!=='supplement').length;
       }
       function appendCalendarOverdueMarker(cell,count){
         if(!count)return;
