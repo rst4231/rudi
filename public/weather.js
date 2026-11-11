@@ -69,7 +69,7 @@
   }
 const locations={murino:{label:'Мурино',where:'Мурино',latitude:60.0479,longitude:30.452},spb:{label:'Санкт-Петербург',where:'Санкт-Петербурге',latitude:59.9386,longitude:30.3141},moscow:{label:'Москва',where:'Москве',latitude:55.7558,longitude:37.6173},belgorod:{label:'Белгород',where:'Белгороде',latitude:50.5954,longitude:36.5873},bali:{label:'Бали',where:'Бали',latitude:-8.65,longitude:115.2167},bangkok:{label:'Бангкок',where:'Бангкоке',latitude:13.7563,longitude:100.5018},antalya:{label:'Анталья',where:'Анталье',latitude:36.8969,longitude:30.7133},cairo:{label:'Каир',where:'Каире',latitude:30.0444,longitude:31.2357}};
   const LOCATION_KEY='rudi:weather-location:v1',LOCATION_FRESH=5*60*1000,LOCATION_MAX_AGE=30*24*60*60*1000;
-  let automatic=null,locationFlight=null,explicitLocationFlight=false,locationRetryAt=0;
+  let automatic=null,locationFlight=null,explicitLocationFlight=false,locationRetryAt=0,automaticPromptBlocked=false;
   try{
     const saved=JSON.parse(localStorage.getItem(LOCATION_KEY));
     if(Number.isFinite(saved?.at)&&saved.at<=Date.now()&&Date.now()-saved.at<LOCATION_MAX_AGE&&saved.value?.resolved===true&&Object.hasOwn(locations,saved.value.city)){
@@ -87,15 +87,17 @@ const locations={murino:{label:'Мурино',where:'Мурино',latitude:60.0
       if(!requestPermission||explicitLocationFlight)return locationFlight;
       await locationFlight;return getAutomaticLocation({requestPermission:true});
     }
-    if(!requestPermission&&automatic&&Date.now()>=automatic.at&&Date.now()-automatic.at<LOCATION_FRESH)return automatic.value;
     if(!requestPermission&&Date.now()<locationRetryAt)return savedAutomaticLocation();
     explicitLocationFlight=requestPermission;
     locationFlight=(async()=>{
       if(!requestPermission){
         let permission='unknown';
         try{permission=(await globalThis.navigator?.permissions?.query({name:'geolocation'}))?.state||'unknown'}catch(_){}
-        // A background refresh must never request new consent.
-        if(permission!=='granted')return savedAutomaticLocation(true);
+        if(permission==='granted')automaticPromptBlocked=false;
+        if(permission==='denied'||automaticPromptBlocked)return savedAutomaticLocation(true);
+        if(permission!=='prompt'&&automatic&&Date.now()>=automatic.at&&Date.now()-automatic.at<LOCATION_FRESH)return automatic.value;
+        // Renew expired consent, but do not repeat a dismissed prompt in this session.
+        automaticPromptBlocked=permission!=='granted';
       }
       try{
         const position=await new Promise((resolve,reject)=>{
@@ -105,7 +107,7 @@ const locations={murino:{label:'Мурино',where:'Мурино',latitude:60.0
         const {latitude,longitude}=position.coords;
         if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180)throw Error('Invalid location');
         const value={city:nearestCity(latitude,longitude),resolved:true,note:''};
-        automatic={at:Date.now(),value};locationRetryAt=0;
+        automatic={at:Date.now(),value};locationRetryAt=0;automaticPromptBlocked=false;
         try{localStorage.setItem(LOCATION_KEY,JSON.stringify(automatic))}catch(_){}
         return value;
       }catch(error){locationRetryAt=Date.now()+60000;return savedAutomaticLocation(error?.code===1)}

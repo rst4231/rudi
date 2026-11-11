@@ -7,7 +7,7 @@ function fixture({storage=new Map(),blocked=false,permission='granted',unsupport
  let now=Date.UTC(2026,10,11,9),calls=0,denied=false,coords={latitude:60.0479,longitude:30.452};
  const localStorage={getItem(key){if(blocked)throw Error('blocked');return storage.get(key)||null},setItem(key,value){if(blocked)throw Error('blocked');storage.set(key,value)}};
  function open(){
-  const navigator={geolocation:{getCurrentPosition(resolve,reject){calls++;if(denied)return reject(Error('denied'));resolve({coords})}}};
+  const navigator={geolocation:{getCurrentPosition(resolve,reject){calls++;if(denied)return reject(Object.assign(Error('denied'),{code:1}));resolve({coords})}}};
   if(!unsupported)navigator.permissions={query:async()=>({state:permission})};
   const context={window:{},Date:class extends Date{static now(){return now}},localStorage,navigator};
   vm.runInNewContext(source,context);return context.window.RUDI_WEATHER;
@@ -19,17 +19,27 @@ test('granted access refreshes a changed city after five minutes and across relo
  f.advance(4*60000);assert.equal((await f.open().getAutomaticLocation()).city,'murino');assert.equal(f.calls,1);
  f.move();f.advance(60000);assert.equal((await weather.getAutomaticLocation()).city,'moscow');assert.equal(f.calls,2);
 });
-test('expired permission reuses the last city across launches without another permission popup',async()=>{
- const f=fixture();await f.open().getAutomaticLocation();f.setPermission('prompt');f.advance(7*24*3600000);
- const result=await f.open().getAutomaticLocation();assert.equal(result.city,'murino');assert.equal(result.needsPermission,true);assert.equal(f.calls,1);
+test('expired permission requests access again and updates the saved city across launches',async()=>{
+ const f=fixture();await f.open().getAutomaticLocation();f.setPermission('prompt');f.move();f.advance(7*24*3600000);
+ const result=await f.open().getAutomaticLocation();assert.equal(result.city,'moscow');assert.equal(result.resolved,true);assert.equal(f.calls,2);
 });
-for(const permission of ['prompt','denied'])test(permission+' does not trigger geolocation on startup without a saved city',async()=>{
+test('permission reset is noticed even while the previous location is fresh',async()=>{
+ const f=fixture(),weather=f.open();await weather.getAutomaticLocation();f.setPermission('prompt');f.move();f.advance(1000);
+ assert.equal((await weather.getAutomaticLocation()).city,'moscow');assert.equal(f.calls,2);
+});
+for(const permission of ['denied'])test(permission+' does not trigger geolocation on startup without a saved city',async()=>{
  const f=fixture({permission});const value=await f.open().getAutomaticLocation();assert.equal(value.resolved,false);assert.equal(value.needsPermission,true);assert.equal(f.calls,0);
 });
-test('unsupported Permissions API uses saved city and only an explicit request asks for access',async()=>{
- const f=fixture({unsupported:true}),weather=f.open();assert.equal((await weather.getAutomaticLocation()).resolved,false);assert.equal(f.calls,0);
- assert.equal((await weather.getAutomaticLocation({requestPermission:true})).city,'murino');assert.equal(f.calls,1);
- f.advance(6*60000);assert.equal((await f.open().getAutomaticLocation()).city,'murino');assert.equal(f.calls,1);
+test('initial prompt and unknown permission both request access automatically',async()=>{
+ for(const options of [{permission:'prompt'},{unsupported:true}]){
+  const f=fixture(options);assert.equal((await f.open().getAutomaticLocation()).city,'murino');assert.equal(f.calls,1);
+ }
+});
+test('dismissed permission is not requested repeatedly, but an explicit retry remains available',async()=>{
+ const f=fixture({permission:'prompt'}),weather=f.open();f.deny();
+ assert.equal((await weather.getAutomaticLocation()).resolved,false);assert.equal(f.calls,1);
+ f.advance(120000);await weather.getAutomaticLocation();assert.equal(f.calls,1);
+ await weather.getAutomaticLocation({requestPermission:true});assert.equal(f.calls,2);
 });
 test('explicit request allows first consent and subsequent granted requests are automatic',async()=>{
  const f=fixture({permission:'prompt'}),weather=f.open();assert.equal((await weather.getAutomaticLocation({requestPermission:true})).city,'murino');

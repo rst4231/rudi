@@ -1,15 +1,15 @@
 {
-  "current": "v4.62",
+  "current": "v4.63",
   "versionBranch": "rudi-weather-location-cache-20261111",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-11",
-  "basedOnProduction": "v4.61",
+  "basedOnProduction": "v4.62",
   "notes": [
-    "Геопозиция обновляется автоматически при действующем разрешении. Повторное разрешение запрашивается только по нажатию; последний город сохраняется между запусками."
+    "Если разрешение на геопозицию истекло или сброшено, приложение автоматически запрашивает доступ снова. Отказ или закрытый запрос не повторяются по кругу."
   ],
   "changes": [
-    "Check geolocation permission before automatic refresh; persist last known city for fallback and provide explicit location access action."
+    "Renew expired geolocation permission automatically while preserving permission denial and dismissal handling."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
