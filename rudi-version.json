@@ -6,11 +6,10 @@
   "createdAt": "2026-11-11",
   "basedOnProduction": "v4.61",
   "notes": [
-    "Автоматически найденный город сохраняется на 24 часа и восстанавливается после перезапуска приложения."
+    "Геопозиция обновляется автоматически при действующем разрешении. Повторное разрешение запрашивается только по нажатию; последний город сохраняется между запусками."
   ],
   "changes": [
-    "Persist successful automatic weather location for 24 hours without extending its original expiry."
+    "Check geolocation permission before automatic refresh; persist last known city for fallback and provide explicit location access action."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
-

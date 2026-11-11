@@ -68,34 +68,49 @@
   return {get,getMonthly};
   }
 const locations={murino:{label:'Мурино',where:'Мурино',latitude:60.0479,longitude:30.452},spb:{label:'Санкт-Петербург',where:'Санкт-Петербурге',latitude:59.9386,longitude:30.3141},moscow:{label:'Москва',where:'Москве',latitude:55.7558,longitude:37.6173},belgorod:{label:'Белгород',where:'Белгороде',latitude:50.5954,longitude:36.5873},bali:{label:'Бали',where:'Бали',latitude:-8.65,longitude:115.2167},bangkok:{label:'Бангкок',where:'Бангкоке',latitude:13.7563,longitude:100.5018},antalya:{label:'Анталья',where:'Анталье',latitude:36.8969,longitude:30.7133},cairo:{label:'Каир',where:'Каире',latitude:30.0444,longitude:31.2357}};
-  const LOCATION_KEY='rudi:weather-location:v1',LOCATION_FRESH=24*60*60*1000;
-  let automatic=null,locationFlight=null;
+  const LOCATION_KEY='rudi:weather-location:v1',LOCATION_FRESH=5*60*1000,LOCATION_MAX_AGE=30*24*60*60*1000;
+  let automatic=null,locationFlight=null,explicitLocationFlight=false,locationRetryAt=0;
   try{
     const saved=JSON.parse(localStorage.getItem(LOCATION_KEY));
-    if(Number.isFinite(saved?.at)&&saved.at<=Date.now()&&Date.now()-saved.at<LOCATION_FRESH&&saved.value?.resolved===true&&Object.hasOwn(locations,saved.value.city)){
+    if(Number.isFinite(saved?.at)&&saved.at<=Date.now()&&Date.now()-saved.at<LOCATION_MAX_AGE&&saved.value?.resolved===true&&Object.hasOwn(locations,saved.value.city)){
       automatic={at:saved.at,value:{city:saved.value.city,resolved:true,note:''}};
     }
   }catch(_){}
   function nearestCity(latitude,longitude){return Object.keys(locations).sort((a,b)=>{const distance=key=>{const place=locations[key],r=Math.PI/180;return Math.sin((latitude-place.latitude)*r/2)**2+Math.cos(latitude*r)*Math.cos(place.latitude*r)*Math.sin((longitude-place.longitude)*r/2)**2};return distance(a)-distance(b)})[0]}
-  async function getAutomaticLocation(){
-    if(automatic&&Date.now()>=automatic.at&&Date.now()-automatic.at<(automatic.value.resolved?LOCATION_FRESH:60000))return automatic.value;
-    if(locationFlight)return locationFlight;
+  function savedAutomaticLocation(needsPermission=false){
+    const saved=automatic&&Date.now()>=automatic.at&&Date.now()-automatic.at<LOCATION_MAX_AGE;
+    return saved?{...automatic.value,cached:true,needsPermission,note:needsPermission?'Показан последний определённый город.':''}
+      :{city:'spb',resolved:false,needsPermission,note:needsPermission?'Разрешите геопозицию или выберите город.':'Геопозиция недоступна. Показан Санкт-Петербург.'};
+  }
+  async function getAutomaticLocation({requestPermission=false}={}){
+    if(locationFlight){
+      if(!requestPermission||explicitLocationFlight)return locationFlight;
+      await locationFlight;return getAutomaticLocation({requestPermission:true});
+    }
+    if(!requestPermission&&automatic&&Date.now()>=automatic.at&&Date.now()-automatic.at<LOCATION_FRESH)return automatic.value;
+    if(!requestPermission&&Date.now()<locationRetryAt)return savedAutomaticLocation();
+    explicitLocationFlight=requestPermission;
     locationFlight=(async()=>{
-      let value;
+      if(!requestPermission){
+        let permission='unknown';
+        try{permission=(await globalThis.navigator?.permissions?.query({name:'geolocation'}))?.state||'unknown'}catch(_){}
+        // A background refresh must never request new consent.
+        if(permission!=='granted')return savedAutomaticLocation(true);
+      }
       try{
         const position=await new Promise((resolve,reject)=>{
           if(!globalThis.navigator?.geolocation)return reject(Error('Location unavailable'));
-          navigator.geolocation.getCurrentPosition(resolve,reject,{timeout:6000,maximumAge:300000});
+          navigator.geolocation.getCurrentPosition(resolve,reject,{timeout:6000,maximumAge:requestPermission?0:300000});
         });
         const {latitude,longitude}=position.coords;
         if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180)throw Error('Invalid location');
-        value={city:nearestCity(latitude,longitude),resolved:true,note:''};
-      }catch(_){value={city:'spb',resolved:false,note:'Геопозиция недоступна. Показан Санкт-Петербург.'}}
-      automatic={at:Date.now(),value};
-      if(value.resolved)try{localStorage.setItem(LOCATION_KEY,JSON.stringify(automatic))}catch(_){}
-      return value;
+        const value={city:nearestCity(latitude,longitude),resolved:true,note:''};
+        automatic={at:Date.now(),value};locationRetryAt=0;
+        try{localStorage.setItem(LOCATION_KEY,JSON.stringify(automatic))}catch(_){}
+        return value;
+      }catch(error){locationRetryAt=Date.now()+60000;return savedAutomaticLocation(error?.code===1)}
     })();
-    try{return await locationFlight}finally{locationFlight=null}
+    try{return await locationFlight}finally{locationFlight=null;explicitLocationFlight=false}
   }
   async function getAutomatic(options={}){
     const location=await getAutomaticLocation();

@@ -57,7 +57,7 @@ test('forecast timeout aborts the provider request',async()=>{
 function client({cached,fetchImpl,navigator}){
   const storage=new Map(cached?[['rudi-weather-v2',JSON.stringify(cached)]]:[]);
   storage.set('rudi:forecast-city:rustam','spb');
-  const context=vm.createContext({window:{},navigator,Date,AbortController,setTimeout,clearTimeout,
+  const context=vm.createContext({window:{},navigator:navigator?{...navigator,permissions:{query:async()=>({state:'granted'})}}:navigator,Date,AbortController,setTimeout,clearTimeout,
     localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},fetch:fetchImpl});
   vm.runInContext(fs.readFileSync('public/weather.js','utf8'),context);
   return context.window.RUDI_WEATHER;
@@ -172,3 +172,4 @@ test('late default widget response cannot overwrite a newly selected city',async
  let finish;const weather=client({fetchImpl:()=>new Promise(resolve=>finish=()=>resolve({ok:true,json:async()=>({...sample,fetchedAt:Date.now()})}))});
  weather.setSelectedCity('bali');const pending=weather.get();weather.setSelectedCity('moscow');finish();await assert.rejects(pending,/selection changed/);
 });
+

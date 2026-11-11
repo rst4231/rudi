@@ -10,10 +10,7 @@ function nearestCity(latitude,longitude){return Object.keys(cities).sort((a,b)=>
 async function resolveCity(choice){
  if(choice!=='auto')return {city:choice,note:''};
  if(window.RUDI_WEATHER?.getAutomaticLocation)return window.RUDI_WEATHER.getAutomaticLocation();
- try{
-  const position=await new Promise((resolve,reject)=>{if(!navigator.geolocation)return reject(Error('Unavailable'));navigator.geolocation.getCurrentPosition(resolve,reject,{timeout:6000,maximumAge:300000})});
-  return {city:nearestCity(position.coords.latitude,position.coords.longitude),note:''};
- }catch(_){return {city:'spb',note:'Геопозиция недоступна. Показан Санкт-Петербург.'}}
+ return {city:'spb',resolved:false,needsPermission:true,note:'Выберите город или разрешите геопозицию.'};
 }
 const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Moscow',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 function currentHourTime(hours,date,now=Date.now()){
@@ -43,9 +40,14 @@ function setupPage(){
  document.body.append(modal);
  modal.querySelector('.weather-forecast-back').addEventListener('click',close);
  modal.querySelector('#weatherForecastCity').addEventListener('change',event=>{
-  const choice=event.target.value;if(window.RUDI_WEATHER?.setSelectedCity)window.RUDI_WEATHER.setSelectedCity(choice);else try{localStorage.setItem(cityKey(),choice)}catch(_){}
-  void loadForecast(choice);
+  const choice=event.target.value;
+  const locationRequest=choice==='auto'?window.RUDI_WEATHER?.getAutomaticLocation?.({requestPermission:true}):null;
+  if(window.RUDI_WEATHER?.setSelectedCity)window.RUDI_WEATHER.setSelectedCity(choice);else try{localStorage.setItem(cityKey(),choice)}catch(_){}
+  void loadForecast(choice,locationRequest);
  });
+ const locationButton=node('button','Обновить геопозицию','weather-location-refresh');locationButton.type='button';
+ locationButton.addEventListener('click',()=>{const request=window.RUDI_WEATHER?.getAutomaticLocation?.({requestPermission:true});void loadForecast('auto',request)});
+ modal.querySelector('.weather-forecast-location').append(locationButton);
  for(const button of modal.querySelectorAll('[data-forecast-view]'))button.addEventListener('click',()=>{view=button.dataset.forecastView;render()});
  return true;
 }
@@ -125,14 +127,19 @@ function render(){
  }
  content.append(grid);
 }
-async function loadForecast(choice){
+async function loadForecast(choice,locationRequest=null){
  const revision=++generation;payload=null;monthlyPayload=null;monthlyLoading=false;monthlyError=false;monthlyAttempted=false;
+ const locationButton=modal.querySelector('.weather-location-refresh');
+ locationButton.hidden=choice!=='auto';locationButton.disabled=Boolean(locationRequest);
  modal.querySelector('.weather-forecast-status').textContent=choice==='auto'?'Определяю город…':'Загружаю прогноз…';render();
  try{
-  const resolved=await resolveCity(choice);if(!active||generation!==revision)return;city=resolved.city;locationNote=resolved.note;
+  const resolved=await (locationRequest||resolveCity(choice));if(!active||generation!==revision)return;city=resolved.city;locationNote=resolved.note;
+  locationButton.textContent=resolved.needsPermission?'Разрешить геопозицию':'Обновить геопозицию';
+  if(locationRequest&&resolved.resolved&&savedCity()==='auto')window.dispatchEvent(new CustomEvent('rudi:weather-city-change',{detail:{city:'auto'}}));
   const data=await window.RUDI_WEATHER.get({forecast:true,city});if(!active||generation!==revision)return;
   payload=data;if(!data.daily?.time?.includes(selected))selected=data.daily?.time?.find(date=>date>=today())||selected;render();
  }catch(_){if(active&&generation===revision)modal.querySelector('.weather-forecast-status').textContent=navigator.onLine===false?'Офлайн. Свежий прогноз недоступен.':'Не удалось загрузить прогноз. Выбери город ещё раз.'}
+ finally{if(generation===revision)locationButton.disabled=false}
 }
 async function activate(){
  if(!setupPage())return;if(active)return activation;
@@ -225,3 +232,4 @@ async function renderCalendarHours(target,date){
 }
 window.RUDI_WEATHER_FORECAST={nearestCity,model,open,close,currentHourTime,renderCalendarDay,periodTemperatures,periodForecast,renderCalendarPeriods,renderCalendarHours};
 })();
+
