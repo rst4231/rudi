@@ -68,10 +68,17 @@
   return {get,getMonthly};
   }
 const locations={murino:{label:'Мурино',where:'Мурино',latitude:60.0479,longitude:30.452},spb:{label:'Санкт-Петербург',where:'Санкт-Петербурге',latitude:59.9386,longitude:30.3141},moscow:{label:'Москва',where:'Москве',latitude:55.7558,longitude:37.6173},belgorod:{label:'Белгород',where:'Белгороде',latitude:50.5954,longitude:36.5873},bali:{label:'Бали',where:'Бали',latitude:-8.65,longitude:115.2167},bangkok:{label:'Бангкок',where:'Бангкоке',latitude:13.7563,longitude:100.5018},antalya:{label:'Анталья',where:'Анталье',latitude:36.8969,longitude:30.7133},cairo:{label:'Каир',where:'Каире',latitude:30.0444,longitude:31.2357}};
+  const LOCATION_KEY='rudi:weather-location:v1',LOCATION_FRESH=24*60*60*1000;
   let automatic=null,locationFlight=null;
+  try{
+    const saved=JSON.parse(localStorage.getItem(LOCATION_KEY));
+    if(Number.isFinite(saved?.at)&&saved.at<=Date.now()&&Date.now()-saved.at<LOCATION_FRESH&&saved.value?.resolved===true&&Object.hasOwn(locations,saved.value.city)){
+      automatic={at:saved.at,value:{city:saved.value.city,resolved:true,note:''}};
+    }
+  }catch(_){}
   function nearestCity(latitude,longitude){return Object.keys(locations).sort((a,b)=>{const distance=key=>{const place=locations[key],r=Math.PI/180;return Math.sin((latitude-place.latitude)*r/2)**2+Math.cos(latitude*r)*Math.cos(place.latitude*r)*Math.sin((longitude-place.longitude)*r/2)**2};return distance(a)-distance(b)})[0]}
   async function getAutomaticLocation(){
-    if(automatic&&Date.now()-automatic.at<(automatic.value.resolved?300000:60000))return automatic.value;
+    if(automatic&&Date.now()>=automatic.at&&Date.now()-automatic.at<(automatic.value.resolved?LOCATION_FRESH:60000))return automatic.value;
     if(locationFlight)return locationFlight;
     locationFlight=(async()=>{
       let value;
@@ -84,7 +91,9 @@ const locations={murino:{label:'Мурино',where:'Мурино',latitude:60.0
         if(!Number.isFinite(latitude)||!Number.isFinite(longitude)||Math.abs(latitude)>90||Math.abs(longitude)>180)throw Error('Invalid location');
         value={city:nearestCity(latitude,longitude),resolved:true,note:''};
       }catch(_){value={city:'spb',resolved:false,note:'Геопозиция недоступна. Показан Санкт-Петербург.'}}
-      automatic={at:Date.now(),value};return value;
+      automatic={at:Date.now(),value};
+      if(value.resolved)try{localStorage.setItem(LOCATION_KEY,JSON.stringify(automatic))}catch(_){}
+      return value;
     })();
     try{return await locationFlight}finally{locationFlight=null}
   }
@@ -120,3 +129,4 @@ const locations={murino:{label:'Мурино',where:'Мурино',latitude:60.0
   }
   window.RUDI_WEATHER = {locations,nearestCity,getAutomaticLocation,getAutomatic,getSelectedCity,setSelectedCity,get:getSelected,getMonthly:(options={})=>getSelected(options,true),currentSummary};
 })();
+

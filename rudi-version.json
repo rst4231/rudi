@@ -1,16 +1,16 @@
 {
-  "current": "v4.61",
-  "versionBranch": "rudi-supplement-calendar-counts-20261108",
+  "current": "v4.62",
+  "versionBranch": "rudi-weather-location-cache-20261111",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
-  "deploymentRequestedAt": "2026-11-08T13:06:24.137Z",
-  "createdAt": "2026-11-08",
-  "basedOnProduction": "v4.60",
+  "createdAt": "2026-11-11",
+  "basedOnProduction": "v4.61",
   "notes": [
-    "Неотмеченные БАДы за прошлые дни исключены из счётчика невыполненных дел календаря. История приёмов и пропусков сохранена."
+    "Автоматически найденный город сохраняется на 24 часа и восстанавливается после перезапуска приложения."
   ],
   "changes": [
-    "Exclude supplement projections from calendar overdue task counts."
+    "Persist successful automatic weather location for 24 hours without extending its original expiry."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
+
