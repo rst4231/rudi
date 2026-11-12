@@ -21,6 +21,7 @@ async function api(operation,extra={},which=scope){
  const response=await fetch(shared?'/api/index?route=shared-notes':'/api/home-note',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},body:JSON.stringify({operation:!shared&&operation==='list'?'get':operation,...(!shared&&operation==='list'?{summary:true}:{}),initData:String(window.Telegram?.WebApp?.initData||''),...extra})});
  const result=await response.json();
  if(epoch!==generation||who!==actor())throw Error('Профиль изменился');
+ if(response.status===404){const error=Error('note-not-found');error.status=404;throw error;}
  if(!response.ok||!result.ok)throw Error(response.status===409?'Заметка уже изменена или удалена на другом устройстве. Твой текст остался здесь. Открой список и загрузи её заново.':response.status===401?'Войди в приложение заново':result.error==='note-limit'?'Достигнут лимит заметок':result.error==='note-busy'?'Другой человек сохраняет заметку. Повтори через пару секунд.':'Не удалось сохранить или загрузить заметку. Попробуй ещё раз.');
  return result;
 }
@@ -64,7 +65,7 @@ function renderHomeCard(note,message=''){
  toggle.append(mark,el('span','',note?.title||'Заметка'));
  const tools=el('div','home-note-tools'),edit=el('button','home-note-edit');edit.type='button';edit.title='Открыть заметки';edit.setAttribute('aria-label','Открыть личные и общие заметки');edit.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4.5-1 11-11a2.8 2.8 0 0 0-4-4l-11 11L4 20Z"/></svg>';edit.onclick=open;tools.append(edit);head.append(toggle,tools);
  const content=el('div','home-note-content');content.id='dynamicHomeNoteContent';content.hidden=!homeExpanded;
- const text=el('div','home-note-preview');richText(text,message||note?.text||'Выбери заметку для главной страницы через карандаш');content.append(text);
+ const text=el('div','home-note-preview');richText(text,message||note?.text||'');content.append(text);
  if(note?.images?.length){const gallery=el('div','notes-home-images');for(const src of note.images){const b=el('button');b.type='button';b.append(thumbnail(src,'Изображение к заметке'));b.onclick=()=>viewImage(src);gallery.append(b);}content.append(gallery);}
  toggle.onclick=()=>{homeExpanded=!homeExpanded;home.classList.toggle('is-expanded',homeExpanded);content.hidden=!homeExpanded;toggle.setAttribute('aria-expanded',String(homeExpanded));};
  home.append(head,content);
@@ -75,7 +76,7 @@ async function refreshHome(){const who=actor(),epoch=generation,run=++refreshId;
  try{
   const selected=await api('home-get',{},'shared');if(epoch!==generation||run!==refreshId)return;selection=selected.selection;
   let note;
-  if(selection?.scope==='shared'){try{note=(await api('get',{id:selection.id},'shared')).note;}catch(e){if(!e.message.includes('Профиль')){renderHomeCard(null,'Выбранная общая заметка недоступна. Выбери другую через карандаш.');document.body.classList.add('notes-center-enabled');home.hidden=document.body.dataset.appTab!=='home';}return;}}
+  if(selection?.scope==='shared'){try{note=(await api('get',{id:selection.id},'shared')).note;}catch(e){if(!e.message.includes('Профиль')){renderHomeCard(null,e.status===404?'':'Выбранная общая заметка недоступна. Выбери другую через карандаш.');document.body.classList.add('notes-center-enabled');home.hidden=document.body.dataset.appTab!=='home';}return;}}
   else{note=(await api('get-history',{id:selection?.id||'home'},'personal')).note;if(note?.deleted)note=null;}
   if(epoch!==generation||run!==refreshId)return;
   renderHomeCard(note);
