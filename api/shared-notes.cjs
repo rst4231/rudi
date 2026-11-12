@@ -21,7 +21,12 @@ function createHandler(deps={}){
    const b=req.body||{}, {actor}=auth(req,b.initData);
    if(!['Рустам','Диана'].includes(actor))throw Error('rudi-access-denied');
    const op=b.operation||'list';
-   if(op==='list')return res.status(200).json({ok:true,notes:(await read('index'))?.notes||[]});
+   if(op==='list'){
+    const index=(await read('index'))?.notes||[];
+    if(b.expanded!==true)return res.status(200).json({ok:true,notes:index});
+    const notes=await Promise.all(index.map(async row=>{const note=await read('note:'+row.id);if(!note||note.deleted)return null;const {images,...textNote}=note;return {...textNote,images:[],imageCount:(images||[]).length};}));
+    return res.status(200).json({ok:true,notes:notes.filter(Boolean)});
+   }
    if(op==='home-get')return res.status(200).json({ok:true,selection:await read('home:'+actor)||null});
    if(op==='home-set'){
     if(!validId(b.id)||!['personal','shared'].includes(b.scope))throw Error('invalid-note');
