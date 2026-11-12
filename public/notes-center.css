@@ -29,3 +29,12 @@ html[data-theme=dark] .notes-check>input[type=checkbox]:not(:checked){background
 .notes-attachments{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.notes-attachments button{max-width:100%;overflow-wrap:anywhere;border:1px solid rgba(145,105,25,.2);border-radius:10px;background:rgba(145,105,25,.08);color:inherit;padding:10px;font:inherit;font-size:13px}
 
 .notes-detail-head{flex-wrap:wrap}.notes-detail-tools{flex-wrap:wrap;justify-content:flex-end}
+
+/* Keep titles full width; controls get their own row. */
+.notes-center .notes-detail-head{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:8px}
+.notes-center .notes-detail-head h2{width:100%;min-width:0;margin:0;box-sizing:border-box;overflow-wrap:anywhere}
+.notes-center .notes-detail-tools{width:max-content;max-width:100%;margin:0 0 0 auto;justify-self:end}
+.notes-center .notes-note-footer{margin:16px 0 0;padding-top:10px;border-top:1px solid rgba(173,140,76,.15);font-size:11px;line-height:1.5;white-space:pre-line}
+.notes-center.notes-refreshing #notesCenterStatus::before{content:'↻';display:inline-block;margin-right:6px;animation:notes-refresh-spin .8s linear infinite}
+@keyframes notes-refresh-spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.notes-center.notes-refreshing #notesCenterStatus::before{animation:none}}
