@@ -3,6 +3,8 @@ const SHELL_CACHE_PREFIX='rudi-shell-';
 const NAVIGATION_TIMEOUT_MS=3500;
 const STATIC_TIMEOUT_MS=8000;
 const PRECACHE=[
+  "/notes-center.js?v=4.64",
+  "/notes-center.css?v=4.64",
   "/",
   "/manifest.webmanifest",
   "/icons/wallet-pionex.png",
@@ -477,3 +479,4 @@ self.addEventListener('notificationclick',event=>{
   await self.clients.openWindow(target);
  })());
 });
+

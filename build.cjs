@@ -18,6 +18,8 @@ WEB_ASSETS.push('mood-catalog.js','mood-picker.js','mood-picker.css');
 
 WEB_ASSETS.push('calendar-search.js');
 
+WEB_ASSETS.push('notes-center.js','notes-center.css');
+
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
 const runtimeDir = path.join(__dirname, 'runtime');
@@ -339,3 +341,4 @@ if (require.main === module) {
 }
 
 module.exports = { buildRuntime, resolveVersionLabel, syncWebVersion, buildWebAssets, syncServiceWorkerPrecache, buildRudiIcons, CHUNK_COUNT, EXPECTED_SIZES, patchEventRuntime, patchRetiredRuntime, assertProductionGitDeployment };
+

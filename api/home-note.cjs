@@ -11,7 +11,7 @@ const validId=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{1,80}$/.test(id);
 const noteKey=id=>id==='home'?NOTE_KEY:'home-note-v2:'+id;
 function normalizeStored(value){
  const row=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
- return {...(row.deleted===true?{deleted:true}:{}),text:typeof row.text==='string'?row.text.slice(0,MAX_LENGTH):'',updatedAt:typeof row.updatedAt==='string'?row.updatedAt:'',title:typeof row.title==='string'?row.title.slice(0,100):'',pinned:row.pinned===true,history:Array.isArray(row.history)?row.history.slice(-20).filter(v=>v&&typeof v.text==='string').map(v=>({text:v.text.slice(0,MAX_LENGTH),title:String(v.title||'').slice(0,100),pinned:v.pinned===true,updatedAt:String(v.updatedAt||'')})):[]};
+ return {images:Array.isArray(row.images)?row.images.filter(x=>typeof x==='string'&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(x)&&x.length<=420000).slice(0,3):[],...(row.deleted===true?{deleted:true}:{}),text:typeof row.text==='string'?row.text.slice(0,MAX_LENGTH):'',updatedAt:typeof row.updatedAt==='string'?row.updatedAt:'',title:typeof row.title==='string'?row.title.slice(0,100):'',pinned:row.pinned===true,history:Array.isArray(row.history)?row.history.slice(-20).filter(v=>v&&typeof v.text==='string').map(v=>({text:v.text.slice(0,MAX_LENGTH),title:String(v.title||'').slice(0,100),pinned:v.pinned===true,updatedAt:String(v.updatedAt||'')})):[]};
 }
 function createHandler(deps={}){
  const authorize=deps.authorizeRequest||authorizeRequest;
@@ -70,7 +70,7 @@ function createHandler(deps={}){
    if(operation==='get'){
     const [note,view,index]=await Promise.all([read(actor,NOTE_KEY),read(actor,NOTE_EXPANDED_KEY),read(actor,NOTES_INDEX_KEY)]);
     const ids=['home',...new Set((Array.isArray(index?.ids)?index.ids:[]).filter(id=>validId(id)&&id!=='home'))];
-    const summaries=await Promise.all(ids.map(async id=>{const row=normalizeStored(id==='home'?note:await read(actor,noteKey(id)));return {id,...row,history:[],historyCount:row.history.length}}));
+    const summaries=await Promise.all(ids.map(async id=>{const row=normalizeStored(id==='home'?note:await read(actor,noteKey(id)));return {id,...row,...(body.summary===true?{images:[],imageCount:row.images.length}:{}),history:[],historyCount:row.history.length}}));
     const notes=summaries.filter(note=>!note.deleted);
     const expanded=typeof view?.expanded==='boolean'?view.expanded:null;
     return res.status(200).json({ok:true,note:{...summaries[0],expanded},notes});
@@ -120,7 +120,9 @@ function createHandler(deps={}){
       if(!ids.includes(id)&&ids.filter(value=>value!=='home').length+(normalizeStored(await read(actor,NOTE_KEY)).deleted?0:1)>=30)return res.status(400).json({ok:false,error:'note-limit'});
       if(!ids.includes(id))await write(actor,NOTES_INDEX_KEY,{ids:[...ids,id]});
     }
-    const same=previous.text===text&&previous.title===title&&previous.pinned===pinned;
+    const images=body.images===undefined?previous.images:body.images;
+    if(!Array.isArray(images)||images.length>3||images.some(x=>typeof x!=='string'||x.length>420000||!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(x)))return res.status(400).json({ok:false,error:'invalid-images'});
+    const same=JSON.stringify(previous.images)===JSON.stringify(images)&&previous.text===text&&previous.title===title&&previous.pinned===pinned;
     if(same&&previous.updatedAt)return res.status(200).json({ok:true,note:{id,...previous},idempotent:true});
     if(Object.prototype.hasOwnProperty.call(body,'expectedUpdatedAt')&&previous.updatedAt!==String(body.expectedUpdatedAt||''))
       return res.status(409).json({ok:false,error:'note-conflict',note:{id,...previous}});
@@ -132,7 +134,7 @@ function createHandler(deps={}){
     }
     let updatedAt=now();
     if(Date.parse(updatedAt)<=Date.parse(previous.updatedAt))updatedAt=new Date(Date.parse(previous.updatedAt)+1).toISOString();
-    const note={id,text,title,pinned,updatedAt,history:history.slice(-20)};
+    const note={id,text,title,images,pinned,updatedAt,history:history.slice(-20)};
     await write(actor,noteKey(id),note);
     return res.status(200).json({ok:true,note});
     }finally{await release().catch(error=>console.error('RUDI_HOME_NOTE_LOCK_RELEASE',String(error?.message||error)))}
@@ -151,3 +153,4 @@ module.exports.NOTES_INDEX_KEY=NOTES_INDEX_KEY;
 module.exports.NOTE_KEY=NOTE_KEY;
 module.exports.NOTE_EXPANDED_KEY=NOTE_EXPANDED_KEY;
 module.exports.MAX_LENGTH=MAX_LENGTH;
+

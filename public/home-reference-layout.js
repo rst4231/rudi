@@ -266,6 +266,9 @@
      games.innerHTML='<span aria-hidden="true">🎮</span>';
      games.addEventListener('click',()=>window.RudiGames?.open?.());
      inner.append(games);
+     const notes=document.createElement('button');notes.type='button';notes.id='rudiHomeNotesButton';notes.className='rudi-home-games';notes.title='Заметки';notes.setAttribute('aria-label','Личные и общие заметки');
+     notes.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>';
+     notes.addEventListener('click',()=>window.RudiNotesCenter?.open());inner.append(notes);
      const cbt=document.createElement('button');cbt.id='rudiHomeCbtButton';
      cbt.className='rudi-home-games cbt-home-shortcut';cbt.type='button';
      cbt.setAttribute('aria-label','КПТ');cbt.title='Когнитивно-поведенческая терапия';
