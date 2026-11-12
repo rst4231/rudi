@@ -44,6 +44,7 @@ function createHandler(deps={}){
    if(!locked)return res.status(503).json({ok:false,error:'note-busy'});
    const previous=await read('note:'+b.id);
    if(previous?.deleted)return res.status(409).json({ok:false,error:'note-deleted'});
+   if(op==='delete'&&(!previous||previous.author!==actor))return res.status(403).json({ok:false,error:'note-delete-forbidden'});
    if(String(previous?.updatedAt||'')!==String(b.expectedUpdatedAt||''))return res.status(409).json({ok:false,error:'note-conflict'});
    const index=(await read('index'))?.notes||[];
    if(op==='save'&&!previous&&index.length>=100)return res.status(400).json({ok:false,error:'note-limit'});
