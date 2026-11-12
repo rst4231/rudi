@@ -1,15 +1,15 @@
 {
-  "current": "v4.69",
+  "current": "v4.70",
   "versionBranch": "rudi-notes-ownership-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-12",
-  "basedOnProduction": "v4.68",
+  "basedOnProduction": "v4.69",
   "notes": [
-    "Заметки: перенос между личными и общими, отмена правок, Groq, авторы изменений и защита удаления. Сохранённое заменено общими заметками, старые записи переносятся автоматически."
+    "Отмена возвращает весь список заметок. Заголовки на полную ширину, короткая подпись внизу, обновление свайпом вниз. Кнопки переноса между личными и общими убраны."
   ],
   "changes": [
-    "Shared Telegram saves and archive migration, automatic proofreading, cancellation, ownership and safe note transfer."
+    "Restore note list on cancel; full-width titles, compact metadata footer and protected pull refresh; remove transfer controls."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
