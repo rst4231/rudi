@@ -1,15 +1,15 @@
 {
-  "current": "v4.66",
-  "versionBranch": "rudi-home-notes-link-20261112",
+  "current": "v4.67",
+  "versionBranch": "rudi-notes-clean-editor-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-12",
-  "basedOnProduction": "v4.65",
+  "basedOnProduction": "v4.66",
   "notes": [
-    "Просмотр заметок отдельно от редактирования по карандашу. Возвращены чек-листы, добавлен переход ко всем заметкам на главной, обновлены закрепление и удаление."
+    "В редакторе убраны повтор текста и подпись о ссылках. Закрепление перенесено в булавку рядом с карандашом. Чек-листы оформлены как на главной."
   ],
   "changes": [
-    "Separate note reading from explicit pencil editing, restore checklists, add home notes navigation and update actions."
+    "Hide preview during note editing, remove link hint, use compact pin action and rounded square checklists."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
