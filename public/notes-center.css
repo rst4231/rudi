@@ -38,3 +38,5 @@ html[data-theme=dark] .notes-check>input[type=checkbox]:not(:checked){background
 .notes-center.notes-refreshing #notesCenterStatus::before{content:'↻';display:inline-block;margin-right:6px;animation:notes-refresh-spin .8s linear infinite}
 @keyframes notes-refresh-spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.notes-center.notes-refreshing #notesCenterStatus::before{animation:none}}
+
+.notes-center .notes-footer-tools{display:flex;flex-wrap:nowrap;justify-content:flex-end;gap:8px;margin:12px 0 0 auto;max-width:100%}
