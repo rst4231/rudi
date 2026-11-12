@@ -1,15 +1,15 @@
 {
-  "current": "v4.63",
-  "versionBranch": "rudi-weather-location-cache-20261111",
+  "current": "v4.64",
+  "versionBranch": "rudi-notes-center-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
-  "createdAt": "2026-11-11",
-  "basedOnProduction": "v4.62",
+  "createdAt": "2026-11-12",
+  "basedOnProduction": "v4.63",
   "notes": [
-    "Если разрешение на геопозицию истекло или сброшено, приложение автоматически запрашивает доступ снова. Отказ или закрытый запрос не повторяются по кругу."
+    "Личные и общие заметки с заголовком, текстом, изображениями и ссылками. Каждый выбирает заметку для главной."
   ],
   "changes": [
-    "Renew expired geolocation permission automatically while preserving permission denial and dismissal handling."
+    "Add private/shared notes center, attachments, safe links and per-user home selection."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
