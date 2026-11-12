@@ -1,15 +1,15 @@
 {
-  "current": "v4.68",
-  "versionBranch": "rudi-notes-full-cards-20261112",
+  "current": "v4.69",
+  "versionBranch": "rudi-notes-ownership-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-12",
-  "basedOnProduction": "v4.67",
+  "basedOnProduction": "v4.68",
   "notes": [
-    "Заметки сразу отображаются полными карточками. Добавлен плавный выход свайпом вправо на главную и открытие ссылок через браузер."
+    "Автоисправление заметок через Groq, отмена редактирования, авторы правок и удаление только своих. Сохранённое заменено общими заметками с переносом старых записей и сохранением новых сообщений боту."
   ],
   "changes": [
-    "Render full note cards immediately, add animated swipe exit and external browser links."
+    "Replace Saved with shared Telegram notes and idempotent archive migration; add automatic proofreading, edit cancellation and note ownership."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
