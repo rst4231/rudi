@@ -1,15 +1,15 @@
 {
-  "current": "v4.65",
-  "versionBranch": "rudi-notes-home-restore-20261112",
+  "current": "v4.66",
+  "versionBranch": "rudi-home-notes-link-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-12",
-  "basedOnProduction": "v4.64",
+  "basedOnProduction": "v4.65",
   "notes": [
-    "Возвращён бумажный стиль заметок на главной и внутри страницы. Убрана отдельная иконка, док скрыт в заметках. Карточка остаётся видимой при отсутствии записей и ошибках загрузки."
+    "Просмотр заметок отдельно от редактирования по карандашу. Возвращены чек-листы, добавлен переход ко всем заметкам на главной, обновлены закрепление и удаление."
   ],
   "changes": [
-    "Restore paper notes design, remove shortcut, hide dock, and keep home note card stable."
+    "Separate note reading from explicit pencil editing, restore checklists, add home notes navigation and update actions."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
