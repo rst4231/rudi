@@ -1,15 +1,15 @@
 {
-  "current": "v4.64",
-  "versionBranch": "rudi-notes-center-20261112",
+  "current": "v4.65",
+  "versionBranch": "rudi-notes-home-restore-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-12",
-  "basedOnProduction": "v4.63",
+  "basedOnProduction": "v4.64",
   "notes": [
-    "Личные и общие заметки с заголовком, текстом, изображениями и ссылками. Каждый выбирает заметку для главной."
+    "Возвращён бумажный стиль заметок на главной и внутри страницы. Убрана отдельная иконка, док скрыт в заметках. Карточка остаётся видимой при отсутствии записей и ошибках загрузки."
   ],
   "changes": [
-    "Add private/shared notes center, attachments, safe links and per-user home selection."
+    "Restore paper notes design, remove shortcut, hide dock, and keep home note card stable."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
