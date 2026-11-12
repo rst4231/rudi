@@ -1,15 +1,15 @@
 {
-  "current": "v4.70",
+  "current": "v4.71",
   "versionBranch": "rudi-notes-ownership-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-12",
-  "basedOnProduction": "v4.69",
+  "basedOnProduction": "v4.70",
   "notes": [
-    "Отмена возвращает весь список заметок. Заголовки на полную ширину, короткая подпись внизу, обновление свайпом вниз. Кнопки переноса между личными и общими убраны."
+    "Кнопки заметки перенесены вниз справа, над подписью автора. Заголовок и текст больше не разделены панелью действий."
   ],
   "changes": [
-    "Restore note list on cancel; full-width titles, compact metadata footer and protected pull refresh; remove transfer controls."
+    "Move personal and shared note controls below content, directly above author metadata."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
