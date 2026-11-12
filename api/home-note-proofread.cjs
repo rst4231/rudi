@@ -1,6 +1,6 @@
 'use strict';
 const protectedParts=text=>({
- links:text.match(/https?:\/\/[^\s<>]+|[\w.+-]+@[\w.-]+\.[a-z]{2,}|@[\p{L}\p{N}_]+/giu)||[],
+ links:text.match(/(?:https?:\/\/|www\.)[^\s<>]+|[\w.+-]+@[\w.-]+\.[a-z]{2,}|@[\p{L}\p{N}_]+/giu)||[],
  numbers:text.match(/\d+(?:[.,:/-]\d+)*/g)||[],
  checks:(text.match(/^\s*[-*] \[[ xX]\]/gm)||[]).map(value=>value.trim()),
  lines:text.split('\n').length
@@ -26,3 +26,4 @@ async function proofread(text,options={}){
  return output;
 }
 module.exports={proofread};
+

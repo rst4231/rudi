@@ -1,14 +1,17 @@
 const { waitUntil }=require('@vercel/functions');
 const { allowedActor }=require('./rudi-access.cjs');
-const { readSmartSaves,addSmartSave,smartSaveCategories }=require('./smart-saves-store.cjs');
-const { extractUrl,fetchPageMetadata,classifySmartSave }=require('./smart-saves-ai.cjs');
+const {importTelegramNote,telegramAttachment,telegramPhotoPreview}=require('./shared-notes-telegram.cjs');
+const { extractUrl,classifySmartSave }=require('./smart-saves-ai.cjs');
 const { appendActivity }=require('./activity-journal-store.cjs');
 
 function messageOf(req){return req?.body?.message||null}
 
 function smartSaveMessageText(message){
   const m=message&&typeof message==='object'?message:{};
-  const direct=String(m.text||m.caption||'').trim();
+  let direct=String(m.text||m.caption||'').trim();
+  for(const entity of [...(m.entities||[]),...(m.caption_entities||[])]){
+    if(entity.type==='text_link'&&/^https?:\/\//i.test(entity.url||'')&&!direct.includes(entity.url))direct+='\n'+entity.url;
+  }
   if(direct)return direct;
   const documentName=String(m.document?.file_name||'').trim();
   if(documentName)return documentName;
@@ -58,12 +61,14 @@ async function send(token,chatId,text,fetchImpl){if(!token||!chatId)return null;
 async function processSmartSaveTelegram(req,o={}){
   const m=messageOf(req),actor=allowedActor(m.from),text=smartSaveMessageText(m),fetchImpl=o.fetchImpl||globalThis.fetch,url=extractUrl(text);
   const mediaDescription=smartSaveMediaDescription(m);
-  const state=await readSmartSaves(o),pageMeta=url?await fetchPageMetadata(url,{fetchImpl}):{url:'',title:'',description:mediaDescription,imageUrl:''};
-  if(!pageMeta.description&&mediaDescription)pageMeta.description=mediaDescription;
-  let ai;try{ai=await classifySmartSave({text,pageMeta,categories:smartSaveCategories(state)},{env:o.env||process.env,fetchImpl})}catch(error){console.warn('RUDI_SMART_SAVE_AI_WARN',String(error?.message||error));ai={category:'Другое',title:pageMeta.title||text.replace(url,'').trim().slice(0,120)||url||'Сохранение',description:pageMeta.description||mediaDescription||''}}
-  const result=await addSmartSave({category:ai.category,title:ai.title||pageMeta.title||text.slice(0,180)||'Сохранение',description:ai.description||pageMeta.description||mediaDescription,url:pageMeta.url||url,imageUrl:pageMeta.imageUrl,rawText:text,actor},o);
-  if(!result.duplicate)await appendActivity({type:'smart-save',actor,text:actor+' '+(actor==='Диана'?'добавила':'добавил')+' сохранение: '+result.item.title,icon:'🔖',targetTab:'smart-saves'},o).catch(()=>null);
-  await send(o.token,m.chat.id,result.duplicate?'Уже было сохранено · '+result.item.category:'Сохранено · '+result.item.category+'\n'+result.item.title,fetchImpl);return result;
+  const pageMeta={url,title:'',description:mediaDescription,imageUrl:''};
+  let ai;try{ai=await classifySmartSave({text,pageMeta,categories:[]},{env:o.env||process.env,fetchImpl})}catch(_){ai={title:text.replace(/https?:\/\/[^\s]+/g,'').trim().split('\n')[0].slice(0,90)||'Заметка из Telegram'}}
+  const attachment=telegramAttachment(m),images=await telegramPhotoPreview(m,{...o,fetchImpl});
+  const fileLine=attachment&&!text.includes(attachment.name)?'Вложение: '+attachment.name:'';
+  const original=[text,fileLine].filter(Boolean).join('\n\n');
+  const result=await importTelegramNote({actor,title:ai.title||'Заметка из Telegram',text:original,attachment,images,chatId:m.chat.id,messageId:m.message_id,userId:m.from.id,savedAt:m.date?new Date(m.date*1000).toISOString():new Date().toISOString()},o);
+  if(!result.duplicate)await appendActivity({type:'shared-note',actor,text:actor+' '+(actor==='Диана'?'добавила':'добавил')+' общую заметку: '+result.note.title,icon:'📝',targetTab:'home'},o).catch(()=>null);
+  await send(o.token,m.chat.id,result.note.deleted?'Эта заметка уже была удалена.':result.duplicate?'Заметка уже сохранена.':'Добавлено в общие заметки\n'+result.note.title,fetchImpl);return result;
 }
 
 function scheduleSmartSaveTelegram(req,o={}){
@@ -73,3 +78,4 @@ function scheduleSmartSaveTelegram(req,o={}){
 }
 
 module.exports={messageOf,smartSaveMessageText,smartSaveMediaDescription,canHandleSmartSaveTelegram,processSmartSaveTelegram,scheduleSmartSaveTelegram};
+

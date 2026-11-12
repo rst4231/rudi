@@ -18,9 +18,10 @@ function createHandler(deps={}){
   if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
   let locked=false;
   try{
-   const b=req.body||{}, {actor}=auth(req,b.initData);
+   const b=req.body||{}, authorization=auth(req,b.initData),{actor}=authorization;
    if(!['Рустам','Диана'].includes(actor))throw Error('rudi-access-denied');
    const op=b.operation||'list';
+   if(op==='migrate-saved'){const migration=await require('./shared-notes-migration.cjs').migrateSavedNotes({...deps,stateClient:state()});return res.status(200).json({ok:true,migration});}
    if(op==='list'){
     const index=(await read('index'))?.notes||[];
     if(b.expanded!==true)return res.status(200).json({ok:true,notes:index});
@@ -38,6 +39,7 @@ function createHandler(deps={}){
     const note=await read('note:'+b.id);
     return note&&!note.deleted?res.status(200).json({ok:true,note}):res.status(404).json({ok:false,error:'note-not-found'});
    }
+   if(op==='send-attachment'){const note=await read('note:'+b.id);if(!note||note.deleted)return res.status(404).json({ok:false,error:'note-not-found'});try{const result=await require('./shared-notes-telegram.cjs').sendNoteAttachment(note,b.attachmentId,authorization,state(),deps);return res.status(200).json({ok:true,...result});}catch(e){return res.status(e.message==='attachment-not-found'?404:503).json({ok:false,error:e.message==='telegram-recipient-missing'?'telegram-recipient-missing':'attachment-unavailable'});}}
    if(!['save','delete'].includes(op))throw Error('invalid-operation');
    const clean=op==='save'?validate(b):null;
    locked=await state().setIfAbsent(NS,'write-lock',{locked:true},{ttl:90});
@@ -47,10 +49,11 @@ function createHandler(deps={}){
    if(op==='delete'&&(!previous||previous.author!==actor))return res.status(403).json({ok:false,error:'note-delete-forbidden'});
    if(String(previous?.updatedAt||'')!==String(b.expectedUpdatedAt||''))return res.status(409).json({ok:false,error:'note-conflict'});
    const index=(await read('index'))?.notes||[];
-   if(op==='save'&&!previous&&index.length>=100)return res.status(400).json({ok:false,error:'note-limit'});
+   if(op==='save'&&!previous&&index.length>=600)return res.status(400).json({ok:false,error:'note-limit'});
    let updatedAt=now();
    if(previous?.updatedAt&&updatedAt<=previous.updatedAt)updatedAt=new Date(Date.parse(previous.updatedAt)+1).toISOString();
-   const note=op==='delete'?{id:b.id,deleted:true,updatedAt}:{id:b.id,...clean,author:previous?.author||actor,updatedBy:actor,createdAt:previous?.createdAt||updatedAt,updatedAt};
+   const retained=Object.fromEntries(['savedBy','savedAt','source','attachments'].filter(key=>previous?.[key]!==undefined).map(key=>[key,previous[key]]));
+   const note=op==='delete'?{id:b.id,deleted:true,updatedAt}:{id:b.id,...clean,...retained,author:previous?.author||actor,updatedBy:actor,createdAt:previous?.createdAt||updatedAt,updatedAt};
    // Register new IDs first so a retry after a partial failure remains discoverable.
    if(op==='save'&&!index.some(x=>x.id===b.id))await state().set(NS,'index',{notes:[...index,{id:b.id,title:clean.title,updatedAt,author:actor}]});
    await state().set(NS,'note:'+b.id,note);

@@ -146,10 +146,10 @@
         partnerFinance:null,
         personalPush:[]
       };
-      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home','nearest','car','habits','supplements','new','partner','daily-question','smart-saves','markets'];
+      const HOME_TILE_DEFAULT_ORDER = ['dashboard','rustam','diana','lulu','priority','recommendations','note','smart-home','nearest','car','habits','supplements','new','partner','daily-question','markets'];
       function preferredHomeDefaultOrder(){
         const people=currentActor==='Диана'?['diana','rustam']:['rustam','diana'];
-        return ['dashboard',...people,'lulu','priority','recommendations','note','smart-home','nearest','car','habits','supplements','new','partner','daily-question','smart-saves','markets'];
+        return ['dashboard',...people,'lulu','priority','recommendations','note','smart-home','nearest','car','habits','supplements','new','partner','daily-question','markets'];
       }
       function homePrimaryBlocksMigrationKey(){
         const actor=currentActor==='Диана'?'diana':'rustam';
@@ -2160,9 +2160,9 @@
         setTimeout(()=>section.classList.remove(className),560);
       }
 
-      const APP_TABS=['home','feed','schedule','photos','products','fasting','habits','finances','supplements','score','settings','smart-saves','car','smart-home','weather'];
+      const APP_TABS=['home','feed','schedule','photos','products','fasting','habits','finances','supplements','score','settings','car','smart-home','weather'];
       const PRIMARY_NAV_TABS=new Set(['home','feed','schedule','products','photos']);
-      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','smart-home','wishlist','smart-saves','weather']);
+      const INTERNAL_ANIMATED_TABS=new Set(['habits','fasting','finances','supplements','car','smart-home','wishlist','weather']);
       const STARTUP_TABS=['home','finances','schedule','weather'];
       function startupTabStorageKey(){
         return 'rudi:startup-tab:v1:'+(currentActor==='Диана'?'diana':'rustam');
@@ -6329,7 +6329,6 @@
       }
       function runTabSideEffects(tab,{item=''}={}){
         if(tab==='home'){
-          loadSmartSaves({silent:true}).catch(()=>{});
           loadFastingOverview();
           const freshPartnerMessage=item==='partner'&&routeFreshRequested();
           if(!freshPartnerMessage) ensureHomeBootstrap().catch(()=>{});
@@ -6405,7 +6404,6 @@
           loadMarketTicker({silent:true}).catch(()=>{});
           scoreRequest('state').then(data=>renderScoreStickers(data.score)).catch(()=>{});
         }
-        if(tab==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
         if(tab==='car') Promise.resolve(window.RUDI_CAR?.refresh?.()).catch(()=>{});
         if(tab==='fasting') loadFastingTracker({silent:true});
         if(tab==='habits'||tab==='supplements') Promise.resolve(window.RudiSupplementApp?.loadHomeTools?.({force:false})).catch(()=>{});
@@ -6436,7 +6434,6 @@
         else if(next==='schedule') {/* Calendar loads on actual entry; no speculative network requests. */}
         else if(next==='products') loadProducts({silent:true}).catch(()=>{});
         else if(next==='photos') Promise.resolve(loadSharedAlbum()).catch(()=>{});
-        else if(next==='smart-saves') loadSmartSaves({silent:true}).catch(()=>{});
         else if(next==='finances'){
           loadFinances({silent:true}).catch(()=>{});
           loadMarketTicker({silent:true}).catch(()=>{});
@@ -9594,7 +9591,6 @@
         }
         if(activityTab==='photos') loadSharedAlbum();
         if(activityTab==='schedule') loadWorkCalendar(currentWorkCalendarView,{silent:true});
-        if(activityTab==='smart-saves') loadSmartSaves({silent:true});
       }
       function activityEntryItems(entry){
         if(Array.isArray(entry?.items)&&entry.items.length) return entry.items;
@@ -10047,7 +10043,6 @@
         document.querySelectorAll('[data-smart-saves-filter]').forEach(button=>{if(button.dataset.bound==='1')return;button.dataset.bound='1';button.addEventListener('click',()=>{smartSavesFilter=button.dataset.smartSavesFilter||'all';renderSmartSaves();try{tg?.HapticFeedback?.selectionChanged?.()}catch(_){}})});
         const smartBack=document.getElementById('smartSavesBackButton');if(smartBack&&smartBack.dataset.bound!=='1'){smartBack.dataset.bound='1';smartBack.addEventListener('click',()=>navigateBackInApp())}
         const wishlistBack=document.getElementById('wishlistBackButton');if(wishlistBack&&wishlistBack.dataset.bound!=='1'){wishlistBack.dataset.bound='1';wishlistBack.addEventListener('click',()=>navigateBackInApp())}
-        loadSmartSaves({silent:true}).catch(()=>{});
         document.querySelectorAll('[data-home-quick]').forEach(button=>{
           if(button.dataset.bound==='1') return;
           button.dataset.bound='1';

@@ -98,7 +98,6 @@
   <script defer src="/calendar-offline.js?v=4.59"></script>
   <script defer src="/home-offline.js?v=4.59"></script>
   <script defer src="/rudi-offline-content.js?v=4.59"></script>
-  <script defer src="/rudi-offline-saves.js?v=4.59"></script>
   <script defer src="/rudi-offline-transactions.js?v=4.59"></script>
   <script defer src="/rudi-effects.js?v=4.59"></script>
   <script defer src="/rudi-offline-pin.js?v=4.59"></script>
@@ -1471,22 +1470,7 @@
       </div>
     </section>
 
-    <section id="smartSavesHomeTile" class="panel smart-saves-home" data-app-tab-section="home" data-home-tile="smart-saves" aria-labelledby="smartSavesHomeTitle">
-      <div class="smart-saves-home-head">
-        <div class="smart-saves-home-copy">
-          <h2 id="smartSavesHomeTitle">Сохранённое</h2>
-          <small>Недавнее</small>
-        </div>
-      </div>
-      <div id="smartSavesHomeList" class="smart-saves-home-list"></div>
-      <div id="smartSavesHomeEmpty" class="smart-saves-empty">Отправь текст или ссылку в Telegram-бот РуДи — сохранение появится здесь.</div>
-      <button id="smartSavesHomeMore" class="smart-saves-home-more" type="button">
-        <span>Всё сохранённое</span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
-      </button>
-    </section>
-
-    <section id="smartHomeTile" class="panel smart-home-tile is-compact" data-app-tab-section="home" data-home-tile="smart-home" aria-labelledby="smartHomeTitle">
+<section id="smartHomeTile" class="panel smart-home-tile is-compact" data-app-tab-section="home" data-home-tile="smart-home" aria-labelledby="smartHomeTitle">
       <div class="smart-home-head">
         <div class="smart-home-title-wrap">
           <span class="smart-home-title-icon" aria-hidden="true">
@@ -2127,21 +2111,7 @@
       </article>
     </section>
 
-    <section class="smart-saves-page" data-app-tab-section="smart-saves" aria-labelledby="smartSavesPageTitle">
-      <div class="rudi-app-page-head smart-saves-page-head">
-        <button id="smartSavesBackButton" class="smart-saves-back rudi-app-page-back" type="button" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
-        <h1 id="smartSavesPageTitle">Сохранённое</h1><span></span>
-      </div>
-      <div id="smartSavesFilters" class="smart-saves-filters" role="group" aria-label="Фильтр сохранений по автору">
-        <button type="button" data-smart-saves-filter="Рустам" aria-pressed="false">Рустам</button>
-        <button type="button" data-smart-saves-filter="Диана" aria-pressed="false">Диана</button>
-        <button type="button" data-smart-saves-filter="all" aria-pressed="true">Все</button>
-      </div>
-      <div id="smartSavesPageList" class="smart-saves-page-list"></div>
-      <div id="smartSavesPageEmpty" class="smart-saves-empty">Здесь пока пусто.</div>
-    </section>
-
-    <section id="weatherForecastPage" class="section-block weather-forecast-page" data-no-pull-refresh="true" data-app-tab-section="weather" aria-labelledby="weatherForecastTitle" hidden>
+<section id="weatherForecastPage" class="section-block weather-forecast-page" data-no-pull-refresh="true" data-app-tab-section="weather" aria-labelledby="weatherForecastTitle" hidden>
       <div class="weather-forecast-dialog weather-forecast-page-card">
         <div class="weather-forecast-sky" aria-hidden="true"><i class="forecast-sun"></i><i class="forecast-cloud"></i><i class="forecast-precipitation"></i><i class="forecast-fog"></i></div>
         <header class="rudi-app-page-head">
