@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 let scope='personal',notes=[],current=null,images=[],selection=null,page,home,busy=false,dirty=false,generation=0,refreshId=0,listRevision=0;
 const actor=()=>document.body.dataset.rudiActor||'';
-let session=actor();
+let session=actor(),homeExpanded=false;
 const el=(tag,cls,text)=>{const x=document.createElement(tag);if(cls)x.className=cls;if(text!==undefined)x.textContent=text;return x;};
 function richText(node,text){
  node.replaceChildren();let last=0;const pattern=/(?:https?:\/\/|www\.)[^\s<>]+/gi;
@@ -45,7 +45,7 @@ function setBusy(value){busy=value;for(const button of page.querySelectorAll('bu
 async function save(){if(busy)return;if(!$('notesCenterTitle').value.trim()){status('Добавь заголовок');$('notesCenterTitle').focus();return;}const epoch=generation;setBusy(true);status('Сохраняю…');try{await api('save',{id:current.id,title:$('notesCenterTitle').value,text:$('notesCenterText').value,images,expectedUpdatedAt:current.updatedAt||''});if(epoch!==generation)return;dirty=false;await list();void refreshHome();}catch(e){if(epoch===generation)status(navigator.onLine?e.message:'Нет интернета. Текст и картинки остаются в редакторе. Сохрани после подключения.');}finally{if(epoch===generation)setBusy(false);}}
 async function pinHome(){if(busy||!current)return;if(dirty||!current.updatedAt){status('Сначала сохрани изменения');return;}const epoch=generation;setBusy(true);try{await api('home-set',{scope,id:current.id},'shared');if(epoch!==generation)return;selection={scope,id:current.id};status('Эта заметка выбрана для главной');void refreshHome();}catch(e){if(epoch===generation)status(e.message);}finally{if(epoch===generation)setBusy(false);}}
 async function remove(){if(!current?.updatedAt||busy)return;if(!window.confirm('Удалить заметку?'+(scope==='shared'?' Она исчезнет у вас обоих.':'')))return;const epoch=generation;setBusy(true);try{await api('delete',{id:current.id,expectedUpdatedAt:current.updatedAt});if(epoch!==generation)return;dirty=false;await list();void refreshHome();}catch(e){if(epoch===generation)status(e.message);}finally{if(epoch===generation)setBusy(false);}}
-function close(){if(busy||!abandon())return;dirty=false;listRevision++;page.hidden=true;document.body.classList.remove('notes-center-open');$('rudiHomeNotesButton')?.focus();}
+function close(){if(busy||!abandon())return;dirty=false;listRevision++;page.hidden=true;document.body.classList.remove('notes-center-open');home?.querySelector('.home-note-edit')?.focus();}
 function ensure(){if(page)return;page=el('section','notes-center');page.id='notesCenterPage';page.hidden=true;page.setAttribute('aria-label','Заметки');page.innerHTML='<header class="notes-head"><button type="button" id="notesCenterBack" aria-label="Назад">‹</button><h1>Заметки</h1><button type="button" id="notesCenterAdd" aria-label="Новая заметка">＋</button></header><nav class="notes-tabs" aria-label="Тип заметок"><button type="button" data-notes-scope="personal">Личные</button><button type="button" data-notes-scope="shared">Общие</button></nav><p id="notesCenterStatus" role="status" aria-live="polite"></p><div id="notesCenterList"></div><section id="notesCenterEditor" hidden><label>Заголовок<input id="notesCenterTitle" maxlength="100" placeholder="Название заметки"></label><label>Текст<textarea id="notesCenterText" maxlength="8000" placeholder="Запиши важное…"></textarea></label><div id="notesCenterReadPreview" class="notes-read-preview" aria-label="Просмотр текста со ссылками"></div><div id="notesCenterImages"></div><label class="notes-attach">Прикрепить картинки · до 3<input id="notesCenterFiles" type="file" accept="image/*" multiple></label><p class="notes-editor-hint">Ссылки в тексте будут отображаться словом «ссылка».</p><div class="notes-actions"><button type="button" id="notesCenterSave">Сохранить</button><button type="button" id="notesCenterPin">На главную</button><button type="button" id="notesCenterDelete">Удалить</button></div><button type="button" id="notesCenterListBack">К списку</button></section>';
  document.body.append(page);$('notesCenterBack').onclick=()=>{if(current){if(!busy&&abandon())void list();}else close();};$('notesCenterAdd').onclick=()=>{if(abandon())showEditor(null);};$('notesCenterSave').onclick=save;$('notesCenterDelete').onclick=remove;$('notesCenterPin').onclick=pinHome;$('notesCenterListBack').onclick=()=>{if(abandon())void list();};
  for(const b of page.querySelectorAll('[data-notes-scope]'))b.onclick=()=>{if(!abandon())return;scope=b.dataset.notesScope;updateTabs();void list();};
@@ -56,23 +56,33 @@ function ensure(){if(page)return;page=el('section','notes-center');page.id='note
 }
 function updateTabs(){for(const b of page.querySelectorAll('[data-notes-scope]'))b.setAttribute('aria-pressed',String(b.dataset.notesScope===scope));}
 async function open(){if(!['Рустам','Диана'].includes(actor()))return;ensure();if(!page.hidden)return;page.hidden=false;document.body.classList.add('notes-center-open');updateTabs();void list();}
+function renderHomeCard(note,message=''){
+ home.replaceChildren();home.classList.toggle('is-expanded',homeExpanded);
+ const head=el('div','home-note-head');
+ const toggle=el('button','home-note-toggle');toggle.type='button';toggle.setAttribute('aria-expanded',String(homeExpanded));toggle.setAttribute('aria-controls','dynamicHomeNoteContent');
+ const mark=el('span','home-note-mark');mark.setAttribute('aria-hidden','true');mark.innerHTML='<svg viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M8.5 8h7M8.5 12h7M8.5 16h4"/></svg>';
+ toggle.append(mark,el('span','',note?.title||'Заметка'));
+ const tools=el('div','home-note-tools'),edit=el('button','home-note-edit');edit.type='button';edit.title='Открыть заметки';edit.setAttribute('aria-label','Открыть личные и общие заметки');edit.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 5 4 4M4 20l4.5-1 11-11a2.8 2.8 0 0 0-4-4l-11 11L4 20Z"/></svg>';edit.onclick=open;tools.append(edit);head.append(toggle,tools);
+ const content=el('div','home-note-content');content.id='dynamicHomeNoteContent';content.hidden=!homeExpanded;
+ const text=el('div','home-note-preview');richText(text,message||note?.text||'Выбери заметку для главной страницы через карандаш');content.append(text);
+ if(note?.images?.length){const gallery=el('div','notes-home-images');for(const src of note.images){const b=el('button');b.type='button';b.append(thumbnail(src,'Изображение к заметке'));b.onclick=()=>viewImage(src);gallery.append(b);}content.append(gallery);}
+ toggle.onclick=()=>{homeExpanded=!homeExpanded;home.classList.toggle('is-expanded',homeExpanded);content.hidden=!homeExpanded;toggle.setAttribute('aria-expanded',String(homeExpanded));};
+ home.append(head,content);
+}
 async function refreshHome(){const who=actor(),epoch=generation,run=++refreshId;if(!['Рустам','Диана'].includes(who)||!document.body.classList.contains('auth-ok'))return;
  const original=$('homeNoteTile');if(!original)return;
- if(!home){home=el('section','home-note notes-home-card');home.id='dynamicHomeNoteTile';home.dataset.appTabSection='home';home.dataset.homeTile='note';original.after(home);}
+ if(!home){home=el('section','home-note');home.id='dynamicHomeNoteTile';home.dataset.appTabSection='home';home.dataset.homeTile='note';original.after(home);}
  try{
   const selected=await api('home-get',{},'shared');if(epoch!==generation||run!==refreshId)return;selection=selected.selection;
   let note;
-  if(selection?.scope==='shared'){try{note=(await api('get',{id:selection.id},'shared')).note;}catch(e){if(!e.message.includes('Профиль')){home.replaceChildren(el('p','','Выбранная общая заметка недоступна. Выбери другую в Заметках.'));const choose=el('button','','Выбрать заметку');choose.type='button';choose.onclick=open;home.append(choose);document.body.classList.add('notes-center-enabled');home.hidden=document.body.dataset.appTab!=='home';}return;}}
+  if(selection?.scope==='shared'){try{note=(await api('get',{id:selection.id},'shared')).note;}catch(e){if(!e.message.includes('Профиль')){renderHomeCard(null,'Выбранная общая заметка недоступна. Выбери другую через карандаш.');document.body.classList.add('notes-center-enabled');home.hidden=document.body.dataset.appTab!=='home';}return;}}
   else{note=(await api('get-history',{id:selection?.id||'home'},'personal')).note;if(note?.deleted)note=null;}
   if(epoch!==generation||run!==refreshId)return;
-  home.replaceChildren();const head=el('button','notes-home-title',note?.title||'Заметки');head.type='button';head.onclick=open;home.append(head);
-  const text=el('div','notes-home-text');richText(text,note?.text||'Выбери заметку для главной страницы');home.append(text);
-  if(note?.images?.length){const gallery=el('div','notes-home-images');for(const src of note.images){const b=el('button');b.type='button';b.append(thumbnail(src,'Изображение к заметке'));b.onclick=()=>viewImage(src);gallery.append(b);}home.append(gallery);}
-  home.append(el('small','notes-meta',selection?.scope==='shared'?'Общая заметка':'Личная заметка'));
+  renderHomeCard(note);
   document.body.classList.add('notes-center-enabled');home.hidden=document.body.dataset.appTab!=='home';
  }catch(e){if(epoch===generation&&run===refreshId&&home.childNodes.length===0)home.hidden=true;}
 }
-function sessionChanged(){const who=actor();if(session===who&&document.body.classList.contains('auth-ok'))return;session=who;generation++;refreshId++;notes=[];current=null;selection=null;images=[];dirty=false;busy=false;if(page){page.hidden=true;for(const input of page.querySelectorAll('input,textarea'))input.value='';$('notesCenterList').replaceChildren();$('notesCenterImages').replaceChildren();$('notesCenterReadPreview').replaceChildren();$('notesCenterEditor').hidden=true;for(const button of page.querySelectorAll('button,input,textarea'))button.disabled=false;}for(const dialog of document.querySelectorAll('.notes-image-dialog'))dialog.remove();home?.replaceChildren();if(home)home.hidden=true;document.body.classList.remove('notes-center-open','notes-center-enabled');if(who&&document.body.classList.contains('auth-ok'))void refreshHome();}
+function sessionChanged(){const who=actor();if(session===who&&document.body.classList.contains('auth-ok'))return;session=who;homeExpanded=false;generation++;refreshId++;notes=[];current=null;selection=null;images=[];dirty=false;busy=false;if(page){page.hidden=true;for(const input of page.querySelectorAll('input,textarea'))input.value='';$('notesCenterList').replaceChildren();$('notesCenterImages').replaceChildren();$('notesCenterReadPreview').replaceChildren();$('notesCenterEditor').hidden=true;for(const button of page.querySelectorAll('button,input,textarea'))button.disabled=false;}for(const dialog of document.querySelectorAll('.notes-image-dialog'))dialog.remove();home?.replaceChildren();if(home)home.hidden=true;document.body.classList.remove('notes-center-open','notes-center-enabled');if(who&&document.body.classList.contains('auth-ok'))void refreshHome();}
 let previousAuth=false;
 new MutationObserver(()=>{const authed=document.body.classList.contains('auth-ok');if(actor()!==session||authed!==previousAuth){previousAuth=authed;sessionChanged();if(authed)void refreshHome();}if(home)home.hidden=!authed||document.body.dataset.appTab!=='home';}).observe(document.body,{attributes:true,attributeFilter:['class','data-rudi-actor','data-app-tab']});
 window.addEventListener('focus',()=>{void refreshHome();if(page&&!page.hidden&&!dirty&&!busy&&!current)void list();});
