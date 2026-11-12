@@ -70,26 +70,50 @@ function renderHomeCard(note,message=''){
  toggle.onclick=()=>{homeExpanded=!homeExpanded;home.classList.toggle('is-expanded',homeExpanded);content.hidden=!homeExpanded;toggle.setAttribute('aria-expanded',String(homeExpanded));};
  home.append(head,content);
 }
+function syncHomeCard(){
+ if(!home)return;
+ const original=$('homeNoteTile');
+ if(!home.isConnected&&original?.isConnected)original.after(home);
+ const visible=['Рустам','Диана'].includes(actor())&&document.body.classList.contains('auth-ok')&&(!document.body.dataset.appTab||document.body.dataset.appTab==='home');
+ if(home.hidden===visible)home.hidden=!visible;
+ if(visible&&home.style.getPropertyValue('display')==='none')home.style.removeProperty('display');
+}
+let homeSyncQueued=false;
+function queueHomeCardSync(){if(homeSyncQueued)return;homeSyncQueued=true;requestAnimationFrame(()=>{homeSyncQueued=false;syncHomeCard();});}
+function ensureHomeCard(){
+ const original=$('homeNoteTile');if(!original)return false;
+ if(!home){
+  home=el('section','home-note');home.id='dynamicHomeNoteTile';home.dataset.appTabSection='home';home.dataset.homeTile='note';original.after(home);
+  new MutationObserver(queueHomeCardSync).observe(home,{attributes:true,attributeFilter:['hidden','style']});
+  const host=original.parentElement;if(host)new MutationObserver(queueHomeCardSync).observe(host,{childList:true});
+ }
+ // A home-order slot must identify exactly one card, including while data loads.
+ if(original.dataset.homeTile==='note')delete original.dataset.homeTile;
+ if(!home.childNodes.length)renderHomeCard(null);
+ document.body.classList.add('notes-center-enabled');syncHomeCard();return true;
+}
 async function refreshHome(){const who=actor(),epoch=generation,run=++refreshId;if(!['Рустам','Диана'].includes(who)||!document.body.classList.contains('auth-ok'))return;
- const original=$('homeNoteTile');if(!original)return;
- if(!home){home=el('section','home-note');home.id='dynamicHomeNoteTile';home.dataset.appTabSection='home';home.dataset.homeTile='note';original.after(home);}
+ if(!ensureHomeCard())return;
  try{
   const selected=await api('home-get',{},'shared');if(epoch!==generation||run!==refreshId)return;selection=selected.selection;
   let note;
-  if(selection?.scope==='shared'){try{note=(await api('get',{id:selection.id},'shared')).note;}catch(e){if(!e.message.includes('Профиль')){renderHomeCard(null,e.status===404?'':'Выбранная общая заметка недоступна. Выбери другую через карандаш.');document.body.classList.add('notes-center-enabled');home.hidden=document.body.dataset.appTab!=='home';}return;}}
-  else{note=(await api('get-history',{id:selection?.id||'home'},'personal')).note;if(note?.deleted)note=null;}
+  if(selection?.scope==='shared'){
+   try{note=(await api('get',{id:selection.id},'shared')).note;}
+   catch(e){if(epoch!==generation||run!==refreshId)return;if(e.status===404)renderHomeCard(null);syncHomeCard();return;}
+  }else{note=(await api('get-history',{id:selection?.id||'home'},'personal')).note;if(note?.deleted)note=null;}
   if(epoch!==generation||run!==refreshId)return;
-  renderHomeCard(note);
-  document.body.classList.add('notes-center-enabled');home.hidden=document.body.dataset.appTab!=='home';
- }catch(e){if(epoch===generation&&run===refreshId&&home.childNodes.length===0)home.hidden=true;}
+  renderHomeCard(note);syncHomeCard();
+ }catch(e){if(epoch===generation&&run===refreshId)syncHomeCard();}
 }
 function sessionChanged(){const who=actor();if(session===who&&document.body.classList.contains('auth-ok'))return;session=who;homeExpanded=false;generation++;refreshId++;notes=[];current=null;selection=null;images=[];dirty=false;busy=false;if(page){page.hidden=true;for(const input of page.querySelectorAll('input,textarea'))input.value='';$('notesCenterList').replaceChildren();$('notesCenterImages').replaceChildren();$('notesCenterReadPreview').replaceChildren();$('notesCenterEditor').hidden=true;for(const button of page.querySelectorAll('button,input,textarea'))button.disabled=false;}for(const dialog of document.querySelectorAll('.notes-image-dialog'))dialog.remove();home?.replaceChildren();if(home)home.hidden=true;document.body.classList.remove('notes-center-open','notes-center-enabled');if(who&&document.body.classList.contains('auth-ok'))void refreshHome();}
 let previousAuth=false;
-new MutationObserver(()=>{const authed=document.body.classList.contains('auth-ok');if(actor()!==session||authed!==previousAuth){previousAuth=authed;sessionChanged();if(authed)void refreshHome();}if(home)home.hidden=!authed||document.body.dataset.appTab!=='home';}).observe(document.body,{attributes:true,attributeFilter:['class','data-rudi-actor','data-app-tab']});
+new MutationObserver(()=>{const authed=document.body.classList.contains('auth-ok');if(actor()!==session||authed!==previousAuth){previousAuth=authed;sessionChanged();if(authed)void refreshHome();}syncHomeCard();}).observe(document.body,{attributes:true,attributeFilter:['class','data-rudi-actor','data-app-tab']});
 window.addEventListener('focus',()=>{void refreshHome();if(page&&!page.hidden&&!dirty&&!busy&&!current)void list();});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshHome();});
 window.addEventListener('online',()=>void refreshHome());
 document.addEventListener('rudi:home-tiles-ready',()=>void refreshHome());
+document.addEventListener('rudi:home-order-change',queueHomeCardSync);
+window.addEventListener('rudi:app-tab-change',queueHomeCardSync);
 window.RudiNotesCenter={open,close,refreshHome,richText};
 setInterval(()=>{if(!document.hidden&&document.body.dataset.appTab==='home'&&!dirty&&!busy)void refreshHome();},60000);
 void refreshHome();
