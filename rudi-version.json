@@ -1,15 +1,15 @@
 {
-  "current": "v4.67",
-  "versionBranch": "rudi-notes-clean-editor-20261112",
+  "current": "v4.68",
+  "versionBranch": "rudi-notes-full-cards-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-12",
-  "basedOnProduction": "v4.66",
+  "basedOnProduction": "v4.67",
   "notes": [
-    "В редакторе убраны повтор текста и подпись о ссылках. Закрепление перенесено в булавку рядом с карандашом. Чек-листы оформлены как на главной."
+    "Заметки сразу отображаются полными карточками. Добавлен плавный выход свайпом вправо на главную и открытие ссылок через браузер."
   ],
   "changes": [
-    "Hide preview during note editing, remove link hint, use compact pin action and rounded square checklists."
+    "Render full note cards immediately, add animated swipe exit and external browser links."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
