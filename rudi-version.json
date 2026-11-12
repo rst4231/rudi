@@ -1,15 +1,15 @@
 {
-  "current": "v4.71",
+  "current": "v4.72",
   "versionBranch": "rudi-notes-ownership-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-12",
-  "basedOnProduction": "v4.70",
+  "basedOnProduction": "v4.71",
   "notes": [
-    "Кнопки заметки перенесены вниз справа, над подписью автора. Заголовок и текст больше не разделены панелью действий."
+    "Кнопки заметки справа на одной строке с подписью о правках."
   ],
   "changes": [
-    "Move personal and shared note controls below content, directly above author metadata."
+    "Align note metadata and action buttons in a single footer row."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
