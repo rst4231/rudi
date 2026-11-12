@@ -6,10 +6,10 @@
   "createdAt": "2026-11-12",
   "basedOnProduction": "v4.68",
   "notes": [
-    "Автоисправление заметок через Groq, отмена редактирования, авторы правок и удаление только своих. Сохранённое заменено общими заметками с переносом старых записей и сохранением новых сообщений боту."
+    "Заметки: перенос между личными и общими, отмена правок, Groq, авторы изменений и защита удаления. Сохранённое заменено общими заметками, старые записи переносятся автоматически."
   ],
   "changes": [
-    "Replace Saved with shared Telegram notes and idempotent archive migration; add automatic proofreading, edit cancellation and note ownership."
+    "Shared Telegram saves and archive migration, automatic proofreading, cancellation, ownership and safe note transfer."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }

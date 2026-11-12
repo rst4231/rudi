@@ -11,7 +11,7 @@ const validId=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{1,80}$/.test(id);
 const noteKey=id=>id==='home'?NOTE_KEY:'home-note-v2:'+id;
 function normalizeStored(value){
  const row=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
- return {images:Array.isArray(row.images)?row.images.filter(x=>typeof x==='string'&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(x)&&x.length<=420000).slice(0,3):[],...(row.deleted===true?{deleted:true}:{}),text:typeof row.text==='string'?row.text.slice(0,MAX_LENGTH):'',updatedAt:typeof row.updatedAt==='string'?row.updatedAt:'',title:typeof row.title==='string'?row.title.slice(0,100):'',pinned:row.pinned===true,history:Array.isArray(row.history)?row.history.slice(-20).filter(v=>v&&typeof v.text==='string').map(v=>({text:v.text.slice(0,MAX_LENGTH),title:String(v.title||'').slice(0,100),pinned:v.pinned===true,updatedAt:String(v.updatedAt||'')})):[]};
+ return {...Object.fromEntries(['attachments','savedBy','savedAt','source','transferSource'].filter(k=>row[k]!==undefined).map(k=>[k,row[k]])),images:Array.isArray(row.images)?row.images.filter(x=>typeof x==='string'&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/.test(x)&&x.length<=420000).slice(0,3):[],...(row.deleted===true?{deleted:true}:{}),text:typeof row.text==='string'?row.text.slice(0,MAX_LENGTH):'',updatedAt:typeof row.updatedAt==='string'?row.updatedAt:'',title:typeof row.title==='string'?row.title.slice(0,100):'',pinned:row.pinned===true,history:Array.isArray(row.history)?row.history.slice(-20).filter(v=>v&&typeof v.text==='string').map(v=>({text:v.text.slice(0,MAX_LENGTH),title:String(v.title||'').slice(0,100),pinned:v.pinned===true,updatedAt:String(v.updatedAt||'')})):[]};
 }
 function createHandler(deps={}){
  const authorize=deps.authorizeRequest||authorizeRequest;
@@ -37,7 +37,7 @@ function createHandler(deps={}){
   if(req.method!=='POST')return res.status(405).json({ok:false,error:'method-not-allowed'});
   try{
    const body=req.body&&typeof req.body==='object'&&!Array.isArray(req.body)?req.body:{};
-   const {actor}=authorize(req,body.initData);
+   const authorization=authorize(req,body.initData),{actor}=authorization;
    // Private notes about the partner are stored under distinct viewer-owned keys.
    const partner=body.scope==='partner';
    const NOTE_KEY=partner?'partner-home-note-v1':'home-note-v1';
@@ -61,6 +61,13 @@ function createHandler(deps={}){
     }
     try{return res.status(200).json({ok:true,text:await pending.get(key)})}
     catch(_){return res.status(503).json({ok:false,error:'proofread-unavailable'})}
+   }
+   if(operation==='send-attachment'){
+    if(!validId(body.id))return res.status(400).json({ok:false,error:'invalid-note'});
+    const note=normalizeStored(await read(actor,noteKey(body.id)));
+    if(note.deleted||!note.updatedAt)return res.status(404).json({ok:false,error:'note-not-found'});
+    const result=await require('./shared-notes-telegram.cjs').sendNoteAttachment(note,body.attachmentId,authorization,state||createRudiStateClient(),deps);
+    return res.status(200).json({ok:true,...result});
    }
    if(operation==='get-history'){
     const id=body.id===undefined?'home':body.id;
@@ -134,7 +141,8 @@ function createHandler(deps={}){
     }
     let updatedAt=now();
     if(Date.parse(updatedAt)<=Date.parse(previous.updatedAt))updatedAt=new Date(Date.parse(previous.updatedAt)+1).toISOString();
-    const note={id,text,title,images,pinned,updatedAt,history:history.slice(-20)};
+    const retained=Object.fromEntries(['attachments','savedBy','savedAt','source','transferSource'].filter(k=>previous[k]!==undefined).map(k=>[k,previous[k]]));
+    const note={id,text,title,images,pinned,updatedAt,history:history.slice(-20),...retained,...(deps.importMetadata||{})};
     await write(actor,noteKey(id),note);
     return res.status(200).json({ok:true,note});
     }finally{await release().catch(error=>console.error('RUDI_HOME_NOTE_LOCK_RELEASE',String(error?.message||error)))}

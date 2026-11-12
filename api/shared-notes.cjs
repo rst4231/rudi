@@ -21,6 +21,7 @@ function createHandler(deps={}){
    const b=req.body||{}, authorization=auth(req,b.initData),{actor}=authorization;
    if(!['Рустам','Диана'].includes(actor))throw Error('rudi-access-denied');
    const op=b.operation||'list';
+   if(op==='transfer'){return res.status(200).json({ok:true,...await require('./shared-notes-transfer.cjs').transferNote(req,authorization,{...deps,sharedHandler:createHandler(deps)})});}
    if(op==='migrate-saved'){const migration=await require('./shared-notes-migration.cjs').migrateSavedNotes({...deps,stateClient:state()});return res.status(200).json({ok:true,migration});}
    if(op==='list'){
     const index=(await read('index'))?.notes||[];
@@ -52,8 +53,8 @@ function createHandler(deps={}){
    if(op==='save'&&!previous&&index.length>=600)return res.status(400).json({ok:false,error:'note-limit'});
    let updatedAt=now();
    if(previous?.updatedAt&&updatedAt<=previous.updatedAt)updatedAt=new Date(Date.parse(previous.updatedAt)+1).toISOString();
-   const retained=Object.fromEntries(['savedBy','savedAt','source','attachments'].filter(key=>previous?.[key]!==undefined).map(key=>[key,previous[key]]));
-   const note=op==='delete'?{id:b.id,deleted:true,updatedAt}:{id:b.id,...clean,...retained,author:previous?.author||actor,updatedBy:actor,createdAt:previous?.createdAt||updatedAt,updatedAt};
+   const retained=Object.fromEntries(['savedBy','savedAt','source','attachments','transferSource'].filter(key=>previous?.[key]!==undefined).map(key=>[key,previous[key]]));
+   const note=op==='delete'?{id:b.id,deleted:true,updatedAt}:{id:b.id,...clean,...retained,...(deps.importMetadata||{}),author:previous?.author||actor,updatedBy:actor,createdAt:previous?.createdAt||updatedAt,updatedAt};
    // Register new IDs first so a retry after a partial failure remains discoverable.
    if(op==='save'&&!index.some(x=>x.id===b.id))await state().set(NS,'index',{notes:[...index,{id:b.id,title:clean.title,updatedAt,author:actor}]});
    await state().set(NS,'note:'+b.id,note);
@@ -64,7 +65,7 @@ function createHandler(deps={}){
    return res.status(200).json({ok:true,note});
   }catch(e){
    const error=String(e?.message||e);
-   const status=error.startsWith('invalid-')?400:error==='rudi-access-denied'?403:require('./rudi-request-auth.cjs').statusForError(e);
+   const status=error.startsWith('invalid-')?400:error==='note-conflict'?409:error==='note-not-found'?404:error==='rudi-access-denied'?403:require('./rudi-request-auth.cjs').statusForError(e);
    return res.status(status).json({ok:false,error:status>=500?'storage-unavailable':error});
   }finally{if(locked)await state().remove(NS,'write-lock').catch(()=>{});}
  };
