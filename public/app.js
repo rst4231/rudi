@@ -4200,8 +4200,35 @@
         mountFinanceCoinModal(modal,null);
       }
 
+      let financeCoinGesture=null;
+      function stopFinanceCoinGesture(source){
+        const gesture=financeCoinGesture;if(!gesture||(source&&gesture.source!==source))return;
+        financeCoinGesture=null;gesture.dispose();
+      }
+      function cancelFinanceCoinGesture(){
+        const gesture=financeCoinGesture;stopFinanceCoinGesture();gesture?.cancel();
+        cleanupFinanceIncomeDrag();
+        document.querySelectorAll('.finance-income-drag-ghost').forEach(node=>node.remove());
+        document.querySelectorAll('.finance-wallet-item.is-transfer-target,.finance-category-coin-item.is-drop-target').forEach(node=>node.classList.remove('is-drop-target','is-transfer-target'));
+        document.body.classList.remove('finance-income-dragging');
+      }
+      function trackFinanceCoinGesture(source,pointerId,finish,cancel){
+        stopFinanceCoinGesture();
+        const end=event=>{if(event.pointerId===pointerId)finish(event)};
+        const abort=event=>{if(event.pointerId===pointerId){stopFinanceCoinGesture(source);cancel()}};
+        const dispose=()=>{document.removeEventListener('pointerup',end,true);document.removeEventListener('pointercancel',abort,true);source.removeEventListener('lostpointercapture',abort)};
+        financeCoinGesture={source,cancel,dispose};
+        document.addEventListener('pointerup',end,true);document.addEventListener('pointercancel',abort,true);source.addEventListener('lostpointercapture',abort);
+      }
+      window.addEventListener('blur',cancelFinanceCoinGesture);
+      window.addEventListener('focus',cancelFinanceCoinGesture);
+      window.addEventListener('pagehide',cancelFinanceCoinGesture);
+      window.addEventListener('rudi:app-tab-change',cancelFinanceCoinGesture);
+      document.addEventListener('visibilitychange',cancelFinanceCoinGesture);
       function cleanupFinanceIncomeDrag(){
         const drag=financeIncomeDrag;if(!drag)return;
+        financeIncomeDrag=null;stopFinanceCoinGesture(drag.source);
+        try{drag.source?.releasePointerCapture?.(drag.pointerId)}catch(_){}
         drag.target?.classList.remove('is-drop-target');
         drag.ghost?.remove();
         document.body.classList.remove('finance-income-dragging');
@@ -4214,12 +4241,14 @@
         coin.dataset.dragBound='1';
         coin.addEventListener('pointerdown',event=>{
           if(event.button!==undefined&&event.button!==0)return;
+          cancelFinanceCoinGesture();
           const rect=coin.getBoundingClientRect();
           const ghost=document.createElement('div');ghost.className='finance-income-drag-ghost';ghost.textContent='₽';
           ghost.style.width=rect.width+'px';ghost.style.height=rect.height+'px';ghost.style.left=event.clientX+'px';ghost.style.top=event.clientY+'px';
           document.body.append(ghost);
-          financeIncomeDrag={pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,ghost,target:null,moved:false};
-          coin.setPointerCapture?.(event.pointerId);
+          financeIncomeDrag={source:coin,pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,ghost,target:null,moved:false};
+          trackFinanceCoinGesture(coin,event.pointerId,finish,cleanupFinanceIncomeDrag);
+          try{coin.setPointerCapture?.(event.pointerId)}catch(_){}
           event.preventDefault();
         });
         coin.addEventListener('pointermove',event=>{
@@ -4470,6 +4499,7 @@
       function bindFinanceWalletDrag(item,list,wallet){
         let drag=null;
         let reorderGesture=null;
+        const cancelNormal=()=>{const previous=drag;drag=null;stopFinanceCoinGesture(item);previous?.target?.classList.remove('is-drop-target','is-transfer-target');previous?.ghost?.remove();document.body.classList.remove('finance-income-dragging');if(previous)try{item.releasePointerCapture?.(previous.pointerId)}catch(_){}};
 
         const cleanupReorder=()=>{
           if(!reorderGesture)return;
@@ -4542,11 +4572,13 @@
             return;
           }
 
+          cancelFinanceCoinGesture();
           drag={
             pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,
             moved:false,target:null,targetKind:'',ghost:null,cancelled:false,
             allowHorizontal:Boolean(event.target.closest?.('.finance-wallet-coin'))
           };
+          trackFinanceCoinGesture(item,event.pointerId,finishNormal,cancelNormal);
         });
 
         item.addEventListener('pointermove',event=>{
@@ -4590,10 +4622,7 @@
           const moved=drag.moved,cancelled=drag.cancelled,target=drag.target,targetKind=drag.targetKind;
           const categoryId=targetKind==='category'?target?.dataset?.categoryId||'':'';
           const targetWalletId=targetKind==='wallet'?target?.dataset?.walletId||'':'';
-          target?.classList.remove('is-drop-target','is-transfer-target');
-          drag.ghost?.remove();document.body.classList.remove('finance-income-dragging');
-          try{item.releasePointerCapture?.(event.pointerId)}catch(_){}
-          drag=null;
+          cancelNormal();
           if(moved&&targetWalletId){
             openFinanceTransferComposer({fromWalletId:wallet.id,toWalletId:targetWalletId,focusAmount:true});
             try{tg?.HapticFeedback?.impactOccurred?.('medium')}catch(_){}
@@ -4606,12 +4635,7 @@
         };
 
         item.addEventListener('pointerup',finishNormal);
-        item.addEventListener('pointercancel',event=>{
-          drag?.target?.classList.remove('is-drop-target','is-transfer-target');
-          drag?.ghost?.remove();
-          document.body.classList.remove('finance-income-dragging');
-          drag=null;
-        });
+        item.addEventListener('pointercancel',event=>{if(drag?.pointerId===event.pointerId)cancelNormal()});
 
         item.addEventListener('click',event=>{
           if(item.dataset.suppressClick==='1'){
@@ -4779,6 +4803,7 @@
       }
 
       function renderFinanceWallets(){
+        cancelFinanceCoinGesture();
         const list=document.getElementById('financeWalletList'),empty=document.getElementById('financeWalletEmpty');if(!list)return;
         const wallets=Array.isArray(financeState.wallets)?financeState.wallets:[];
         list.replaceChildren();if(empty)empty.hidden=true;
