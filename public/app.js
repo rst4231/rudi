@@ -8525,7 +8525,7 @@
         const list=luluProfilePage.querySelector('.lulu-profile-history');list.replaceChildren();
         if(!rows.length){const empty=document.createElement('p');empty.textContent='В этом месяце прогулок пока нет';list.append(empty);return}
         let day='';
-        for(const row of rows.slice().reverse()){
+        for(const row of rows.slice(-4).reverse()){
           const date=new Date(row.walkedAt),key=sharedAlbumDateKey(date);
           if(day!==key){day=key;const heading=document.createElement('h3');heading.textContent=key===today?'Сегодня':new Intl.DateTimeFormat('ru-RU',{timeZone:TZ,day:'numeric',month:'long'}).format(date);list.append(heading)}
           const item=document.createElement('article');item.className='lulu-profile-walk';
