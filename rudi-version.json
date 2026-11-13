@@ -1,15 +1,15 @@
 {
-  "current": "v4.72",
+  "current": "v4.73",
   "versionBranch": "rudi-notes-ownership-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
-  "createdAt": "2026-11-12",
-  "basedOnProduction": "v4.71",
+  "createdAt": "2026-11-13",
+  "basedOnProduction": "v4.72",
   "notes": [
-    "Кнопки заметки справа на одной строке с подписью о правках."
+    "Иконка обновления геопозиции рядом с городом. Цвет времени прогулки Лулу по давности. Сокращённые дни мойки. Вопрос дня меняется по расписанию только после ответов обоих."
   ],
   "changes": [
-    "Align note metadata and action buttons in a single footer row."
+    "Compact location refresh; Lulu walk time recency; abbreviated car wash weekdays; gate scheduled daily question rotation on both answers."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
