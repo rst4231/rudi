@@ -7,6 +7,7 @@ test('provider failure still creates one shared daily question and rotates witho
  const day1={...common,now:Date.parse('2026-11-05T05:00:00Z')},first=await readDailyQuestion('Рустам',day1);
  assert.ok(first.question.text.length>=12);assert.equal((await readDailyQuestion('Диана',day1)).question.id,first.question.id);assert.equal(calls,1);
  await answerDailyQuestion('Рустам','Ответ за вчера',day1);
+ await answerDailyQuestion('Диана','Мой ответ',day1);
  const next=await readDailyQuestion('Рустам',{...common,now:Date.parse('2026-11-06T05:00:00Z')});
  assert.notEqual(next.question.text,first.question.text);assert.equal(next.mineAnswered,false);assert.equal((await common.dailyQuestionCache.get('day:2026-11-05')).answers['Рустам'].text,'Ответ за вчера');
 });
@@ -46,3 +47,4 @@ test('reserve is used only after exactly three failed provider requests',async()
  resetMutationQueueForTests();let calls=0;const result=await readDailyQuestion('Рустам',{now:Date.parse('2026-11-05T05:00:00Z'),dailyQuestionCache:cache(),dailyQuestionHistoryCache:cache(),apiKey:'test',fetch:async()=>{calls++;return{ok:false,status:503}}});
  assert.equal(calls,3);assert.equal(result.question.provider,'local');
 });
+

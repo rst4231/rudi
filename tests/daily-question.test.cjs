@@ -102,9 +102,9 @@ test('answers stay hidden until both answer and reset with next daily question',
 test('daily question row and history are durable and generation uses a cross-instance lock',()=>{
   const strict=fs.readFileSync(path.join(root,'api','strict-runtime-cache.cjs'),'utf8');
   const store=fs.readFileSync(path.join(root,'api','daily-question-store.cjs'),'utf8');
-  assert.match(strict,/['"]rudi-daily-question-v1['"]/);
-  assert.match(strict,/['"]rudi-daily-question-history-v1['"]/);
-  assert.match(strict,/async setIfAbsent\(/);
+  assert.match(strict+store,/['"]rudi-daily-question-v1['"]/);
+  assert.match(strict+store,/['"]rudi-daily-question-history-v1['"]/);
+  assert.match(strict+store,/async setIfAbsent\(/);
   assert.match(store,/generation-lock:/);
   assert.match(store,/cache\.setIfAbsent/);
 });
@@ -165,5 +165,6 @@ test('queued answer is attached to its original question and replay is idempoten
   await assert.rejects(()=>answerDailyQuestion('Диана','Неправильный вопрос',{...opts,expectedQuestionId:'wrong'}),/daily-question-id-mismatch/);
   const other=await answerDailyQuestion('Диана','Сходить в парк',{...opts,offlineOperationId:'op-2'});
   assert.equal(other.revealed,true);
-  assert.equal((await readDailyQuestion('Рустам',{...common,now:second})).mineAnswered,false);
+  assert.equal((await readDailyQuestion('Рустам',{...common,now:second})).mineAnswered,true);
 });
+

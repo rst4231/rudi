@@ -1126,17 +1126,7 @@
     if(index===0) return 'сегодня';
     const date=new Date(String(dateValue||'')+'T12:00:00+03:00');
     if(Number.isNaN(date.getTime())) return '';
-    const day=new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',weekday:'long'}).format(date);
-    const forms={
-      'понедельник':'в понедельник',
-      'вторник':'во вторник',
-      'среда':'в среду',
-      'четверг':'в четверг',
-      'пятница':'в пятницу',
-      'суббота':'в субботу',
-      'воскресенье':'в воскресенье'
-    };
-    return forms[day]||('в '+day);
+    return new Intl.DateTimeFormat('ru-RU',{timeZone:'Europe/Moscow',weekday:'short'}).format(date).toLocaleUpperCase('ru-RU');
   }
 
   function bestCarWashDay(weather,{startIndex=0}={}){
@@ -1921,3 +1911,4 @@
   else start();
 })();
 /* v2.135 production release marker */
+

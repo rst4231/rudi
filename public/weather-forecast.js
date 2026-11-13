@@ -45,7 +45,7 @@ function setupPage(){
   if(window.RUDI_WEATHER?.setSelectedCity)window.RUDI_WEATHER.setSelectedCity(choice);else try{localStorage.setItem(cityKey(),choice)}catch(_){}
   void loadForecast(choice,locationRequest);
  });
- const locationButton=node('button','Обновить геопозицию','weather-location-refresh');locationButton.type='button';
+ const locationButton=node('button',undefined,'weather-location-refresh');locationButton.type='button';locationButton.setAttribute('aria-label','Обновить геопозицию');locationButton.title='Обновить геопозицию';locationButton.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>';
  locationButton.addEventListener('click',()=>{const request=window.RUDI_WEATHER?.getAutomaticLocation?.({requestPermission:true});void loadForecast('auto',request)});
  modal.querySelector('.weather-forecast-location').append(locationButton);
  for(const button of modal.querySelectorAll('[data-forecast-view]'))button.addEventListener('click',()=>{view=button.dataset.forecastView;render()});
@@ -134,7 +134,7 @@ async function loadForecast(choice,locationRequest=null){
  modal.querySelector('.weather-forecast-status').textContent=choice==='auto'?'Определяю город…':'Загружаю прогноз…';render();
  try{
   const resolved=await (locationRequest||resolveCity(choice));if(!active||generation!==revision)return;city=resolved.city;locationNote=resolved.note;
-  locationButton.textContent=resolved.needsPermission?'Разрешить геопозицию':'Обновить геопозицию';
+  const locationLabel=resolved.needsPermission?'Разрешить геопозицию':'Обновить геопозицию';locationButton.setAttribute('aria-label',locationLabel);locationButton.title=locationLabel;
   if(locationRequest&&resolved.resolved&&savedCity()==='auto')window.dispatchEvent(new CustomEvent('rudi:weather-city-change',{detail:{city:'auto'}}));
   const data=await window.RUDI_WEATHER.get({forecast:true,city});if(!active||generation!==revision)return;
   payload=data;if(!data.daily?.time?.includes(selected))selected=data.daily?.time?.find(date=>date>=today())||selected;render();
@@ -232,4 +232,5 @@ async function renderCalendarHours(target,date){
 }
 window.RUDI_WEATHER_FORECAST={nearestCity,model,open,close,currentHourTime,renderCalendarDay,periodTemperatures,periodForecast,renderCalendarPeriods,renderCalendarHours};
 })();
+
 

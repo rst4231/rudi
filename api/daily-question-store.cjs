@@ -12,6 +12,7 @@ const GENERATION_LOCK_TTL_SECONDS=90;
 const GENERATION_WAIT_ATTEMPTS=80;
 const GENERATION_WAIT_MS=250;
 const ACTORS=['Рустам','Диана'];
+const ACTIVE_KEY='active-question-v1';
 let mutationTail=Promise.resolve();
 
 function cacheOf(options={}){
@@ -119,13 +120,34 @@ async function waitForDailyQuestion(cache,date,options={}){
   }
   return null;
 }
+function canRotate(row,today){
+ if(!ACTORS.every(actor=>row.answers[actor]))return false;
+ const completed=ACTORS.map(actor=>row.answers[actor].answeredAt).filter(value=>Number.isFinite(Date.parse(value))).map(value=>dateKey(value)).sort().at(-1);
+ return Boolean(completed&&completed<today);
+}
+async function currentQuestion(cache,today,options){
+ const pointer=await cache.get(ACTIVE_KEY);
+ if(pointer?.date){const row=normalizeRow(await cache.get(rowKey(pointer.date)),pointer.date);if(!row.question)throw Error('daily-question-missing');return {row,pinned:true};}
+ const existing=normalizeRow(await cache.get(rowKey(today)),today);if(existing.question)return {row:existing,pinned:false};
+ const history=normalizeHistory(await historyCacheOf(options).get(HISTORY_KEY));
+ for(const date of [...new Set(history.map(item=>item.date).filter(date=>date<=today))].sort().reverse()){
+  const row=normalizeRow(await cache.get(rowKey(date)),date);if(row.question)return {row,pinned:false};
+ }
+ return {row:null,pinned:false};
+}
+async function pinCurrent(cache,row){
+ await cache.set(rowKey(row.date),row,{ttl:HISTORY_TTL_SECONDS,tags:['rudi-daily-question'],name:rowKey(row.date)});
+ await cache.set(ACTIVE_KEY,{date:row.date},{ttl:HISTORY_TTL_SECONDS,tags:['rudi-daily-question'],name:ACTIVE_KEY});return row;
+}
 async function ensureDailyQuestion(options={}){
   return enqueue(async()=>{
     const now=Number(options.now||Date.now());
     const date=dateKey(now);
     const cache=cacheOf(options);
-    const existing=normalizeRow(await cache.get(rowKey(date)).catch(()=>null),date);
-    if(existing.question?.text) return existing;
+    const active=await currentQuestion(cache,date,options);
+    if(active.row&&!canRotate(active.row,date))return active.pinned?active.row:pinCurrent(cache,active.row);
+    const existing=normalizeRow(await cache.get(rowKey(date)),date);
+    if(existing.question?.text)return pinCurrent(cache,existing);
 
     const lockKey='generation-lock:'+date;
     if(typeof cache.setIfAbsent==='function'){
@@ -139,13 +161,13 @@ async function ensureDailyQuestion(options={}){
       });
       if(!acquired){
         const generatedElsewhere=await waitForDailyQuestion(cache,date,options);
-        if(generatedElsewhere?.question?.text)return generatedElsewhere;
+        if(generatedElsewhere?.question?.text)return pinCurrent(cache,generatedElsewhere);
         throw new Error('daily-question-generation-busy');
       }
     }
 
     const afterLock=normalizeRow(await cache.get(rowKey(date)).catch(()=>null),date);
-    if(afterLock.question?.text)return afterLock;
+    if(afterLock.question?.text)return pinCurrent(cache,afterLock);
 
     const historyCache=historyCacheOf(options);
     const history=normalizeHistory(await historyCache.get(HISTORY_KEY).catch(()=>null));
@@ -164,7 +186,7 @@ async function ensureDailyQuestion(options={}){
     }
 
     const concurrent=normalizeRow(await cache.get(rowKey(date)).catch(()=>null),date);
-    if(concurrent.question?.text) return concurrent;
+    if(concurrent.question?.text)return pinCurrent(cache,concurrent);
 
     const createdAt=new Date(now).toISOString();
     const row=normalizeRow({
@@ -181,7 +203,7 @@ async function ensureDailyQuestion(options={}){
     },date);
 
     await cache.set(rowKey(date),row,{
-      ttl:DAY_TTL_SECONDS,
+      ttl:HISTORY_TTL_SECONDS,
       tags:['rudi-daily-question'],
       name:rowKey(date),
     });
@@ -195,15 +217,15 @@ async function ensureDailyQuestion(options={}){
     });
 
     // Do not delete previous-day questions: offline answers can arrive later.
-    return row;
+    return pinCurrent(cache,row);
   });
 }
 // Home bootstrap must never wait for on-demand AI question generation.
 // The regular daily-question "get" endpoint still generates missing questions.
 async function readDailyQuestionCached(actor,options={}){
   const date=dateKey(Number(options.now||Date.now()));
-  const row=normalizeRow(await cacheOf(options).get(rowKey(date)).catch(()=>null),date);
-  return row.question?.text?questionView(row,actor):null;
+  const {row}=await currentQuestion(cacheOf(options),date,options);
+  return row?.question?.text&&!canRotate(row,date)?questionView(row,actor):null;
 }
 async function readDailyQuestion(actor,options={}){
   const row=await ensureDailyQuestion(options);
@@ -214,12 +236,12 @@ async function answerDailyQuestion(actor,value,options={}){
   const answer=cleanAnswer(value);
   const now=Number(options.now||Date.now());
   const today=dateKey(now);
-  const expectedDate=String(options.expectedDate||today);
+  const current=await ensureDailyQuestion(options);
+  const expectedDate=String(options.expectedDate||current.date);
   if(!/^\d{4}-\d{2}-\d{2}$/.test(expectedDate)||expectedDate>today)
     throw new Error('daily-question-date-invalid');
-  if(Math.abs(Date.parse(today+'T12:00:00Z')-Date.parse(expectedDate+'T12:00:00Z'))>30*86400000)
+  if(expectedDate!==current.date&&Math.abs(Date.parse(today+'T12:00:00Z')-Date.parse(expectedDate+'T12:00:00Z'))>30*86400000)
     throw new Error('daily-question-date-expired');
-  if(expectedDate===today) await ensureDailyQuestion(options);
   return enqueue(async()=>{
     const date=expectedDate;
     const cache=cacheOf(options);
@@ -234,7 +256,7 @@ async function answerDailyQuestion(actor,value,options={}){
     }
     row.answers[actor]={text:answer,answeredAt:new Date(now).toISOString()};
     await cache.set(rowKey(date),row,{
-      ttl:DAY_TTL_SECONDS,
+      ttl:HISTORY_TTL_SECONDS,
       tags:['rudi-daily-question'],
       name:rowKey(date),
     });
@@ -247,3 +269,4 @@ module.exports={
   dateKey,shiftDateKey,normalizeRow,normalizeHistory,questionView,
   ensureDailyQuestion,readDailyQuestion,readDailyQuestionCached,answerDailyQuestion,resetMutationQueueForTests,
 };
+

@@ -8550,6 +8550,14 @@
       window.addEventListener('rudi:app-tab-change',()=>closeLuluProfile(true));
       document.addEventListener('keydown',event=>{if(event.key==='Escape'&&luluProfilePage)closeLuluProfile()});
 
+      function syncLuluWalkTimeColor(now=Date.now()){
+        const time=document.querySelector('#luluWalkStatus time[data-walked-at]');if(!time)return;
+        const age=now-Date.parse(time.dataset.walkedAt);
+        time.dataset.recency=Number.isFinite(age)&&age<6*60*60*1000?'recent':'old';
+      }
+      setInterval(()=>{if(!document.hidden)syncLuluWalkTimeColor()},60000);
+      document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncLuluWalkTimeColor()});
+      window.addEventListener('focus',()=>syncLuluWalkTimeColor());
       function renderLulu(value){
         void window.RudiLuluCare?.syncHomeBath?.({actor:currentActor,request:luluRequest});
         const state=value&&typeof value==='object'?value:{};
@@ -8571,7 +8579,8 @@
         const time=new Intl.DateTimeFormat('ru-RU',{
           timeZone:TZ,hour:'2-digit',minute:'2-digit',hourCycle:'h23'
         }).format(date);
-        status.textContent='Гуляла в '+time;
+        const clock=document.createElement('time');clock.textContent=time;clock.dateTime=date.toISOString();clock.dataset.walkedAt=clock.dateTime;
+        status.replaceChildren(document.createTextNode('Гуляла в '),clock);syncLuluWalkTimeColor();
       }
 
       function ensureLuluWalkModal(){
