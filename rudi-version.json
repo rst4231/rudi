@@ -1,15 +1,15 @@
 {
-  "current": "v4.73",
+  "current": "v4.74",
   "versionBranch": "rudi-notes-ownership-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-13",
-  "basedOnProduction": "v4.72",
+  "basedOnProduction": "v4.73",
   "notes": [
-    "Иконка обновления геопозиции рядом с городом. Цвет времени прогулки Лулу по давности. Сокращённые дни мойки. Вопрос дня меняется по расписанию только после ответов обоих."
+    "Убрано зависание синей монетки при прерывании перетаскивания. История Лулу показывает 4 последние прогулки, счётчики учитывают весь месяц."
   ],
   "changes": [
-    "Compact location refresh; Lulu walk time recency; abbreviated car wash weekdays; gate scheduled daily question rotation on both answers."
+    "Clean finance drag ghosts across rerenders and lifecycle interruptions; display only the latest four Lulu walks."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
