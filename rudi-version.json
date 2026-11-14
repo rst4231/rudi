@@ -1,15 +1,15 @@
 {
-  "current": "v4.75",
+  "current": "v4.76",
   "versionBranch": "rudi-notes-ownership-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-14",
-  "basedOnProduction": "v4.74",
+  "basedOnProduction": "v4.75",
   "notes": [
-    "Возвращено прежнее поведение перетаскивания монеток. История Лулу по-прежнему показывает 4 последние прогулки."
+    "Возврат и удаление долгов из истории. Автосохранение деталей без отдельной кнопки. Контрастные кнопки внесения платежа и полного погашения."
   ],
   "changes": [
-    "Revert finance coin gesture cleanup changes while retaining the four most recent Lulu walks."
+    "Restore and delete archived debts; autosave debt details and emphasize payment actions."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
