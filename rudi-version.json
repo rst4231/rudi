@@ -1,15 +1,15 @@
 {
-  "current": "v4.74",
+  "current": "v4.75",
   "versionBranch": "rudi-notes-ownership-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
-  "createdAt": "2026-11-13",
-  "basedOnProduction": "v4.73",
+  "createdAt": "2026-11-14",
+  "basedOnProduction": "v4.74",
   "notes": [
-    "Убрано зависание синей монетки при прерывании перетаскивания. История Лулу показывает 4 последние прогулки, счётчики учитывают весь месяц."
+    "Возвращено прежнее поведение перетаскивания монеток. История Лулу по-прежнему показывает 4 последние прогулки."
   ],
   "changes": [
-    "Clean finance drag ghosts across rerenders and lifecycle interruptions; display only the latest four Lulu walks."
+    "Revert finance coin gesture cleanup changes while retaining the four most recent Lulu walks."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
