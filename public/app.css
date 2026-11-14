@@ -18455,3 +18455,5 @@ html[data-theme="light"] #financeCategoryList .finance-add-category-coin{backgro
 .finance-debt-history-row .finance-debt-row-side>strong{font-size:10px}.finance-debt-history-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px}.finance-debt-history-delete{color:var(--red,#c54848);min-width:34px}
 
 #financeDebtPaymentAdd,#financeDebtPayFull{min-height:46px;padding:12px 16px;background:linear-gradient(135deg,#eea23c,#ce6d13);border:1px solid #ba6619;color:#fff;-webkit-text-fill-color:#fff;font-size:12px;font-weight:800;box-shadow:0 4px 12px #ba66192b;cursor:pointer}#financeDebtPayFull{width:100%;margin-top:4px}#financeDebtPaymentAdd:disabled,#financeDebtPayFull:disabled{opacity:.55;cursor:wait}#financeDebtPaymentBlock[hidden]{display:none!important}
+
+#financeDebtDetailDate{display:block;box-sizing:border-box;max-width:100%;width:100%;min-width:0;min-height:36px;border:0;background:transparent;color:var(--text);font:inherit;font-size:11px;font-weight:750;padding:4px 0;color-scheme:light}html[data-theme=dark] #financeDebtDetailDate{color-scheme:dark}

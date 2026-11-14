@@ -469,14 +469,16 @@ function normalizeState(value) {
             id: cleanText(payment?.id || '', 100) || randomUUID(),
             amount: paymentAmount,
             createdAt: Number.isNaN(paymentDate.getTime()) ? new Date().toISOString() : paymentDate.toISOString(),
+            ...(payment.cancelledAt?{cancelledAt:String(payment.cancelledAt)}:{}),
+            ...(payment.archived?{archived:true}:{}),...(payment.dateOnly?{dateOnly:true}:{}),
           });
         } catch (_) {}
       }
       const paidAmount = Math.min(
         amount,
         raw?.paidAmount === undefined
-          ? (Boolean(raw?.paid) ? amount : payments.reduce((sum, item) => sum + Number(item.amount || 0), 0))
-          : cleanMoney(raw.paidAmount || 0)
+          ? (Boolean(raw?.paid) ? amount : payments.filter(item=>!item.cancelledAt&&!item.archived).reduce((sum, item) => sum + Number(item.amount || 0), 0))
+          : Math.max(cleanMoney(raw.paidAmount || 0),payments.filter(item=>!item.cancelledAt&&!item.archived).reduce((sum,item)=>sum+item.amount,0))
       );
       debts.push({
         id, actor, direction, counterparty, amount,
@@ -1418,13 +1420,16 @@ async function saveDebt(actor, payload = {}, options = {}) {
     const id = cleanText(payload.id, 100) || (options.id || randomUUID());
     const existing = current.debts.find((row) => row.id === id);
     if (existing && existing.actor !== safeActor) throw new Error('finance-debt-owner-invalid');
-    const paidAmount = Math.min(amount, Number(existing?.paidAmount || 0));
+    const paidAmount = Math.max(Number(existing?.paidAmount||0),(existing?.payments||[]).filter(item=>!item.cancelledAt&&!item.archived).reduce((sum,item)=>sum+Number(item.amount||0),0));
+    if(amount+0.005<paidAmount)throw new Error('finance-amount-invalid');
+    const chosenDate=payload.createdDate===undefined?(existing?.createdAt||now):String(payload.createdDate);
+    if(payload.createdDate!==undefined&&(!/^\d{4}-\d{2}-\d{2}$/.test(chosenDate)||Number.isNaN(Date.parse(chosenDate+'T12:00:00+03:00'))||new Date(chosenDate+'T12:00:00Z').toISOString().slice(0,10)!==chosenDate))throw new Error('finance-date-invalid');
     const row = {
       id, actor: safeActor, direction, counterparty, amount, note,
       paidAmount,
       payments: Array.isArray(existing?.payments) ? existing.payments : [],
       paid: paidAmount >= amount - 0.005,
-      createdAt: existing ? existing.createdAt : now,
+      createdAt: payload.createdDate===undefined?chosenDate:new Date(chosenDate+'T12:00:00+03:00').toISOString(),
       updatedAt: now,
     };
     const debts = current.debts.filter((item) => item.id !== id).concat(row);
@@ -1481,13 +1486,11 @@ async function toggleDebt(actor, id, paid, options = {}) {
     if (!found || found.actor !== safeActor) throw new Error('finance-debt-not-found');
     const now = new Date(options.now || Date.now()).toISOString();
     const markPaid = Boolean(paid);
-    const debts = current.debts.map((row) => row.id === cleanId ? {
-      ...row,
-      paidAmount: markPaid ? Number(row.amount || 0) : 0,
-      payments: markPaid ? [{ id: randomUUID(), amount: Number(row.amount || 0), createdAt: now }] : [],
-      paid: markPaid,
-      updatedAt: now,
-    } : row);
+    if(found.paid===markPaid)return current;
+    const payments=[...(found.payments||[])];let paidAmount=Number(found.paidAmount||0);
+    if(markPaid){const remaining=Math.max(0,Number(found.amount)-paidAmount);if(remaining>0)payments.push({id:randomUUID(),amount:remaining,createdAt:now});paidAmount=Number(found.amount);}
+    else{const index=payments.findLastIndex(payment=>!payment.cancelledAt&&!payment.archived);if(index>=0){paidAmount=Math.max(0,paidAmount-Number(payments[index].amount));payments[index]={...payments[index],cancelledAt:now};}else paidAmount=0;}
+    const debts=current.debts.map(row=>row.id===cleanId?{...row,paidAmount,payments,paid:markPaid,updatedAt:now}:row);
     const next = normalizeState({ ...current, version: current.version + 1, debts });
     await writeState(next, options);
     return next;
@@ -1694,3 +1697,4 @@ module.exports = {
   saveFinancePlan, applyMonthlyFinancePlan, setFinanceObligationPaid, saveWallet, deleteWallet, reorderWallets, saveWalletIncome, deleteWalletIncome, saveWalletTransfer, deleteWalletTransfer, saveExpenseCategory, updateExpenseCategory, addExpenseCategoryLabel, archiveExpenseCategory, reorderExpenseCategories, deleteExpenseCategory, savePersonalExpense, importPersonalExpenses, deletePersonalExpense,
   saveDebt, payDebt, deleteDebt, toggleDebt, recordCapitalSnapshot, syncLinkedWalletBalance, cryptoOperationKey, classifyCryptoOperation, resetMutationQueueForTests,
 };
+
