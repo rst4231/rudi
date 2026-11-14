@@ -1,15 +1,15 @@
 {
-  "current": "v4.76",
+  "current": "v4.77",
   "versionBranch": "rudi-notes-ownership-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-14",
-  "basedOnProduction": "v4.75",
+  "basedOnProduction": "v4.76",
   "notes": [
-    "Возврат и удаление долгов из истории. Автосохранение деталей без отдельной кнопки. Контрастные кнопки внесения платежа и полного погашения."
+    "История платежей сохраняется при возврате долга, погашение защищено от промежуточного ввода суммы. Дата добавления долга выбирается и сохраняется автоматически."
   ],
   "changes": [
-    "Restore and delete archived debts; autosave debt details and emphasize payment actions."
+    "Protect debt paid totals and retain repayment history when reopening; support editable debt creation date."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
