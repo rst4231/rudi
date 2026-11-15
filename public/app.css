@@ -18457,3 +18457,15 @@ html[data-theme="light"] #financeCategoryList .finance-add-category-coin{backgro
 #financeDebtPaymentAdd,#financeDebtPayFull{min-height:46px;padding:12px 16px;background:linear-gradient(135deg,#eea23c,#ce6d13);border:1px solid #ba6619;color:#fff;-webkit-text-fill-color:#fff;font-size:12px;font-weight:800;box-shadow:0 4px 12px #ba66192b;cursor:pointer}#financeDebtPayFull{width:100%;margin-top:4px}#financeDebtPaymentAdd:disabled,#financeDebtPayFull:disabled{opacity:.55;cursor:wait}#financeDebtPaymentBlock[hidden]{display:none!important}
 
 #financeDebtDetailDate{display:block;box-sizing:border-box;max-width:100%;width:100%;min-width:0;min-height:36px;border:0;background:transparent;color:var(--text);font:inherit;font-size:11px;font-weight:750;padding:4px 0;color-scheme:light}html[data-theme=dark] #financeDebtDetailDate{color-scheme:dark}
+
+/* Walk entry date and time */
+.lulu-walk-modal-sheet{max-height:calc(100dvh - 12px);overflow-y:auto;overscroll-behavior:contain}
+.lulu-walk-datetime{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:10px;margin:0 0 6px}
+.lulu-walk-datetime label{display:grid;gap:6px;min-width:0}
+.lulu-walk-datetime label>span{font-size:12px;font-weight:700;color:var(--muted)}
+.lulu-walk-datetime input{display:block;box-sizing:border-box;min-width:0;width:100%;max-width:100%;min-height:46px;padding:10px 11px;border:1px solid var(--line);border-radius:13px;background:var(--soft);color:var(--text);font:inherit;font-size:16px;appearance:none;-webkit-appearance:none;color-scheme:inherit}
+.lulu-walk-datetime input::-webkit-date-and-time-value{text-align:left;min-height:1.3em}
+.lulu-walk-datetime input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lulu-walk-date-hint{display:block;margin:0 0 12px;color:var(--muted);font-size:11px;line-height:1.4}
+.lulu-walk-date-error{color:var(--danger,#d34c5c);font-size:12px;line-height:1.4;margin-bottom:10px}
+.lulu-walk-date-error:empty{display:none}

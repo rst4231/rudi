@@ -8634,6 +8634,22 @@
         status.replaceChildren(document.createTextNode('Гуляла в '),clock);syncLuluWalkTimeColor();
       }
 
+      function luluWalkDateTimeFields(value=Date.now()){
+        const parts=new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(value));
+        const p=Object.fromEntries(parts.map(item=>[item.type,item.value]));
+        return {date:p.year+'-'+p.month+'-'+p.day,time:p.hour+':'+p.minute};
+      }
+      function luluWalkDateTimeValue(date,time,now=Date.now()){
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!/^\d{2}:\d{2}$/.test(time))throw Error('lulu-walk-date-required');
+        const stamp=Date.parse(date+'T'+time+':00+03:00');
+        if(!Number.isFinite(stamp))throw Error('lulu-walk-invalid');
+        const actual=luluWalkDateTimeFields(stamp),today=luluWalkDateTimeFields(now);
+        if(actual.date!==date||actual.time!==time)throw Error('lulu-walk-invalid');
+        if(date.slice(0,7)!==today.date.slice(0,7))throw Error('lulu-walk-month-invalid');
+        if(stamp>Math.floor(now/60000)*60000)throw Error('lulu-walk-future');
+        // Keep subminute precision so two entries selected for the same minute remain distinct.
+        return new Date(stamp+now%60000).toISOString();
+      }
       function ensureLuluWalkModal(){
         let modal=document.getElementById('luluWalkModal');
         if(modal) return modal;
@@ -8645,6 +8661,9 @@
           '<button class="lulu-walk-modal-backdrop" type="button" aria-label="Закрыть"></button>'+
           '<section class="lulu-walk-modal-sheet" role="dialog" aria-modal="true" aria-labelledby="luluWalkModalTitle">'+
             '<div class="lulu-walk-modal-head"><div><small>Прогулка с Лулу</small><h3 id="luluWalkModalTitle">Что сделала Лулу?</h3></div><button class="lulu-walk-modal-close" type="button" aria-label="Закрыть">×</button></div>'+
+            '<div class="lulu-walk-datetime"><label><span>Дата прогулки</span><input id="luluWalkDate" type="date" required aria-describedby="luluWalkDateHint"></label><label><span>Время</span><input id="luluWalkTime" type="time" step="60" required aria-describedby="luluWalkDateHint"></label></div>'+
+            '<small id="luluWalkDateHint" class="lulu-walk-date-hint">Московское время · текущий месяц</small>'+
+            '<div id="luluWalkDateError" class="lulu-walk-date-error" role="status" aria-live="polite"></div>'+
             '<div class="lulu-walk-modal-options">'+
               '<button type="button" data-lulu-toilet="peed" aria-pressed="false"><span>💧</span><strong>Писала</strong></button>'+
               '<button type="button" data-lulu-toilet="pooped" aria-pressed="false"><span>💩</span><strong>Какала</strong></button>'+
@@ -8658,11 +8677,19 @@
         modal.querySelector('.lulu-walk-modal-close')?.addEventListener('click',close);
         const sync=()=>{
           const active=[...modal.querySelectorAll('[data-lulu-toilet][aria-pressed="true"]')];
-          modal.querySelector('.lulu-walk-modal-confirm').disabled=!active.length;
+          let dateError='';
+          try{luluWalkDateTimeValue(modal.querySelector('#luluWalkDate').value,modal.querySelector('#luluWalkTime').value)}
+          catch(error){dateError=({'lulu-walk-date-required':'Выбери дату и время.','lulu-walk-month-invalid':'Выбери дату в текущем месяце.','lulu-walk-future':'Время прогулки ещё не наступило.'})[error.message]||'Проверь дату и время.';}
+          modal.querySelector('#luluWalkDateError').textContent=dateError;
+          modal.querySelector('.lulu-walk-modal-confirm').disabled=!active.length||Boolean(dateError);
           const pooped=modal.querySelector('[data-lulu-toilet="pooped"]')?.getAttribute('aria-pressed')==='true';
           modal.querySelector('.lulu-stool-picker').hidden=!pooped;
           if(!pooped)modal.querySelectorAll('[data-lulu-stool]').forEach(button=>button.setAttribute('aria-pressed','false'));
         };
+        for(const id of ['#luluWalkDate','#luluWalkTime']){
+          modal.querySelector(id).addEventListener('input',sync);
+          modal.querySelector(id).addEventListener('change',sync);
+        }
         modal.querySelectorAll('[data-lulu-toilet]').forEach(button=>{
           button.addEventListener('click',()=>{
             const active=button.getAttribute('aria-pressed')==='true';
@@ -8684,7 +8711,8 @@
           const pooped=modal.querySelector('[data-lulu-toilet="pooped"]')?.getAttribute('aria-pressed')==='true';
           confirm.disabled=true;
           try{
-            await saveLuluWalk({peed,pooped,stool:pooped?modal.querySelector('[data-lulu-stool][aria-pressed="true"]')?.dataset.luluStool||'':''});
+            const walkedAt=luluWalkDateTimeValue(modal.querySelector('#luluWalkDate').value,modal.querySelector('#luluWalkTime').value);
+            await saveLuluWalk({peed,pooped,stool:pooped?modal.querySelector('[data-lulu-stool][aria-pressed="true"]')?.dataset.luluStool||'':'',walkedAt});
             close();
           }catch(error){
             console.warn('RUDI_LULU_SAVE_WARN',String(error?.message||error));
@@ -8696,6 +8724,11 @@
 
       function openLuluWalkModal(){
         const modal=ensureLuluWalkModal();
+        const fields=luluWalkDateTimeFields();
+        const date=modal.querySelector('#luluWalkDate');
+        date.min=fields.date.slice(0,7)+'-01';date.max=fields.date;date.value=fields.date;
+        modal.querySelector('#luluWalkTime').value=fields.time;
+        modal.querySelector('#luluWalkDateError').textContent='';
         modal.querySelectorAll('[data-lulu-toilet]').forEach(button=>button.setAttribute('aria-pressed','false'));
         modal.querySelectorAll('[data-lulu-stool]').forEach(button=>button.setAttribute('aria-pressed','false'));
         modal.querySelector('.lulu-stool-picker').hidden=true;
@@ -8704,6 +8737,7 @@
         modal.hidden=false;
         document.body.classList.add('lulu-walk-modal-open');
       }
+
 
       async function luluRequest(operation,payload={}){
         const backupContext=backupRequestContext();
@@ -8816,9 +8850,11 @@
       async function saveLuluWalk(toilet){
         const button=document.getElementById('luluWalkButton');
         if(!button||button.disabled) return;
+        const selected=toilet?.walkedAt?new Date(toilet.walkedAt):new Date();
+        if(Number.isNaN(selected.getTime()))throw Error('lulu-walk-invalid');
         button.disabled=true;
         button.classList.add('is-saving');
-        const walkedAt=new Date().toISOString();
+        const walkedAt=selected.toISOString();
         const offlineOperationId=window.crypto?.randomUUID?.()||('walk-'+Date.now()+'-'+Math.random().toString(36).slice(2));
         const detail={operation:'walk',peed:toilet?.peed===true,pooped:toilet?.pooped===true,
           stool:toilet?.pooped===true?String(toilet?.stool||''):'',walkedAt,offlineOperationId};
@@ -8858,6 +8894,7 @@
           button.classList.remove('is-saving');
         }
       }
+
 
       function markLuluWalk(){
         const button=document.getElementById('luluWalkButton');

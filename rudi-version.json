@@ -1,15 +1,15 @@
 {
-  "current": "v4.78",
-  "versionBranch": "rudi-notes-ownership-20261112",
+  "current": "v4.79",
+  "versionBranch": "rudi-lulu-walk-datetime-20261115",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-15",
-  "basedOnProduction": "v4.77",
+  "basedOnProduction": "v4.78",
   "notes": [
-    "Автосинхронизация криптобалансов по будням по Москве с тумблером; индекс страха и жадности; убран блок плана на месяц."
+    "В окне прогулки с Лулу можно выбрать дату и время по Москве за текущий месяц. Выбранное время сохраняется онлайн и офлайн."
   ],
   "changes": [
-    "Pause automatic crypto balance synchronization on Moscow weekends, persist owner toggle, retain manual refresh; show cached Alternative.me sentiment with date and source; remove monthly planning card."
+    "Add Moscow date and time selection to Lulu walk entry, preserve selected timestamp for online/offline saving. Crypto files are unchanged from production v4.78."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
