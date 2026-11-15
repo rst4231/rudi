@@ -1,15 +1,15 @@
 {
-  "current": "v4.78",
+  "current": "v4.79",
   "versionBranch": "rudi-notes-ownership-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-15",
-  "basedOnProduction": "v4.77",
+  "basedOnProduction": "v4.78",
   "notes": [
-    "Автосинхронизация криптобалансов по будням по Москве с тумблером; индекс страха и жадности; убран блок плана на месяц."
+    "Исправлена загрузка криптокошельков при пустых настройках автосинхронизации."
   ],
   "changes": [
-    "Pause automatic crypto balance synchronization on Moscow weekends, persist owner toggle, retain manual refresh; show cached Alternative.me sentiment with date and source; remove monthly planning card."
+    "Handle D1 null preference values without breaking connected crypto wallet loading."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
