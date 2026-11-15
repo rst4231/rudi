@@ -184,7 +184,15 @@ async function handler(req, res) {
         return res.status(200).json({ok:true});
       }
       if (operation === 'crypto-list') {
-        return res.status(200).json({ ok: true, actor, connections: await cryptoWallets.list(actor) });
+        const [connections,sync]=await Promise.all([cryptoWallets.list(actor),require('./crypto-preferences.cjs').read()]);
+        return res.status(200).json({ ok: true, actor, connections, sync });
+      }
+      if(operation==='crypto-sync-settings'){
+        const sync=await require('./crypto-preferences.cjs').update(actor,body);
+        return res.status(200).json({ok:true,actor,sync});
+      }
+      if(operation==='crypto-sentiment'){
+        return res.status(200).json({ok:true,actor,sentiment:await require('./crypto-sentiment.cjs').read()});
       }
       if (operation === 'crypto-connect') {
         const connection = await cryptoWallets.connect(actor, body);

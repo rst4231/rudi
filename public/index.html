@@ -114,8 +114,6 @@
   <script defer src="/finance-month-rollover.js?v=4.59"></script>
   <script defer src="/finance-category-limits.js?v=4.59"></script>
   <link rel="stylesheet" href="/planning-cards.css?v=4.59">
-  <script defer src="/finance-monthly-plan-core.js?v=4.59"></script>
-  <script defer src="/finance-monthly-plan.js?v=4.59"></script>
   <script defer src="/fasting-history.js?v=4.59"></script>
   <script defer src="/calendar-search.js?v=4.59"></script>
   <script defer src="/app.js?v=4.59"></script>
@@ -956,7 +954,6 @@
           <button id="financeObligationAddButton" class="finance-collapse-toggle finance-obligation-add-button" type="button" aria-label="Добавить ежемесячный расход" title="Добавить ежемесячный расход"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
         </section>
 
-        <section id="financeMonthlyPlan" class="rudi-planning-card" aria-labelledby="financeMonthlyPlanTitle" hidden></section>
 
         <section id="financeCapitalHistoryPage" class="finance-ledger-page finance-capital-history-page" hidden aria-hidden="true">
           <div class="finance-ledger-shell">
@@ -1185,6 +1182,16 @@
           <div><span class="finance-crypto-eyebrow">Портфель</span><h2>Криптовалюта</h2></div>
           <button id="financeCryptoRefresh" type="button" class="finance-crypto-refresh">Обновить</button>
         </div>
+        <label class="finance-crypto-sync-setting">
+          <span><strong>Автосинхронизация</strong><small id="financeCryptoSyncHint">ПН–ПТ · по Москве</small></span>
+          <input id="financeCryptoAutoSync" type="checkbox" role="switch" aria-label="Автосинхронизация крипты по будням" checked disabled>
+        </label>
+        <section id="financeCryptoSentiment" class="finance-crypto-sentiment" aria-label="Индекс страха и жадности">
+          <div><strong>Страх и жадность</strong><span id="financeCryptoSentimentValue">— / 100</span></div>
+          <meter id="financeCryptoSentimentMeter" min="0" max="100" value="50" hidden aria-label="Значение индекса страха и жадности"></meter>
+          <p id="financeCryptoSentimentLabel" role="status">Загружаю индекс…</p>
+          <small><a href="https://alternative.me/crypto/fear-and-greed-index/" target="_blank" rel="noopener noreferrer">Alternative.me · Bitcoin</a><span id="financeCryptoSentimentDate"></span></small>
+        </section>
         <div class="finance-crypto-overview">
           <span>Подключённые активы</span>
           <strong id="financeCryptoTotal" role="button" tabindex="0" aria-label="Открыть историю баланса">—</strong>

@@ -1,6 +1,7 @@
 (()=>{'use strict';
   let actor='',wallets=[],connections=[],editingWalletId='',pending=false,loaded=false,lastAttempt=0;
   let pnl24h=null,pnlFlight=null,sourceSyncId='';
+  let syncSettings=null,syncSaving=false,sentimentFlight=null,sentimentAt=0;
   const $=id=>document.getElementById(id);
   const request=async(operation,payload={})=>{
     try{await Promise.resolve(window.__rudiTelegramSdkReady)}catch(_){}
@@ -85,6 +86,32 @@
   const cash=n=>Number(n||0).toLocaleString('ru-RU',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';
   const dateLabel=iso=>iso?new Date(iso).toLocaleString('ru-RU',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Пока не обновлялся';
   const setStatus=(id,message)=>{const e=$(id);if(e)e.textContent=message||'';};
+  function automaticSyncAllowed(){
+    const day=new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Moscow',weekday:'short'}).format(new Date());
+    return Boolean(syncSettings?.enabled)&&day!=='Sat'&&day!=='Sun';
+  }
+  function renderSyncSetting(){
+    const toggle=$('financeCryptoAutoSync');
+    if(toggle){toggle.checked=syncSettings?.enabled!==false;toggle.disabled=actor!=='Рустам'||!syncSettings||syncSaving;}
+    setStatus('financeCryptoSyncHint',!syncSettings?'Проверяю настройки…':!syncSettings.enabled?'Выключена':automaticSyncAllowed()?'ПН–ПТ · по Москве':'Пауза на выходные · включится в ПН');
+  }
+  async function loadSentiment(){
+    if(actor!=='Рустам'||sentimentFlight||Date.now()-sentimentAt<3600000)return;
+    const requestedActor=actor;
+    sentimentFlight=request('crypto-sentiment').then(data=>{
+      if(actor!==requestedActor)return;
+      const s=data.sentiment;
+      if(!s?.available){setStatus('financeCryptoSentimentLabel','Индекс временно недоступен');return;}
+      sentimentAt=Date.now();
+      setStatus('financeCryptoSentimentValue',s.value+' / 100');
+      setStatus('financeCryptoSentimentLabel',s.label+(s.stale?' · сохранённые данные':''));
+      const meter=$('financeCryptoSentimentMeter');if(meter){meter.hidden=false;meter.value=s.value;}
+      const card=$('financeCryptoSentiment');if(card)card.dataset.tone=s.value<45?'fear':s.value>55?'greed':'neutral';
+      setStatus('financeCryptoSentimentDate',' · '+new Date(s.at).toLocaleDateString('ru-RU',{timeZone:'Europe/Moscow',day:'numeric',month:'short'}));
+    }).catch(()=>{if(actor===requestedActor)setStatus('financeCryptoSentimentLabel','Индекс временно недоступен');})
+      .finally(()=>{sentimentFlight=null;});
+    return sentimentFlight;
+  }
   function clearKeys(){for(const id of ['financeCryptoApiKey','financeCryptoApiSecret'])if($(id))$(id).value='';}
   const pnlUnavailable=(p,period)=>{
     if(!p)return 'проверяю историю';
@@ -348,7 +375,10 @@
   }
   async function load(){
     if(actor!=='Рустам'||pending)return;
+    const requestedActor=actor;
     const data=await request('crypto-list');
+    if(actor!==requestedActor)return;
+    syncSettings=data.sync||null;renderSyncSetting();
     connections=Array.isArray(data.connections)?data.connections:[];loaded=true;render();void loadPnl24h();
     if(connections.some(c=>c.walletId===editingWalletId)&&$('financeWalletComposer')&&!$('financeWalletComposer').hidden)
       void loadApiWalletHistory(editingWalletId);
@@ -374,6 +404,8 @@
   }
   async function refresh(force=false){
     if(actor!=='Рустам'||pending||!connections.length)return;
+    renderSyncSetting();
+    if(!force&&!automaticSyncAllowed())return;
     const now=Date.now();
     if(!force&&now-lastAttempt<3*60*1000)return;
     pending=true;lastAttempt=now;const button=$('financeCryptoRefresh');
@@ -680,6 +712,17 @@
   }
   function boot(){
     if(!$('financeCryptoPanel'))return;
+    $('financeCryptoAutoSync')?.addEventListener('change',async()=>{
+      if(actor!=='Рустам'||syncSaving||!syncSettings)return;
+      const enabled=$('financeCryptoAutoSync').checked;
+      syncSaving=true;renderSyncSetting();
+      try{
+        const data=await request('crypto-sync-settings',{enabled});
+        if(actor==='Рустам')syncSettings=data.sync;
+      }catch(_){if(actor==='Рустам')setStatus('financeCryptoStatus','Не удалось сохранить настройку. Попробуй ещё раз.');}
+      finally{syncSaving=false;renderSyncSetting();}
+      if(actor==='Рустам'&&automaticSyncAllowed())void refresh(false);
+    });
     $('financeCryptoProvider')?.addEventListener('change',switchProvider);
     $('financeCryptoChain')?.addEventListener('change',switchChain);
     $('financeCryptoToggleConnect')?.addEventListener('click',()=>{
@@ -747,6 +790,7 @@
       const page=$('financePage');if(page)page.dataset.financeTone='crypto';
       document.body.dataset.financeTone='crypto';
       document.dispatchEvent(new CustomEvent('rudi-finance-tab-changed'));
+      void loadSentiment();
       void load().then(()=>refresh(false)).catch(err=>setStatus('financeCryptoStatus',errorLabel(err)));
       try{window.Telegram?.WebApp?.HapticFeedback?.selectionChanged?.()}catch(_){}
     },true);
@@ -775,11 +819,11 @@
       if(tab)tab.hidden=actor!=='Рустам';
       const quick=$('financeApiBalancesRefresh');
       if(quick)quick.hidden=actor!=='Рустам';
-      if(actor!=='Рустам'){connections=[];loaded=false;render();return;}
+      if(actor!=='Рустам'){connections=[];loaded=false;syncSettings=null;renderSyncSetting();render();return;}
       try{if(!loaded)await load();render();if(connections.length&&document.visibilityState==='visible'&&!$('financePage')?.hidden)await refresh(false);}
       catch(err){setStatus('financeCryptoStatus',errorLabel(err));}
     });
-    const auto=()=>{if(actor==='Рустам'&&connections.length&&!$('financePage')?.hidden&&document.visibilityState==='visible')void refresh(false);};
+    const auto=()=>{if(actor==='Рустам'&&!$('financePage')?.hidden&&document.visibilityState==='visible'){renderSyncSetting();if(!$('financeCryptoPanel')?.hidden)void loadSentiment();if(connections.length)void refresh(false);}};
     document.addEventListener('visibilitychange',auto);
     window.addEventListener('online',auto);
     setInterval(auto,60*1000);

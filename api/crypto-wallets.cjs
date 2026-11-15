@@ -377,6 +377,9 @@ async function usdToWalletCurrency(balanceUsd, currency, options = {}) {
 let refreshFlight=null;
 async function refresh(actor, options = {}) {
   owner(actor);
+  // Scheduled/UI automatic reads obey Moscow weekdays; explicit refresh stays available.
+  if(!options.force&&!(await require('./crypto-preferences.cjs').read(options)).automaticAllowed)
+    return list(actor,options);
   // Do not queue a second expensive provider sync within the same runtime.
   if(refreshFlight)return refreshFlight;
   const run=lock(async () => {
@@ -510,3 +513,4 @@ async function checkBybitTradeHistory(actor,walletId,options={}){
 }
 module.exports = { NS, KEY, REFRESH_MS, list, connect, disconnect, setChain, refresh, history, operations, checkBybitTradeHistory,
   encryptSecret, decryptSecret, bybitGet, bybitSnapshot, uniswapSnapshot, marketRates, usdToWalletCurrency };
+

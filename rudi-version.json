@@ -1,15 +1,15 @@
 {
-  "current": "v4.77",
+  "current": "v4.78",
   "versionBranch": "rudi-notes-ownership-20261112",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
-  "createdAt": "2026-11-14",
-  "basedOnProduction": "v4.76",
+  "createdAt": "2026-11-15",
+  "basedOnProduction": "v4.77",
   "notes": [
-    "История платежей сохраняется при возврате долга, погашение защищено от промежуточного ввода суммы. Дата добавления долга выбирается и сохраняется автоматически."
+    "Автосинхронизация криптобалансов по будням по Москве с тумблером; индекс страха и жадности; убран блок плана на месяц."
   ],
   "changes": [
-    "Protect debt paid totals and retain repayment history when reopening; support editable debt creation date."
+    "Pause automatic crypto balance synchronization on Moscow weekends, persist owner toggle, retain manual refresh; show cached Alternative.me sentiment with date and source; remove monthly planning card."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
