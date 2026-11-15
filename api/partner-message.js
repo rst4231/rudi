@@ -3245,7 +3245,7 @@ async function handleRudiAction(req, res, action, options = {}) {
           dedupeKey:'lulu-walk:'+walkedAt,createdAt:walkedAt,
         }, options);
         const walkRewardUnits=actor==='Рустам'?20:10;
-        await awardScoreSafe(actor,walkRewardUnits,{label:'Прогулка с Лулу',detail:activityVerb(actor,'Погулял с Лулу','Погуляла с Лулу'),icon:'🐾',dedupeKey:'score:lulu:'+walkedAt},options);
+        await awardScoreSafe(actor,walkRewardUnits,{label:'Прогулка с Лулу',detail:activityVerb(actor,'Погулял с Лулу','Погуляла с Лулу'),icon:'🐾',dedupeKey:'score:lulu:'+walkedAt,occurredAt:walkedAt},options);
 
         const notificationTask = sendLuluWalkNotificationToPartner(
           actor,
@@ -3351,7 +3351,7 @@ async function handleRudiAction(req, res, action, options = {}) {
         },options);
         const walkRewardUnits=restoredActor==='Рустам'?20:10;
         await awardScoreSafe(restoredActor,walkRewardUnits,{
-          label:'Прогулка с Лулу',detail:activityVerb(restoredActor,'Погулял с Лулу','Погуляла с Лулу'),icon:'🐾',dedupeKey:'score:lulu:'+walkedAt
+          label:'Прогулка с Лулу',detail:activityVerb(restoredActor,'Погулял с Лулу','Погуляла с Лулу'),icon:'🐾',dedupeKey:'score:lulu:'+walkedAt,occurredAt:walkedAt
         },options);
 
         const notificationTask=sendLuluWalkNotificationToPartner(restoredActor,walkedAt,options);

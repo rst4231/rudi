@@ -263,8 +263,10 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
     const state=await readScoreState(options);
     if(dedupeKey&&state.dedupe[dedupeKey]) return {state,awardedUnits:0,duplicate:true,capped:false,unlockedRewards:[]};
     const now=new Date(options.now||Date.now());
+    const occurred=new Date(meta.occurredAt||now);
+    if(Number.isNaN(occurred.getTime()))throw new Error('score-award-date-invalid');
     const beforeBalance=state.balances[who];
-    const dateKey=scoreDateKey(now);
+    const dateKey=scoreDateKey(occurred);
     const day=normalizeActorUnits(state.dailyEarned[dateKey]);
     const ignoreDailyLimit=meta.ignoreDailyLimit===true;
     const remaining=ignoreDailyLimit?request:Math.max(0,DAILY_LIMIT_UNITS-day[who]);
@@ -288,7 +290,7 @@ async function awardScore(actor,requestedUnits,meta={},options={}) {
       if(!ignoreDailyLimit) next.dailyEarned[dateKey][who]+=awardedUnits;
       next.history.unshift(normalizeHistoryItem({
         id:crypto.randomUUID(),actor:who,kind:'earn',units:awardedUnits,requestedUnits:request,
-        label:meta.label,detail:meta.detail,icon:meta.icon||'⭐',dedupeKey,dateKey,createdAt:now.toISOString(),
+        label:meta.label,detail:meta.detail,icon:meta.icon||'⭐',dedupeKey,dateKey,createdAt:occurred.toISOString(),
       }));
     }
     const unlockedRewards=claimUnlockedRewards(next,who,beforeBalance,next.balances[who],now);

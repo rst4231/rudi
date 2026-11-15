@@ -1,15 +1,15 @@
 {
-  "current": "v4.79",
+  "current": "v4.80",
   "versionBranch": "rudi-lulu-walk-datetime-20261115",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
   "createdAt": "2026-11-15",
-  "basedOnProduction": "v4.78",
+  "basedOnProduction": "v4.79",
   "notes": [
-    "В окне прогулки с Лулу можно выбрать дату и время по Москве за текущий месяц. Выбранное время сохраняется онлайн и офлайн."
+    "Звёзды за прогулку учитываются по выбранным дате и времени прогулки, включая дневной лимит."
   ],
   "changes": [
-    "Add Moscow date and time selection to Lulu walk entry, preserve selected timestamp for online/offline saving. Crypto files are unchanged from production v4.78."
+    "Record Lulu walk score awards at the walk occurrence time, preserving processing-time dedupe, reward unlocks and other score behavior."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }
