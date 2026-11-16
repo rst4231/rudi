@@ -20,6 +20,8 @@ WEB_ASSETS.push('calendar-search.js');
 
 WEB_ASSETS.push('notes-center.js','notes-center.css');
 
+WEB_ASSETS.push('settings-ios.css');
+
 const CHUNK_COUNT = 7;
 const EXPECTED_SIZES = [9000, 9000, 9000, 9000, 9000, 9000, 1772];
 const runtimeDir = path.join(__dirname, 'runtime');

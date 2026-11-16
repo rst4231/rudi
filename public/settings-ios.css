@@ -1,0 +1,77 @@
+/* Settings only: iPhone grouped lists, with explicit light/dark surfaces. */
+#homeSettingsPanel.settings-page{
+  --ios-settings-bg:#f2f2f7;--ios-settings-cell:#fff;--ios-settings-text:#1c1c1e;
+  --ios-settings-secondary:#636366;--ios-settings-line:#d1d1d6;
+  --ios-settings-blue:#007aff;--ios-settings-green:#34c759;--ios-settings-segment:#e9e9ee;
+  --ios-settings-selected:#fff;
+  box-sizing:border-box;width:min(100%,720px);max-width:100%;margin:0 auto;
+  padding:12px 16px 30px;gap:26px;background:var(--ios-settings-bg);color:var(--ios-settings-text);
+  border:0;border-radius:0;box-shadow:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+html[data-theme="dark"] #homeSettingsPanel.settings-page{
+  --ios-settings-bg:#000;--ios-settings-cell:#1c1c1e;--ios-settings-text:#f2f2f7;
+  --ios-settings-secondary:#aeaeb2;--ios-settings-line:#38383a;
+  --ios-settings-blue:#0a84ff;--ios-settings-green:#30d158;--ios-settings-segment:#2c2c2e;
+  --ios-settings-selected:#636366;color-scheme:dark;
+}
+html[data-theme="light"] #homeSettingsPanel.settings-page{color-scheme:light}
+#homeSettingsPanel.settings-page [hidden]{display:none!important}
+body[data-app-tab="settings"]{background:var(--ios-settings-bg,#f2f2f7)}
+html[data-theme="dark"] body[data-app-tab="settings"]{background:#000}
+body[data-app-tab="settings"]::before,body[data-app-tab="settings"]::after{display:none}
+#homeSettingsPanel.settings-page .settings-page-head{
+  display:grid;grid-template-columns:32px minmax(0,1fr) 32px;gap:8px;
+  min-height:56px;margin:0 0 0;padding:0;background:none;border:0;box-shadow:none;
+}
+#homeSettingsPanel.settings-page .settings-page-head h1{font-size:32px;line-height:1.15;font-weight:700;text-align:left;letter-spacing:-.7px;color:var(--ios-settings-text)}
+#homeSettingsPanel.settings-page .settings-page-back{width:32px;height:44px;background:none;border:0;border-radius:9px;box-shadow:none;color:var(--ios-settings-blue)}
+#homeSettingsPanel.settings-page .settings-page-head-spacer{width:32px}
+#homeSettingsPanel.settings-page .settings-group{display:block;box-sizing:border-box;min-width:0;width:100%;padding:0;margin:0;background:none;border:0;border-radius:0;box-shadow:none}
+#homeSettingsPanel.settings-page .settings-group-title{padding:0 16px;margin:0 0 8px;font-size:12px;line-height:1.4;font-weight:500;letter-spacing:.4px;text-transform:uppercase;color:var(--ios-settings-secondary)}
+#homeSettingsPanel.settings-page .settings-group>:not(.settings-group-title){box-sizing:border-box;background:var(--ios-settings-cell);color:var(--ios-settings-text);margin:0;padding:13px 16px;border:0;border-bottom:1px solid var(--ios-settings-line);border-radius:0;box-shadow:none}
+#homeSettingsPanel.settings-page .settings-group>:nth-child(2){border-radius:12px 12px 0 0}
+#homeSettingsPanel.settings-page .settings-group>:last-child{border-bottom:0;border-radius:0 0 12px 12px}
+#homeSettingsPanel.settings-page .settings-group>:nth-child(2):last-child{border-radius:12px}
+#homeSettingsPanel.settings-page .home-settings-row{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:57px;flex-wrap:nowrap}
+#homeSettingsPanel.settings-page .home-settings-copy{flex:1 1 auto;min-width:0;gap:4px}
+#homeSettingsPanel.settings-page .home-settings-copy strong{font-size:16px;font-weight:400;line-height:1.35;letter-spacing:0;color:var(--ios-settings-text)}
+#homeSettingsPanel.settings-page .home-settings-copy small{font-size:12px;line-height:1.45;font-weight:400;letter-spacing:0;color:var(--ios-settings-secondary)}
+#homeSettingsPanel.settings-page [role="switch"]{
+  position:relative;display:block;flex:0 0 51px;width:51px;min-width:51px;height:31px;min-height:31px;margin:0;padding:0;
+  border:1px solid #c7c7cc;border-radius:20px;background:#fff;box-shadow:none;cursor:pointer;
+  appearance:none;-webkit-appearance:none;transition:background-color .2s,border-color .2s;touch-action:manipulation;
+}
+#homeSettingsPanel.settings-page [role="switch"]::after{content:"";position:absolute;inset:-7px -1px;border-radius:20px}
+#homeSettingsPanel.settings-page [role="switch"] .market-ticker-toggle-thumb{
+  position:absolute;display:block;left:2px;top:2px;box-sizing:border-box;width:25px;height:25px;
+  border:1px solid #e5e5ea;border-radius:50%;background:#fff;box-shadow:0 2px 4px #0003;transform:translateX(0);transition:transform .2s;
+}
+#homeSettingsPanel.settings-page [role="switch"][aria-checked="true"]{background:var(--ios-settings-green);border-color:var(--ios-settings-green)}
+#homeSettingsPanel.settings-page [role="switch"][aria-checked="true"] .market-ticker-toggle-thumb{transform:translateX(20px);background:#fff;border-color:#fff}
+#homeSettingsPanel.settings-page [role="switch"]:disabled{opacity:.45;cursor:default}
+#homeSettingsPanel.settings-page :is(button,input,select):focus-visible{outline:2px solid var(--ios-settings-blue);outline-offset:3px}
+#homeSettingsPanel.settings-page :is(.settings-theme-options,.settings-segmented){display:flex;gap:2px;padding:3px;border:0;border-radius:9px;background:var(--ios-settings-segment);box-shadow:none;flex-shrink:0}
+#homeSettingsPanel.settings-page :is(.settings-theme-options,.settings-segmented) button{min-height:30px;margin:0;padding:6px 10px;border:0;border-radius:7px;background:none;color:var(--ios-settings-text);font-size:12px;font-weight:500;box-shadow:none}
+#homeSettingsPanel.settings-page :is(.settings-theme-options,.settings-segmented) button[aria-pressed="true"]{background:var(--ios-settings-selected);color:var(--ios-settings-text);box-shadow:0 1px 4px #0002}
+#homeSettingsPanel.settings-page .settings-startup-select{max-width:48%;min-width:0;min-height:38px;padding:7px 20px 7px 4px;border:0;border-radius:6px;background-color:transparent;color:var(--ios-settings-secondary);font-size:14px;text-align:right;box-shadow:none}
+#homeSettingsPanel.settings-page :is(.settings-backup-button,.settings-pwa-install,.settings-faceid-action,.settings-contact-save){min-height:36px;padding:7px 10px;border:0;border-radius:8px;background:none;color:var(--ios-settings-blue);font-size:14px;font-weight:500;box-shadow:none}
+#homeSettingsPanel.settings-page .settings-backup-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px}
+#homeSettingsPanel.settings-page :is(.home-settings-version,.settings-status-pill){color:var(--ios-settings-secondary);background:none;border:0;font-size:13px;font-weight:400;overflow-wrap:anywhere}
+#homeSettingsPanel.settings-page .settings-contact-field{display:flex;align-items:center;justify-content:space-between;gap:16px}
+#homeSettingsPanel.settings-page .settings-contact-field>span{font-size:15px;color:var(--ios-settings-text)}
+#homeSettingsPanel.settings-page .settings-contact-input{flex:0 1 52%;min-width:0;padding:0;border:0;background:none;box-shadow:none}
+#homeSettingsPanel.settings-page .settings-contact-input input{box-sizing:border-box;max-width:100%;min-width:0;min-height:36px;padding:6px 0;border:0;border-radius:0;background:none;color:var(--ios-settings-text);font-size:16px;text-align:right;box-shadow:none}
+#homeSettingsPanel.settings-page .settings-contact-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px}
+#homeSettingsPanel.settings-page .settings-contact-footer small{color:var(--ios-settings-secondary);font-size:12px;line-height:1.4}
+#homeSettingsPanel.settings-page .settings-auth-sessions-head strong{font-size:15px;font-weight:500;color:var(--ios-settings-text)}
+#homeSettingsPanel.settings-page .settings-auth-sessions-head small{color:var(--ios-settings-secondary);font-size:11px}
+#homeSettingsPanel.settings-page .settings-auth-session{border-color:var(--ios-settings-line);background:none;box-shadow:none;color:var(--ios-settings-text)}
+#homeSettingsPanel.settings-page :is(.settings-auth-session-browser,.settings-auth-session-meta){color:var(--ios-settings-secondary)}
+@media(max-width:380px){
+  #homeSettingsPanel.settings-page{padding-right:10px;padding-left:10px}
+  #homeSettingsPanel.settings-page .home-settings-theme-row{align-items:flex-start;flex-direction:column;gap:10px}
+  #homeSettingsPanel.settings-page .settings-theme-options{width:100%;box-sizing:border-box}
+  #homeSettingsPanel.settings-page .settings-theme-options button{flex:1}
+  #homeSettingsPanel.settings-page .home-settings-backup-row{align-items:flex-start;flex-direction:column;gap:6px}
+}
+@media(prefers-reduced-motion:reduce){#homeSettingsPanel.settings-page [role="switch"],#homeSettingsPanel.settings-page [role="switch"] .market-ticker-toggle-thumb{transition:none}}

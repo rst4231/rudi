@@ -1,15 +1,15 @@
 {
-  "current": "v4.80",
-  "versionBranch": "rudi-lulu-walk-datetime-20261115",
+  "current": "v4.81",
+  "versionBranch": "rudi-settings-ios-20261116",
   "releaseCommit": "",
   "deploymentSourceCommit": "",
-  "createdAt": "2026-11-15",
-  "basedOnProduction": "v4.79",
+  "createdAt": "2026-11-16",
+  "basedOnProduction": "v4.80",
   "notes": [
-    "Звёзды за прогулку учитываются по выбранным дате и времени прогулки, включая дневной лимит."
+    "Настройки в стиле iPhone для светлой и тёмной тем. Переключатели зелёные при включении и белые при выключении. Новые личные задачи по умолчанию в списке Дела."
   ],
   "changes": [
-    "Record Lulu walk score awards at the walk occurrence time, preserving processing-time dedupe, reward unlocks and other score behavior."
+    "Add scoped iPhone-style grouped settings and accessible green/white switches for both themes; default newly created personal TickTick tasks to Дела while retaining existing task lists."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }

@@ -239,7 +239,9 @@ async function projects(){
     select.replaceChildren();
     for(const row of data.lists||[])select.add(new Option(row.name,row.id));
     if(!active.creating&&!([...select.options].some(o=>o.value===task.projectId)))select.add(new Option(task.projectName||'Текущий список',task.projectId));
-    if(task.projectId&&[...select.options].some(o=>o.value===task.projectId))select.value=task.projectId;
+    const defaultList=active.creating?(data.lists||[]).find(row=>String(row.name||'').trim().toLocaleLowerCase('ru-RU')==='дела'):null;
+    if(defaultList&&[...select.options].some(o=>o.value===defaultList.id))select.value=defaultList.id;
+    else if(task.projectId&&[...select.options].some(o=>o.value===task.projectId))select.value=task.projectId;
     else select.selectedIndex=select.options.length?0:-1;
     select.disabled=!data.writable||select.options.length===0;
     listed=true;if(!data.writable)message('Для редактирования подключите TickTick с правом записи');
