@@ -6,10 +6,12 @@
   "createdAt": "2026-11-16",
   "basedOnProduction": "v4.80",
   "notes": [
-    "Настройки в стиле iPhone для светлой и тёмной тем. Переключатели зелёные при включении и белые при выключении. Новые личные задачи по умолчанию в списке Дела."
+    "Настройки в стиле iPhone для светлой и тёмной тем. Переключатели зелёные при включении и белые при выключении. Новые личные задачи по умолчанию в списке Дела.",
+    "Портретный режим на телефонах: native/Telegram-блокировка при поддержке, экран поворота в Safari, без реакции на открытие клавиатуры."
   ],
   "changes": [
-    "Add scoped iPhone-style grouped settings and accessible green/white switches for both themes; default newly created personal TickTick tasks to Дела while retaining existing task lists."
+    "Add scoped iPhone-style grouped settings and accessible green/white switches for both themes; default newly created personal TickTick tasks to Дела while retaining existing task lists.",
+    "Request mobile portrait orientation via manifest, ScreenOrientation and supported Telegram clients; provide an actual-device-orientation fallback for Safari. Desktop unaffected."
   ],
   "versionPolicy": "Один пакет изменений = один production deploy."
 }

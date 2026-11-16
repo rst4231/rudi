@@ -90,5 +90,6 @@
       "form_factor": "wide",
       "label": "РуДи на большом экране"
     }
-  ]
+  ],
+  "orientation": "portrait"
 }

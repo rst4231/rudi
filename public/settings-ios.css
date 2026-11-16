@@ -75,3 +75,16 @@ body[data-app-tab="settings"]::before,body[data-app-tab="settings"]::after{displ
   #homeSettingsPanel.settings-page .home-settings-backup-row{align-items:flex-start;flex-direction:column;gap:6px}
 }
 @media(prefers-reduced-motion:reduce){#homeSettingsPanel.settings-page [role="switch"],#homeSettingsPanel.settings-page [role="switch"] .market-ticker-toggle-thumb{transition:none}}
+
+/* Visible only on a phone whose browser cannot enforce portrait orientation. */
+#rudiPortraitGuard{display:none!important}
+body[data-rudi-portrait-blocked="1"] #rudiPortraitGuard{
+ display:flex!important;position:fixed;inset:0;z-index:2147483647;box-sizing:border-box;
+ align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:24px;
+ background:#f2f2f7;color:#1c1c1e;text-align:center;font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+}
+#rudiPortraitGuard>span{font-size:44px;line-height:1;color:#007aff}
+#rudiPortraitGuard>strong{font-size:20px;line-height:1.3;font-weight:600}
+#rudiPortraitGuard>small{font-size:14px;line-height:1.4;color:#636366}
+html[data-theme="dark"] #rudiPortraitGuard{background:#000;color:#f2f2f7}
+html[data-theme="dark"] #rudiPortraitGuard>small{color:#aeaeb2}
